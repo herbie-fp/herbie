@@ -15,11 +15,12 @@
       (reduce (replace-expression expr var ((car tform) var)))))
 
   ; maybe we want to remove zombie nodes after (not a big problem currently)
-  (define batch (expand-taylor (progs->batch exprs*)))
+  (define-values (batch brfs) (progs->batch exprs*))
+  (define-values (batch* brfs*) (expand-taylor batch brfs))
 
-  (define taylor-approxs (taylor var batch))
-  (for/list ([root (in-vector (batch-roots batch))])
-    (match-define (cons offset coeffs) (vector-ref taylor-approxs root))
+  (define taylor-approxs (taylor var batch*))
+  (for/list ([brf brfs*])
+    (match-define (cons offset coeffs) (vector-ref taylor-approxs (batchref-idx brf)))
     (define i 0)
     (define terms '())
 
@@ -37,9 +38,10 @@
     next))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
-(define (expand-taylor input-batch)
+(define (expand-taylor input-batch brfs)
   (batch-replace
    input-batch
+   brfs
    (lambda (node)
      (match node
        [(list '- ref1 ref2) `(+ ,ref1 (neg ,ref2))]
@@ -64,9 +66,9 @@
   (require rackunit)
 
   (define (test-expand-taylor expr)
-    (define batch (progs->batch (list expr)))
-    (define batch* (expand-taylor batch))
-    (car (batch->progs batch*)))
+    (define-values (batch brfs) (progs->batch (list expr)))
+    (define-values (batch* brfs*) (expand-taylor batch brfs))
+    (car (batch->progs batch* brfs*)))
 
   (check-equal? '(* 1/2 (log (/ (+ 1 x) (+ 1 (neg x))))) (test-expand-taylor '(atanh x)))
   (check-equal? '(log (+ x (sqrt (+ (* x x) -1)))) (test-expand-taylor '(acosh x)))
@@ -506,17 +508,17 @@
 
 (module+ test
   (require rackunit)
-  (define batch (progs->batch (list '(pow x 1.0))))
-  (set! batch (expand-taylor batch))
-  (define root (vector-ref (batch-roots batch) 0))
-  (check-pred exact-integer? (car (vector-ref (taylor 'x batch) root))))
+  (define-values (batch brfs) (progs->batch (list '(pow x 1.0))))
+  (define-values (batch* brfs*) (expand-taylor batch brfs))
+  (define root (batchref-idx (car brfs*)))
+  (check-pred exact-integer? (car (vector-ref (taylor 'x batch*) root))))
 
 (module+ test
   (define (coeffs expr #:n [n 7])
-    (define batch (progs->batch (list expr)))
-    (set! batch (expand-taylor batch))
-    (define root (vector-ref (batch-roots batch) 0))
-    (match-define fn (zero-series (vector-ref (taylor 'x batch) root)))
+    (define-values (batch brfs) (progs->batch (list expr)))
+    (define-values (batch* brfs*) (expand-taylor batch brfs))
+    (define root (batchref-idx (car brfs*)))
+    (match-define fn (zero-series (vector-ref (taylor 'x batch*) root)))
     (build-list n fn))
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))

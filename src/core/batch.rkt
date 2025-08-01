@@ -128,7 +128,7 @@
     (vector-set! out i fv))
   out)
 
-(define (batch-replace b f brfs)
+(define (batch-replace b brfs f)
   (define out (make-batch))
   (define mapping (make-vector (batch-length b) -1))
   (for ([node (in-batch b)]
@@ -143,7 +143,7 @@
            (when (= -1 (vector-ref mapping idx))
              (error 'batch-replace "Replacement ~a references unknown index ~a" replacement idx))
            (vector-ref mapping idx)]
-          [_ (batch-push! out (expr-recurse expr loop))])))
+          [_ (batchref-idx (batch-push! out (expr-recurse expr loop)))])))
     (vector-set! mapping idx final-idx))
   (define brfs* (map (compose (curry batchref out) (curry vector-ref mapping) batchref-idx) brfs))
   (values out brfs*))
@@ -199,7 +199,7 @@
      (define out (make-batch))
      (for ([alv (in-vector alive-nodes)])
        (define node (batch-ref batch alv))
-       (vector-set! mappings alv (batch-push! out (expr-recurse node remap))))
+       (vector-set! mappings alv (batchref-idx (batch-push! out (expr-recurse node remap)))))
 
      (define brfs* (map (compose (curry batchref out) (curry vector-ref mappings) batchref-idx) brfs))
      (values out brfs*)]
@@ -233,37 +233,37 @@
   (test-munge-unmunge
    '(+ 1 (neg (* 1/2 (+ (exp (/ (sin 3) (cos 3))) (/ 1 (exp (/ (sin 3) (cos 3)))))))))
   (test-munge-unmunge '(cbrt x))
-  (test-munge-unmunge '(x))
+  (test-munge-unmunge (list 'x))
   (test-munge-unmunge `(+.f64 (sin.f64 ,(approx '(* 1/2 (+ (exp x) (neg (/ 1 (exp x)))))
                                                 '(+.f64 ,(f64 3)
                                                         (*.f64 ,(f64 25) (sin.f64 ,(f64 6))))))
                               ,(f64 4))))
 
 ; Tests for remove-zombie-nodes
-#;
 (module+ test
   (require rackunit)
   (define (zombie-test #:nodes nodes #:roots roots)
-    (define in-batch (batch nodes (make-hash) (make-hasheq) roots))
-    (define out-batch (batch-remove-zombie in-batch))
-    (check-equal? (batch->progs out-batch) (batch->progs in-batch))
+    (define in-batch (batch nodes (make-hash) (make-hasheq)))
+    (define brfs (map (curry batchref in-batch) roots))
+    (define-values (out-batch brfs*) (batch-remove-zombie in-batch brfs))
+    (check-equal? (batch->progs out-batch brfs*) (batch->progs in-batch brfs))
     (batch-nodes out-batch))
 
   (check-equal? (create-dvector 0 '(sqrt 0) 2 '(pow 2 1))
-                (zombie-test #:nodes (create-dvector 0 1 '(sqrt 0) 2 '(pow 3 2)) #:roots (vector 4)))
+                (zombie-test #:nodes (create-dvector 0 1 '(sqrt 0) 2 '(pow 3 2)) #:roots (list 4)))
   (check-equal? (create-dvector 0 '(sqrt 0) '(exp 1))
                 (zombie-test #:nodes (create-dvector 0 6 '(pow 0 1) '(* 2 0) '(sqrt 0) '(exp 4))
-                             #:roots (vector 5)))
+                             #:roots (list 5)))
   (check-equal? (create-dvector 0 1/2 '(+ 0 1))
-                (zombie-test #:nodes (create-dvector 0 1/2 '(+ 0 1) '(* 2 0)) #:roots (vector 2)))
+                (zombie-test #:nodes (create-dvector 0 1/2 '(+ 0 1) '(* 2 0)) #:roots (list 2)))
   (check-equal? (create-dvector 0 1/2 '(exp 1) (approx 2 0))
                 (zombie-test #:nodes (create-dvector 0 1/2 '(+ 0 1) '(* 2 0) '(exp 1) (approx 4 0))
-                             #:roots (vector 5)))
+                             #:roots (list 5)))
   (check-equal?
    (create-dvector 'x 2 1/2 '(* 0 0) (approx 3 1) '(pow 2 4))
    (zombie-test #:nodes (create-dvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
-                #:roots (vector 7)))
+                #:roots (list 7)))
   (check-equal?
    (create-dvector 'x 2 1/2 '(sqrt 1) '(* 0 0) (approx 4 1) '(pow 2 5))
    (zombie-test #:nodes (create-dvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
-                #:roots (vector 7 3))))
+                #:roots (list 7 3))))
