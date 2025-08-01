@@ -20,7 +20,7 @@
          batch-ref ; Batch -> Idx -> Node
          batch-pull ; Batchref -> Expr
          batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
-         batch-alive-nodes ; Batch -> ?Vector<Root> -> Vector<Idx>
+         batch-children ; Batch -> ?Vector<Root> -> Vector<Idx>
          batch-reconstruct-exprs ; Batch -> Vector<Expr>
          batch-remove-zombie ; Batch -> ?Vector<Root> -> Batch
 
@@ -143,30 +143,30 @@
   (define brfs* (map (compose (curry batchref out) (curry vector-ref mapping) batchref-idx) brfs))
   (values out brfs*))
 
-;; Function returns indices of alive nodes within a batch for given roots,
-;;   where alive node is a child of a root + meets a condition - (condition node)
-(define (batch-alive-nodes batch
-                           brfs
-                           #:keep-vars-alive [keep-vars-alive #f]
-                           #:condition [condition (const #t)])
+;; Function returns indices of children nodes within a batch for given roots,
+;;   where a child node is a child of a root + meets a condition - (condition node)
+(define (batch-children batch
+                        brfs
+                        #:include-vars [include-vars #f]
+                        #:condition [condition (const #t)])
   (define len (batch-length batch))
-  (define alive-mask (make-vector len #f))
+  (define child-mask (make-vector len #f))
   (for ([brf brfs])
-    (vector-set! alive-mask (batchref-idx brf) #t))
+    (vector-set! child-mask (batchref-idx brf) #t))
   (for ([i (in-range (- len 1) -1 -1)]
         [node (in-batch batch (- len 1) -1 -1)]
-        [alv (in-vector alive-mask (- len 1) -1 -1)]
-        #:when (or (and alv (condition node)) (and keep-vars-alive (symbol? node))))
-    (unless alv ; if keep-vars-alive then alv may not be #t, making sure it's #t
-      (vector-set! alive-mask i #t))
+        [chld (in-vector child-mask (- len 1) -1 -1)]
+        #:when (or (and chld (condition node)) (and include-vars (symbol? node))))
+    (unless chld ; if include-vars then chld may not be #t, making sure it's #t
+      (vector-set! child-mask i #t))
     (expr-recurse node
                   (λ (n)
                     (when (condition (batch-ref batch n))
-                      (vector-set! alive-mask n #t)))))
-  ; Return indices of alive nodes in ascending order
-  (for/list ([alv (in-vector alive-mask)]
+                      (vector-set! child-mask n #t)))))
+  ; Return indices of child nodes in ascending order
+  (for/list ([chld (in-vector child-mask)]
              [i (in-naturals)]
-             #:when alv)
+             #:when chld)
     (batchref batch i)))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
@@ -185,20 +185,23 @@
   (define len (batch-length batch))
   (match (zero? len)
     [#f
-     (define alive-brfs (batch-alive-nodes batch brfs #:keep-vars-alive keep-vars))
+     (define children-brfs (batch-children batch brfs #:include-vars keep-vars))
 
-     (define mappings (make-vector len -1))
-     (define (remap brf)
-       (vector-ref mappings (batchref-idx brf)))
+     (define mappings (make-hash))
+     (define (map-ref brf)
+       (hash-ref mappings brf))
+     (define (map-set! brf brf*)
+       (hash-set! mappings brf brf*))
 
+     ; batch's children nodes get pushed+remapped into out batch
      (define out (make-batch))
-     (for ([alv alive-brfs])
-       (define node (deref alv))
-       (vector-set! mappings
-                    (batchref-idx alv)
-                    (batchref-idx (batch-push! out (expr-recurse node remap)))))
+     (for ([child children-brfs])
+       (define node (deref child))
+       (define node* (expr-recurse node (compose batchref-idx map-ref))) ; remapped node
+       (define child* (batch-push! out node*))
+       (map-set! child child*))
+     (define brfs* (map map-ref brfs))
 
-     (define brfs* (map (compose (curry batchref out) (curry vector-ref mappings) batchref-idx) brfs))
      (values out brfs*)]
     [#t
      (define out (batch-copy batch))
