@@ -124,23 +124,35 @@
   out)
 
 (define (batch-replace b brfs f)
+  ;; Mappings
+  (define mappings (make-hash))
+  (define (map-ref brf)
+    (hash-ref mappings brf))
+  (define (map-set! brf brf*)
+    (hash-set! mappings brf brf*))
+
+  (define children-brfs (batch-children b brfs))
   (define out (make-batch))
-  (define mapping (make-vector (batch-length b) -1))
-  (for ([node (in-batch b)]
-        [idx (in-naturals)])
-    (define replacement (f (expr-recurse node (lambda (x) (batchref b x)))))
-    (define final-idx
+  (for ([child (in-list children-brfs)])
+    (define node (deref child))
+    (define replacement (f node))
+
+    (define child*
       (let loop ([expr replacement])
         (match expr
-          [(batchref b* idx)
+          [(? batchref? brf)
+
+           (match-define (batchref b* idx) brf)
            (unless (eq? b* b)
              (error 'batch-replace "Replacement ~a references the wrong batch ~a" replacement b*))
-           (when (= -1 (vector-ref mapping idx))
+           (unless (hash-has-key? mappings brf)
              (error 'batch-replace "Replacement ~a references unknown index ~a" replacement idx))
-           (vector-ref mapping idx)]
-          [_ (batchref-idx (batch-push! out (expr-recurse expr loop)))])))
-    (vector-set! mapping idx final-idx))
-  (define brfs* (map (compose (curry batchref out) (curry vector-ref mapping) batchref-idx) brfs))
+
+           (map-ref brf)]
+          [_ (batch-push! out (expr-recurse expr (compose batchref-idx loop)))])))
+    (map-set! child child*))
+
+  (define brfs* (map map-ref brfs))
   (values out brfs*))
 
 ;; Function returns indices of children nodes within a batch for given roots,
@@ -155,18 +167,18 @@
     (vector-set! child-mask (batchref-idx brf) #t))
   (for ([i (in-range (- len 1) -1 -1)]
         [node (in-batch batch (- len 1) -1 -1)]
-        [chld (in-vector child-mask (- len 1) -1 -1)]
-        #:when (or (and chld (condition node)) (and include-vars (symbol? node))))
-    (unless chld ; if include-vars then chld may not be #t, making sure it's #t
+        [child (in-vector child-mask (- len 1) -1 -1)]
+        #:when (or (and child (condition node)) (and include-vars (symbol? node))))
+    (unless child ; if include-vars then chld may not be #t, making sure it's #t
       (vector-set! child-mask i #t))
     (expr-recurse node
                   (λ (n)
                     (when (condition (batch-ref batch n))
                       (vector-set! child-mask n #t)))))
-  ; Return indices of child nodes in ascending order
-  (for/list ([chld (in-vector child-mask)]
+  ; Return batchrefs of children nodes in ascending order
+  (for/list ([child (in-vector child-mask)]
              [i (in-naturals)]
-             #:when chld)
+             #:when child)
     (batchref batch i)))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
