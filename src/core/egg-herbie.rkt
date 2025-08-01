@@ -294,12 +294,23 @@
       [`(Explanation ,body ...) `(Explanation ,@(map (lambda (e) (loop e type)) body))]
       [(list 'Rewrite=> rule expr) (list 'Rewrite=> (get-canon-rule-name rule rule) (loop expr type))]
       [(list 'Rewrite<= rule expr) (list 'Rewrite<= (get-canon-rule-name rule rule) (loop expr type))]
-      [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
       [(list op args ...)
        #:when (string-contains? (~a op) "unsound")
        (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
        (cons op* (map loop args (map (const 'real) args)))]
-      [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
+      [(list op args ...)
+       ;; Unfortunately the type parameter doesn't tell us much because mixed exprs exist
+       ;; so if we see something like (and a b) we literally don't know which "and" it is
+       (cons op
+             (map loop
+                  args
+                  (cond
+                    [(and (operator-exists? op) (impl-exists? op))
+                     (if (representation? type)
+                         (impl-info op 'itype)
+                         (operator-info op 'itype))]
+                    [(impl-exists? op) (impl-info op 'itype)]
+                    [(operator-exists? op) (operator-info op 'itype)])))])))
 
 ;; Parses a string from egg into a single S-expr.
 (define (egg-expr->expr egg-expr ctx)
@@ -537,9 +548,10 @@
      (cond
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(string-contains? (~a f) "unsound") (list 'real)]
-       [(impl-exists? f) (list (impl-info f 'otype))]
-       [(eq? f 'if) '(real bool)]
-       [else (list (operator-info f 'otype))])]))
+       [else
+        (filter values
+                (list (and (impl-exists? f) (impl-info f 'otype))
+                      (and (operator-exists? f) (operator-info f 'otype))))])]))
 
 ;; Rebuilds an e-node using typed e-classes
 (define (rebuild-enode enode type lookup)
@@ -558,8 +570,7 @@
        [else
         (define itypes
           (cond
-            [(impl-exists? f) (impl-info f 'itype)]
-            [(eq? f 'if) (list 'bool type type)]
+            [(representation? type) (impl-info f 'itype)]
             [else (operator-info f 'itype)]))
         ; unsafe since we don't check that |itypes| = |ids|
         ; optimize for common cases to avoid extra allocations
@@ -1016,9 +1027,13 @@
                (representation-type type)
                type))
          (approx (loop spec spec-type) (loop impl type))]
-        [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
-        [(list 'if c t f) (list 'if (loop c 'bool) (loop t 'real) (loop f 'real))]
-        [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
+        [(list op args ...)
+         (cons op
+               (map loop
+                    args
+                    (if (representation? type)
+                        (impl-info op 'itype)
+                        (operator-info op 'itype))))])))
 
   (define (eggref id)
     (cdr (vector-ref egg-nodes id)))
@@ -1048,20 +1063,14 @@
              (define final-spec (egg-parsed->expr spec* spec-type))
              (define final-spec-idx (mutable-batch-munge! out final-spec))
              (approx final-spec-idx (loop impl type))]
-            [(list (? impl-exists? impl) (app eggref args) ...)
+            [(list impl (app eggref args) ...)
              (define args*
                (for/list ([arg (in-list args)]
-                          [type (in-list (impl-info impl 'itype))])
+                          [type (in-list (if (representation? type)
+                                             (impl-info impl 'itype)
+                                             (operator-info impl 'itype)))])
                  (loop arg type)))
-             (cons impl args*)]
-            [(list 'if c t f)
-             (list 'if (loop (eggref c) 'bool) (loop (eggref t) type) (loop (eggref f) type))]
-            [(list (? operator-exists? op) (app eggref args) ...)
-             (define args*
-               (for/list ([arg (in-list args)]
-                          [type (in-list (operator-info op 'itype))])
-                 (loop arg type)))
-             (cons op args*)]))
+             (cons impl args*)]))
         (mutable-batch-push! out enode*)))
     (batchref input-batch idx))
 
