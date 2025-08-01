@@ -111,7 +111,7 @@
     (vector-ref mappings x))
 
   ; Inserting nodes bottom-up
-  (for ([node (in-vector (batch-nodes batch))]
+  (for ([node (in-batch batch)]
         [n (in-naturals)])
     (define idx
       (match node
@@ -125,13 +125,13 @@
   (for ([root (in-vector (batch-roots batch))])
     (egraph_add_root ptr (remap root)))
 
-  (for ([node (in-vector (batch-nodes batch))]
+  (for ([node (in-batch batch)]
         #:when (approx? node))
     (match-define (approx spec impl) node)
     (hash-ref! id->spec
                (remap spec)
                (lambda ()
-                 (define spec* (normalize-spec (batch-ref batch spec)))
+                 (define spec* (normalize-spec (batch-pull batch spec)))
                  (define type (representation-type (repr-of-node batch impl ctx)))
                  (cons spec* type))))
 
@@ -990,13 +990,11 @@
   (define id->spec (regraph-specs regraph))
 
   (define ctx (regraph-ctx regraph))
-  (define-values (add-id add-enode finalize-batch)
-    (egg-nodes->batch costs id->spec batch-extract-to ctx))
+  (define-values (add-id add-enode) (egg-nodes->batch costs id->spec batch-extract-to ctx))
   ;; These functions provide a setup to extract nodes into batch-extract-to from nodes
-  (list add-id add-enode finalize-batch))
+  (list add-id add-enode))
 
-(define (egg-nodes->batch egg-nodes id->spec input-batch ctx)
-  (define out (batch->mutable-batch input-batch))
+(define (egg-nodes->batch egg-nodes id->spec batch ctx)
   ; This fuction here is only because of cycles in loads:( Can not be imported from egg-herbie.rkt
   (define (egg-parsed->expr expr type)
     (let loop ([expr expr]
@@ -1046,7 +1044,7 @@
                    (representation-type type)
                    type))
              (define final-spec (egg-parsed->expr spec* spec-type))
-             (define final-spec-idx (mutable-batch-munge! out final-spec))
+             (define final-spec-idx (batch-munge! batch final-spec))
              (approx final-spec-idx (loop impl type))]
             [(list (? impl-exists? impl) (app eggref args) ...)
              (define args*
@@ -1062,18 +1060,14 @@
                           [type (in-list (operator-info op 'itype))])
                  (loop arg type)))
              (cons op args*)]))
-        (mutable-batch-push! out enode*)))
-    (batchref input-batch idx))
+        (batch-push! batch enode*)))
+    (batchref batch idx))
 
   ; same as add-enode but works with index as an input instead of enode
   (define (add-id id type)
     (add-enode (eggref id) type))
 
-  ; Commit changes to the input-batch
-  (define (finalize-batch)
-    (batch-copy-mutable-nodes! input-batch out))
-
-  (values add-id add-enode finalize-batch))
+  (values add-id add-enode))
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
@@ -1138,7 +1132,7 @@
 (define (regraph-extract-best regraph extract id type)
   (define canon (regraph-canon regraph))
   ; Extract functions to extract exprs from egraph
-  (match-define (list extract-id _ _) extract)
+  (match-define (list extract-id _) extract)
   ; extract expr
   (define key (cons id type))
   (cond
@@ -1156,7 +1150,7 @@
   (define id->spec (regraph-specs regraph))
   (define canon (regraph-canon regraph))
   ; Functions for egg-extraction
-  (match-define (list _ extract-enode _) extract)
+  (match-define (list _ extract-enode) extract)
   ; extract expressions
   (define key (cons id type))
   (cond
@@ -1334,16 +1328,11 @@
     (regraph-dump regraph root-ids reprs))
 
   (define extract-id ((typed-egg-batch-extractor batch) regraph))
-  (define finalize-batch (last extract-id))
 
   ; (Listof (Listof batchref))
-  (define out
-    (for/list ([id (in-list root-ids)]
-               [repr (in-list reprs)])
-      (regraph-extract-best regraph extract-id id repr)))
-  ; commit changes to the batch
-  (finalize-batch)
-  out)
+  (for/list ([id (in-list root-ids)]
+             [repr (in-list reprs)])
+    (regraph-extract-best regraph extract-id id repr)))
 
 (define (egraph-variations runner batch)
   (define ctx (egg-runner-ctx runner))
@@ -1356,13 +1345,8 @@
     (regraph-dump regraph root-ids reprs))
 
   (define extract-id ((typed-egg-batch-extractor batch) regraph))
-  (define finalize-batch (last extract-id))
 
   ; (Listof (Listof batchref))
-  (define out
-    (for/list ([id (in-list root-ids)]
-               [repr (in-list reprs)])
-      (regraph-extract-variants regraph extract-id id repr)))
-  ; commit changes to the batch
-  (finalize-batch)
-  out)
+  (for/list ([id (in-list root-ids)]
+             [repr (in-list reprs)])
+    (regraph-extract-variants regraph extract-id id repr)))
