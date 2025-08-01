@@ -61,14 +61,14 @@ Find help on https://herbie.uwplse.org/, exit with Ctrl-D
   mode is intended for use by scripts.</p>
 
   <pre class="shell">racket -l herbie improve bench/tutorial.fpcore out.fpcore
-Starting Herbie 2.2 with seed 1551571787...
-Warning: 24.7% of points produce a very large (infinite) output. You may want to add a precondition.
-See <a href="https://herbie.uwplse.org/doc/2.0/faq.html#inf-points">&lt;https://herbie.uwplse.org/doc/2.0/faq.html#inf-points&gt;</a> for more.</pre>
+Starting Herbie 2.2 with seed 1139794558...
+Warning: 75.2% of points produce a very large (infinite) output. You may want to add a precondition.
+See &lt;<a href="https://herbie.uwplse.org/doc/2.0/faq.html#inf-points">https://herbie.uwplse.org/doc/2.0/faq.html#inf-points</a>&gt; for more.</pre>
 
   <p>The output file <code>out.fpcore</code> contains more accurate
   versions of each program:</p>
 
-  <pre>;; seed: 1551571787
+  <pre>;; seed: 1139794558
 
 (FPCore (x)
   :name "Cancel like terms"
@@ -78,7 +78,7 @@ See <a href="https://herbie.uwplse.org/doc/2.0/faq.html#inf-points">&lt;https://
 (FPCore (x)
   :name "Expanding a square"
   <var>...</var>
-  (* x (- x -2.0)))
+  (fma x x (+ x x)))
 
 (FPCore (x y z)
   :name "Commute and associate"
