@@ -101,7 +101,7 @@
 (define manager #f)
 
 (define (manager-ask msg . args)
-  (log "Asking manager: ~a, ~a.\n" msg args)
+  (log "Asking manager: ~a.\n" msg)
   (match manager
     [(? place? x) (apply manager-ask-threaded x msg args)]
     ['basic (apply manager-ask-basic msg args)]))
@@ -122,6 +122,7 @@
      (define command (hash-ref queued-jobs job-id #f))
      (define result (and command (herbie-do-server-job command job-id)))
      (when command
+       (hash-remove! queued-jobs job-id)
        (hash-set! completed-jobs job-id result))
      result]
     [(list 'result job-id) (hash-ref completed-jobs job-id #f)]
@@ -129,15 +130,17 @@
      (define command (hash-ref queued-jobs job-id #f))
      (define result (and command (herbie-do-server-job command job-id)))
      (when command
+       (hash-remove! queued-jobs job-id)
        (hash-set! completed-jobs job-id result))
      result]
     [(list 'check job-id)
      (define command (hash-ref queued-jobs job-id #f))
      (define result (and command (herbie-do-server-job command job-id)))
      (when command
+       (hash-remove! queued-jobs job-id)
        (hash-set! completed-jobs job-id result))
      job-id]
-    [(list 'count) 0]
+    [(list 'count) (hash-count queued-jobs)]
     [(list 'improve)
      (for/list ([(job-id result) (in-hash completed-jobs)]
                 #:when (equal? (hash-ref result 'command) "improve"))
