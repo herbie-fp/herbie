@@ -197,6 +197,7 @@
           ; Check if the job is already in progress.
           (unless (hash-has-key? current-jobs jid)
             (place-channel-put worker (list 'apply self command jid))
+            (hash-set! current-jobs jid wid)
             (hash-set! reassigned wid jid)
             (hash-set! busy-workers wid worker)))
         ; remove X many jobs from the Q and update waiting-workers
