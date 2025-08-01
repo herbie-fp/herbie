@@ -18,7 +18,7 @@
          batch-free-vars
          in-batch ; Batch -> Sequence<Node>
          batch-ref ; Batch -> Idx -> Node
-         batch-pull ; Batch -> Idx -> Expr
+         batch-pull ; Batchref -> Expr
          batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
          batch-alive-nodes ; Batch -> ?Vector<Root> -> Vector<Idx>
          batch-reconstruct-exprs ; Batch -> Vector<Expr>
@@ -26,7 +26,6 @@
 
          (struct-out batchref)
          deref ; Batchref -> Expr
-         debatchref ; Batchref -> Expr
 
          unbatchify-alts)
 
@@ -81,10 +80,6 @@
   (match-define (batchref b idx) x)
   (expr-recurse (batch-ref b idx) (lambda (ref) (batchref b ref))))
 
-(define (debatchref x)
-  (match-define (batchref b idx) x)
-  (batch-pull b idx))
-
 (define (progs->batch exprs #:vars [vars '()])
   (define out (make-batch))
   (for ([var (in-list vars)])
@@ -101,7 +96,7 @@
         [node (in-batch b)])
     (define args (reap [sow] (expr-recurse node sow)))
     (vector-set! counts i (apply + 1 (map (curry vector-ref counts) args))))
-  (apply + (map (curry vector-ref counts) (map batchref-idx brfs))))
+  (apply + (map (compose (curry vector-ref counts) batchref-idx) brfs)))
 
 (define (batch-munge! b expr)
   (define cache (batch-cache b))
@@ -169,10 +164,10 @@
                     (when (condition (batch-ref batch n))
                       (vector-set! alive-mask n #t)))))
   ; Return indices of alive nodes in ascending order
-  (for/vector ([alv (in-vector alive-mask)]
-               [i (in-naturals)]
-               #:when alv)
-    i))
+  (for/list ([alv (in-vector alive-mask)]
+             [i (in-naturals)]
+             #:when alv)
+    (batchref batch i)))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-reconstruct-exprs batch)
@@ -190,16 +185,18 @@
   (define len (batch-length batch))
   (match (zero? len)
     [#f
-     (define alive-nodes (batch-alive-nodes batch brfs #:keep-vars-alive keep-vars))
+     (define alive-brfs (batch-alive-nodes batch brfs #:keep-vars-alive keep-vars))
 
      (define mappings (make-vector len -1))
-     (define (remap idx)
-       (vector-ref mappings idx))
+     (define (remap brf)
+       (vector-ref mappings (batchref-idx brf)))
 
      (define out (make-batch))
-     (for ([alv (in-vector alive-nodes)])
-       (define node (batch-ref batch alv))
-       (vector-set! mappings alv (batchref-idx (batch-push! out (expr-recurse node remap)))))
+     (for ([alv alive-brfs])
+       (define node (deref alv))
+       (vector-set! mappings
+                    (batchref-idx alv)
+                    (batchref-idx (batch-push! out (expr-recurse node remap)))))
 
      (define brfs* (map (compose (curry batchref out) (curry vector-ref mappings) batchref-idx) brfs))
      (values out brfs*)]
@@ -213,10 +210,9 @@
 (define (batch-ref batch reg)
   (dvector-ref (batch-nodes batch) reg))
 
-(define (batch-pull batch brf)
+(define (batch-pull brf)
   (define (unmunge brf)
-    (define node (deref brf))
-    (expr-recurse node unmunge))
+    (expr-recurse (deref brf) unmunge))
   (unmunge brf))
 
 ; Tests for progs->batch and batch->progs
