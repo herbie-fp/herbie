@@ -47,11 +47,11 @@
     [(list op args ...) (apply op (map (curry vector-ref regs) args))]))
 
 (define (batch-remove-approx batch)
-  (batch-replace batch
-                 (lambda (node)
-                   (match node
-                     [(approx spec impl) impl]
-                     [node node]))))
+  (batch-apply batch
+               (lambda (node)
+                 (match node
+                   [(approx spec impl) impl]
+                   [node node]))))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values

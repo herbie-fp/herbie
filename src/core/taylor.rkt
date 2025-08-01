@@ -39,7 +39,7 @@
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
 (define (expand-taylor input-batch brfs)
-  (batch-replace
+  (batch-apply
    input-batch
    brfs
    (lambda (node)

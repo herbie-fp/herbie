@@ -19,7 +19,7 @@
          in-batch ; Batch -> Sequence<Node>
          batch-ref ; Batch -> Idx -> Node
          batch-pull ; Batchref -> Expr
-         batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
+         batch-apply ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
          batch-children ; Batch -> ?Vector<Root> -> Vector<Idx>
          batch-reconstruct-exprs ; Batch -> Vector<Expr>
          batch-remove-zombie ; Batch -> ?Vector<Root> -> Batch
@@ -123,44 +123,41 @@
     (vector-set! out i fv))
   out)
 
-(define (batch-replace b brfs f)
-  ;; Mappings
+(define (batch-apply b brfs f #:keep-vars [keep-vars #f])
+  (define out (make-batch))
+  (define children-brfs (batch-children b brfs #:keep-vars keep-vars))
+
   (define mappings (make-hash))
   (define (map-ref brf)
     (hash-ref mappings brf))
   (define (map-set! brf brf*)
     (hash-set! mappings brf brf*))
 
-  (define children-brfs (batch-children b brfs))
-  (define out (make-batch))
-  (for ([child (in-list children-brfs)])
-    (define node (deref child))
+  (for ([brf (in-list children-brfs)])
+    (define node (deref brf))
     (define replacement (f node))
-
-    (define child*
+    (define brf*
       (let loop ([expr replacement])
         (match expr
           [(? batchref? brf)
 
+           #|
            (match-define (batchref b* idx) brf)
            (unless (eq? b* b)
-             (error 'batch-replace "Replacement ~a references the wrong batch ~a" replacement b*))
+             (error 'batch-apply "Replacement ~a references the wrong batch ~a" replacement b*))
            (unless (hash-has-key? mappings brf)
-             (error 'batch-replace "Replacement ~a references unknown index ~a" replacement idx))
+             (error 'batch-apply "Replacement ~a references unknown index ~a" replacement idx))
+           |#
 
            (map-ref brf)]
           [_ (batch-push! out (expr-recurse expr (compose batchref-idx loop)))])))
-    (map-set! child child*))
-
+    (map-set! brf brf*))
   (define brfs* (map map-ref brfs))
   (values out brfs*))
 
 ;; Function returns indices of children nodes within a batch for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
-(define (batch-children batch
-                        brfs
-                        #:include-vars [include-vars #f]
-                        #:condition [condition (const #t)])
+(define (batch-children batch brfs #:keep-vars [keep-vars #f] #:condition [condition (const #t)])
   (define len (batch-length batch))
   (define child-mask (make-vector len #f))
   (for ([brf brfs])
@@ -168,7 +165,7 @@
   (for ([i (in-range (- len 1) -1 -1)]
         [node (in-batch batch (- len 1) -1 -1)]
         [child (in-vector child-mask (- len 1) -1 -1)]
-        #:when (or (and child (condition node)) (and include-vars (symbol? node))))
+        #:when (or (and child (condition node)) (and keep-vars (symbol? node))))
     (unless child ; if include-vars then chld may not be #t, making sure it's #t
       (vector-set! child-mask i #t))
     (expr-recurse node
@@ -196,25 +193,7 @@
 (define (batch-remove-zombie batch brfs #:keep-vars [keep-vars #f])
   (define len (batch-length batch))
   (match (zero? len)
-    [#f
-     (define children-brfs (batch-children batch brfs #:include-vars keep-vars))
-
-     (define mappings (make-hash))
-     (define (map-ref brf)
-       (hash-ref mappings brf))
-     (define (map-set! brf brf*)
-       (hash-set! mappings brf brf*))
-
-     ; batch's children nodes get pushed+remapped into out batch
-     (define out (make-batch))
-     (for ([child children-brfs])
-       (define node (deref child))
-       (define node* (expr-recurse node (compose batchref-idx map-ref))) ; remapped node
-       (define child* (batch-push! out node*))
-       (map-set! child child*))
-     (define brfs* (map map-ref brfs))
-
-     (values out brfs*)]
+    [#f (batch-apply batch brfs identity #:keep-vars keep-vars)]
     [#t
      (define out (batch-copy batch))
      (define brfs*
