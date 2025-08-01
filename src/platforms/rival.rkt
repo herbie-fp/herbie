@@ -32,20 +32,20 @@
   [<=.f32 #:spec (<= x y) #:impl (from-rival) #:cost 1]
   [>=.f32 #:spec (>= x y) #:impl (from-rival) #:cost 1])
 
-(define-operations () <binary32> #:fpcore (:precision binary32)
+(define-operations () <binary32> #:fpcore (! :precision binary32 _)
   [PI.f32 #:spec (PI) #:impl (from-rival) #:fpcore PI #:cost 1]
   [E.f32  #:spec (E)  #:impl (from-rival) #:fpcore E  #:cost 1])
 
 (define-operation (neg.f32 [x <binary32>]) <binary32>
   #:spec (neg x) #:impl (from-rival) #:fpcore (! :precision binary32 (- x)) #:cost 1)
 
-(define-operations ([x <binary32>] [y <binary32>]) <binary32> #:fpcore (:precision binary32)
+(define-operations ([x <binary32>] [y <binary32>]) <binary32> #:fpcore (! :precision binary32 _)
   [+.f32 #:spec (+ x y) #:impl (from-rival) #:cost 1]
   [-.f32 #:spec (- x y) #:impl (from-rival) #:cost 1]
   [*.f32 #:spec (* x y) #:impl (from-rival) #:cost 1]
   [/.f32 #:spec (/ x y) #:impl (from-rival) #:cost 1])
 
-(define-operations ([x <binary32>]) <binary32> #:fpcore (:precision binary32)
+(define-operations ([x <binary32>]) <binary32> #:fpcore (! :precision binary32 _)
   [fabs.f32   #:spec (fabs x)   #:impl (from-rival) #:cost 1]
   [sin.f32    #:spec (sin x)    #:impl (from-rival) #:cost 1]
   [cos.f32    #:spec (cos x)    #:impl (from-rival) #:cost 1]
@@ -76,7 +76,7 @@
   [tgamma.f32 #:spec (tgamma x) #:impl (from-rival) #:cost 1]
   [trunc.f32  #:spec (trunc x)  #:impl (from-rival) #:cost 1])
 
-(define-operations ([x <binary32>] [y <binary32>]) <binary32> #:fpcore (:precision binary32)
+(define-operations ([x <binary32>] [y <binary32>]) <binary32> #:fpcore (! :precision binary32 _)
   [pow.f32       #:spec (pow x y)       #:impl (from-rival) #:cost 1]
   [atan2.f32     #:spec (atan2 x y)     #:impl (from-rival) #:cost 1]
   [copysign.f32  #:spec (copysign x y)  #:impl (from-rival) #:cost 1]
@@ -86,7 +86,7 @@
   [fmod.f32      #:spec (fmod x y)      #:impl (from-rival) #:cost 1]
   [remainder.f32 #:spec (remainder x y) #:impl (from-rival) #:cost 1])
 
-(define-operations ([x <binary32>]) <binary32> #:fpcore (:precision binary32)
+(define-operations ([x <binary32>]) <binary32> #:fpcore (! :precision binary32 _)
   [erfc.f32  #:spec (- 1 (erf x)) #:impl (from-rival) #:fpcore (erfc x)  #:cost 1]
   [expm1.f32 #:spec (- (exp x) 1) #:impl (from-rival) #:fpcore (expm1 x) #:cost 1]
   [log1p.f32 #:spec (log (+ 1 x)) #:impl (from-rival) #:fpcore (log1p x) #:cost 1])
@@ -112,7 +112,7 @@
   [<=.f64 #:spec (<= x y) #:impl (from-rival) #:cost 1]
   [>=.f64 #:spec (>= x y) #:impl (from-rival) #:cost 1])
 
-(define-operations () <binary64> #:fpcore (:precision binary64)
+(define-operations () <binary64> #:fpcore (! :precision binary64 _)
   [PI.f64   #:spec (PI)       #:impl (from-rival) #:cost 1]
   [E.f64    #:spec (E)        #:impl (from-rival) #:cost 1]
   [INFINITY #:spec (INFINITY) #:impl (from-rival) #:cost 1]
@@ -121,13 +121,13 @@
 (define-operation (neg.f64 [x <binary64>]) <binary64>
   #:spec (neg x) #:impl (from-rival) #:fpcore (! :precision binary64 (- x)) #:cost 1)
 
-(define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (:precision binary64)
+(define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (! :precision binary64 _)
   [+.f64 #:spec (+ x y) #:impl (from-rival) #:cost 1]
   [-.f64 #:spec (- x y) #:impl (from-rival) #:cost 1]
   [*.f64 #:spec (* x y) #:impl (from-rival) #:cost 1]
   [/.f64 #:spec (/ x y) #:impl (from-rival) #:cost 1])
 
-(define-operations ([x <binary64>]) <binary64> #:fpcore (:precision binary64)
+(define-operations ([x <binary64>]) <binary64> #:fpcore (! :precision binary64 _)
   [fabs.f64   #:spec (fabs x)   #:impl (from-rival) #:cost 1]
   [sin.f64    #:spec (sin x)    #:impl (from-rival) #:cost 1]
   [cos.f64    #:spec (cos x)    #:impl (from-rival) #:cost 1]
@@ -158,7 +158,7 @@
   [tgamma.f64 #:spec (tgamma x) #:impl (from-rival) #:cost 1]
   [trunc.f64  #:spec (trunc x)  #:impl (from-rival) #:cost 1])
 
-(define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (:precision binary64)
+(define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (! :precision binary64 _)
   [pow.f64       #:spec (pow x y)       #:impl (from-rival) #:cost 1]
   [atan2.f64     #:spec (atan2 x y)     #:impl (from-rival) #:cost 1]
   [copysign.f64  #:spec (copysign x y)  #:impl (from-rival) #:cost 1]
@@ -168,7 +168,7 @@
   [fmod.f64      #:spec (fmod x y)      #:impl (from-rival) #:cost 1]
   [remainder.f64 #:spec (remainder x y) #:impl (from-rival) #:cost 1])
 
-(define-operations ([x <binary64>]) <binary64> #:fpcore (:precision binary64)
+(define-operations ([x <binary64>]) <binary64> #:fpcore (! :precision binary64 _)
   [erfc.f64  #:spec (- 1 (erf x)) #:impl (from-rival) #:fpcore (erfc x)  #:cost 1]
   [expm1.f64 #:spec (- (exp x) 1) #:impl (from-rival) #:fpcore (expm1 x) #:cost 1]
   [log1p.f64 #:spec (log (+ 1 x)) #:impl (from-rival) #:fpcore (log1p x) #:cost 1])
