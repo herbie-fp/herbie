@@ -16,7 +16,8 @@
 (provide find-preprocessing
          preprocess-pcontext
          remove-unnecessary-preprocessing
-         compile-preprocessing)
+         compile-preprocessing
+         compile-useful-preprocessing)
 
 (define (has-fabs-impl? repr)
   (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))
@@ -179,3 +180,9 @@
      (define copysign (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr)))
      `(,mul (,copysign ,(literal 1 (representation-name repr)) ,var)
             ,(replace-expression expression var replacement))]))
+
+(define (compile-useful-preprocessing expression context pcontext preprocessing)
+  (define useful-preprocessing
+    (remove-unnecessary-preprocessing expression context pcontext preprocessing))
+  (for/fold ([expr expression]) ([prep (in-list (reverse useful-preprocessing))])
+    (compile-preprocessing expr context prep)))

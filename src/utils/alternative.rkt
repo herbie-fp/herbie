@@ -8,10 +8,10 @@
 
 ;; Alts are an expression plus a derivation for it.
 
-(struct alt (expr event prevs preprocessing) #:prefab)
+(struct alt (expr event prevs) #:prefab)
 
 (define (make-alt expr)
-  (alt expr 'start '() '()))
+  (alt expr 'start '()))
 
 (define (alt-cost altn repr)
   (define expr-cost (platform-cost-proc (*active-platform*)))

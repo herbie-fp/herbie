@@ -54,7 +54,7 @@
             (for ([i (in-range (*taylor-order-limit*))])
               (define gen (approx spec (hole (representation-name repr) (genexpr))))
               (define idx (mutable-batch-munge! global-batch-mutable gen)) ; Munge gen
-              (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '()))))
+              (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn)))))
           (timeline-stop!))
         (batch-copy-mutable-nodes! global-batch global-batch-mutable))) ; Update global-batch
 
@@ -99,7 +99,7 @@
         (for ([batchrefs (in-list batchrefss)]
               [altn (in-list altns)])
           (for ([batchref* (in-list batchrefs)])
-            (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
+            (sow (alt batchref* (list 'rr runner #f) (list altn)))))))
 
 (define (run-evaluate altns global-batch)
   (timeline-event! 'sample)
@@ -138,7 +138,7 @@
                [altn (in-list real-altns)]
                #:when (equal? status 'valid))
       (define idx (mutable-batch-munge! global-batch-mutable literal))
-      (alt (batchref global-batch idx) '(evaluate) (list altn) '())))
+      (alt (batchref global-batch idx) '(evaluate) (list altn))))
   (batch-copy-mutable-nodes! global-batch global-batch-mutable)
   final-altns)
 
@@ -179,7 +179,7 @@
           (for ([batchrefs (in-list batchrefss)]
                 [altn (in-list altns)])
             (for ([batchref* (in-list batchrefs)])
-              (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
+              (sow (alt batchref* (list 'rr runner #f) (list altn)))))))
 
   (timeline-push! 'outputs (map (compose ~a debatchref alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
@@ -192,7 +192,7 @@
   ; Starting alternatives
   (define start-altns
     (for/list ([root (in-vector (batch-roots global-batch))])
-      (alt (batchref global-batch root) 'patch '() '())))
+      (alt (batchref global-batch root) 'patch '())))
 
   (define evaluations
     (if (flag-set? 'generate 'evaluate)
