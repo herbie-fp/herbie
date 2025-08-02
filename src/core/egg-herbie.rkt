@@ -65,7 +65,7 @@
                [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
 
 ; Adds expressions returning the root ids
-(define (egraph-add-exprs egg-data batch ctx)
+(define (egraph-add-exprs egg-data batch brfs ctx)
   (match-define (egraph-data ptr id->spec) egg-data)
 
   ; normalizes an approx spec
@@ -122,8 +122,8 @@
         [(approx spec impl) (insert-node! (list '$approx (remap spec) (remap impl)))]
         [(list op (app remap args) ...) (insert-node! (cons op args))]))
     (vector-set! mappings n idx))
-  (for ([root (in-vector (batch-roots batch))])
-    (egraph_add_root ptr (remap root)))
+  (for ([brf brfs])
+    (egraph_add_root ptr (remap (batchref-idx brf))))
 
   (for ([node (in-batch batch)]
         #:when (approx? node))
@@ -135,8 +135,8 @@
                  (define type (representation-type (repr-of-node batch impl ctx)))
                  (cons spec* type))))
 
-  (for/list ([root (in-vector (batch-roots batch))])
-    (remap root)))
+  (for/list ([brf brfs])
+    (remap (batchref-idx brf))))
 
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler)
@@ -198,8 +198,8 @@
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
 
 (define (egraph-expr-equal? egraph-data expr goal ctx)
-  (define batch (progs->batch (list expr goal)))
-  (match-define (list id1 id2) (egraph-add-exprs egraph-data batch ctx))
+  (define-values (batch brfs) (progs->batch (list expr goal)))
+  (match-define (list id1 id2) (egraph-add-exprs egraph-data batch brfs ctx))
   (= id1 id2))
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
@@ -1022,46 +1022,44 @@
     (cdr (vector-ref egg-nodes id)))
 
   (define (add-enode enode type)
-    (define idx
-      (let loop ([enode enode]
-                 [type type])
-        (define enode*
-          (match enode
-            [(? number?)
+    (let loop ([enode enode]
+               [type type])
+      (define enode*
+        (match enode
+          [(? number?)
+           (if (representation? type)
+               (literal enode (representation-name type))
+               enode)]
+          [(? symbol?)
+           (if (string-prefix? (symbol->string enode) "$var")
+               (egg-var->var enode ctx)
+               enode)]
+          [(list '$approx spec (app eggref impl))
+           (define spec* (vector-ref id->spec spec))
+           (unless spec*
+             (error 'regraph-extract-variants "no initial approx node in eclass"))
+           (define spec-type
              (if (representation? type)
-                 (literal enode (representation-name type))
-                 enode)]
-            [(? symbol?)
-             (if (string-prefix? (symbol->string enode) "$var")
-                 (egg-var->var enode ctx)
-                 enode)]
-            [(list '$approx spec (app eggref impl))
-             (define spec* (vector-ref id->spec spec))
-             (unless spec*
-               (error 'regraph-extract-variants "no initial approx node in eclass"))
-             (define spec-type
-               (if (representation? type)
-                   (representation-type type)
-                   type))
-             (define final-spec (egg-parsed->expr spec* spec-type))
-             (define final-spec-idx (batch-munge! batch final-spec))
-             (approx final-spec-idx (loop impl type))]
-            [(list (? impl-exists? impl) (app eggref args) ...)
-             (define args*
-               (for/list ([arg (in-list args)]
-                          [type (in-list (impl-info impl 'itype))])
-                 (loop arg type)))
-             (cons impl args*)]
-            [(list 'if c t f)
-             (list 'if (loop (eggref c) 'bool) (loop (eggref t) type) (loop (eggref f) type))]
-            [(list (? operator-exists? op) (app eggref args) ...)
-             (define args*
-               (for/list ([arg (in-list args)]
-                          [type (in-list (operator-info op 'itype))])
-                 (loop arg type)))
-             (cons op args*)]))
-        (batch-push! batch enode*)))
-    (batchref batch idx))
+                 (representation-type type)
+                 type))
+           (define final-spec (egg-parsed->expr spec* spec-type))
+           (define final-spec-idx (batchref-idx (batch-munge! batch final-spec)))
+           (approx final-spec-idx (loop impl type))]
+          [(list (? impl-exists? impl) (app eggref args) ...)
+           (define args*
+             (for/list ([arg (in-list args)]
+                        [type (in-list (impl-info impl 'itype))])
+               (loop arg type)))
+           (cons impl args*)]
+          [(list 'if c t f)
+           (list 'if (loop (eggref c) 'bool) (loop (eggref t) type) (loop (eggref f) type))]
+          [(list (? operator-exists? op) (app eggref args) ...)
+           (define args*
+             (for/list ([arg (in-list args)]
+                        [type (in-list (operator-info op 'itype))])
+               (loop arg type)))
+           (cons op args*)]))
+      (batch-push! batch enode*)))
 
   ; same as add-enode but works with index as an input instead of enode
   (define (add-id id type)
@@ -1192,12 +1190,12 @@
            (loop (sub1 num-iters)))]
       [else (values egg-graph iteration-data)])))
 
-(define (egraph-run-schedule batch schedule ctx)
+(define (egraph-run-schedule batch brfs schedule ctx)
   ; allocate the e-graph
   (define egg-graph (make-egraph-data))
 
   ; insert expressions into the e-graph
-  (define root-ids (egraph-add-exprs egg-graph batch ctx))
+  (define root-ids (egraph-add-exprs egg-graph batch brfs ctx))
 
   ; run the schedule
   (define egg-graph*
@@ -1252,7 +1250,7 @@
 ;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
-(define (make-egraph batch reprs schedule ctx)
+(define (make-egraph batch brfs reprs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -1276,7 +1274,7 @@
            [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
       [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
 
-  (define-values (root-ids egg-graph) (egraph-run-schedule batch schedule ctx))
+  (define-values (root-ids egg-graph) (egraph-run-schedule batch brfs schedule ctx))
 
   ; make the runner
   (egg-runner batch reprs schedule ctx root-ids egg-graph))

@@ -238,15 +238,14 @@
   (unless (^next-alts^)
     (choose-alts!))
 
-  (define global-batch (progs->batch (map alt-expr (^next-alts^))))
-  (define (make-batchref x idx)
-    (struct-copy alt x [expr (batchref global-batch idx)]))
+  (define-values (global-batch brfs) (progs->batch (map alt-expr (^next-alts^))))
+  (define (make-batchref x brf)
+    (struct-copy alt x [expr brf]))
 
-  (^next-alts^ (map make-batchref (^next-alts^) (vector->list (batch-roots global-batch))))
-  (define roots (batch-alive-nodes global-batch #:condition node-is-impl?))
-  (set-batch-roots! global-batch roots)
+  (^next-alts^ (map make-batchref (^next-alts^) brfs))
+  (define brfs* (batch-children global-batch brfs #:condition node-is-impl?))
 
-  (reconstruct! global-batch (generate-candidates global-batch))
+  (reconstruct! global-batch (generate-candidates global-batch brfs*))
   (finalize-iter!)
   (void))
 

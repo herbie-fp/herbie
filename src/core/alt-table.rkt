@@ -186,7 +186,7 @@
 (define (atab-eval-altns atab altns ctx)
   (define-values (batch brfs) (progs->batch (map alt-expr altns) #:vars (context-vars ctx)))
   (define errss (batch-errors batch brfs (alt-table-pcontext atab) ctx))
-  (define costs (alt-batch-cost batch (context-repr ctx)))
+  (define costs (alt-batch-cost batch brfs (context-repr ctx)))
   (values errss costs))
 
 (define (atab-add-altns atab altns errss costs ctx)
