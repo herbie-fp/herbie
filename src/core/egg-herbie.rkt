@@ -132,7 +132,7 @@
                (remap spec)
                (lambda ()
                  (define spec* (normalize-spec (batch-pull (batchref batch spec))))
-                 (define type (representation-type (repr-of-node batch impl ctx)))
+                 (define type (representation-type (repr-of-batchref (batchref batch impl) ctx)))
                  (cons spec* type))))
 
   (for/list ([brf brfs])

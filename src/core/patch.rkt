@@ -33,7 +33,7 @@
   (define brfs (map alt-expr altns))
   (define reprs
     (for/list ([brf brfs])
-      (repr-of-node global-batch (batchref-idx brf) (*context*))))
+      (repr-of-batchref brf (*context*))))
   (define specs (map prog->spec (batch->progs global-batch brfs)))
   (define free-vars (map free-variables specs))
   (define vars (context-vars (*context*)))
@@ -77,7 +77,7 @@
   (define brfs (map alt-expr altns))
   (define reprs
     (for/list ([brf brfs])
-      (repr-of-node global-batch (batchref-idx brf) (*context*))))
+      (repr-of-batchref brf (*context*))))
 
   (define-values (batch* brfs*) (batch-remove-zombie global-batch brfs))
 
@@ -109,7 +109,7 @@
   (define brfs (map alt-expr real-altns))
   (define contexts
     (for/list ([brf brfs])
-      (context '() (repr-of-node global-batch (batchref-idx brf) (*context*)) '())))
+      (context '() (repr-of-batchref brf (*context*)) '())))
 
   (define-values (batch* brfs*) (batch-remove-zombie global-batch brfs))
   (define specs (map prog->spec (batch->progs batch* brfs*)))
@@ -156,7 +156,7 @@
   (define brfs (map alt-expr altns))
   (define reprs
     (for/list ([brf brfs])
-      (repr-of-node global-batch (batchref-idx brf) (*context*))))
+      (repr-of-batchref brf (*context*))))
 
   (define-values (batch* brfs*) (batch-remove-zombie global-batch brfs))
 
