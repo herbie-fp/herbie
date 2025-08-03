@@ -366,7 +366,8 @@
 
   (define ctx (context '(x eps) <binary64> (make-list 2 <binary64>)))
 
-  (define reprs (make-list (vector-length (batch-roots batch)) (context-repr ctx)))
+  (define roots (vector 1 2 3))
+  (define reprs (make-list (vector-length roots) (context-repr ctx)))
 
   (define rules (*rules*))
   (define schedule
