@@ -11,7 +11,7 @@
          (struct-out batch)
          make-batch ; Batch
          batch-push! ; Batch -> Node -> Idx
-         batch-munge! ; Batch -> Expr -> Root
+         batch-add! ; Batch -> Expr -> Root
          batch-copy ; Batch -> Batch
          batch-length ; Batch -> Integer
          batch-tree-size ; Batch -> Integer
@@ -86,7 +86,7 @@
     (batch-push! out var))
   (define brfs
     (for/list ([expr (in-list exprs)])
-      (batch-munge! out expr)))
+      (batch-add! out expr)))
   (values out brfs))
 
 (define (batch-tree-size b brfs)
@@ -98,7 +98,7 @@
     (vector-set! counts i (apply + 1 (map (curry vector-ref counts) args))))
   (apply + (map (compose (curry vector-ref counts) batchref-idx) brfs)))
 
-(define (batch-munge! b expr)
+(define (batch-add! b expr)
   (define cache (batch-cache b))
   (define (munge prog)
     (hash-ref! cache prog (lambda () (batchref-idx (batch-push! b (expr-recurse prog munge))))))
@@ -192,9 +192,6 @@
        (vector-ref exprs (batchref-idx brf))])))
 
 ;; The function removes any zombie nodes from batch with respect to the roots
-;; Time complexity: O(|R| + |N|), where |R| - number of roots, |N| - length of nodes
-;; Space complexity: O(|N| + |N*| + |R|), where |N*| is a length of nodes without zombie nodes
-;; The flag keep-vars is used in compiler.rkt when vars should be preserved no matter what
 (define (batch-remove-zombie batch brfs #:keep-vars [keep-vars #f])
   (define len (batch-length batch))
   (match (zero? len)

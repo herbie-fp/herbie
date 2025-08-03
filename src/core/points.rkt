@@ -60,7 +60,7 @@
   (apply average (map ulps->bits e)))
 
 (define (errors expr pcontext ctx)
-  (first (batch-errors (list expr) pcontext ctx)))
+  (first (exprs-errors (list expr) pcontext ctx)))
 
 (define (exprs-errors exprs pcontext ctx)
   (define fn (compile-progs exprs ctx))

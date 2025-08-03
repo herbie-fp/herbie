@@ -197,12 +197,15 @@
       (let ([node (batch-ref full-batch idx)])
         (match* (node loc0)
           [(_ (? null?)) sub-idx]
-          [((approx spec impl) (cons 1 rest)) (batch-push! full-batch (approx (loop rest spec) impl))]
-          [((approx spec impl) (cons 2 rest)) (batch-push! full-batch (approx spec (loop rest impl)))]
-          [((hole prec spec) (cons 1 rest)) (batch-push! full-batch (hole prec (loop rest spec)))]
+          [((approx spec impl) (cons 1 rest))
+           (batchref-idx (batch-push! full-batch (approx (loop rest spec) impl)))]
+          [((approx spec impl) (cons 2 rest))
+           (batchref-idx (batch-push! full-batch (approx spec (loop rest impl))))]
+          [((hole prec spec) (cons 1 rest))
+           (batchref-idx (batch-push! full-batch (hole prec (loop rest spec))))]
           [((list op args ...) (cons loc rest))
            (define args* (list-update args (sub1 loc) (curry loop rest)))
-           (batch-push! full-batch (cons op args*))]))))
+           (batchref-idx (batch-push! full-batch (cons op args*)))]))))
   (batchref full-batch idx*))
 
 (define/contract (location-get loc prog)

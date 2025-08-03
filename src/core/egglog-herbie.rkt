@@ -663,7 +663,8 @@
            ;; appl impl -> Not a spec
            (vector-set! spec-mask n #f))]))
 
-  (for ([root (in-vector (batch-roots batch))])
+  (define roots (vector 1 2 3))
+  (for ([root (in-vector roots)])
     (vector-set! root-mask root #t))
   (for ([node (in-batch batch)]
         [root? (in-vector root-mask)]
@@ -806,7 +807,7 @@
     (set! constructor-num (add1 constructor-num)))
 
   (define curr-bindings
-    (for/list ([root (batch-roots batch)])
+    (for/list ([root roots])
       (define curr-binding-name
         (if (hash-has-key? vars root)
             (if (vector-ref spec-mask root)

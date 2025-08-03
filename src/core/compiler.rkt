@@ -69,7 +69,7 @@
   (define vars (context-vars ctx))
   (define num-vars (length vars))
 
-  (timeline-push! 'compiler (batch-tree-size batch) (batch-length batch))
+  (timeline-push! 'compiler (batch-tree-size batch brfs) (batch-length batch))
 
   ; Here we need to keep vars even though no roots refer to the vars
   (define-values (batch-no-approx brfs-no-approx) (batch-remove-approx batch brfs))
@@ -81,7 +81,7 @@
       (match node
         [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
         [(list op args ...) (cons (impl-info op 'fl) args)])))
-  (define rootvec (map batchref-idx brfs*))
+  (define rootvec (list->vector (map batchref-idx brfs*)))
 
   (make-progs-interpreter vars instructions rootvec))
 
