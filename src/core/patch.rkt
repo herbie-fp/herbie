@@ -66,7 +66,8 @@
   (define approxs (remove-duplicates (taylor-alts altns global-batch) #:key key))
   (define approxs* (run-lowering approxs global-batch))
 
-  (timeline-push! 'outputs (map ~a (map (compose batch-pull alt-expr) approxs*)))
+  (define exprs (batch-reconstruct-exprs global-batch))
+  (timeline-push! 'outputs (map ~a (map (compose exprs alt-expr) approxs*)))
   (timeline-push! 'count (length altns) (length approxs*))
 
   approxs*)
@@ -160,7 +161,8 @@
       (repr-of-node global-batch (batchref-idx brf) (*context*))))
 
   (define-values (batch* brfs*) (batch-remove-zombie global-batch brfs))
-  (timeline-push! 'inputs (map (compose ~a batch-pull alt-expr) altns))
+  (define exprs (batch-reconstruct-exprs global-batch))
+  (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
 
   (define runner
     (if (flag-set? 'generate 'egglog)
@@ -180,7 +182,8 @@
             (for ([batchref* (in-list batchrefs)])
               (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
 
-  (timeline-push! 'outputs (map (compose ~a batch-pull alt-expr) rewritten))
+  (define exprs* (batch-reconstruct-exprs global-batch))
+  (timeline-push! 'outputs (map (compose ~a exprs* alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
 
   rewritten)
