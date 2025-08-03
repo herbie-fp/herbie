@@ -47,13 +47,15 @@
     [(list op a b c) (op (vector-ref regs a) (vector-ref regs b) (vector-ref regs c))]
     [(list op args ...) (apply op (map (curry vector-ref regs) args))]))
 
+; This functions needs to preserve vars
 (define (batch-remove-approx batch brfs)
   (batch-apply batch
                brfs
                (lambda (node)
                  (match node
                    [(approx spec impl) impl]
-                   [node node]))))
+                   [node node]))
+               #:keep-vars #t))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values
