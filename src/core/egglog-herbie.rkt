@@ -296,9 +296,9 @@
       (define term
         (match expr
           [(? number?)
-           (if (representation? type)
-               (literal expr (representation-name type))
-               expr)]
+           #:when (representation? type)
+           (literal expr (representation-name type))]
+          [(? number?) expr]
           [(? symbol?) expr]
           [(approx spec impl) (approx (loop spec #f) (loop impl type))]
           [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
