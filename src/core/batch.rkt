@@ -90,6 +90,7 @@
   (values out brfs))
 
 (define (batch-tree-size b brfs)
+  (brfs-belong-to-batch? b brfs)
   (define len (batch-length b))
   (define counts (make-vector len 0))
   (for ([i (in-naturals)]
@@ -105,6 +106,7 @@
   (batchref b (munge expr)))
 
 (define (batch->progs b brfs)
+  (brfs-belong-to-batch? b brfs)
   (define exprs (batch-reconstruct-exprs b))
   (for/list ([brf brfs])
     (exprs brf)))
@@ -135,22 +137,12 @@
 
   (for ([brf (in-list children-brfs)])
     (define node (deref brf))
-    (define replacement (f node))
+    (define node* (f node))
     (define brf*
-      (let loop ([expr replacement])
-        (match expr
-          [(? batchref? brf)
-
-           #|
-           (match-define (batchref b* idx) brf)
-           (unless (eq? b* b)
-             (error 'batch-apply "Replacement ~a references the wrong batch ~a" replacement b*))
-           (unless (hash-has-key? mappings brf)
-             (error 'batch-apply "Replacement ~a references unknown index ~a" replacement idx))
-           |#
-
-           (map-ref brf)]
-          [_ (batch-push! out (expr-recurse expr (compose batchref-idx loop)))])))
+      (let loop ([node* node*])
+        (match node*
+          [(? batchref? brf) (map-ref brf)]
+          [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
     (map-set! brf brf*))
   (define brfs* (map map-ref brfs))
   (values out brfs*))
@@ -158,6 +150,8 @@
 ;; Function returns indices of children nodes within a batch for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
 (define (batch-children batch brfs #:keep-vars [keep-vars #f] #:condition [condition (const #t)])
+  (brfs-belong-to-batch? batch brfs)
+
   (define len (batch-length batch))
   (define child-mask (make-vector len #f))
   (for ([brf brfs])
@@ -180,16 +174,24 @@
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-reconstruct-exprs batch)
-  (define exprs (make-vector (batch-length batch)))
+  (define len (batch-length batch))
+  (define exprs (make-vector len))
   (define pt -1)
   (λ (brf)
+    (match-define (batchref b* idx*) brf)
     (cond
-      [(>= pt (batchref-idx brf)) (vector-ref exprs (batchref-idx brf))]
-      [(for ([node (in-batch batch (max 0 pt) (add1 (batchref-idx brf)))]
-             [idx (in-naturals (max 0 pt))])
-         (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
-       (set! pt (batchref-idx brf))
-       (vector-ref exprs (batchref-idx brf))])))
+      [(or (not (equal? b* batch)) (>= idx* len)) ; Little check
+       (error 'batch-reconstruct-exprs "Inappropriate batchref is passed")]
+      [(>= pt (batchref-idx brf)) (vector-ref exprs idx*)]
+      [(for ([node (in-batch batch (max 0 pt) (add1 idx*))]
+             [i (in-naturals (max 0 pt))])
+         (vector-set! exprs i (expr-recurse node (lambda (x) (vector-ref exprs x)))))
+       (set! pt idx*)
+       (vector-ref exprs idx*)])))
+
+(define (brfs-belong-to-batch? batch brfs)
+  (unless (andmap (compose (curry equal? batch) batchref-batch) brfs)
+    (error 'brfs-belong-to-batch? "One of batchrefs does not belong to the provided batch")))
 
 ;; The function removes any zombie nodes from batch with respect to the roots
 (define (batch-remove-zombie batch brfs #:keep-vars [keep-vars #f])

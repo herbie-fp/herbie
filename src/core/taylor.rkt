@@ -131,6 +131,7 @@
 (define (taylor var expr-batch)
   "Return a pair (e, n), such that expr ~= e var^n"
   (define taylor-approxs (make-vector (batch-length expr-batch))) ; vector of approximations
+  (define exprs (batch-reconstruct-exprs expr-batch))
 
   (for ([node (in-batch expr-batch)]
         [n (in-naturals)])
@@ -154,12 +155,12 @@
         [`(exp ,arg)
          (define arg* (normalize-series (vector-ref taylor-approxs arg)))
          (if (positive? (car arg*))
-             (taylor-exact (batch-pull (batchref expr-batch n)))
+             (taylor-exact (exprs (batchref expr-batch n)))
              (taylor-exp (zero-series arg*)))]
         [`(sin ,arg)
          (define arg* (normalize-series (vector-ref taylor-approxs arg)))
          (cond
-           [(positive? (car arg*)) (taylor-exact (batch-pull (batchref expr-batch n)))]
+           [(positive? (car arg*)) (taylor-exact (exprs (batchref expr-batch n)))]
            [(= (car arg*) 0)
             ; Our taylor-sin function assumes that a0 is 0,
             ; because that way it is especially simple. We correct for this here
@@ -171,7 +172,7 @@
         [`(cos ,arg)
          (define arg* (normalize-series (vector-ref taylor-approxs arg)))
          (cond
-           [(positive? (car arg*)) (taylor-exact (batch-pull (batchref expr-batch n)))]
+           [(positive? (car arg*)) (taylor-exact (exprs (batchref expr-batch n)))]
            [(= (car arg*) 0)
             ; Our taylor-cos function assumes that a0 is 0,
             ; because that way it is especially simple. We correct for this here
@@ -186,7 +187,7 @@
          #:when (exact-integer? (batch-ref expr-batch power))
          (taylor-pow (normalize-series (vector-ref taylor-approxs base))
                      (batch-ref expr-batch power))]
-        [_ (taylor-exact (batch-pull (batchref expr-batch n)))]))
+        [_ (taylor-exact (exprs (batchref expr-batch n)))]))
     (vector-set! taylor-approxs n approx))
   taylor-approxs)
 
