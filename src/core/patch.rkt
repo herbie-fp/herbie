@@ -57,19 +57,17 @@
           (timeline-stop!))))
 
 (define (run-taylor altns global-batch)
-  (timeline-event! 'series)
-  (timeline-push! 'inputs (map ~a (batch->progs global-batch (map alt-expr altns))))
-
   (define (key x)
     (approx-impl (deref (alt-expr x))))
 
   (define approxs (remove-duplicates (taylor-alts altns global-batch) #:key key))
   (define approxs* (run-lowering approxs global-batch))
 
+  (timeline-event! 'series)
   (define exprs (batch-reconstruct-exprs global-batch))
-  (timeline-push! 'outputs (map ~a (map (compose exprs alt-expr) approxs*)))
+  (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
+  (timeline-push! 'outputs (map (compose ~a exprs alt-expr) approxs*))
   (timeline-push! 'count (length altns) (length approxs*))
-
   approxs*)
 
 (define (run-lowering altns global-batch)
@@ -101,7 +99,6 @@
             (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
 
 (define (run-evaluate altns global-batch)
-  (timeline-event! 'sample)
   (define free-vars (batch-free-vars global-batch))
   (define real-altns
     (for/list ([altn (in-list altns)]
@@ -116,7 +113,7 @@
 
   (define-values (batch* brfs*) (batch-remove-zombie global-batch brfs))
   (define specs (map prog->spec (batch->progs batch* brfs*)))
-  (timeline-push! 'inputs (map ~a specs))
+
   (define-values (status pts)
     (if (null? specs)
         (values 'invalid #f)
@@ -131,20 +128,21 @@
       (define repr (context-repr ctx))
       (literal (repr->real pt repr) (representation-name repr))))
 
-  (timeline-push! 'outputs (map ~a literals))
   (define final-altns
     (for/list ([literal (in-list literals)]
                [altn (in-list real-altns)]
                #:when (equal? status 'valid))
       (define brf (batch-add! global-batch literal))
       (alt brf '(evaluate) (list altn) '())))
+
+  (timeline-event! 'sample)
+  (timeline-push! 'inputs (map ~a specs))
+  (timeline-push! 'outputs (map ~a literals))
   final-altns)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (run-rr altns global-batch)
-  (timeline-event! 'rewrite)
-
   ; generate required rules
   (define rules (*rules*))
 
@@ -161,8 +159,6 @@
       (repr-of-node global-batch (batchref-idx brf) (*context*))))
 
   (define-values (batch* brfs*) (batch-remove-zombie global-batch brfs))
-  (define exprs (batch-reconstruct-exprs global-batch))
-  (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
 
   (define runner
     (if (flag-set? 'generate 'egglog)
@@ -182,8 +178,10 @@
             (for ([batchref* (in-list batchrefs)])
               (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
 
-  (define exprs* (batch-reconstruct-exprs global-batch))
-  (timeline-push! 'outputs (map (compose ~a exprs* alt-expr) rewritten))
+  (timeline-event! 'rewrite)
+  (define exprs (batch-reconstruct-exprs global-batch))
+  (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
+  (timeline-push! 'outputs (map (compose ~a exprs alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
 
   rewritten)
