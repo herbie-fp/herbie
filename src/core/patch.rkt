@@ -57,13 +57,13 @@
           (timeline-stop!))))
 
 (define (run-taylor altns global-batch)
+  (timeline-event! 'series)
   (define (key x)
     (approx-impl (deref (alt-expr x))))
 
   (define approxs (remove-duplicates (taylor-alts altns global-batch) #:key key))
   (define approxs* (run-lowering approxs global-batch))
 
-  (timeline-event! 'series)
   (define exprs (batch-reconstruct-exprs global-batch))
   (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
   (timeline-push! 'outputs (map (compose ~a exprs alt-expr) approxs*))
@@ -99,6 +99,7 @@
             (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
 
 (define (run-evaluate altns global-batch)
+  (timeline-event! 'sample)
   (define free-vars (batch-free-vars global-batch))
   (define real-altns
     (for/list ([altn (in-list altns)]
@@ -135,7 +136,6 @@
       (define brf (batch-add! global-batch literal))
       (alt brf '(evaluate) (list altn) '())))
 
-  (timeline-event! 'sample)
   (timeline-push! 'inputs (map ~a specs))
   (timeline-push! 'outputs (map ~a literals))
   final-altns)
@@ -143,6 +143,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (run-rr altns global-batch)
+  (timeline-event! 'rewrite)
   ; generate required rules
   (define rules (*rules*))
 
@@ -178,7 +179,6 @@
             (for ([batchref* (in-list batchrefs)])
               (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
 
-  (timeline-event! 'rewrite)
   (define exprs (batch-reconstruct-exprs global-batch))
   (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
   (timeline-push! 'outputs (map (compose ~a exprs alt-expr) rewritten))
