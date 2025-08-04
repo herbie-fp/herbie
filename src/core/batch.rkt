@@ -12,6 +12,7 @@
          make-batch ; Batch
          batch-push! ; Batch -> Node -> Idx
          batch-add! ; Batch -> Expr -> Root
+         batch-insert!
          batch-copy ; Batch -> Batch
          batch-length ; Batch -> Integer
          batch-tree-size ; Batch -> Integer
@@ -30,7 +31,7 @@
          unbatchify-alts)
 
 ;; Batches store these recursive structures, flattened
-(struct batch ([nodes #:mutable] [index #:mutable] cache))
+(struct batch ([nodes #:mutable] [index #:mutable] [cache #:mutable]))
 
 (struct batchref (batch idx) #:transparent)
 
@@ -75,6 +76,11 @@
 
 (define (batch-copy b)
   (batch (dvector-copy (batch-nodes b)) (hash-copy (batch-index b)) (hash-copy (batch-cache b))))
+
+(define (batch-copy! b b*)
+  (set-batch-nodes! b (dvector-copy (batch-nodes b*)))
+  (set-batch-index! b (hash-copy (batch-index b*)))
+  (set-batch-cache! b (hash-copy (batch-cache b*))))
 
 (define (deref x)
   (match-define (batchref b idx) x)
@@ -134,9 +140,32 @@
        (set! pt idx*)
        (vector-ref free-vars idx*)])))
 
-(define (batch-apply b brfs f #:keep-vars [keep-vars #f])
+; Very slow function, do not call it unless it is necessary
+(define (batch-insert! batch brfs exprs)
+  (define batch* (make-batch))
+  ; Adding new expressions first
+  (define exprs-brfs
+    (for/list ([expr exprs])
+      (batch-add! batch* expr)))
+
+  ; Copy nodes from batch
+  (define mappings (make-vector (batch-length batch) -1))
+  (define (re-map idx)
+    (vector-ref mappings idx))
+  (define (set-map! idx idx*)
+    (vector-set! mappings idx idx*))
+  (for ([node (in-batch batch)]
+        [i (in-naturals)])
+    (define brf (batch-push! batch* (expr-recurse node re-map)))
+    (set-map! i (batchref-idx brf)))
+
+  (define brfs* (map (compose (curry batchref batch) re-map batchref-idx) brfs))
+  (batch-copy! batch batch*)
+  (values brfs* exprs-brfs))
+
+(define (batch-apply b brfs f)
   (define out (make-batch))
-  (define children-brfs (batch-children b brfs #:keep-vars keep-vars))
+  (define children-brfs (batch-children b brfs))
 
   (define mappings (make-hash))
   (define (map-ref brf)
@@ -158,17 +187,20 @@
 
 ;; Function returns indices of children nodes within a batch for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
-(define (batch-children batch brfs #:keep-vars [keep-vars #f] #:condition [condition (const #t)])
+(define (batch-children batch brfs #:condition [condition (const #t)])
+  ; Little check
   (brfs-belong-to-batch? batch brfs)
-
-  (define len (batch-length batch))
+  ; Define len to be as small as possible
+  (define max-idx (apply max (map batchref-idx brfs)))
+  (define len (add1 max-idx))
   (define child-mask (make-vector len #f))
+
   (for ([brf brfs])
     (vector-set! child-mask (batchref-idx brf) #t))
-  (for ([i (in-range (- len 1) -1 -1)]
-        [node (in-batch batch (- len 1) -1 -1)]
-        [child (in-vector child-mask (- len 1) -1 -1)]
-        #:when (or (and child (condition node)) (and keep-vars (symbol? node))))
+  (for ([i (in-range max-idx -1 -1)]
+        [node (in-batch batch max-idx -1 -1)]
+        [child (in-vector child-mask max-idx -1 -1)]
+        #:when (and child (condition node)))
     (unless child ; if include-vars then chld may not be #t, making sure it's #t
       (vector-set! child-mask i #t))
     (expr-recurse node
@@ -203,10 +235,10 @@
     (error 'brfs-belong-to-batch? "One of batchrefs does not belong to the provided batch")))
 
 ;; The function removes any zombie nodes from batch with respect to the roots
-(define (batch-remove-zombie batch brfs #:keep-vars [keep-vars #f])
+(define (batch-remove-zombie batch brfs)
   (define len (batch-length batch))
   (match (zero? len)
-    [#f (batch-apply batch brfs identity #:keep-vars keep-vars)]
+    [#f (batch-apply batch brfs identity)]
     [#t
      (unless (null? brfs)
        (error 'batch-remove-zombie "Non-empty batchrefs in an empty batch!"))

@@ -54,8 +54,7 @@
                (lambda (node)
                  (match node
                    [(approx spec impl) impl]
-                   [node node]))
-               #:keep-vars #t))
+                   [node node]))))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values
@@ -75,7 +74,8 @@
 
   ; Here we need to keep vars even though no roots refer to the vars
   (define-values (batch-no-approx brfs-no-approx) (batch-remove-approx batch brfs))
-  (define-values (batch* brfs*) (batch-remove-zombie batch-no-approx brfs-no-approx #:keep-vars #t))
+  (define-values (batch* brfs*) (batch-remove-zombie batch-no-approx brfs-no-approx))
+  (define-values (brfs** _) (batch-insert! batch* brfs* vars))
 
   (define instructions
     (for/vector #:length (- (batch-length batch*) num-vars)
@@ -83,7 +83,7 @@
       (match node
         [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
         [(list op args ...) (cons (impl-info op 'fl) args)])))
-  (define rootvec (list->vector (map batchref-idx brfs*)))
+  (define rootvec (list->vector (map batchref-idx brfs**)))
 
   (make-progs-interpreter vars instructions rootvec))
 
