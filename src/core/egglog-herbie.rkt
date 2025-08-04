@@ -47,7 +47,7 @@
 
 ;; Herbie's version of an egglog runner.
 ;; Defines parameters for running rewrite rules with egglog
-(struct egglog-runner (batch reprs schedule ctx)
+(struct egglog-runner (batch brfs reprs schedule ctx)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -64,7 +64,7 @@
 ;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
-(define (make-egglog-runner batch reprs schedule ctx)
+(define (make-egglog-runner batch brfs reprs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -90,11 +90,12 @@
       [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
 
   ; make the runner
-  (egglog-runner batch reprs schedule ctx))
+  (egglog-runner batch brfs reprs schedule ctx))
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
 (define (run-egglog-multi-extractor runner output-batch) ; multi expression extraction
   (define insert-batch (egglog-runner-batch runner))
+  (define insert-brfs (egglog-runner-brfs runner))
   (define curr-program (make-egglog-program))
 
   ;; Dump-file
@@ -184,7 +185,7 @@
   ;; keep track of the mapping between each binding and its corresponding constructor.
 
   (define-values (all-bindings extract-bindings)
-    (egglog-add-exprs insert-batch (egglog-runner-ctx runner) curr-program))
+    (egglog-add-exprs insert-batch insert-brfs (egglog-runner-ctx runner) curr-program))
 
   (egglog-program-add! `(ruleset run-extract-commands) curr-program)
   (egglog-program-add! `(rule () (,@all-bindings) :ruleset run-extract-commands) curr-program)
@@ -301,7 +302,7 @@
              (for/list ([arg (in-list args)])
                (loop arg #f)))
            (cons op args*)]))
-      (batch-push! batch term)))
+      (batchref-idx (batch-push! batch term))))
   (batchref batch idx))
 
 (define (normalize-cost c min-cost)
@@ -612,7 +613,7 @@
                   :ruleset
                   ,tag))))
 
-(define (egglog-add-exprs batch ctx curr-program)
+(define (egglog-add-exprs batch brfs ctx curr-program)
   (define mappings (build-vector (batch-length batch) values))
   (define bindings (make-hash))
   (define vars (make-hash))
@@ -663,9 +664,8 @@
            ;; appl impl -> Not a spec
            (vector-set! spec-mask n #f))]))
 
-  (define roots (vector 1 2 3))
-  (for ([root (in-vector roots)])
-    (vector-set! root-mask root #t))
+  (for ([brf brfs])
+    (vector-set! root-mask (batchref-idx brf) #t))
   (for ([node (in-batch batch)]
         [root? (in-vector root-mask)]
         [spec? (in-vector spec-mask)]
@@ -807,7 +807,8 @@
     (set! constructor-num (add1 constructor-num)))
 
   (define curr-bindings
-    (for/list ([root roots])
+    (for/list ([brf brfs])
+      (define root (batchref-idx brf))
       (define curr-binding-name
         (if (hash-has-key? vars root)
             (if (vector-ref spec-mask root)
