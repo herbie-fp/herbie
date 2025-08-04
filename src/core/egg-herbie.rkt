@@ -1022,45 +1022,46 @@
     (cdr (vector-ref egg-nodes id)))
 
   (define (add-enode enode type)
-    (batchref batch
-              (let loop ([enode enode]
-                         [type type])
-                (define enode*
-                  (match enode
-                    [(? number?)
-                     (if (representation? type)
-                         (literal enode (representation-name type))
-                         enode)]
-                    [(? symbol?)
-                     (if (string-prefix? (symbol->string enode) "$var")
-                         (egg-var->var enode ctx)
-                         enode)]
-                    [(list '$approx spec (app eggref impl))
-                     (define spec* (vector-ref id->spec spec))
-                     (unless spec*
-                       (error 'regraph-extract-variants "no initial approx node in eclass"))
-                     (define spec-type
-                       (if (representation? type)
-                           (representation-type type)
-                           type))
-                     (define final-spec (egg-parsed->expr spec* spec-type))
-                     (define final-spec-idx (batchref-idx (batch-add! batch final-spec)))
-                     (approx final-spec-idx (loop impl type))]
-                    [(list (? impl-exists? impl) (app eggref args) ...)
-                     (define args*
-                       (for/list ([arg (in-list args)]
-                                  [type (in-list (impl-info impl 'itype))])
-                         (loop arg type)))
-                     (cons impl args*)]
-                    [(list 'if c t f)
-                     (list 'if (loop (eggref c) 'bool) (loop (eggref t) type) (loop (eggref f) type))]
-                    [(list (? operator-exists? op) (app eggref args) ...)
-                     (define args*
-                       (for/list ([arg (in-list args)]
-                                  [type (in-list (operator-info op 'itype))])
-                         (loop arg type)))
-                     (cons op args*)]))
-                (batchref-idx (batch-push! batch enode*)))))
+    (define idx
+      (let loop ([enode enode]
+                 [type type])
+        (define enode*
+          (match enode
+            [(? number?)
+             (if (representation? type)
+                 (literal enode (representation-name type))
+                 enode)]
+            [(? symbol?)
+             (if (string-prefix? (symbol->string enode) "$var")
+                 (egg-var->var enode ctx)
+                 enode)]
+            [(list '$approx spec (app eggref impl))
+             (define spec* (vector-ref id->spec spec))
+             (unless spec*
+               (error 'regraph-extract-variants "no initial approx node in eclass"))
+             (define spec-type
+               (if (representation? type)
+                   (representation-type type)
+                   type))
+             (define final-spec (egg-parsed->expr spec* spec-type))
+             (define final-spec-idx (batchref-idx (batch-add! batch final-spec)))
+             (approx final-spec-idx (loop impl type))]
+            [(list (? impl-exists? impl) (app eggref args) ...)
+             (define args*
+               (for/list ([arg (in-list args)]
+                          [type (in-list (impl-info impl 'itype))])
+                 (loop arg type)))
+             (cons impl args*)]
+            [(list 'if c t f)
+             (list 'if (loop (eggref c) 'bool) (loop (eggref t) type) (loop (eggref f) type))]
+            [(list (? operator-exists? op) (app eggref args) ...)
+             (define args*
+               (for/list ([arg (in-list args)]
+                          [type (in-list (operator-info op 'itype))])
+                 (loop arg type)))
+             (cons op args*)]))
+        (batchref-idx (batch-push! batch enode*))))
+    (batchref batch idx))
 
   ; same as add-enode but works with index as an input instead of enode
   (define (add-id id type)

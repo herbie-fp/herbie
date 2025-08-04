@@ -69,7 +69,7 @@
       (struct-copy context ctx [repr repr])))
 
   (define-values (expr-batch brfs) (progs->batch exprs-list))
-  (define roots (map batchref-idx brfs))
+  (define roots (list->vector (map batchref-idx brfs)))
 
   (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
 
@@ -141,7 +141,7 @@
   (define delta-fn (eval-progs-real compare-specs (map (const delta-ctx) compare-specs)))
 
   (define-values (expr-batch brfs) (progs->batch exprs-list))
-  (define roots (map batchref-idx brfs))
+  (define roots (list->vector (map batchref-idx brfs)))
 
   (define ulp-errs (make-matrix roots pcontext))
   (define exacts-out (make-matrix roots pcontext))

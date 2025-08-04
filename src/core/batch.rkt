@@ -132,7 +132,7 @@
     (match-define (batchref b* idx*) brf)
     (cond
       [(or (not (equal? b* batch)) (>= idx* len)) ; Little check
-       (error 'batch-reconstruct-exprs "Inappropriate batchref is passed")]
+       (error 'batch-free-vars "Inappropriate batchref is passed")]
       [(>= pt (batchref-idx brf)) (vector-ref free-vars idx*)]
       [(for ([node (in-batch batch (max 0 pt) (add1 idx*))]
              [i (in-naturals (max 0 pt))])
