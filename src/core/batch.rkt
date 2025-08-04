@@ -95,6 +95,9 @@
       (batch-add! out expr)))
   (values out brfs))
 
+(define (batchrefs-max-idx brfs)
+  (apply max (map batchref-idx brfs)))
+
 (define (batch-tree-size b brfs)
   (brfs-belong-to-batch? b brfs)
   (define len (batch-length b))
@@ -112,10 +115,14 @@
   (batchref b (munge expr)))
 
 (define (batch->progs b brfs)
-  (brfs-belong-to-batch? b brfs)
-  (define exprs (batch-reconstruct-exprs b))
-  (for/list ([brf brfs])
-    (exprs brf)))
+  (match brfs
+    [(? null?) '()]
+    [_
+     (brfs-belong-to-batch? b brfs)
+     (define max-idx (batchrefs-max-idx brfs)) ; slight optimization
+     (define exprs (batch-reconstruct-exprs b #:length (add1 max-idx)))
+     (for/list ([brf brfs])
+       (exprs brf))]))
 
 (define (batch-free-vars batch)
   (define len (batch-length batch))
@@ -172,12 +179,13 @@
     [(? null?) (values out '())]
     [_
      (define children-brfs (batch-children b brfs))
+     (define max-idx (batchrefs-max-idx children-brfs))
 
-     (define mappings (make-hash))
+     (define mappings (make-vector (add1 max-idx) -1))
      (define (map-ref brf)
-       (hash-ref mappings brf))
+       (vector-ref mappings (batchref-idx brf)))
      (define (map-set! brf brf*)
-       (hash-set! mappings brf brf*))
+       (vector-set! mappings (batchref-idx brf) brf*))
 
      (for ([brf (in-list children-brfs)])
        (define node (deref brf))
@@ -200,7 +208,7 @@
      ; Little check
      (brfs-belong-to-batch? batch brfs)
      ; Define len to be as small as possible
-     (define max-idx (apply max (map batchref-idx brfs)))
+     (define max-idx (batchrefs-max-idx brfs))
      (define len (add1 max-idx))
      (define child-mask (make-vector len #f))
 
@@ -223,8 +231,8 @@
        (batchref batch i))]))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
-(define (batch-reconstruct-exprs batch)
-  (define len (batch-length batch))
+;;   Use #:length only when you know an index you won't go higher for expressions
+(define (batch-reconstruct-exprs batch #:length [len (batch-length batch)])
   (define exprs (make-vector len))
   (define pt -1)
   (λ (brf)
