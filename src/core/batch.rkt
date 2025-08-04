@@ -142,6 +142,9 @@
 
 ; Very slow function, do not call it unless it is necessary
 (define (batch-insert! batch brfs exprs)
+  ; Little check
+  (brfs-belong-to-batch? batch brfs)
+
   (define batch* (make-batch))
   ; Adding new expressions first
   (define exprs-brfs
@@ -165,53 +168,59 @@
 
 (define (batch-apply b brfs f)
   (define out (make-batch))
-  (define children-brfs (batch-children b brfs))
+  (match brfs
+    [(? null?) (values out '())]
+    [_
+     (define children-brfs (batch-children b brfs))
 
-  (define mappings (make-hash))
-  (define (map-ref brf)
-    (hash-ref mappings brf))
-  (define (map-set! brf brf*)
-    (hash-set! mappings brf brf*))
+     (define mappings (make-hash))
+     (define (map-ref brf)
+       (hash-ref mappings brf))
+     (define (map-set! brf brf*)
+       (hash-set! mappings brf brf*))
 
-  (for ([brf (in-list children-brfs)])
-    (define node (deref brf))
-    (define node* (f node))
-    (define brf*
-      (let loop ([node* node*])
-        (match node*
-          [(? batchref? brf) (map-ref brf)]
-          [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
-    (map-set! brf brf*))
-  (define brfs* (map map-ref brfs))
-  (values out brfs*))
+     (for ([brf (in-list children-brfs)])
+       (define node (deref brf))
+       (define node* (f node))
+       (define brf*
+         (let loop ([node* node*])
+           (match node*
+             [(? batchref? brf) (map-ref brf)]
+             [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
+       (map-set! brf brf*))
+     (define brfs* (map map-ref brfs))
+     (values out brfs*)]))
 
 ;; Function returns indices of children nodes within a batch for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
 (define (batch-children batch brfs #:condition [condition (const #t)])
-  ; Little check
-  (brfs-belong-to-batch? batch brfs)
-  ; Define len to be as small as possible
-  (define max-idx (apply max (map batchref-idx brfs)))
-  (define len (add1 max-idx))
-  (define child-mask (make-vector len #f))
+  (match brfs
+    [(? null?) '()]
+    [_
+     ; Little check
+     (brfs-belong-to-batch? batch brfs)
+     ; Define len to be as small as possible
+     (define max-idx (apply max (map batchref-idx brfs)))
+     (define len (add1 max-idx))
+     (define child-mask (make-vector len #f))
 
-  (for ([brf brfs])
-    (vector-set! child-mask (batchref-idx brf) #t))
-  (for ([i (in-range max-idx -1 -1)]
-        [node (in-batch batch max-idx -1 -1)]
-        [child (in-vector child-mask max-idx -1 -1)]
-        #:when (and child (condition node)))
-    (unless child ; if include-vars then chld may not be #t, making sure it's #t
-      (vector-set! child-mask i #t))
-    (expr-recurse node
-                  (λ (n)
-                    (when (condition (batch-ref batch n))
-                      (vector-set! child-mask n #t)))))
-  ; Return batchrefs of children nodes in ascending order
-  (for/list ([child (in-vector child-mask)]
-             [i (in-naturals)]
-             #:when child)
-    (batchref batch i)))
+     (for ([brf brfs])
+       (vector-set! child-mask (batchref-idx brf) #t))
+     (for ([i (in-range max-idx -1 -1)]
+           [node (in-batch batch max-idx -1 -1)]
+           [child (in-vector child-mask max-idx -1 -1)]
+           #:when (and child (condition node)))
+       (unless child ; if include-vars then chld may not be #t, making sure it's #t
+         (vector-set! child-mask i #t))
+       (expr-recurse node
+                     (λ (n)
+                       (when (condition (batch-ref batch n))
+                         (vector-set! child-mask n #t)))))
+     ; Return batchrefs of children nodes in ascending order
+     (for/list ([child (in-vector child-mask)]
+                [i (in-naturals)]
+                #:when child)
+       (batchref batch i))]))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-reconstruct-exprs batch)
