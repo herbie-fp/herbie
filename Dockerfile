@@ -4,16 +4,18 @@
 
 # Build image
 # Builds output under /herbie/egg-herbie
-FROM --platform=linux/amd64 rust:1.61.0 AS egg-herbie-builder
+FROM rust:1.88.0 AS egg-herbie-builder
 WORKDIR /herbie
 COPY egg-herbie egg-herbie
 RUN cargo build --release --manifest-path=egg-herbie/Cargo.toml
+RUN cargo install --locked --git https://github.com/egraphs-good/egglog.git --rev 052a330de22d40e9eded19e7f0891c921f7f458c
 
 # Production image
-FROM --platform=linux/amd64 racket/racket:8.13-full AS production
+FROM racket/racket:8.17-full AS production
 LABEL maintainer="Pavel Panchekha <me@pavpanchekha.com>"
 COPY --from=egg-herbie-builder /herbie/egg-herbie /src/egg-herbie
 RUN raco pkg install /src/egg-herbie
+COPY --from=egg-herbie-builder /usr/local/cargo/bin/egglog /usr/local/bin/egglog
 COPY src /src/herbie
 RUN raco pkg install --auto /src/herbie
 ENTRYPOINT ["racket", "/src/herbie/main.rkt"]
