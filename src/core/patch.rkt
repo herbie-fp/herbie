@@ -101,20 +101,14 @@
 (define (run-evaluate altns global-batch)
   (timeline-event! 'sample)
   (define free-vars (batch-free-vars global-batch))
-  (define real-altns
-    (for/list ([altn (in-list altns)]
-               #:when (set-empty? (vector-ref free-vars (batchref-idx (alt-expr altn)))))
-      altn))
+  (define real-altns (filter (compose set-empty? free-vars alt-expr) altns))
 
-  ; TODO: rewrite this
   (define brfs (map alt-expr real-altns))
   (define contexts
     (for/list ([brf brfs])
       (context '() (repr-of-batchref brf (*context*)) '())))
 
-  (define-values (batch* brfs*) (batch-remove-zombie global-batch brfs))
-  (define specs (map prog->spec (batch->progs batch* brfs*)))
-
+  (define specs (map prog->spec (batch->progs global-batch brfs)))
   (define-values (status pts)
     (if (null? specs)
         (values 'invalid #f)
@@ -153,7 +147,6 @@
           `(,rules . ((node . ,(*node-limit*))))
           `(lower . ((iteration . 1) (scheduler . simple)))))
 
-  ; TODO: rewrite this part
   (define brfs (map alt-expr altns))
   (define reprs
     (for/list ([brf brfs])

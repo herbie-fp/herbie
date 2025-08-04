@@ -112,18 +112,27 @@
     (exprs brf)))
 
 (define (batch-free-vars batch)
-  (define out (make-vector (batch-length batch)))
-  (for ([i (in-naturals)]
-        [node (in-batch batch)])
-    (define fv
-      (cond
-        [(symbol? node) (set node)]
-        [else
-         (define arg-free-vars (mutable-set))
-         (expr-recurse node (lambda (i) (set-union! arg-free-vars (vector-ref out i))))
-         arg-free-vars]))
-    (vector-set! out i fv))
-  out)
+  (define len (batch-length batch))
+  (define free-vars (make-vector len))
+  (define pt -1)
+  (λ (brf)
+    (match-define (batchref b* idx*) brf)
+    (cond
+      [(or (not (equal? b* batch)) (>= idx* len)) ; Little check
+       (error 'batch-reconstruct-exprs "Inappropriate batchref is passed")]
+      [(>= pt (batchref-idx brf)) (vector-ref free-vars idx*)]
+      [(for ([node (in-batch batch (max 0 pt) (add1 idx*))]
+             [i (in-naturals (max 0 pt))])
+         (define fv
+           (cond
+             [(symbol? node) (set node)]
+             [else
+              (define arg-free-vars (mutable-set))
+              (expr-recurse node (lambda (i) (set-union! arg-free-vars (vector-ref free-vars i))))
+              arg-free-vars]))
+         (vector-set! free-vars i fv))
+       (set! pt idx*)
+       (vector-ref free-vars idx*)])))
 
 (define (batch-apply b brfs f #:keep-vars [keep-vars #f])
   (define out (make-batch))
