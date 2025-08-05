@@ -16,13 +16,13 @@
 (define (add-derivations-to altn)
   (match altn
     ; recursive rewrite or simplify, both using egg
-    [(alt expr (list 'rr loc (? egg-runner? runner) #f) `(,prev) preprocessing)
+    [(alt expr (list 'rr loc (? egg-runner? runner) #f) `(,prev))
      (define start-expr (location-get loc (alt-expr prev)))
      (define end-expr (location-get loc expr))
      (define proof
        (and (not (flag-set? 'generate 'egglog)) (egraph-prove runner start-expr end-expr)))
      (define proof* (canonicalize-proof (alt-expr altn) proof loc))
-     (alt expr `(rr ,loc ,runner ,proof*) (list prev) preprocessing)]
+     (alt expr `(rr ,loc ,runner ,proof*) (list prev))]
 
     ; everything else
     [_ altn]))
