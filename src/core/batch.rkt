@@ -9,7 +9,7 @@
          batch->progs ; Batch -> ?(or List<Root> Vector<Root>) -> List<Expr>
 
          (struct-out batch)
-         make-batch ; Batch
+         batch-empty ; Batch
          batch-push! ; Batch -> Node -> Idx
          batch-add! ; Batch -> Expr -> Root
          batch-insert!
@@ -35,7 +35,7 @@
 
 (struct batchref (batch idx) #:transparent)
 
-(define (make-batch)
+(define (batch-empty)
   (batch (make-dvector) (make-hash) (make-hasheq)))
 
 (define (in-batch batch [start 0] [end #f] [step 1])
@@ -87,7 +87,7 @@
   (expr-recurse (batch-ref b idx) (lambda (ref) (batchref b ref))))
 
 (define (progs->batch exprs #:vars [vars '()])
-  (define out (make-batch))
+  (define out (batch-empty))
   (for ([var (in-list vars)])
     (batch-push! out var))
   (define brfs
@@ -119,40 +119,32 @@
     [(? null?) '()]
     [_
      (brfs-belong-to-batch? b brfs)
-     (define max-idx (batchrefs-max-idx brfs)) ; slight optimization
-     (define exprs (batch-reconstruct-exprs b #:length (add1 max-idx)))
+     (define exprs (batch-reconstruct-exprs b))
      (for/list ([brf brfs])
        (exprs brf))]))
 
-(define (batch-free-vars batch)
+(define (batch-recursive-map batch f)
   (define len (batch-length batch))
-  (define free-vars (make-vector len))
+  (define out (make-vector len))
   (define pt -1)
   (λ (brf)
     (match-define (batchref b* idx*) brf)
     (cond
       [(or (not (equal? b* batch)) (>= idx* len)) ; Little check
        (error 'batch-free-vars "Inappropriate batchref is passed")]
-      [(>= pt (batchref-idx brf)) (vector-ref free-vars idx*)]
+      [(>= pt (batchref-idx brf)) (vector-ref out idx*)]
       [(for ([node (in-batch batch (max 0 pt) (add1 idx*))]
              [i (in-naturals (max 0 pt))])
-         (define fv
-           (cond
-             [(symbol? node) (set node)]
-             [else
-              (define arg-free-vars (mutable-set))
-              (expr-recurse node (lambda (i) (set-union! arg-free-vars (vector-ref free-vars i))))
-              arg-free-vars]))
-         (vector-set! free-vars i fv))
+         (vector-set! out i (f (λ (x) (vector-ref out x)) node)))
        (set! pt idx*)
-       (vector-ref free-vars idx*)])))
+       (vector-ref out idx*)])))
 
 ; Very slow function, do not call it unless it is necessary
 (define (batch-insert! batch brfs exprs)
   ; Little check
   (brfs-belong-to-batch? batch brfs)
 
-  (define batch* (make-batch))
+  (define batch* (batch-empty))
   ; Adding new expressions first
   (define exprs-brfs
     (for/list ([expr exprs])
@@ -174,7 +166,7 @@
   (values brfs* exprs-brfs))
 
 (define (batch-apply b brfs f)
-  (define out (make-batch))
+  (define out (batch-empty))
   (match brfs
     [(? null?) (values out '())]
     [_
@@ -231,21 +223,19 @@
        (batchref batch i))]))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
-;;   Use #:length only when you know an index you won't go higher for expressions
-(define (batch-reconstruct-exprs batch #:length [len (batch-length batch)])
-  (define exprs (make-vector len))
-  (define pt -1)
-  (λ (brf)
-    (match-define (batchref b* idx*) brf)
-    (cond
-      [(or (not (equal? b* batch)) (>= idx* len)) ; Little check
-       (error 'batch-reconstruct-exprs "Inappropriate batchref is passed")]
-      [(>= pt (batchref-idx brf)) (vector-ref exprs idx*)]
-      [(for ([node (in-batch batch (max 0 pt) (add1 idx*))]
-             [i (in-naturals (max 0 pt))])
-         (vector-set! exprs i (expr-recurse node (lambda (x) (vector-ref exprs x)))))
-       (set! pt idx*)
-       (vector-ref exprs idx*)])))
+(define (batch-reconstruct-exprs batch)
+  (batch-recursive-map batch (lambda (children-exprs node) (expr-recurse node children-exprs))))
+
+(define (batch-free-vars batch)
+  (batch-recursive-map
+   batch
+   (lambda (get-children-free-vars node)
+     (cond
+       [(symbol? node) (set node)]
+       [else
+        (define arg-free-vars (mutable-set))
+        (expr-recurse node (lambda (i) (set-union! arg-free-vars (get-children-free-vars i))))
+        arg-free-vars]))))
 
 (define (brfs-belong-to-batch? batch brfs)
   (unless (andmap (compose (curry equal? batch) batchref-batch) brfs)
