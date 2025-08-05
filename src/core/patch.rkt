@@ -53,7 +53,7 @@
             (for ([i (in-range (*taylor-order-limit*))])
               (define gen (approx spec (hole (representation-name repr) (genexpr))))
               (define brf (batch-add! global-batch gen)) ; Munge gen
-              (sow (alt brf `(taylor ,name ,var) (list altn) '()))))
+              (sow (alt brf `(taylor ,name ,var) (list altn)))))
           (timeline-stop!))))
 
 (define (run-taylor altns global-batch)
@@ -96,7 +96,7 @@
         (for ([batchrefs (in-list batchrefss)]
               [altn (in-list altns)])
           (for ([batchref* (in-list batchrefs)])
-            (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
+            (sow (alt batchref* (list 'rr runner #f) (list altn)))))))
 
 (define (run-evaluate altns global-batch)
   (timeline-event! 'sample)
@@ -128,7 +128,7 @@
                [altn (in-list real-altns)]
                #:when (equal? status 'valid))
       (define brf (batch-add! global-batch literal))
-      (alt brf '(evaluate) (list altn) '())))
+      (alt brf '(evaluate) (list altn))))
 
   (timeline-push! 'inputs (map ~a specs))
   (timeline-push! 'outputs (map ~a literals))
@@ -170,7 +170,7 @@
           (for ([batchrefs (in-list batchrefss)]
                 [altn (in-list altns)])
             (for ([batchref* (in-list batchrefs)])
-              (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
+              (sow (alt batchref* (list 'rr runner #f) (list altn)))))))
 
   (define exprs (batch-reconstruct-exprs global-batch))
   (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
@@ -185,7 +185,7 @@
   ; Starting alternatives
   (define start-altns
     (for/list ([brf brfs])
-      (alt brf 'patch '() '())))
+      (alt brf 'patch '())))
 
   (define evaluations
     (if (flag-set? 'generate 'evaluate)

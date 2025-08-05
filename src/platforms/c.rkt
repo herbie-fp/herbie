@@ -30,7 +30,7 @@
 
 (define-operation (if.f32 [c <bool>] [t <binary32>] [f <binary32>]) <binary32>
   #:spec (if c t f) #:impl if-impl
-  #:cost boolean-move-cost #:aggregate if-cost)
+  #:cost (if-cost boolean-move-cost))
 
 (define-operations ([x <binary32>] [y <binary32>]) <bool>
   [==.f32 #:spec (== x y) #:impl =          #:cost 32bit-move-cost]
@@ -40,7 +40,7 @@
   [<=.f32 #:spec (<= x y) #:impl <=         #:cost 32bit-move-cost]
   [>=.f32 #:spec (>= x y) #:impl >=         #:cost 32bit-move-cost])
 
-(define-operations () <binary32> #:fpcore (:precision binary32)
+(define-operations () <binary32> #:fpcore (! :precision binary32 _)
   [PI.f32       #:spec (PI)       #:impl (const (flsingle pi))       #:fpcore PI       #:cost 32bit-move-cost]
   [E.f32        #:spec (E)        #:impl (const (flsingle (exp 1)))  #:fpcore E        #:cost 32bit-move-cost]
   [INFINITY.f32 #:spec (INFINITY) #:impl (const +inf.0)              #:fpcore INFINITY #:cost 32bit-move-cost]
@@ -50,13 +50,13 @@
   #:spec (neg x) #:impl (compose flsingle -)
   #:fpcore (! :precision binary32 (- x)) #:cost 0.125)
 
-(define-operations ([x <binary32>] [y <binary32>]) <binary32> #:fpcore (:precision binary32)
+(define-operations ([x <binary32>] [y <binary32>]) <binary32> #:fpcore (! :precision binary32 _)
   [+.f32 #:spec (+ x y) #:impl (compose flsingle +) #:cost 0.200]
   [-.f32 #:spec (- x y) #:impl (compose flsingle -) #:cost 0.200]
   [*.f32 #:spec (* x y) #:impl (compose flsingle *) #:cost 0.250]
   [/.f32 #:spec (/ x y) #:impl (compose flsingle /) #:cost 0.350])
 
-(define-operations ([x <binary32>]) <binary32> #:fpcore (:precision binary32)
+(define-operations ([x <binary32>]) <binary32> #:fpcore (! :precision binary32 _)
   [fabs.f32   #:spec (fabs x)   #:impl (from-libm 'fabsf)   #:cost 0.125]
   [sin.f32    #:spec (sin x)    #:impl (from-libm 'sinf)    #:cost 4.250]
   [cos.f32    #:spec (cos x)    #:impl (from-libm 'cosf)    #:cost 4.250]
@@ -87,7 +87,7 @@
   [tgamma.f32 #:spec (tgamma x) #:impl (from-libm 'tgammaf) #:cost 2.625]
   [trunc.f32  #:spec (trunc x)  #:impl (from-libm 'truncf)  #:cost 0.275])
 
-(define-operations ([x <binary32>] [y <binary32>]) <binary32> #:fpcore (:precision binary32)
+(define-operations ([x <binary32>] [y <binary32>]) <binary32> #:fpcore (! :precision binary32 _)
   [pow.f32       #:spec (pow x y)       #:impl (from-libm 'powf)       #:cost 2.000]
   [atan2.f32     #:spec (atan2 x y)     #:impl (from-libm 'atan2f)     #:cost 2.000]
   [copysign.f32  #:spec (copysign x y)  #:impl (from-libm 'copysignf)  #:cost 0.200]
@@ -97,7 +97,7 @@
   [fmod.f32      #:spec (fmod x y)      #:impl (from-libm 'fmodf)      #:cost 1.750]
   [remainder.f32 #:spec (remainder x y) #:impl (from-libm 'remainderf) #:cost 1.000])
 
-(define-operations ([x <binary32>]) <binary32> #:fpcore (:precision binary32)
+(define-operations ([x <binary32>]) <binary32> #:fpcore (! :precision binary32 _)
   [erfc.f32  #:spec (- 1 (erf x)) #:impl (from-libm 'erfcf)  #:fpcore (erfc x)  #:cost 0.900]
   [expm1.f32 #:spec (- (exp x) 1) #:impl (from-libm 'expm1f) #:fpcore (expm1 x) #:cost 0.900]
   [log1p.f32 #:spec (log (+ 1 x)) #:impl (from-libm 'log1pf) #:fpcore (log1p x) #:cost 1.300])
@@ -116,7 +116,7 @@
 
 (define-operation (if.f64 [c <bool>] [t <binary64>] [f <binary64>]) <binary64>
   #:spec (if c t f) #:impl if-impl
-  #:cost boolean-move-cost #:aggregate if-cost)
+  #:cost (if-cost boolean-move-cost))
 
 (define-operations ([x <binary64>] [y <binary64>]) <bool>
   [==.f64 #:spec (== x y) #:impl =          #:cost 64bit-move-cost]
@@ -126,7 +126,7 @@
   [<=.f64 #:spec (<= x y) #:impl <=         #:cost 64bit-move-cost]
   [>=.f64 #:spec (>= x y) #:impl >=         #:cost 64bit-move-cost])
 
-(define-operations () <binary64> #:fpcore (:precision binary64)
+(define-operations () <binary64> #:fpcore (! :precision binary64 _)
   [PI.f64   #:spec (PI)       #:impl (const pi)      #:fpcore PI       #:cost 64bit-move-cost]
   [E.f64    #:spec (E)        #:impl (const (exp 1)) #:fpcore E        #:cost 64bit-move-cost]
   [INFINITY #:spec (INFINITY) #:impl (const +inf.0)  #:fpcore INFINITY #:cost 64bit-move-cost]
@@ -135,13 +135,13 @@
 (define-operation (neg.f64 [x <binary64>]) <binary64>
   #:spec (neg x) #:impl - #:fpcore (! :precision binary64 (- x)) #:cost 0.125)
 
-(define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (:precision binary64)
+(define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (! :precision binary64 _)
   [+.f64 #:spec (+ x y) #:impl + #:cost 0.200]
   [-.f64 #:spec (- x y) #:impl - #:cost 0.200]
   [*.f64 #:spec (* x y) #:impl * #:cost 0.250]
   [/.f64 #:spec (/ x y) #:impl / #:cost 0.350])
 
-(define-operations ([x <binary64>]) <binary64> #:fpcore (:precision binary64)
+(define-operations ([x <binary64>]) <binary64> #:fpcore (! :precision binary64 _)
   [fabs.f64   #:spec (fabs x)   #:impl (from-libm 'fabs)      #:cost 0.125]
   [sin.f64    #:spec (sin x)    #:impl (from-libm 'sin)       #:cost 4.200]
   [cos.f64    #:spec (cos x)    #:impl (from-libm 'cos)       #:cost 4.200]
@@ -172,7 +172,7 @@
   [tgamma.f64 #:spec (tgamma x) #:impl (from-libm 'tgamma)    #:cost 2.625]
   [trunc.f64  #:spec (trunc x)  #:impl (from-libm 'trunc)     #:cost 0.250])
 
-(define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (:precision binary64)
+(define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (! :precision binary64 _)
   [pow.f64       #:spec (pow x y)       #:impl (from-libm 'pow)       #:cost 2.000]
   [atan2.f64     #:spec (atan2 x y)     #:impl (from-libm 'atan2)     #:cost 2.000]
   [copysign.f64  #:spec (copysign x y)  #:impl (from-libm 'copysign)  #:cost 0.200]
@@ -182,7 +182,7 @@
   [fmod.f64      #:spec (fmod x y)      #:impl (from-libm 'fmod)      #:cost 1.750]
   [remainder.f64 #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 1.000])
 
-(define-operations ([x <binary64>]) <binary64> #:fpcore (:precision binary64)
+(define-operations ([x <binary64>]) <binary64> #:fpcore (! :precision binary64 _)
   [erfc.f64  #:spec (- 1 (erf x)) #:impl (from-libm 'erfc)  #:fpcore (erfc x) #:cost 0.900]
   [expm1.f64 #:spec (- (exp x) 1) #:impl (from-libm 'expm1) #:fpcore (expm1 x) #:cost 0.900]
   [log1p.f64 #:spec (log (+ 1 x)) #:impl (from-libm 'log1p) #:fpcore (log1p x) #:cost 1.300])
