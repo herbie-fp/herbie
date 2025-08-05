@@ -464,16 +464,13 @@
   (cond
     [(symbol? input)
      ; expansive rules
-     (define itype (dict-ref (rule-itypes ru) input))
      (for/list ([op (all-operators)]
-                #:when (eq? (operator-info op 'otype) itype))
+                #:when (eq? (operator-info op 'otype) 'real))
        (define itypes (operator-info op 'itype))
        (define vars (map (lambda (_) (gensym)) itypes))
        (rule (sym-append (rule-name ru) '-expand- op)
              (cons op vars)
              (replace-expression (rule-output ru) input (cons op vars))
-             (map cons vars itypes)
-             (rule-otype ru)
              (rule-tags ru)))]
     ; non-expansive rule
     [else (list (rule->egg-rule ru))]))
