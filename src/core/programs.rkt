@@ -203,15 +203,15 @@
   (define idx*
     (let loop ([loc0 loc0]
                [idx full-idx])
-      (let ([node (get-node idx)])
-        (match* (node loc0)
-          [(_ (? null?)) sub-idx]
-          [((approx spec impl) (cons 1 rest)) (push-node (approx (loop rest spec) impl))]
-          [((approx spec impl) (cons 2 rest)) (push-node (approx spec (loop rest impl)))]
-          [((hole prec spec) (cons 1 rest)) (push-node (hole prec (loop rest spec)))]
-          [((list op args ...) (cons loc rest))
-           (define args* (list-update args (sub1 loc) (curry loop rest)))
-           (push-node (cons op args*))]))))
+      (define node (get-node idx))
+      (match* (node loc0)
+        [(_ (? null?)) sub-idx]
+        [((approx spec impl) (cons 1 rest)) (push-node (approx (loop rest spec) impl))]
+        [((approx spec impl) (cons 2 rest)) (push-node (approx spec (loop rest impl)))]
+        [((hole prec spec) (cons 1 rest)) (push-node (hole prec (loop rest spec)))]
+        [((list op args ...) (cons loc rest))
+         (define args* (list-update args (sub1 loc) (curry loop rest)))
+         (push-node (cons op args*))])))
   (batchref full-batch idx*))
 
 (define/contract (location-get loc prog)
