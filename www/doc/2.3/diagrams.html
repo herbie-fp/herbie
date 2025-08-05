@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Diagrams</title>
+  <link rel='stylesheet' type='text/css' href="../../main.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+  <header>
+    <h1>Diagrams</h1>
+    <a href="../.."><img class="logo" src="../../logo-car.png" /></a>
+    <nav>
+      <ul>
+        <li><a href="../../demo/">Try</a></li>
+        <li><a href="installing.html">Install</a></li>
+        <li><a href="tutorial.html">Learn</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <p>This page contains systems diagrams for Herbie.</p>
+
+  <figure>
+    <img width="100%" src="system-2.2.png" alt="System diagram of Herbie" />
+    <figcaption>
+    High-level system diagram of Herbie.
+    It highlights Herbie's core architecture,
+      key external libraries (egg and Rival), and user input/output.
+    Basic flow: Herbie passes user input (specification, precondition, etc.)
+      to a <dfn>sampler</dfn> which computes the exact output
+      for uniformly random input points.
+    Herbie uses these exact outputs to compute
+      the <a href="error.html">accuracy</a> of candidate programs.
+    The mainloop (scheduler) then alternates between generate and prune phases,
+      maintaining and improving a set of accurate expressions at each iteration.
+    Once the generate-and-prune loop is complete,
+      Herbie extracts either output expressions using <dfn>regime inference</dfn>,
+      which combines multiple candidate programs using conditionals.
+    The resulting programs are summarized in a report.
+    </figcaption>
+  </figure>
+  
+</body>
+</html>

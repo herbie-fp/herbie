@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie Warnings and Errors</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Common Warnings and Errors</h1>
+    <a href="../../"><img class="logo" src="../../logo-car.png" /></a>
+    <nav>
+      <ul>
+        <li><a href="../../demo/">Try</a></li>
+        <li><a href="installing.html">Install</a></li>
+        <li><a href="tutorial.html">Learn</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <p><a href="../../">Herbie</a> issues a variety of warnings and
+  errors when something unexpected happens during compilation.</p>
+
+
+  <h2>Common warnings</h2>
+
+  <h3 id="inf-points"><var>N</var>% of points produce a very large (infinite) output.</h3>
+  
+  <p>
+    Sometimes, an input to your expression produces an output so large
+    that it's best represented by a floating-point infinity. For
+    example, <code>(exp 1000)</code> is over 10<sup>434</sup>, so it's
+    much larger than the largest floating-point value. Herbie raises
+    this warning when too many inputs (more than 20% of them) are this
+    large. When you see this warning, you should usually set a more
+    restrictive precondition.
+  </p>
+
+  <h3 id="ground-truth">Could not determine a ground truth</h3>
+
+  <p>
+    Herbie raises this warning when some inputs require more than
+    10,000 bits to compute an exact ground truth. For example, to
+    compute <code>(/ (exp x) (exp x))</code> for <code>x =
+    1e100</code>, absurdly large numbers would be required. Herbie
+    discards these inputs and raises this warning. When you see this
+    warning, you should usually set a more restrictive precondition.
+  </p>
+
+  <h3 id="value-to-string">Could not uniquely print <var>val</var></h3>
+
+  <p>
+    Herbie will raise this warning when it needs more than 10,000 bits
+    to produce a unique decimal representation for a given value. This
+    is likely the result of a bug in a custom platform, likely in
+    a <a href="plugins.html">representation definition</a>. The
+    platform needs to be fixed.
+  </p>
+
+  <h3 id="unused-variable">Unused variable <var>var</var></h3>
+  
+  <p>
+    The input FPCore contains a variable that is not used in the body
+    expression. You should remove the unused variable.
+  </p>
+
+  <h3 id="strange-variable">Unusual variable <var>var</var></h3>
+  
+  <p>
+    The input expression contains a variable that is named similar to
+    some named constant, like <var>e</var> instead of <var>E</var>.
+    You should use a different variable name.
+  </p>
+
+  <h2>Common errors</h2>
+
+  <h3 id="invalid-syntax">Invalid syntax</h3>
+
+  <p>This error means you mis-formatted Herbie's input. Common errors
+  include misspelled function names and parenthesized expressions that
+  should not be parenthesized. For example, in <code>(- (exp (x))
+  1)</code>, the expression <code>x</code> is a variable so shouldn't
+  be parenthesized; <code>(- (exp x) 1)</code> is correct. Follow
+  the <a href="input.html">input format</a> more carefully.
+  </p>
+
+  <h3 id="sample-valid-points">Cannot sample enough valid points</h3>
+
+  <p>This error occurs when Herbie is unable to find enough valid
+  points. For example, the expression <code>(acos (+ 1000 x))</code>
+  is invalid unless <code>(&lt;= -1001 x -999)</code>, a rather narrow
+  range. You can specify a more restrictive precondition or pass a
+  larger value for
+  the <a href="options.html"><code>--num-analysis</code> flag</a>.
+  </p>
+
+  <h3 id="no-valid-values">No valid values</h3>
+
+  <p>This error indicates that your input has no valid inputs, usually
+  due to an overly restriction precondition. For example, the
+  precondition <code>(&lt 3 x 2)</code> excludes all inputs. You
+  should fix either the precondition or the input program.</p>
+
+</body>
+</html>

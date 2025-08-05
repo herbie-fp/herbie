@@ -201,7 +201,7 @@
      (if (equal? out "") default out)]
     [else default]))
 
-(define *herbie-version* "2.2")
+(define *herbie-version* "2.3")
 
 (define *herbie-commit* (git-command "rev-parse" "HEAD" #:default *herbie-version*))
 

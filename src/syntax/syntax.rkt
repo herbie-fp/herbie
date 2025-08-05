@@ -1,7 +1,8 @@
 #lang racket
 
 (require math/bigfloat
-         racket/hash)
+         racket/hash
+         (only-in rival/eval/main rival-functions))
 
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
@@ -15,17 +16,11 @@
          operator-exists?
          operator-info
          all-operators ; return a list of operators names
-         operators ; returns hash of operators
          *functions*
          register-function!
          make-operator-impl
          fpcore-context
-         (struct-out operator-impl) ; required by platform.rkt
-         (struct-out operator)) ; required by platform.rkt
-
-(module+ test
-  (require rackunit
-           rival))
+         (struct-out operator-impl)) ; required by platform.rkt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Real operators
@@ -35,136 +30,26 @@
 ;; unfortunately Herbie still mandates that every impl
 ;; has an associated operator so the spec is here
 
-;; A real operator requires
-;;  - a (unique) name
-;;  - input and output types
-(struct operator (name itype otype))
-
-;; All real operators
-(define operators (make-hasheq))
+;; All real operators come from Rival
 
 ;; Checks if an operator has been registered.
 (define (operator-exists? op)
-  (hash-has-key? operators op))
+  (hash-has-key? rival-functions op))
 
 ;; Returns all operators.
 (define (all-operators)
-  (sort (hash-keys operators) symbol<?))
+  (sort (hash-keys rival-functions) symbol<?))
 
-;; Looks up a property `field` of an real operator `op`.
+;; Looks up a property `field` of a real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (operator-info op field)
   (-> symbol? (or/c 'itype 'otype) any/c)
-  (unless (hash-has-key? operators op)
-    (error 'operator-info "Unknown operator ~a" op))
-  (define info (hash-ref operators op))
+  (define info
+    (hash-ref rival-functions op (lambda () (error 'operator-info "Unknown operator ~a" op))))
+  (match-define (cons otype itypes) info)
   (case field
-    [(itype) (operator-itype info)]
-    [(otype) (operator-otype info)]))
-
-;; Registers an operator. Panics if the operator already exists.
-(define (register-operator! name itypes otype)
-  (when (hash-has-key? operators name)
-    (error 'register-operator! "operator already registered: ~a" name))
-  (hash-set! operators name (operator name itypes otype)))
-
-;; Syntactic form for `register-operator!`
-(define-syntax (define-operator stx)
-  (syntax-case stx ()
-    [(_ (id itype ...) otype _ ...) ; The _ ... is for backwards-compatibility
-     (unless (identifier? #'id)
-       (raise-syntax-error 'define-operator stx "expected identifier" #'id))
-     #'(register-operator! 'id '(itype ...) 'otype)]))
-
-(define-syntax define-operators
-  (syntax-rules (: ->)
-    [(_ [name : itype ... -> otype] ...)
-     (begin
-       (define-operator (name itype ...) otype) ...)]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Rival-supported operators
-
-; real constants (encoded as nullary operators)
-(define-operators
-  [PI : -> real]
-  [E : -> real]
-  [INFINITY : -> real]
-  [NAN : -> real])
-
-; boolean constants (encoded as nullary operators)
-(define-operators
-  [TRUE : -> bool]
-  [FALSE : -> bool])
-
-; boolean operators
-(define-operators
-  [not : bool -> bool]
-  [and : bool bool -> bool]
-  [or : bool bool -> bool])
-
-; real-boolean operators
-(define-operators
-  [== : real real -> bool]
-  [!= : real real -> bool]
-  [< : real real -> bool]
-  [> : real real -> bool]
-  [<= : real real -> bool]
-  [>= : real real -> bool])
-
-; real operators
-(define-operators
-  [acos : real -> real]
-  [acosh : real -> real]
-  [asin : real -> real]
-  [asinh : real -> real]
-  [atan : real -> real]
-  [atanh : real -> real]
-  [cbrt : real -> real]
-  [ceil : real -> real]
-  [cos : real -> real]
-  [cosh : real -> real]
-  [erf : real -> real]
-  [exp : real -> real]
-  [exp2 : real -> real]
-  [fabs : real -> real]
-  [floor : real -> real]
-  [lgamma : real -> real]
-  [log : real -> real]
-  [log10 : real -> real]
-  [log2 : real -> real]
-  [logb : real -> real]
-  [neg : real -> real]
-  [rint : real -> real]
-  [round : real -> real]
-  [sin : real -> real]
-  [sinh : real -> real]
-  [sqrt : real -> real]
-  [tan : real -> real]
-  [tanh : real -> real]
-  [tgamma : real -> real]
-  [trunc : real -> real]
-  [+ : real real -> real]
-  [- : real real -> real]
-  [* : real real -> real]
-  [/ : real real -> real]
-  [atan2 : real real -> real]
-  [copysign : real real -> real]
-  [fdim : real real -> real]
-  [fmax : real real -> real]
-  [fmin : real real -> real]
-  [fmod : real real -> real]
-  [pow : real real -> real]
-  [remainder : real real -> real])
-
-(module+ test
-  ; check expected number of operators
-  (check-equal? (length (all-operators)) 57)
-
-  ; check that Rival supports all non-accelerator operators
-  (for ([op (in-list (all-operators))])
-    (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
-    (rival-compile (list `(,op ,@vars)) vars (list flonum-discretization))))
+    [(itype) itypes]
+    [(otype) otype]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Operator implementations
@@ -238,33 +123,28 @@
   (unless (equal? actual-ty otype)
     (type-error! spec actual-ty otype)))
 
-(define fpcore-context (make-parameter '()))
+(define fpcore-context (make-parameter '_))
 
 (define (fpcore-parameterize spec)
-  (if (empty? (fpcore-context))
-      spec
-      (match spec
-        [`(! ,props ... ,body)
-         (define props1 (make-immutable-hash (props->dict (fpcore-context))))
-         (define props2 (make-immutable-hash (props->dict props)))
-         (define props* (dict->props (hash-union props1 props2 #:combine (lambda (x y) y))))
-         `(! ,@props* ,body)]
-        [body `(! ,@(fpcore-context) ,body)])))
+  (let loop ([ctx (fpcore-context)])
+    (match ctx
+      ['_ spec]
+      [(list arg ...) (map loop arg)]
+      [_ ctx])))
 
 ; Registers an operator implementation `name` with context `ctx` and spec `spec`.
 ; Can optionally specify a floating-point implementation and fpcore translation.
+;; Register an operator implementation with the current platform.
+;; The `#:cost` argument accepts either a numeric constant or a
+;; procedure aggregating the costs of the children.
 (define/contract (create-operator-impl! name
                                         ctx
                                         spec
                                         #:impl [fl-proc #f]
                                         #:fpcore [fpcore #f]
-                                        #:cost [cost #f]
-                                        #:aggregate [aggregate +])
+                                        #:cost [cost #f])
   (->* (symbol? context? any/c)
-       (#:impl (or/c procedure? generator? #f)
-               #:fpcore any/c
-               #:cost (or/c #f real?)
-               #:aggregate procedure?)
+       (#:impl (or/c procedure? generator? #f) #:fpcore any/c #:cost (or/c #f real? procedure?))
        operator-impl?)
   ; check specification
   (check-spec! name ctx spec)
@@ -303,7 +183,12 @@
            name
            (procedure-arity fl-proc*)
            (length (context-vars ctx))))
-  (operator-impl name ctx spec (fpcore-parameterize (or fpcore spec)) fl-proc* cost aggregate))
+  (define-values (cost* aggregate*)
+    (cond
+      [(number? cost) (values cost +)]
+      [(procedure? cost) (values 0 cost)]
+      [else (values cost +)]))
+  (operator-impl name ctx spec (fpcore-parameterize (or fpcore spec)) fl-proc* cost* aggregate*))
 
 (define-syntax (make-operator-impl stx)
   (define (oops! why [sub-stx #f])
@@ -322,7 +207,6 @@
        (define core #f)
        (define fl-expr #f)
        (define op-cost #f)
-       (define aggregate-expr #f)
 
        (let loop ([fields fields])
          (syntax-case fields ()
@@ -333,15 +217,13 @@
                           [spec spec]
                           [core core]
                           [fl-expr fl-expr]
-                          [op-cost op-cost]
-                          [aggregate-expr aggregate-expr])
+                          [op-cost op-cost])
               #'(create-operator-impl! 'id
                                        (context '(var ...) rtype (list repr ...))
                                        'spec
                                        #:impl fl-expr
                                        #:fpcore 'core
-                                       #:cost op-cost
-                                       #:aggregate (or aggregate-expr +)))]
+                                       #:cost op-cost))]
            [(#:spec expr rest ...)
             (cond
               [spec (oops! "multiple #:spec clauses" stx)]
@@ -370,13 +252,6 @@
                (set! op-cost #'cost)
                (loop #'(rest ...))])]
            [(#:cost) (oops! "expected value after keyword `#:cost`" stx)]
-           [(#:aggregate expr rest ...)
-            (cond
-              [aggregate-expr (oops! "multiple #:aggregate clauses" stx)]
-              [else
-               (set! aggregate-expr #'expr)
-               (loop #'(rest ...))])]
-           [(#:aggregate) (oops! "expected value after keyword `#:aggregate`" stx)]
 
            ; bad
            [_ (oops! "bad syntax" fields)])))]

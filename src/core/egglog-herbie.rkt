@@ -327,7 +327,11 @@
   (for ([impl (in-list (platform-impls pform))])
     (set! raw-costs (cons (impl-info impl 'cost) raw-costs)))
 
-  (define min-cost (apply min raw-costs))
+  (define nonzero-costs (filter (negate zero?) raw-costs))
+  (define min-cost
+    (if (empty? nonzero-costs)
+        1
+        (apply min nonzero-costs)))
 
   (define typed-graph
     `(datatype MTy
@@ -422,7 +426,7 @@
     (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
 
 (define (platform-spec-nodes)
-  (append* (for/list ([op (in-list (cons 'if (all-operators)))])
+  (append* (for/list ([op (in-list (all-operators))])
              (hash-set! (id->e1) op (serialize-op op))
              (hash-set! (e1->id) (serialize-op op) op)
 
@@ -431,10 +435,7 @@
              (hash-set! (id->e1) unsound-op (serialize-op unsound-op))
              (hash-set! (e1->id) (serialize-op unsound-op) unsound-op)
 
-             (define arity
-               (match op
-                 ['if 3]
-                 [_ (length (operator-info op 'itype))]))
+             (define arity (length (operator-info op 'itype)))
              (list `(,(serialize-op op) ,@(for/list ([i (in-range arity)])
                                             'M)
                                         :cost
@@ -1022,10 +1023,6 @@
       [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
        (/ (string->number n) (string->number d))]
       [`(,(? egglog-var? var) ,v) (string->symbol v)]
-      [`(If ,cond ,ift ,iff)
-       `(if ,(loop cond)
-            ,(loop ift)
-            ,(loop iff))]
       [`(,op ,args ...) `(,(hash-ref (e1->id) op) ,@(map loop args))])))
 
 (define (e2->expr expr)

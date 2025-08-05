@@ -53,7 +53,7 @@ upgrade:
 	$(MAKE) install
 
 start-server:
-	racket -y src/main.rkt web --seed 1 --timeout 150 --num-iters 2 \
+	racket -y src/main.rkt web --seed 1 --timeout 150 --threads 8 \
 		--demo --public --prefix /demo/ --port 4053 --save-session www/demo/ \
 		--log infra/server.log --quiet 2>&1
 
