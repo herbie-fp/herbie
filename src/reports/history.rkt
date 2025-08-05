@@ -91,12 +91,12 @@
             (sow (alt-expr altn)))
 
           (match altn
-            [(alt prog 'start (list) _) (void)]
-            [(alt prog 'add-preprocessing `(,prev) _) (loop prev)]
-            [(alt prog `(evaluate ,loc) `(,prev) _) (loop prev)]
-            [(alt _ `(regimes ,splitpoints) prevs _) (for-each loop prevs)]
-            [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _) (loop prev)]
-            [(alt prog `(rr ,loc ,input ,proof) `(,prev) _)
+            [(alt prog 'start (list)) (void)]
+            [(alt prog 'add-preprocessing `(,prev)) (loop prev)]
+            [(alt prog `(evaluate ,loc) `(,prev)) (loop prev)]
+            [(alt _ `(regimes ,splitpoints) prevs) (for-each loop prevs)]
+            [(alt prog `(taylor ,loc ,pt ,var) `(,prev)) (loop prev)]
+            [(alt prog `(rr ,loc ,input ,proof) `(,prev))
              (loop prev)
              (when proof
                (for ([step proof])
@@ -195,10 +195,10 @@
         "N/A"))
 
   (match altn
-    [(alt prog 'start (list) _)
+    [(alt prog 'start (list))
      `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) (type . "start") (error . ,err))]
 
-    [(alt prog `(regimes ,splitpoints) prevs _)
+    [(alt prog `(regimes ,splitpoints) prevs)
      (define intervals
        (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)]
                   [end-sp splitpoints])
@@ -217,7 +217,7 @@
                         (define mask* (map and-fn mask new-mask))
                         (render-json entry pcontext ctx errcache mask*))))]
 
-    [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _)
+    [(alt prog `(taylor ,loc ,pt ,var) `(,prev))
      `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
             (type . "taylor")
             (prev . ,(render-json prev pcontext ctx errcache mask))
@@ -226,14 +226,14 @@
             (loc . ,loc)
             (error . ,err))]
 
-    [(alt prog `(evaluate ,loc) `(,prev) _)
+    [(alt prog `(evaluate ,loc) `(,prev))
      `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
             (type . "evaluate")
             (prev . ,(render-json prev pcontext ctx errcache mask))
             (loc . ,loc)
             (error . ,err))]
 
-    [(alt prog `(rr ,loc ,input ,proof) `(,prev) _)
+    [(alt prog `(rr ,loc ,input ,proof) `(,prev))
      `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
             (type . "rr")
             (prev . ,(render-json prev pcontext ctx errcache mask))
@@ -243,12 +243,11 @@
             (loc . ,loc)
             (error . ,err))]
 
-    [(alt prog 'add-preprocessing `(,prev) preprocessing)
+    [(alt prog 'add-preprocessing `(,prev))
      `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
             (type . "add-preprocessing")
             (prev . ,(render-json prev pcontext ctx errcache mask))
-            (error . ,err)
-            (preprocessing . ,(map (curry map symbol->string) preprocessing)))]))
+            (error . ,err))]))
 
 (define (render-proof-json proof pcontext ctx errcache mask)
   (for/list ([step proof])
