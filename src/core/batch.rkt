@@ -24,6 +24,7 @@
          batch-children ; Batch -> ?Vector<Root> -> Vector<Idx>
          batch-reconstruct-exprs ; Batch -> Vector<Expr>
          batch-remove-zombie ; Batch -> ?Vector<Root> -> Batch
+         batch-recursive-map
 
          (struct-out batchref)
          deref ; Batchref -> Expr
@@ -49,18 +50,6 @@
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
 
-;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
-(define (unbatchify-alts batch altns)
-  (define exprs (batch-reconstruct-exprs batch))
-  (define (unmunge altn)
-    (define expr (alt-expr altn))
-    (match expr
-      [(? batchref? brf)
-       (define expr* (exprs brf))
-       (struct-copy alt altn [expr expr*])]
-      [_ altn]))
-  (map (curry alt-map unmunge) altns))
-
 (define (batch-length b)
   (dvector-length (batch-nodes b)))
 
@@ -73,6 +62,12 @@
                (hash-set! hashcons term idx)
                (dvector-add! (batch-nodes b) term)
                (batchref b idx))))
+
+(define (batch-add! b expr)
+  (define cache (batch-cache b))
+  (define (munge prog)
+    (hash-ref! cache prog (lambda () (batchref-idx (batch-push! b (expr-recurse prog munge))))))
+  (batchref b (munge expr)))
 
 (define (batch-copy b)
   (batch (dvector-copy (batch-nodes b)) (hash-copy (batch-index b)) (hash-copy (batch-cache b))))
@@ -94,15 +89,6 @@
     (for/list ([expr (in-list exprs)])
       (batch-add! out expr)))
   (values out brfs))
-
-(define (batchrefs-max-idx brfs)
-  (apply max (map batchref-idx brfs)))
-
-(define (batch-add! b expr)
-  (define cache (batch-cache b))
-  (define (munge prog)
-    (hash-ref! cache prog (lambda () (batchref-idx (batch-push! b (expr-recurse prog munge))))))
-  (batchref b (munge expr)))
 
 (define (batch->progs b brfs)
   (match brfs
@@ -129,6 +115,18 @@
        (set! pt idx*)
        (vector-ref out idx*)])))
 
+;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
+(define (unbatchify-alts batch altns)
+  (define exprs (batch-reconstruct-exprs batch))
+  (define (unmunge altn)
+    (define expr (alt-expr altn))
+    (match expr
+      [(? batchref? brf)
+       (define expr* (exprs brf))
+       (struct-copy alt altn [expr expr*])]
+      [_ altn]))
+  (map (curry alt-map unmunge) altns))
+
 ; Very slow function, do not call it unless it is necessary
 (define (batch-insert! batch brfs exprs)
   ; Little check
@@ -154,6 +152,9 @@
   (define brfs* (map (compose (curry batchref batch) re-map batchref-idx) brfs))
   (batch-copy! batch batch*)
   (values brfs* exprs-brfs))
+
+(define (batchrefs-max-idx brfs)
+  (apply max (map batchref-idx brfs)))
 
 (define (batch-apply b brfs f)
   (define out (batch-empty))
@@ -229,10 +230,11 @@
 
 (define (batch-tree-size batch brfs)
   (define counts
-    (batch-recursive-map batch
-                         (lambda (get-children-counts node)
-                           (define args (reap [sow] (expr-recurse node sow)))
-                           (apply + 1 (map get-children-counts args)))))
+    (batch-recursive-map
+     batch
+     (lambda (get-children-counts node)
+       (define args (reap [sow] (expr-recurse node sow)))
+       (apply + 1 (map get-children-counts args)))))
   (apply + (map counts brfs)))
 
 (define (brfs-belong-to-batch? batch brfs)

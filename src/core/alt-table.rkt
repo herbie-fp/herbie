@@ -28,23 +28,21 @@
 
 (define (alt-batch-cost batch brfs repr)
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
-  (define costs (make-vector (batch-length batch) 0))
-  (for ([node (in-batch batch)]
-        [i (in-naturals)])
-    (define cost
-      (match node
-        [(? literal?) ((node-cost-proc node repr))]
-        [(? symbol?) ((node-cost-proc node repr))]
-        [(? number?) 0] ; specs
-        [(approx _ impl) (vector-ref costs impl)]
-        [(list (? (negate impl-exists?) impl) args ...) 0] ; specs
-        [(list impl args ...)
-         (define cost-proc (node-cost-proc node repr))
-         (define itypes (impl-info impl 'itype))
-         (apply cost-proc (map (curry vector-ref costs) args))]))
-    (vector-set! costs i cost))
-  (for/list ([brf (in-list brfs)])
-    (vector-ref costs (batchref-idx brf))))
+  (define costs
+    (batch-recursive-map
+     batch
+     (λ (get-args-costs node)
+       (match node
+         [(? literal?) ((node-cost-proc node repr))]
+         [(? symbol?) ((node-cost-proc node repr))]
+         [(? number?) 0] ; specs
+         [(approx _ impl) (get-args-costs impl)]
+         [(list (? (negate impl-exists?) impl) args ...) 0] ; specs
+         [(list impl args ...)
+          (define cost-proc (node-cost-proc node repr))
+          (define itypes (impl-info impl 'itype))
+          (apply cost-proc (map get-args-costs args))]))))
+  (map costs brfs))
 
 (define (make-alt-table pcontext initial-alt ctx)
   (define cost (alt-cost initial-alt (context-repr ctx)))
