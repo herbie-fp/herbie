@@ -39,7 +39,6 @@
   (define vars (context-vars (*context*)))
 
   (reap [sow]
-        (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create a mutable batch
         (for* ([var (in-list vars)]
                [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
@@ -53,10 +52,9 @@
                 #:when (set-member? fv var)) ; check whether var exists in expr at all
             (for ([i (in-range (*taylor-order-limit*))])
               (define gen (approx spec (hole (representation-name repr) (genexpr))))
-              (define idx (mutable-batch-munge! global-batch-mutable gen)) ; Munge gen
+              (define idx (batch-munge! global-batch gen)) ; Munge gen
               (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn)))))
-          (timeline-stop!))
-        (batch-copy-mutable-nodes! global-batch global-batch-mutable))) ; Update global-batch
+          (timeline-stop!))))
 
 (define (run-taylor altns global-batch)
   (timeline-event! 'series)
@@ -132,14 +130,12 @@
       (literal (repr->real pt repr) (representation-name repr))))
 
   (timeline-push! 'outputs (map ~a literals))
-  (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create a mutable batch
   (define final-altns
     (for/list ([literal (in-list literals)]
                [altn (in-list real-altns)]
                #:when (equal? status 'valid))
-      (define idx (mutable-batch-munge! global-batch-mutable literal))
+      (define idx (batch-munge! global-batch literal))
       (alt (batchref global-batch idx) '(evaluate) (list altn))))
-  (batch-copy-mutable-nodes! global-batch global-batch-mutable)
   final-altns)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -260,8 +260,6 @@
                     dump-file
                     #:num-extracts (length extract-commands)))
 
-  (define output-mutable-batch (batch->mutable-batch output-batch))
-
   ;; (Listof (Listof exprs))
   (define herbie-exprss
     (for/list ([next-expr (in-list stdout-content)])
@@ -269,14 +267,10 @@
 
   (define result
     (for/list ([variants (in-list herbie-exprss)])
-      (remove-duplicates (for/list ([v (in-list variants)])
-                           (egglog->batchref v
-                                             output-batch
-                                             output-mutable-batch
-                                             (context-repr (egglog-runner-ctx runner))))
-                         #:key batchref-idx)))
-
-  (batch-copy-mutable-nodes! output-batch output-mutable-batch)
+      (remove-duplicates
+       (for/list ([v (in-list variants)])
+         (egglog->batchref v output-batch (context-repr (egglog-runner-ctx runner))))
+       #:key batchref-idx)))
 
   ;; Close everything subprocess related
   (close-output-port egglog-in)
@@ -289,7 +283,7 @@
   ;; (Listof (Listof batchref))
   result)
 
-(define (egglog->batchref expr input-batch out type)
+(define (egglog->batchref expr batch type)
   (define idx
     (let loop ([expr expr]
                [type type])
@@ -307,8 +301,8 @@
              (for/list ([arg (in-list args)])
                (loop arg #f)))
            (cons op args*)]))
-      (mutable-batch-push! out term)))
-  (batchref input-batch idx))
+      (batch-push! batch term)))
+  (batchref batch idx))
 
 (define (normalize-cost c min-cost)
   (exact-round (* (/ c min-cost) 100)))
@@ -641,8 +635,8 @@
   (define root-mask (make-vector (batch-length batch) #f))
   (define spec-mask (make-vector (batch-length batch) #f))
 
-  (for ([n (in-range (batch-length batch))])
-    (define node (vector-ref (batch-nodes batch) n))
+  (for ([node (in-batch batch)]
+        [n (in-naturals)])
     (match node
       [(? literal?) (vector-set! spec-mask n #f)] ;; If literal, not a spec
       [(? number?) (vector-set! spec-mask n #t)] ;; If number, it's a spec
@@ -667,7 +661,7 @@
 
   (for ([root (in-vector (batch-roots batch))])
     (vector-set! root-mask root #t))
-  (for ([node (in-vector (batch-nodes batch))]
+  (for ([node (in-batch batch)]
         [root? (in-vector root-mask)]
         [spec? (in-vector spec-mask)]
         [n (in-naturals)])
