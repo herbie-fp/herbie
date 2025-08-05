@@ -101,19 +101,18 @@
 
 (define (batch-map batch f)
   (define len (batch-length batch))
-  (define out (make-vector len))
+  (define out (make-dvector))
   (define pt -1)
   (λ (brf)
     (match-define (batchref b* idx*) brf)
     (cond
       [(or (not (equal? b* batch)) (>= idx* len)) ; Little check
        (error 'batch-free-vars "Inappropriate batchref is passed")]
-      [(>= pt (batchref-idx brf)) (vector-ref out idx*)]
-      [(for ([node (in-batch batch (max 0 pt) (add1 idx*))]
-             [i (in-naturals (max 0 pt))])
-         (vector-set! out i (f (λ (x) (vector-ref out x)) node)))
+      [(>= pt (batchref-idx brf)) (dvector-ref out idx*)]
+      [(for ([node (in-batch batch (add1 pt) (add1 idx*))])
+         (dvector-add! out (f (λ (x) (dvector-ref out x)) node)))
        (set! pt idx*)
-       (vector-ref out idx*)])))
+       (dvector-ref out idx*)])))
 
 ;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
 (define (unbatchify-alts batch altns)
