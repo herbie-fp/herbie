@@ -64,6 +64,12 @@
   default; this command uses the <code>-p 8000:80</code> option to
   expose that container port as the host's port 8000.)</p>
 
+  <p>If you want to pass custom flags to the Herbie web server, make
+  sure to also pass the <code>--public</code>
+  and <code>--port=80</code> flags to enable the Dockerized Herbie to
+  talk to your computer. Make sure to access the server using HTTP,
+  not HTTPS.</p>
+
   <p>If you are using the <code>--log</code>
   or <code>--save-session</code> flags for the web shell, you will
   also need to mount the relevant directories into the Docker
