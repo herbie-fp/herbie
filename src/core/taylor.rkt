@@ -134,7 +134,7 @@
   (define (batch-recover-expr node)
     (exprs (batch-push! expr-batch node)))
 
-  (batch-recursive-map
+  (batch-map
    expr-batch
    (lambda (get-taylor-approx node)
      (match node

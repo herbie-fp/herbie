@@ -24,7 +24,7 @@
          batch-children ; Batch -> ?Vector<Root> -> Vector<Idx>
          batch-reconstruct-exprs ; Batch -> Vector<Expr>
          batch-remove-zombie ; Batch -> ?Vector<Root> -> Batch
-         batch-recursive-map
+         batch-map
 
          (struct-out batchref)
          deref ; Batchref -> Expr
@@ -99,7 +99,7 @@
      (for/list ([brf brfs])
        (exprs brf))]))
 
-(define (batch-recursive-map batch f)
+(define (batch-map batch f)
   (define len (batch-length batch))
   (define out (make-vector len))
   (define pt -1)
@@ -161,6 +161,7 @@
   (match brfs
     [(? null?) (values out '())]
     [_
+     ; Little helpers
      (define children-brfs (batch-children b brfs))
      (define max-idx (batchrefs-max-idx children-brfs))
 
@@ -215,25 +216,25 @@
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-reconstruct-exprs batch)
-  (batch-recursive-map batch (lambda (children-exprs node) (expr-recurse node children-exprs))))
+  (batch-map batch (lambda (children-exprs node) (expr-recurse node children-exprs))))
 
 (define (batch-free-vars batch)
-  (batch-recursive-map
-   batch
-   (lambda (get-children-free-vars node)
-     (cond
-       [(symbol? node) (set node)]
-       [else
-        (define arg-free-vars (mutable-set))
-        (expr-recurse node (lambda (i) (set-union! arg-free-vars (get-children-free-vars i))))
-        arg-free-vars]))))
+  (batch-map batch
+             (lambda (get-children-free-vars node)
+               (cond
+                 [(symbol? node) (set node)]
+                 [else
+                  (define arg-free-vars (mutable-set))
+                  (expr-recurse node
+                                (lambda (i) (set-union! arg-free-vars (get-children-free-vars i))))
+                  arg-free-vars]))))
 
 (define (batch-tree-size batch brfs)
   (define counts
-    (batch-recursive-map batch
-                         (lambda (get-children-counts node)
-                           (define args (reap [sow] (expr-recurse node sow)))
-                           (apply + 1 (map get-children-counts args)))))
+    (batch-map batch
+               (lambda (get-children-counts node)
+                 (define args (reap [sow] (expr-recurse node sow)))
+                 (apply + 1 (map get-children-counts args)))))
   (apply + (map counts brfs)))
 
 (define (brfs-belong-to-batch? batch brfs)
