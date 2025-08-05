@@ -230,11 +230,10 @@
 
 (define (batch-tree-size batch brfs)
   (define counts
-    (batch-recursive-map
-     batch
-     (lambda (get-children-counts node)
-       (define args (reap [sow] (expr-recurse node sow)))
-       (apply + 1 (map get-children-counts args)))))
+    (batch-recursive-map batch
+                         (lambda (get-children-counts node)
+                           (define args (reap [sow] (expr-recurse node sow)))
+                           (apply + 1 (map get-children-counts args)))))
   (apply + (map counts brfs)))
 
 (define (brfs-belong-to-batch? batch brfs)
