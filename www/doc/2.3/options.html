@@ -1,0 +1,256 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie Command-line Options</title>
+  <link rel='stylesheet' type='text/css' href="../../main.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Command-line Options</h1>
+    <a href="../../"><img class="logo" src="../../logo-car.png" /></a>
+    <nav>
+      <ul>
+        <li><a href="../../demo/">Try</a></li>
+        <li><a href="installing.html">Install</a></li>
+        <li><a href="tutorial.html">Learn</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <p>The <a href="../../"><code>herbie</code></a> command has
+  subcommands and options that influence both its user interface and
+  the quality of its output.</p>
+
+  <h2>Herbie commands</h2>
+
+  <p>Herbie provides several subcommands, which offer interactive and
+    batch modes for both the <a href="using-cli.html">command line</a>
+    and the <a href="using-web.html">web interface</a>:<p>
+
+  <dl>
+    <dt><code>racket -l herbie web</code></dt>
+    <dd>Use Herbie <a href="using-web.html">through your browser</a>
+      using a local server. This server can also be used
+      from <a href="https://github.com/herbie-fp/odyssey">Odyssey</a>.</dd>
+
+    <dt><code>racket -l herbie shell</code></dt>
+    <dd>Use Herbie <a href="using-cli.html">via a command-line shell</a>.
+    Enter an <a href="input.html">FPCore expression</a> and Herbie
+    prints faster and more accurate alternatives.</dd>
+
+    <dt><code>racket -l herbie improve <var>input</var> <var>output</var></code></dt>
+    <dd>Run Herbie on the expressions in the file or
+    directory <var>input</var>. The results are written
+    to <var>output</var>, a single file in FPCore format.</dd>
+
+    <dt><code>racket -l herbie report <var>input</var> <var>output</var></code></dt>
+    <dd>Run Herbie on the expressions in the file or
+    directory <var>input</var>. The results are written
+    to <var>output</var>, a directory of
+    HTML <a href="report.html">reports</a>. Viewing these requires a
+    web server.</dd>
+  </dl>
+
+  <p>We recommend the <code>web</code> subcommand for interactive use
+  with detailed <a href="report.html">reports</a> that include graphs
+  of error versus input values and plots comparing cost and accuracy.
+  This can help you understand whether Herbie's improvements matter
+  for your use case.</p>
+
+  <p>Use <code>herbie <var>subcommand</var> --help</code> to view
+  available command-line options for a subcommand. This command also
+  shows undocumented subcommands not listed on this page.</p>
+
+  <h2>General options</h2>
+
+  <p>
+    General options apply to all subcommands and are passed after the
+    subcommand name but before other arguments, like this:
+  </p>
+
+  <pre class="shell">racket -l herbie report --timeout 60 in.fpcore out/</pre>
+
+  <p>Options must go before subcommand arguments like input and output
+  paths.</p>
+
+  <dl>
+    <dt><code>--platform <var>P</var></code></dt>
+    <dd>Herbie's backend <a href="platforms.html">platform</a>, which
+      affects the operations available to Herbie, their accuracies,
+      and their costs. The platform name is either one of the built-in
+      platforms, or the path to a <a href="platforms.html">custom
+      platform</a>. In general, it's best to select the platform that
+      most closely matches the programming language and hardware where
+      you will be running floating-point code.</dd>
+
+    <dt><code>--seed <var>S</var></code></dt>
+    <dd>The random seed, which changes the randomly-selected points
+      that Herbie evaluates candidate expressions on. The seed is a
+      number between 0 and 2<sup>31</sup> (not including the latter).
+      Two runs of Herbie with the same seed should produce identical
+      results. By default, a random seed is chosen.</dd>
+
+    <dt><code>--timeout <var>T</var></code></dt>
+    <dd>The timeout to use per-input, in seconds. A fractional number
+      of seconds can be given. By default, no timeout is used.</dd>
+
+    <dt><code>--threads <var>N</var></code></dt>
+    <dd>Enables multi-threaded operation. By default, no threads are
+      used. The argument is the number of threads to use,
+      or <code>yes</code> to use all of the hardware threads.</dd>
+
+    <dt><code>--num-points <var>N</var></code></dt>
+    <dd>The number of input points Herbie uses to evaluate candidate
+      expressions. The default, 256, is a good balance for most
+      programs. Increasing this option, say to 512 or 1024, will slow
+      Herbie down but may make its results more consistent.</dd>
+
+    <dt><code>--num-iters <var>N</var></code></dt>
+    <dd>The number of attempts Herbie makes to improve accuracy. The
+      default, 4, suffices for most programs, and more iterations are
+      rarely beneficial. But increase this option, say to 6, can
+      sometimes lead to more accurate or faster results.</dd>
+
+    <dt><code>--num-analysis <var>N</var></code></dt>
+    <dd>The number of input subdivisions to use when searching for
+      valid input points. The default is 12. Increasing this option
+      will slow Herbie down, but may fix a
+      "<a href="faq.html#sample-valid-points">Cannot sample enough
+      valid points</a>" error.</dd>
+    
+    <dt><code>--num-enodes <var>N</var></code></dt>
+    <dd>The number of equivalence graph nodes to use when doing
+      algebraic reasoning. The default is 4000. Increasing this option
+      will slow Herbie down, but may improve results slightly.</dd>
+    
+  </dl>
+
+  <h2>Web shell options</h2>
+  
+  <p>The <code>web</code> tool runs Herbie and connects to it from
+  your browser. It has options to control the underlying web
+  server.</p>
+  
+  <dl>
+    <dt><code>--port N</code></dt>
+    <dd>The port the Herbie server runs on. The default port is 8000.</dd>
+
+    <dt><code>--save-session dir</code></dt>
+    <dd>Save all the reports to this directory. The directory also
+    caches previously-computed expressions.</dd>
+
+    <dt><code>--log file</code></dt>
+    <dd>Write an access log to this file, formatted like an Apache
+    log. This log does <em>not</em> contain crash tracebacks.</dd>
+
+    <dt><code>--quiet</code></dt>
+    <dd>By default, but not when this option is set, a browser is
+    automatically started to show the Herbie page. This option also
+    shrinks the text printed on start up.</dd>
+
+    <dt><code>--no-browser</code></dt>
+    <dd>This flag disables the default behavior of opening the Herbie page in your default browser.</dd>
+
+    <dt><code>--public</code></dt>
+    <dd>When set, users on other computers can connect to the demo and
+    use it. (In other words, the server listens
+    on <code>0.0.0.0</code>.) Essential when Herbie is run
+    from <a href="docker.html">Docker</a>.</dd>
+  </dl>
+
+  <h2>Rulesets</h2>
+
+  <p>
+    Herbie uses rewrite rules to change programs and improve accuracy.
+    The <code>--disable rules:<var>group</var></code>
+    and <code>--enable rules:<var>group</var></code> options turn rule
+    sets on and off. In general, turning a ruleset on makes Herbie
+    produce more accurate programs.
+  </p>
+
+  <p>The full list of rule groups is:</p>
+
+  <table class="function-list">
+    <thead><tr><th>Rule Group</th><th>Topic of rewrite rules</th></tr></thead>
+    <tr><td>arithmetic</td><td>Basic arithmetic facts</td></tr>
+    <tr><td>polynomials</td><td>Factoring and powers</td></tr>
+    <tr><td>fractions</td><td>Fraction arithmetic</td></tr>
+    <tr><td>exponents</td><td>Exponentiation identities</td></tr>
+    <tr><td>trigonometry</td><td>Trigonometric identities</td></tr>
+    <tr><td>hyperbolic</td><td>Hyperbolic trigonometric identities</td></tr>
+  </table>
+
+  <h2>Search options</h2>
+
+  <p>These options enable or disable transformations that Herbie uses
+    to find candidate programs. We recommend sticking to the
+    defaults.</p>
+
+  <p>
+    Each option can be turned off with the <code>-o</code>
+    or <code>--disable</code> command-line flag and on with
+    <code>+o</code> or <code>--enable</code>. Turning an option off
+    typically results in less-accurate results, while turning a option
+    on typically results in more confusing output expressions.
+  </p>
+
+  <dl>
+    <dt><code>setup:search</code></dt>
+    <dd>This option, on by default, uses interval subdivision search
+    to help compute ground truth for complicated expressions. If
+    turned off, Herbie will be slightly faster, but may hit the
+    "<a href="faq.html#sample-valid-points">Cannot sample enough valid
+    points</a>" error more often. Instead of turning this option off,
+    try adjusting the <kbd>--num-analysis</kbd> flag.</dd>
+
+    <dt><code>generate:rr</code></dt>
+    <dd>This option, on by default, uses algebraic rewriting to
+    generate candidate programs. This is Herbie's primary method of
+    improving accuracy, and we do not recommend turning off this
+    option.</dd>
+
+    <dt><code>generate:taylor</code></dt>
+    <dd>This option, on by default, uses series expansion to generate
+    candidate programs. If turned off, Herbie will not use series
+    expansion, which may help accuracy in some ranges while leaving
+    Herbie unable to solve certain under- and overflow issues.</dd>
+
+    <dt><code>generate:evaluate</code></dt>
+    <dd>This option, on by default, uses arbitrary-precision
+    arithmetic to generate candidate programs, specifically by exactly
+    computing some constant expressions. If turned off, these exact
+    computations won't be performed and Herbie won't be able to
+    improve accuracy in those cases.</dd>
+
+    <dt><code>generate:proofs</code></dt>
+    <dd>This option, on by default, generates step-by-step derivations
+    for HTML reports. If turned off, the step-by-step derivations will
+    be absent, and Herbie will be slightly faster.</dd>
+
+    <dt><code>reduce:regimes</code></dt>
+    <dd>This option, on by default, uses Herbie's regime inference
+    algorithm to branch between several program candidates. If turned
+    off, branches will not be inferred and the output program will be
+    straight-line code (if the input was). Instead of turning this
+    option off, consider increasing your platform's
+    <a href="platforms.html"><code>if</code> cost</a> to discourage
+    branches.</dd>
+
+    <dt><code>reduce:binary-search</code></dt>
+    <dd>This option, on by default, uses binary search to refine the
+    values used in inferred branches. If turned off, different runs of
+    Herbie will be less consistent, and accuracy near branches will
+    suffer.</dd>
+
+    <dt><code>reduce:branch-expressions</code></dt>
+    <dd>This option, on by default, allows Herbie to branch on
+      expressions, not just variables. This slows Herbie down,
+      particularly for large programs. If turned off, Herbie will only
+      try to branch on variables.</dd>
+  </dl>
+
+</body>
+</html>

@@ -1,7 +1,7 @@
 #lang info
 
 (define collection "herbie")
-(define version "2.2")
+(define version "2.3")
 (define license 'MIT)
 
 ;; Packaging information
