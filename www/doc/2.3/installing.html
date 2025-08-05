@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Installing Herbie</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
+</head>
+
+<body>
+  <header>
+    <h1>Installing Herbie</h1>
+    <a href="../../"><img class="logo" src="../../logo-car.png" /></a>
+    <nav>
+      <ul>
+        <li><a href="../../demo/">Try</a></li>
+        <li><a href="installing.html">Install</a></li>
+        <li><a href="tutorial.html">Learn</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <p>
+    <a href="../../">Herbie</a> supports Linux, macOS, and Windows. To
+    start, install <a href="https://racket-lang.org">Racket</a>. Then
+    install Herbie, either from a package, from source, or via
+    a <a href="docker.html">Docker image</a>.
+  </p>
+
+  <h2>Installing Racket</h2>
+
+  <p>
+    Install Racket either using
+    the <a href="http://download.racket-lang.org/">official
+    installer</a> or distro-provided packages. Versions as old as 8.10
+    are supported, but more recent versions are faster.
+  </p>
+
+  <p>
+    On Linux, we recommend against installing Racket via Snap. If you
+    must install Racket from Snap, install from source and store that
+    source directory in your home directory or another allow-listed
+    directory.
+  </p>
+
+  <p>
+    Test that Racket is installed correctly and has a correct version:
+  </p>
+
+  <pre class="shell">racket
+Welcome to Racket v8.17 [cs].
+> (exit)</pre>
+
+  <h2>Installing Herbie from a package</h2>
+
+  <p>Herbie can be installed as a binary package on x86 Windows and
+  Linux and on x86 or ARM macOS. If you are on a more obscure
+  platform, please install from source instead.</p>
+
+  <p>After installing Racket, install Herbie from a package with:</p>
+
+  <pre class="shell">raco pkg install --auto herbie</pre>
+
+  <p>Then check that Herbie works by running:</p>
+
+  <pre class="shell">racket -l herbie -- --version
+Herbie 2.2</pre>
+
+  <p>If you'd like, you can run Herbie with the <code>herbie</code>
+  command by adding the following directory to your PATH (example
+  paths for Racket 8.17):</p>
+
+  <ul>
+    <li>On Windows, <code>AppData\Roaming\Racket\8.17\bin</code> in your user folder.</li>
+    <li>On macOS, <code>Library/Racket/8.17/bin</code> in your home folder.</li>
+    <li>On Linux, <code>.local/share/racket/8.17/bin</code> in your home directory.</li>
+  </ul>
+
+  <p>Once Herbie is installed and working correctly, check out
+  the <a href="tutorial.html">tutorial</a>.</p>
+
+  <h2>Installing Herbie from source</h2>
+  
+  <p>Installing Herbie from source is best if you are a Herbie
+  developer, or if you use a more obscure hardware/OS combination. The
+  instructions assume a standard Unix userland; on Windows, you may
+  have to install tools like Make separately, or use WSL.
+  </p>
+
+  <p>
+    Install Racket as described above. Then install Rust 1.60.0 or
+    later using <a href="https://rustup.rs/">rustup</a> or some other
+    means.
+  </p>
+
+  <p>
+    Once Racket and Rust are installed, download the Herbie source
+    <a href="https://github.com/uwplse/herbie">from GitHub</a> with:
+  </p>
+
+  <pre class="shell">git clone https://github.com/herbie-fp/herbie</pre>
+
+  <p>Change to the <code>herbie</code> directory; you should see
+  a <code>README.md</code> file, a directory named <code>src</code>, a
+  directory named <code>bench/</code>, and a few other files and
+  directories. Install Herbie with:</p>
+
+  <pre class="shell">make install</pre>
+
+  <p>This command installs Herbie and its dependencies and compiles it
+  for faster startup. Check that Herbie works by running:</p>
+
+  <pre class="shell">racket -l herbie -- --version
+Herbie 2.2</pre>
+
+  <p>You can add <code>herbie</code> to your path, as described in the
+  package-install instructions. Once Herbie is installed and working
+  correctly, check out the <a href="tutorial.html">tutorial</a>.</p>
+
+  <h2>Installing Herbie with Docker</h2>
+
+  <p><a href="https://docker.com">Docker</a> is a container manager,
+  which is sort of like a virtual machine. We do not recommend using
+  Herbie in Docker without prior Docker experience.</p>
+
+  <p>The <a href="docker.html">Docker documentation</a> describes how
+  to install and run our <code>uwplse/herbie</code> image.</p>
+
+</body>
+
+</html>

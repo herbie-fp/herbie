@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Using Herbie from the Command Line</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Shell and Batch Mode</h1>
+    <a href="../../"><img class="logo" src="../../logo-car.png" /></a>
+    <nav>
+      <ul>
+        <li><a href="../../demo/">Try</a></li>
+        <li><a href="installing.html">Install</a></li>
+        <li><a href="tutorial.html">Learn</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <p>Herbie can be used from the command-line or
+  from <a href="using-web.html">the browser</a>. This page covers
+  using Herbie from the command line.</p>
+
+  <h2 id="interactive">The Herbie shell</h2>
+
+  <p>The Herbie shell lets you interact with Herbie: you type in input
+  expressions and Herbie prints their more accurate versions. Run the
+  Herbie shell with this command:</p>
+
+  <pre class="shell">racket -l herbie shell
+Starting Herbie 2.2 with seed 2098242187
+Find help on https://herbie.uwplse.org/, exit with Ctrl-D
+<strong>herbie&gt;</strong> </pre>
+
+
+  <p>Herbie prints a seed, which you can <a href="options.html">use to
+  reproduce</a> a Herbie run, and links you to documentation. Then, it
+  waits for inputs, which you can type directly into your terminal
+  in <a href="input.html">FPCore format</a>:</p>
+
+  <pre><strong>herbie&gt;</strong> (FPCore (x) (- (+ 1 x) x))
+(FPCore (x)
+  <var>...</var>
+  1.0)</pre>
+
+  <p>Herbie suggests that <code>1.0</code> is more accurate than the
+  original expression <code>(- (+ 1 x) x)</code>. The
+  the <var>...</var> elides
+  <a href="input.html#properties">additional information</a> provided
+  by Herbie.</p>
+
+  <p>The Herbie shell only shows Herbie's most accurate variant.</p>
+
+  <h2 id="batch">Batch processing FPCores</h2>
+
+  <p>Alternatively, you can run Herbie on a file with multiple
+  expressions in it, writing Herbie's versions of each to a file. This
+  mode is intended for use by scripts.</p>
+
+  <pre class="shell">racket -l herbie improve bench/tutorial.fpcore out.fpcore
+Starting Herbie 2.2 with seed 1139794558...
+Warning: 75.2% of points produce a very large (infinite) output. You may want to add a precondition.
+See &lt;<a href="https://herbie.uwplse.org/doc/2.0/faq.html#inf-points">https://herbie.uwplse.org/doc/2.0/faq.html#inf-points</a>&gt; for more.</pre>
+
+  <p>The output file <code>out.fpcore</code> contains more accurate
+  versions of each program:</p>
+
+  <pre>;; seed: 1139794558
+
+(FPCore (x)
+  :name "Cancel like terms"
+  <var>...</var>
+  1.0)
+
+(FPCore (x)
+  :name "Expanding a square"
+  <var>...</var>
+  (fma x x (+ x x)))
+
+(FPCore (x y z)
+  :name "Commute and associate"
+  <var>...</var>
+  0.0)</pre>
+
+  <p>
+    Note that output file is in the same order as the input file. For
+    more control over Herbie, see the documentation of
+    Herbie's <a href="options.html">command-line options</a>.
+  </p>
+
+</body>
+</html>
