@@ -14,10 +14,10 @@ RUN cargo install --locked --git https://github.com/egraphs-good/egglog.git --re
 FROM racket/racket:8.17-full AS production
 LABEL maintainer="Pavel Panchekha <me@pavpanchekha.com>"
 COPY --from=egg-herbie-builder /herbie/egg-herbie /src/egg-herbie
-RUN raco pkg install /src/egg-herbie
+RUN raco pkg install --no-docs /src/egg-herbie
 COPY --from=egg-herbie-builder /usr/local/cargo/bin/egglog /usr/local/bin/egglog
 COPY src /src/herbie
-RUN raco pkg install --auto /src/herbie
+RUN raco pkg install --no-docs --auto /src/herbie
 ENTRYPOINT ["racket", "/src/herbie/main.rkt"]
 EXPOSE 80
 # NOTE --public allows the Docker host to interact with the demo,
