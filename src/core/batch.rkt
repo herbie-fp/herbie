@@ -98,16 +98,6 @@
 (define (batchrefs-max-idx brfs)
   (apply max (map batchref-idx brfs)))
 
-(define (batch-tree-size b brfs)
-  (brfs-belong-to-batch? b brfs)
-  (define len (batch-length b))
-  (define counts (make-vector len 0))
-  (for ([i (in-naturals)]
-        [node (in-batch b)])
-    (define args (reap [sow] (expr-recurse node sow)))
-    (vector-set! counts i (apply + 1 (map (curry vector-ref counts) args))))
-  (apply + (map (compose (curry vector-ref counts) batchref-idx) brfs)))
-
 (define (batch-add! b expr)
   (define cache (batch-cache b))
   (define (munge prog)
@@ -236,6 +226,14 @@
         (define arg-free-vars (mutable-set))
         (expr-recurse node (lambda (i) (set-union! arg-free-vars (get-children-free-vars i))))
         arg-free-vars]))))
+
+(define (batch-tree-size batch brfs)
+  (define counts
+    (batch-recursive-map batch
+                         (lambda (get-children-counts node)
+                           (define args (reap [sow] (expr-recurse node sow)))
+                           (apply + 1 (map get-children-counts args)))))
+  (apply + (map counts brfs)))
 
 (define (brfs-belong-to-batch? batch brfs)
   (unless (andmap (compose (curry equal? batch) batchref-batch) brfs)
