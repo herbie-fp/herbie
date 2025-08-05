@@ -106,37 +106,30 @@
       [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
-  (define mappings (build-vector (batch-length batch) values))
-  (define (remap x)
-    (vector-ref mappings x))
-
-  ; Inserting nodes bottom-up
-  (for ([node (in-batch batch)]
-        [n (in-naturals)])
-    (define idx
-      (match node
-        [(literal v _) (insert-node! v)]
-        [(? number?) (insert-node! node)]
-        [(? symbol?) (insert-node! (var->egg-var node ctx))]
-        [(hole prec spec) (remap spec)] ; "hole" terms currently disappear
-        [(approx spec impl) (insert-node! (list '$approx (remap spec) (remap impl)))]
-        [(list op (app remap args) ...) (insert-node! (cons op args))]))
-    (vector-set! mappings n idx))
-  (for ([brf brfs])
-    (egraph_add_root ptr (remap (batchref-idx brf))))
-
-  (for ([node (in-batch batch)]
-        #:when (approx? node))
-    (match-define (approx spec impl) node)
-    (hash-ref! id->spec
-               (remap spec)
-               (lambda ()
-                 (define spec* (normalize-spec (batch-pull (batchref batch spec))))
-                 (define type (representation-type (repr-of-batchref (batchref batch impl) ctx)))
-                 (cons spec* type))))
+  (define add-to-egraph
+    (batch-recursive-map
+     batch
+     (λ (get-remapping node)
+       (match node
+         [(literal v _) (insert-node! v)]
+         [(? number?) (insert-node! node)]
+         [(? symbol?) (insert-node! (var->egg-var node ctx))]
+         [(hole prec spec) (get-remapping spec)] ; "hole" terms currently disappear
+         [(approx spec impl)
+          (hash-ref! id->spec ; Save original (spec, type) for extraction
+                     (get-remapping spec)
+                     (lambda ()
+                       (define spec* (normalize-spec (batch-pull (batchref batch spec))))
+                       (define type
+                         (representation-type (repr-of-batchref (batchref batch impl) ctx)))
+                       (cons spec* type)))
+          (insert-node! (list '$approx (get-remapping spec) (get-remapping impl)))]
+         [(list op (app get-remapping args) ...) (insert-node! (cons op args))]))))
 
   (for/list ([brf brfs])
-    (remap (batchref-idx brf))))
+    (define brf-id (add-to-egraph brf)) ; remapping of brf
+    (egraph_add_root ptr brf-id)
+    brf-id))
 
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler)
