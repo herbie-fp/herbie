@@ -48,13 +48,18 @@
     [(list op args ...) (apply op (map (curry vector-ref regs) args))]))
 
 ; This functions needs to preserve vars
-(define (batch-remove-approx batch brfs)
-  (batch-apply batch
-               brfs
-               (lambda (node)
-                 (match node
-                   [(approx spec impl) impl]
-                   [node node]))))
+(define (batch-for-compiler batch brfs vars)
+  (define-values (batch* brfs*)
+    (batch-apply batch
+                 brfs
+                 (lambda (node)
+                   (match node
+                     [(approx spec impl) impl]
+                     [node node]))))
+  (define-values (batch** brfs**) (batch-remove-zombie batch* brfs*))
+  (define-values (batch*** _) (progs->batch vars))
+  (define brfs*** (batch-add-brfs! batch*** brfs**))
+  (values batch*** brfs***))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values
@@ -73,9 +78,7 @@
   (timeline-push! 'compiler (batch-tree-size batch brfs) (batch-length batch))
 
   ; Here we need to keep vars even though no roots refer to the vars
-  (define-values (batch-no-approx brfs-no-approx) (batch-remove-approx batch brfs))
-  (define-values (batch* brfs*) (batch-remove-zombie batch-no-approx brfs-no-approx))
-  (define-values (brfs** _) (batch-insert! batch* brfs* vars))
+  (define-values (batch* brfs*) (batch-for-compiler batch brfs vars))
 
   (define instructions
     (for/vector #:length (- (batch-length batch*) num-vars)
@@ -83,7 +86,7 @@
       (match node
         [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
         [(list op args ...) (cons (impl-info op 'fl) args)])))
-  (define rootvec (list->vector (map batchref-idx brfs**)))
+  (define rootvec (list->vector (map batchref-idx brfs*)))
 
   (make-progs-interpreter vars instructions rootvec))
 

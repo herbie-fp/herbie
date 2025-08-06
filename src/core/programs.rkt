@@ -208,6 +208,7 @@
           [((list op args ...) (cons loc rest))
            (define args* (list-update args (sub1 loc) (curry loop rest)))
            (batchref-idx (batch-push! full-batch (cons op args*)))]))))
+
   (batchref full-batch idx*))
 
 (define/contract (location-get loc prog)

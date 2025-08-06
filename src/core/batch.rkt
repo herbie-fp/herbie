@@ -5,26 +5,26 @@
          "../utils/alternative.rkt" ; for unbatchify-alts
          "dvector.rkt")
 
-(provide progs->batch ; List<Expr> -> Batch
-         batch->progs ; Batch -> ?(or List<Root> Vector<Root>) -> List<Expr>
+(provide progs->batch ; List<Expr> -> (Batch, List<Batchref>)
+         batch->progs ; Batch -> List<Batchref> -> List<Expr>
 
          (struct-out batch)
          batch-empty ; Batch
-         batch-push! ; Batch -> Node -> Idx
-         batch-add! ; Batch -> Expr -> Root
-         batch-insert!
+         batch-push! ; Batch -> Node -> Batchref
+         batch-add! ; Batch -> Expr -> Batchref
          batch-copy ; Batch -> Batch
          batch-length ; Batch -> Integer
          batch-tree-size ; Batch -> Integer
-         batch-free-vars
+         batch-free-vars ; Batch -> (Batchref -> Set<Var>)
          in-batch ; Batch -> Sequence<Node>
          batch-ref ; Batch -> Idx -> Node
          batch-pull ; Batchref -> Expr
-         batch-apply ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
-         batch-children ; Batch -> ?Vector<Root> -> Vector<Idx>
-         batch-reconstruct-exprs ; Batch -> Vector<Expr>
-         batch-remove-zombie ; Batch -> ?Vector<Root> -> Batch
+         batch-apply ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> (Batch, List<Batchref>)
+         batch-children ; Batch -> List<Batchref> -> List<Batchref>
+         batch-reconstruct-exprs ; Batch -> (Batchref -> Expr)
+         batch-remove-zombie ; Batch -> List<Batchref> -> (Batch, List<Batchref>)
          batch-map
+         batch-add-brfs!
 
          (struct-out batchref)
          deref ; Batchref -> Expr
@@ -117,6 +117,7 @@
             (dvector-set! out idx res)
             (dvector-set! visited idx #t)
             res]))])))
+
 #;(define (batch-sequential-map batch f)
     (define len (batch-length batch))
     (define out (make-dvector))
@@ -144,34 +145,17 @@
       [_ altn]))
   (map (curry alt-map unmunge) altns))
 
-; Very slow function, do not call it unless it is necessary
-(define (batch-insert! batch brfs exprs)
-  ; Little check
-  (brfs-belong-to-batch? batch brfs)
-
-  (define batch* (batch-empty))
-  ; Adding new expressions first
-  (define exprs-brfs
-    (for/list ([expr exprs])
-      (batch-add! batch* expr)))
-
-  ; Copy nodes from batch
-  (define mappings (make-vector (batch-length batch) -1))
-  (define (re-map idx)
-    (vector-ref mappings idx))
-  (define (set-map! idx idx*)
-    (vector-set! mappings idx idx*))
-  (for ([node (in-batch batch)]
-        [i (in-naturals)])
-    (define brf (batch-push! batch* (expr-recurse node re-map)))
-    (set-map! i (batchref-idx brf)))
-
-  (define brfs* (map (compose (curry batchref batch) re-map batchref-idx) brfs))
-  (batch-copy! batch batch*)
-  (values brfs* exprs-brfs))
-
-(define (batchrefs-max-idx brfs)
-  (apply max (map batchref-idx brfs)))
+(define (batch-add-brfs! batch brfs)
+  (match brfs
+    [(? null?) '()]
+    [_
+     (define batch* (batchref-batch (car brfs)))
+     (brfs-belong-to-batch? batch* brfs)
+     (define copy
+       (batch-map batch*
+                  (λ (remap-child node)
+                    (batch-push! batch (expr-recurse node (compose batchref-idx remap-child))))))
+     (map copy brfs)]))
 
 (define (batch-apply b brfs f)
   (define out (batch-empty))
@@ -202,7 +186,7 @@
      ; Little check
      (brfs-belong-to-batch? batch brfs)
      ; Define len to be as small as possible
-     (define max-idx (batchrefs-max-idx brfs))
+     (define max-idx (apply max (map batchref-idx brfs)))
      (define len (add1 max-idx))
      (define child-mask (make-vector len #f))
 
