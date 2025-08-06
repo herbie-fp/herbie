@@ -118,6 +118,21 @@
             (dvector-set! visited idx #t)
             res]))])))
 
+(define (batch-sequential-map batch f)
+  (define len (batch-length batch))
+  (define out (make-dvector))
+  (define pt -1)
+  (λ (brf)
+    (match-define (batchref b* idx*) brf)
+    (cond
+      [(or (not (equal? b* batch)) (>= idx* len)) ; Little check
+       (error 'batch-free-vars "Inappropriate batchref is passed")]
+      [(>= pt (batchref-idx brf)) (dvector-ref out idx*)]
+      [(for ([node (in-batch batch (add1 pt) (add1 idx*))])
+         (dvector-add! out (f (λ (x) (dvector-ref out x)) node)))
+       (set! pt idx*)
+       (dvector-ref out idx*)])))
+
 ;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
 (define (unbatchify-alts batch altns)
   (define exprs (batch-reconstruct-exprs batch))
@@ -164,15 +179,28 @@
   (match brfs
     [(? null?) (values out '())]
     [_
+     (define apply-f
+       (batch-map b
+                  (λ (remap node)
+                    (define node-deref (expr-recurse node (lambda (ref) (batchref b ref))))
+                    (define node* (f node-deref))
+                    (define brf*
+                      (let loop ([node* node*])
+                        (match node*
+                          [(? batchref? brf) (remap (batchref-idx brf))]
+                          [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
+                    brf*)))
+
+     #|
      ; Little helpers
      (define children-brfs (batch-children b brfs))
      (define max-idx (batchrefs-max-idx children-brfs))
 
      (define mappings (make-vector (add1 max-idx) -1))
      (define (map-ref brf)
-       (vector-ref mappings (batchref-idx brf)))
+       (vector-ref mappings brf))
      (define (map-set! brf brf*)
-       (vector-set! mappings (batchref-idx brf) brf*))
+       (vector-set! mappings brf brf*))
 
      (for ([brf (in-list children-brfs)])
        (define node (deref brf))
@@ -180,10 +208,12 @@
        (define brf*
          (let loop ([node* node*])
            (match node*
-             [(? batchref? brf) (map-ref brf)]
+             [(? batchref? brf) (remap (batchref-idx brf))]
              [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
-       (map-set! brf brf*))
-     (define brfs* (map map-ref brfs))
+       (map-set! (batchref-idx brf) brf*))
+     |#
+
+     (define brfs* (map apply-f brfs))
      (values out brfs*)]))
 
 ;; Function returns indices of children nodes within a batch for given roots,
