@@ -177,42 +177,54 @@
   (match* (prog loc)
     [(_ (? null?)) (f prog)]
     [((approx spec impl) (cons 1 rest)) (approx (location-do rest spec f) impl)]
-    [((approx spec impl) (cons idx rest)) (approx spec (location-do rest impl f))]
+    [((approx spec impl) (cons 2 rest)) (approx spec (location-do rest impl f))]
     [((hole prec spec) (cons 1 rest)) (hole prec (location-do rest spec f))]
     [((? list?) (cons idx rest)) (list-set prog idx (location-do rest (list-ref prog idx) f))]))
 
 (define/contract (location-set loc prog prog*)
-  (-> location? expr? expr? expr?)
+  (-> location? expr? (or/c expr? batchref?) expr?)
   (location-do loc prog (const prog*)))
 
-(define/contract (batch-location-set loc0 full-batchref sub-batchref)
-  (-> location? batchref? batchref? batchref?)
-  (match-define (batchref sub-batch sub-idx) sub-batchref)
-  (match-define (batchref full-batch full-idx) full-batchref)
+#;(define/contract (batch-location-set loc0 full-batchref sub-batchref)
+    (-> location? batchref? batchref? batchref?)
+    (match-define (batchref sub-batch sub-idx) sub-batchref)
+    (match-define (batchref full-batch full-idx) full-batchref)
 
-  (unless (equal? sub-batch full-batch)
-    (error 'batch-location-set "Function assumes that batches are equal"))
+    (unless (equal? sub-batch full-batch)
+      (error 'batch-location-set "Function assumes that batches are equal"))
 
-  (define idx*
-    (let loop ([loc0 loc0]
-               [idx full-idx])
-      (let ([node (batch-ref full-batch idx)])
-        (match* (node loc0)
-          [(_ (? null?)) sub-idx]
-          [((approx spec impl) (cons 1 rest))
-           (batchref-idx (batch-push! full-batch (approx (loop rest spec) impl)))]
-          [((approx spec impl) (cons 2 rest))
-           (batchref-idx (batch-push! full-batch (approx spec (loop rest impl))))]
-          [((hole prec spec) (cons 1 rest))
-           (batchref-idx (batch-push! full-batch (hole prec (loop rest spec))))]
-          [((list op args ...) (cons loc rest))
-           (define args* (list-update args (sub1 loc) (curry loop rest)))
-           (batchref-idx (batch-push! full-batch (cons op args*)))]))))
+    (define idx*
+      (let loop ([loc0 loc0]
+                 [idx full-idx])
+        (let ([node (batch-ref full-batch idx)])
+          (match* (node loc0)
+            [(_ (? null?)) sub-idx]
+            [((approx spec impl) (cons 1 rest))
+             (batchref-idx (batch-push! full-batch (approx (loop rest spec) impl)))]
+            [((approx spec impl) (cons 2 rest))
+             (batchref-idx (batch-push! full-batch (approx spec (loop rest impl))))]
+            [((hole prec spec) (cons 1 rest))
+             (batchref-idx (batch-push! full-batch (hole prec (loop rest spec))))]
+            [((list op args ...) (cons loc rest))
+             (define args* (list-update args (sub1 loc) (curry loop rest)))
+             (batchref-idx (batch-push! full-batch (cons op args*)))]))))
 
-  (batchref full-batch idx*))
+    (batchref full-batch idx*))
+
+(define (batch-location-set b e1 loc e2)
+  (match loc
+    ; If empty loc then we're replacing e1 by e2
+    ['() e2]
+    ; Otherwise, go one step and recurse
+    [(cons idx rest)
+     (define node (deref e1))
+     (define child (location-get (list idx) node))
+     (define child* (batch-location-set b child rest e2))
+     (define node* (location-set (list idx) node child*))
+     (batch-push! b (expr-recurse node* batchref-idx))]))
 
 (define/contract (location-get loc prog)
-  (-> location? expr? expr?)
+  (-> location? expr? (or/c expr? batchref?))
   ; Clever continuation usage to early-return
   (let/ec return
     (location-do loc prog return)))

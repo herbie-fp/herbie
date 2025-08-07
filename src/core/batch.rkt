@@ -8,6 +8,7 @@
 (provide progs->batch ; List<Expr> -> (Batch, List<Batchref>)
          batch->progs ; Batch -> List<Batchref> -> List<Expr>
 
+         expr-recurse
          (struct-out batch)
          batch-empty ; Batch
          batch-push! ; Batch -> Node -> Batchref
@@ -71,11 +72,6 @@
 
 (define (batch-copy b)
   (batch (dvector-copy (batch-nodes b)) (hash-copy (batch-index b)) (hash-copy (batch-cache b))))
-
-(define (batch-copy! b b*)
-  (set-batch-nodes! b (dvector-copy (batch-nodes b*)))
-  (set-batch-index! b (hash-copy (batch-index b*)))
-  (set-batch-cache! b (hash-copy (batch-cache b*))))
 
 (define (deref x)
   (match-define (batchref b idx) x)

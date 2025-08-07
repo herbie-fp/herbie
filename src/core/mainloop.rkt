@@ -169,7 +169,7 @@
              [(list 'evaluate) (list 'evaluate loc0)]
              [(list 'taylor name var) (list 'taylor loc0 name var)]
              [(list 'rr input proof) (list 'rr loc0 input proof)]))
-         (define expr* (batch-location-set loc0 (alt-expr orig) (alt-expr altn)))
+         (define expr* (batch-location-set global-batch (alt-expr orig) loc0 (alt-expr altn)))
          (alt expr* event* (list (loop (first prevs))))])))
 
   (^patched^ (remove-duplicates
