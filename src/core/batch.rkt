@@ -46,7 +46,7 @@
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
   (match expr
-    [(approx spec impl) (approx (f spec) (f impl))]
+    [(approx spec impl) (approx spec (f impl))]
     [(hole precision spec) (hole precision (f spec))]
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
@@ -209,15 +209,29 @@
   (batch-map batch (lambda (children-exprs node) (expr-recurse node children-exprs))))
 
 (define (batch-free-vars batch)
-  (batch-map batch
-             (lambda (get-children-free-vars node)
-               (cond
-                 [(symbol? node) (set node)]
-                 [else
-                  (define arg-free-vars (mutable-set))
-                  (expr-recurse node
-                                (lambda (i) (set-union! arg-free-vars (get-children-free-vars i))))
-                  arg-free-vars]))))
+  ;; This function is here due to cycles - originally it is from programs.rkt
+  (define (free-variables prog)
+    (match prog
+      [(? literal?) '()]
+      [(? number?) '()]
+      [(? symbol?) (list prog)]
+      [(approx _ impl) (free-variables impl)]
+      [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
+
+  (batch-map
+   batch
+   (lambda (get-children-free-vars node)
+     (cond
+       [(symbol? node) (set node)]
+       [(approx? node)
+        (define impl-free-vars (mutable-set))
+        (expr-recurse node (lambda (i) (set-union! impl-free-vars (get-children-free-vars i))))
+        (define spec-free-vars (list->set (free-variables (approx-spec node))))
+        (set-union spec-free-vars impl-free-vars)]
+       [else
+        (define arg-free-vars (mutable-set))
+        (expr-recurse node (lambda (i) (set-union! arg-free-vars (get-children-free-vars i))))
+        arg-free-vars]))))
 
 (define (batch-tree-size batch brfs)
   (define counts

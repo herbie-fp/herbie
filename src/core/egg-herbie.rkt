@@ -98,6 +98,19 @@
        3-vec]
       [_ (list->u32vector xs)]))
 
+  ; The function recurses on spec
+  (define (batch-parse batch brfs)
+    (define-values (batch* brfs*)
+      (batch-apply batch
+                   brfs
+                   (lambda (node)
+                     (match node
+                       [(approx spec impl) (list '$approx spec impl)]
+                       [_ node]))))
+    (batch-remove-zombie batch* brfs*))
+
+  (define-values (batch* brfs*) (batch-parse batch brfs))
+
   ; node -> natural
   ; inserts an expression into the e-graph, returning its e-class id.
 
@@ -107,25 +120,26 @@
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
   (define add-to-egraph
-    (batch-map batch
+    (batch-map batch*
                (λ (get-remapping node)
                  (match node
                    [(literal v _) (insert-node! v)]
                    [(? number?) (insert-node! node)]
                    [(? symbol?) (insert-node! (var->egg-var node ctx))]
                    [(hole prec spec) (get-remapping spec)] ; "hole" terms currently disappear
-                   [(approx spec impl)
+                   [(list '$approx spec impl)
                     (hash-ref! id->spec ; Save original (spec, type) for extraction
                                (get-remapping spec)
                                (lambda ()
-                                 (define spec* (normalize-spec (batch-pull (batchref batch spec))))
+                                 (define spec* (normalize-spec (batch-pull (batchref batch* spec))))
                                  (define type
-                                   (representation-type (repr-of-batchref (batchref batch impl) ctx)))
+                                   (representation-type (repr-of-batchref (batchref batch* impl)
+                                                                          ctx)))
                                  (cons spec* type)))
                     (insert-node! (list '$approx (get-remapping spec) (get-remapping impl)))]
                    [(list op (app get-remapping args) ...) (insert-node! (cons op args))]))))
 
-  (for/list ([brf brfs])
+  (for/list ([brf brfs*])
     (define brf-id (add-to-egraph brf)) ; remapping of brf
     (egraph_add_root ptr brf-id)
     brf-id))
@@ -1048,8 +1062,7 @@
                    (representation-type type)
                    type))
              (define final-spec (egg-parsed->expr spec* spec-type))
-             (define final-spec-idx (batchref-idx (batch-add! batch final-spec)))
-             (approx final-spec-idx (loop impl type))]
+             (approx final-spec (loop impl type))]
             [(list impl (app eggref args) ...)
              (define args*
                (for/list ([arg (in-list args)]
