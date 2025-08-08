@@ -45,7 +45,7 @@
   (in-dvector (batch-nodes batch) start end step))
 
 (define (batchref>=? brf1 brf2)
-  (> (batchref-idx brf1) (batchref-idx brf2)))
+  (>= (batchref-idx brf1) (batchref-idx brf2)))
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
