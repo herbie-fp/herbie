@@ -221,7 +221,8 @@
   (reap [sow]
         (let loop ([brf brf]
                    [loc '()])
-          (match (deref brf)
+          (match (and (batchref>=? brf sub-brf) (deref brf))
+            [#f (void)]
             [(== (deref sub-brf)) (sow (reverse loc))]
             [(? literal?) (void)]
             [(? symbol?) (void)]
