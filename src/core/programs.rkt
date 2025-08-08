@@ -221,50 +221,17 @@
   (reap [sow]
         (let loop ([brf brf]
                    [loc '()])
-          (match (and (batchref>=? brf sub-brf) (deref brf))
-            [#f (void)]
-            [(== (deref sub-brf)) (sow (reverse loc))]
-            [(? literal?) (void)]
-            [(? symbol?) (void)]
-            [(approx _ impl) (loop impl (cons 2 loc))]
-            [(list _ args ...)
-             (for ([arg (in-list args)]
-                   [i (in-naturals 1)])
-               (loop arg (cons i loc)))]))))
-
-#;(define (batch-get-locations full-batchref sub-batchref)
-    (match-define (batchref full-batch full-idx) full-batchref)
-    (match-define (batchref sub-batch sub-idx) sub-batchref)
-    (unless (equal? sub-batch full-batch)
-      (error 'batch-get-locations "Function assumes that batches are equal"))
-
-    (define (locations-update locations prev-idx new-loc new-idx)
-      (define prev-locs (vector-ref locations prev-idx))
-      (unless (null? prev-locs) ; when prev-idx has some locs stored
-        (define new-locs (map (curry cons new-loc) prev-locs)) ; append prev-locs with new-loc
-        (vector-set! locations
-                     new-idx
-                     (append (vector-ref locations new-idx) new-locs)))) ; update new-locs at new-idx
-
-    (cond
-      [(> sub-idx full-idx)
-       '()] ; sub-idx can not be a child of full-idx if it is inserted after full-idx
-      [else
-       (define locations (make-vector (batch-length full-batch) '()))
-       (vector-set! locations sub-idx '(()))
-
-       (for ([node (in-batch full-batch (add1 sub-idx) (add1 full-idx))]
-             [n (in-naturals (add1 sub-idx))])
-         (match node
-           [(list _ args ...)
-            (for ([arg (in-list args)]
-                  [i (in-naturals 1)])
-              (locations-update locations arg i n))]
-           [(approx _ impl) (locations-update locations impl 2 n)]
-           [(hole _ spec) (locations-update locations spec 1 n)]
-           [_ void])) ; literal/number/symbol
-
-       (vector-ref locations full-idx)]))
+          (if (batchref<? brf sub-brf)
+              (void)
+              (match (deref brf)
+                [(== (deref sub-brf)) (sow (reverse loc))]
+                [(? literal?) (void)]
+                [(? symbol?) (void)]
+                [(approx _ impl) (loop impl (cons 2 loc))]
+                [(list _ args ...)
+                 (for ([arg (in-list args)]
+                       [i (in-naturals 1)])
+                   (loop arg (cons i loc)))])))))
 
 (define/contract (replace-expression expr from to)
   (-> expr? expr? expr? expr?)

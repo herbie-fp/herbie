@@ -27,7 +27,7 @@
          batch-map
          batch-add-brfs!
 
-         batchref>=?
+         batchref<?
          (struct-out batchref)
          deref ; Batchref -> Expr
 
@@ -44,8 +44,8 @@
 (define (in-batch batch [start 0] [end #f] [step 1])
   (in-dvector (batch-nodes batch) start end step))
 
-(define (batchref>=? brf1 brf2)
-  (>= (batchref-idx brf1) (batchref-idx brf2)))
+(define (batchref<? brf1 brf2)
+  (< (batchref-idx brf1) (batchref-idx brf2)))
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
