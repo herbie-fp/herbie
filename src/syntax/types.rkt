@@ -3,8 +3,6 @@
 (require math/bigfloat
          math/base
          math/flonum)
-(require "../utils/common.rkt"
-         "../utils/errors.rkt")
 
 (provide (struct-out representation)
          repr->prop

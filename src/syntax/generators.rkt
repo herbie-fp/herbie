@@ -5,8 +5,7 @@
          ffi/unsafe)
 
 (require "../core/rival.rkt"
-         "types.rkt"
-         "../utils/common.rkt")
+         "types.rkt")
 
 (provide from-rival
          from-libm
