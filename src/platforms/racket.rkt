@@ -1,4 +1,4 @@
-#lang s-exp "../syntax/platforms-language.rkt"
+#lang s-exp "../syntax/platform-language.rkt"
 
 ;;; Racket platform, focusing on racket/base and math/base.
 ;;; Therefore only one data type, <binary64>, is supported.

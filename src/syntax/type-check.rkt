@@ -4,7 +4,8 @@
          "../utils/errors.rkt"
          "types.rkt"
          "platform.rkt"
-         "syntax.rkt")
+         "syntax.rkt"
+         (except-in "platform-language.rkt" quasisyntax))
 (provide assert-program-typed!)
 
 (define (assert-program-typed! stx)
@@ -143,17 +144,18 @@
 
   ;; Dummy representation registration
   (check-false (repr-exists? 'dummy))
-  (define platform (platform-copy (*active-platform*)))
-  (parameterize ([*active-platform* platform])
-    (platform-register-representation! platform
-                                       #:repr (make-representation #:name 'dummy
-                                                                   #:bf->repr identity
-                                                                   #:repr->bf identity
-                                                                   #:ordinal->repr identity
-                                                                   #:repr->ordinal identity
-                                                                   #:total-bits 0
-                                                                   #:special-value? (const #f))
-                                       #:cost 1)
+  (define pf (platform-copy (*active-platform*)))
+  (parameterize ([*active-platform* pf])
+    (define dummy-repr
+      (make-representation #:name 'dummy
+                           #:bf->repr identity
+                           #:repr->bf identity
+                           #:ordinal->repr identity
+                           #:repr->ordinal identity
+                           #:total-bits 0
+                           #:special-value? (const #f)))
+    (hash-set! (platform-representations pf) 'dummy dummy-repr)
+    (hash-set! (platform-representation-costs pf) 'dummy 1)
     (check-true (repr-exists? 'dummy))
 
     (define dummy (get-representation 'dummy))

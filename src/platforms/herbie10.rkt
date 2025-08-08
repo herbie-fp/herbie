@@ -1,4 +1,4 @@
-#lang s-exp "../syntax/platforms-language.rkt"
+#lang s-exp "../syntax/platform-language.rkt"
 
 ;; Herbie 1.0 platform. Based on the C Windows platform, but with
 ;; every operation having cost 0, so as to emulate no-pareto mode.

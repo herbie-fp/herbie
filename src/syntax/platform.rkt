@@ -11,37 +11,6 @@
          "../utils/float.rkt"
          "generators.rkt")
 
-(provide *active-platform*
-         platform-lifting-rules
-         platform-lowering-rules
-         platform-copy
-         validate-platform!
-         repr-exists?
-         get-representation
-         impl-exists?
-         impl-info
-         prog->spec
-         get-fpcore-impl
-         ;; Platform API
-         ;; Operator sets
-         (contract-out ;; Platforms
-          [platform? (-> any/c boolean?)]
-          [platform-reprs (-> platform? (listof representation?))]
-          [platform-impls (-> platform? (listof symbol?))]
-          ; Cost model
-          [platform-repr-cost (-> platform? any/c any/c)]
-          [platform-node-cost-proc (-> platform? procedure?)]
-          [platform-cost-proc (-> platform? procedure?)])
-         ; Platform creation
-         make-empty-platform
-         platform-register-representation!
-         platform-register-implementation!
-         platform-register-implementations!
-         display-platform
-         make-operator-impl
-         make-representation
-         (all-from-out "generators.rkt"))
-
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
 ;;; a "type signature" - they provide no implementations of floating-point
@@ -59,6 +28,31 @@
   [(define (write-proc p port mode)
      (fprintf port "#<platform>"))])
 
+(provide *active-platform*
+         platform-lifting-rules
+         platform-lowering-rules
+         platform-copy
+         validate-platform!
+         repr-exists?
+         get-representation
+         impl-exists?
+         impl-info
+         prog->spec
+         get-fpcore-impl
+         (struct-out $platform)
+         ;; Platform API
+         ;; Operator sets
+         (contract-out [platform-reprs (-> platform? (listof representation?))]
+                       [platform-impls (-> platform? (listof symbol?))]
+                       [platform-repr-cost (-> platform? any/c any/c)]
+                       [platform-node-cost-proc (-> platform? procedure?)]
+                       [platform-cost-proc (-> platform? procedure?)])
+         ; Platform creation
+         make-empty-platform
+         display-platform
+         make-representation
+         (all-from-out "generators.rkt"))
+
 ;; Active platform
 (define *active-platform* (make-parameter #f))
 
@@ -73,55 +67,6 @@
   (define repr-costs (make-hash))
   (define impls (make-hash))
   (create-platform reprs impls repr-costs))
-
-(define (platform-register-representation! platform #:repr repr #:cost cost)
-  (define reprs (platform-representations platform))
-  (define repr-costs (platform-representation-costs platform))
-  ; Duplicate check
-  (when (hash-has-key? reprs (representation-name repr))
-    (raise-herbie-error "Duplicate representation ~a in platform ~a"
-                        (representation-name repr)
-                        (*platform-name*)))
-  ; Update tables
-  (hash-set! reprs (representation-name repr) repr)
-  (hash-set! repr-costs (representation-name repr) cost))
-
-(define (platform-register-implementation! platform impl)
-  (unless impl
-    (raise-herbie-error "Platform ~a missing implementation" (*platform-name*)))
-  ; Reprs check
-  (define reprs (platform-representations platform))
-  (define otype (context-repr (operator-impl-ctx impl)))
-  (define itype (context-var-reprs (operator-impl-ctx impl)))
-  (define impl-reprs (map representation-name (remove-duplicates (cons otype itype))))
-  (unless (andmap (curry hash-has-key? reprs) impl-reprs)
-    (raise-herbie-error "Platform ~a missing representation of ~a implementation"
-                        (*platform-name*)
-                        (operator-impl-name impl)))
-  ; Cost check
-  (define impl-cost (operator-impl-cost impl))
-  (unless impl-cost
-    (raise-herbie-error "Missing cost for ~a" (operator-impl-name impl)))
-  ; Dupicate check
-  (define impls (platform-implementations platform))
-  (when (hash-has-key? impls (operator-impl-name impl))
-    (raise-herbie-error "Impl ~a is already registered in platform ~a"
-                        (operator-impl-name impl)
-                        (*platform-name*)))
-  ; Update table
-  (hash-set! impls (operator-impl-name impl) impl))
-
-(define-syntax (platform-register-implementations! stx)
-  (syntax-case stx ()
-    [(_ platform ([name ([var : repr] ...) otype spec fl fpcore cost] ...))
-     #'(begin
-         (platform-register-implementation! platform
-                                            (make-operator-impl (name [var : repr] ...)
-                                                                otype
-                                                                #:spec spec
-                                                                #:impl fl
-                                                                #:fpcore fpcore
-                                                                #:cost cost)) ...)]))
 
 (define (validate-platform! platform)
   (when (empty? (platform-implementations platform))
