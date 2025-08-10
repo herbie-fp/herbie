@@ -1,4 +1,4 @@
-#lang s-exp "../src/platform.rkt"
+#lang s-exp "../src/syntax/platform-language.rkt"
 
 ;;; Softposit platform, using David Thien's softposit-rkt package for
 ;;; bindings. Provides operations like real->posit16 or +.p16.
