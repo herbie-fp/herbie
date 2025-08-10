@@ -244,6 +244,16 @@
   ; Update table
   (hash-set! impls (operator-impl-name impl) impl))
 
+(define (validate-platform! platform)
+  (when (empty? (platform-implementations platform))
+    (raise-herbie-error "Platform contains no operations"))
+  (for ([(name impl) (in-hash (platform-implementations platform))])
+    (define ctx (operator-impl-ctx impl))
+    (for ([repr (in-list (cons (context-repr ctx) (context-var-reprs ctx)))])
+      (unless (equal? (hash-ref (platform-representations platform) (representation-name repr) #f)
+                      repr)
+        (raise-herbie-error "Representation ~a not defined" (representation-name repr))))))
+
 (define-syntax (platform-register-implementations! stx)
   (syntax-case stx ()
     [(_ platform ([name ([var : repr] ...) otype spec fl fpcore cost] ...))
