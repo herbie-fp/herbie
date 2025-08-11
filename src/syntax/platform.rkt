@@ -32,7 +32,6 @@
          platform-lifting-rules
          platform-lowering-rules
          platform-copy
-         validate-platform!
          repr-exists?
          get-representation
          impl-exists?
@@ -67,16 +66,6 @@
   (define repr-costs (make-hash))
   (define impls (make-hash))
   (create-platform reprs impls repr-costs))
-
-(define (validate-platform! platform)
-  (when (empty? (platform-implementations platform))
-    (raise-herbie-error "Platform contains no operations"))
-  (for ([(name impl) (in-hash (platform-implementations platform))])
-    (define ctx (operator-impl-ctx impl))
-    (for ([repr (in-list (cons (context-repr ctx) (context-var-reprs ctx)))])
-      (unless (equal? (hash-ref (platform-representations platform) (representation-name repr) #f)
-                      repr)
-        (raise-herbie-error "Representation ~a not defined" (representation-name repr))))))
 
 ;; Returns the representation associated with `name`
 ;; attempts to generate the repr if not initially found
