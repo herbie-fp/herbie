@@ -1,26 +1,10 @@
 #lang racket
 
+(require racket/hash)
+
 (provide (all-defined-out))
 
 ;;; Flags
-
-(define all-flags
-  #hash([precision . (double fallback)]
-        [setup . (simplify search)]
-        [localize . (costs errors)]
-        [generate . (rr taylor simplify better-rr proofs egglog evaluate)]
-        [reduce . (regimes avg-error binary-search branch-expressions simplify)]
-        [rules
-         . (arithmetic polynomials
-                       fractions
-                       exponents
-                       trigonometry
-                       hyperbolic
-                       numerics
-                       special
-                       bools
-                       branches)]
-        [dump . (egg rival egglog)]))
 
 (define default-flags
   #hash([precision . ()]
@@ -31,22 +15,20 @@
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic)]
         [dump . ()]))
 
+(define deprecated-flags
+  #hash([precision . (double fallback)]
+        [setup . (simplify)]
+        [localize . (costs errors)]
+        [generate . (better-rr simplify)]
+        [reduce . (avg-error simplify)]
+        [rules . (numerics special bools branches)]))
+
+(define debug-flags #hash([generate . (egglog)] [dump . (egg rival egglog)]))
+
+(define all-flags (hash-union default-flags deprecated-flags debug-flags #:combine set-union))
+
 (define (flag-deprecated? category flag)
-  (match* (category flag)
-    [('precision 'double) #t]
-    [('precision 'fallback) #t]
-    [('setup 'simplify) #t]
-    [('generate 'better-rr) #t]
-    [('generate 'simplify) #t]
-    [('reduce 'simplify) #t]
-    [('reduce 'avg-error) #t]
-    [('localize 'costs) #t]
-    [('localize 'errors) #t]
-    [('rules 'numerics) #t]
-    [('rules 'special) #t]
-    [('rules 'bools) #t]
-    [('rules 'branches) #t]
-    [(_ _) #f]))
+  (set-member? (dict-ref deprecated-flags category '()) flag))
 
 ; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
 (define *flags* (make-parameter (make-immutable-hash (hash->list default-flags))))
