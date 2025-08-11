@@ -20,7 +20,7 @@
                        special
                        bools
                        branches)]
-        [dump . (egg rival egglog)]))
+        [dump . (egg rival egglog trace)]))
 
 (define default-flags
   #hash([precision . ()]

@@ -2,6 +2,7 @@
 
 (require openssl/sha1)
 (require (only-in xml write-xexpr))
+(require json)
 
 (require "../syntax/read.rkt"
          "../syntax/sugar.rkt"
@@ -18,6 +19,7 @@
          "../reports/history.rkt"
          "../reports/pages.rkt"
          "../reports/plot.rkt"
+         "../config.rkt"
          "datafile.rkt"
          "sandbox.rkt"
          (submod "../utils/timeline.rkt" debug))
@@ -36,6 +38,53 @@
 (define (log msg . args)
   (when false
     (apply eprintf msg args)))
+
+;; Tracing support
+
+(define (current-thread-id)
+  (equal-hash-code (current-thread)))
+
+(define (current-timestamp)
+  (exact-floor (* 1000 (current-inexact-milliseconds))))
+
+(define (trace-start)
+  (when (flag-set? 'dump 'trace)
+    (call-with-output-file
+     "dump-server.json"
+     #:exists 'truncate
+     (λ (out)
+       (fprintf out "{\"traceEvents\":[")
+       (write-json (hash 'name "process_name" 'ph "M" 'ts 0 'pid 0 'tid 0 'args (hash 'name "herbie"))
+                   out)))))
+
+(define (trace name phase [args (hash)])
+  (when (flag-set? 'dump 'trace)
+    (call-with-output-file "dump-server.json"
+                           #:exists 'append
+                           (λ (out)
+                             (fprintf out ",")
+                             (write-json (hash 'name
+                                               (~a name)
+                                               'ph
+                                               (~a phase)
+                                               'ts
+                                               (current-timestamp)
+                                               'pid
+                                               0
+                                               'tid
+                                               (current-thread-id)
+                                               'args
+                                               args)
+                                         out)))))
+
+(define (trace-end)
+  (when (flag-set? 'dump 'trace)
+    (call-with-output-file "dump-server.json" #:exists 'append (λ (out) (fprintf out "]}\n")))))
+
+(define old-exit (exit-handler))
+(exit-handler (λ (v)
+                (trace-end)
+                (old-exit v)))
 
 ;; Job-specific public API
 (define (job-path id)
@@ -71,6 +120,7 @@
 ;; Whole-server public methods
 
 (define (server-start threads)
+  (trace-start)
   (cond
     [threads
      (eprintf "Starting Herbie ~a with ~a workers and seed ~a...\n"
@@ -321,7 +371,7 @@
 
 (define (herbie-do-server-job h-command job-id)
   (match-define (herbie-command command test seed pcontext profile? timeline?) h-command)
-  (log "Started ~a job (~a): ~a\n" command job-id (test-name test))
+  (trace 'job 'B (hash 'job-id job-id 'command (~a command)))
   (define herbie-result
     (run-herbie command
                 test
@@ -329,9 +379,9 @@
                 #:pcontext pcontext
                 #:profile? profile?
                 #:timeline? timeline?))
-  (log "Completed ~a job (~a), starting reporting\n" command job-id)
+  (trace 'to-json 'i (hash 'job-id job-id))
   (define basic-output ((get-json-converter command) herbie-result job-id))
-  (log "Completed reporting ~a job (~a)\n" command job-id)
+  (trace 'job 'E (hash 'job-id job-id))
   ;; Add default fields that all commands have
   (hash-set* basic-output
              'job
