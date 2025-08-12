@@ -503,6 +503,44 @@
                            (cons egg-rule ffi-rule)))))
           (for-each sow egg&ffi-rules))))
 
+;; Rules from impl to spec (fixed for a particular platform)
+(define/reset *lifting-rules* (make-hash))
+
+;; Rules from spec to impl (fixed for a particular platform)
+(define/reset *lowering-rules* (make-hash))
+
+;; Synthesizes the LHS and RHS of lifting/lowering rules.
+(define (impl->rule-parts impl)
+  (define vars (impl-info impl 'vars))
+  (define spec (impl-info impl 'spec))
+  (values vars spec (cons impl vars)))
+
+;; Synthesizes lifting rules for a platform platform.
+(define (platform-lifting-rules [pform (*active-platform*)])
+  (define impls (platform-impls pform))
+  (for/list ([impl (in-list impls)])
+    (hash-ref! (*lifting-rules*)
+               (cons impl pform)
+               (lambda ()
+                 (define name (sym-append 'lift- impl))
+                 (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+                 (rule name impl-expr spec-expr '(lifting))))))
+
+;; Synthesizes lowering rules for a given platform.
+(define (platform-lowering-rules [pform (*active-platform*)])
+  (define impls (platform-impls pform))
+  (append* (for/list ([impl (in-list impls)])
+             (hash-ref! (*lowering-rules*)
+                        (cons impl pform)
+                        (lambda ()
+                          (define name (sym-append 'lower- impl))
+                          (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+                          (list (rule name spec-expr impl-expr '(lowering))
+                                (rule (sym-append 'lower-unsound- impl)
+                                      (add-unsound spec-expr)
+                                      impl-expr
+                                      '(lowering))))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
 ;;

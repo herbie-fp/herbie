@@ -114,9 +114,9 @@
   <h2>Defining Generators</h2>
 
   <p><dfn>Generators</dfn> are helper functions for generating
-  implementations in <code>define-operation</code>. For
-  example, <a href="platforms.html"><code>from-libm</code>
-  and <code>from-rival</code></a> are generators.</p>
+  implementations in <code>define-operation</code>. For example,
+  <a href="platforms.html"><code>from-ffi</code></a> is a
+  generator.</p>
 
   <p>To define a generator, use <code>define-generator</code>:</p>
 
@@ -128,7 +128,8 @@
   <p>Here, <code>from-<var>foo</var></code> is the name of your
   generator, and <var>args</var> are any additional arguments the
   generator takes. For example, <code>from-libm</code> takes one
-  argument, the symbol name.</p>
+  argument, the symbol name, while <code>from-ffi</code> takes an open
+  library and a symbol name.</p>
 
   <p>Then, inside the <var>body</var>, you can use those arguments as
   well as <code>spec</code> and <code>ctx</code>, to construct an
