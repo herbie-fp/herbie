@@ -214,12 +214,22 @@
   <pre>(define-operation (fabs.f32 [x &lt;binary32&gt;]) &lt;binary32&gt;
   #:spec (fabs x) #:impl (from-libm 'fabsf) #:cost 0.125)</pre>
 
-  <p>The <code>from-libm</code> uses dynamic linking to
-  load <code>libm</code>, extracts the symbol passed
-  to <code>from-libm</code>, and then uses the operation's signature
-  to call into the dynamically-linked library from Racket. Must make
-  sure to pass the correct symbol name; for single-precision
-  functions, make sure to add the "<code>f</code>" suffix.</p>
+  <p>The <code>from-libm</code> helper uses dynamic linking to load
+  <code>libm</code>, extracts the symbol passed to
+  <code>from-libm</code>, and then uses the operation's signature to
+  call into the dynamically-linked library from Racket. Be sure to
+  pass the correct symbol name; for single-precision functions, add the
+  "<code>f</code>" suffix.</p>
+
+  <p>For other libraries, open them with
+  <code>ffi-lib</code> and use <code>from-ffi</code>, which
+  generalizes <code>from-libm</code>. For example, to load functions
+  from the GNU Scientific Library:</p>
+
+  <pre>(require ffi/unsafe)
+(define libgsl (ffi-lib "gsl"))
+(define-operation (cos.gsl [x &lt;binary64&gt;]) &lt;binary64&gt;
+  #:spec (cos x) #:impl (from-ffi libgsl 'gsl_sf_cos) #:cost 0.125)</pre>
 
   <h3>Numeric Variations</h3>
 

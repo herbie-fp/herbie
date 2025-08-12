@@ -5,10 +5,10 @@
          ffi/unsafe)
 
 (require "../core/rival.rkt"
-         "types.rkt"
-         "../utils/common.rkt")
+         "types.rkt")
 
 (provide from-rival
+         from-ffi
          from-libm
          from-bigfloat
          define-generator
@@ -33,15 +33,15 @@
         (first exs)
         fail)))
 
-; ----------------------- LIBM GENERATOR ----------------------------
+; ----------------------- FFI GENERATOR -----------------------------
 
 ;; Looks up a function `name` with type signature `itype -> ... -> otype`
-;; in the system libm and returns the FFI function or `#f` if
-;; the procedure cannot be found.
+;; in the given FFI library and returns the function or `#f` if it
+;; cannot be found.
 ;; ```
-;; (make-libm (<name> <itype> ... <otype))
+;; (make-ffi <lib> (<name> <itype> ... <otype>))
 ;; ```
-(define (make-libm name itypes otype)
+(define (make-ffi lib name itypes otype)
   ; Repr matching
   (define (repr->ffi repr)
     (match (representation-name repr)
@@ -49,15 +49,19 @@
       ['binary32 _float]
       ['integer _int]
       [else (raise-syntax-error 'repr->type "unknown type" repr)]))
-  (get-ffi-obj name #f (_cprocedure (map repr->ffi itypes) (repr->ffi otype)) (const #f)))
+  (get-ffi-obj name lib (_cprocedure (map repr->ffi itypes) (repr->ffi otype)) (const #f)))
 
-(define-generator ((from-libm name) spec ctx)
+(define-generator ((from-ffi lib name) spec ctx)
   (let ([itypes (context-var-reprs ctx)]
         [otype (context-repr ctx)])
-    (define fl (make-libm name itypes otype))
+    (define fl (make-ffi lib name itypes otype))
     (unless fl
-      (error 'libm-generator "Could not find libm implementation of `~a ~a ~a`" otype name itypes))
+      (error 'ffi-generator "Could not find FFI implementation of `~a ~a ~a`" otype name itypes))
     fl))
+
+(define libm-lib (ffi-lib #f))
+(define (from-libm name)
+  (from-ffi libm-lib name))
 
 ; ----------------------- BIGFLOAT GENERATOR ------------------------
 
