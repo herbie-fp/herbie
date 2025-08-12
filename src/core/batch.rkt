@@ -27,8 +27,12 @@
          batch-map
          batch-add-brfs!
 
-         batchref<?
          (struct-out batchref)
+         batchref<?
+         batchref<=?
+         batchref>?
+         batchref>=?
+         batchref=?
          deref ; Batchref -> Expr
 
          unbatchify-alts)
@@ -46,6 +50,14 @@
 
 (define (batchref<? brf1 brf2)
   (< (batchref-idx brf1) (batchref-idx brf2)))
+(define (batchref<=? brf1 brf2)
+  (<= (batchref-idx brf1) (batchref-idx brf2)))
+(define (batchref>? brf1 brf2)
+  (> (batchref-idx brf1) (batchref-idx brf2)))
+(define (batchref>=? brf1 brf2)
+  (>= (batchref-idx brf1) (batchref-idx brf2)))
+(define (batchref=? brf1 brf2)
+  (= (batchref-idx brf1) (batchref-idx brf2)))
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
@@ -144,23 +156,19 @@
 
 (define (batch-apply b brfs f)
   (define out (batch-empty))
-  (match brfs
-    [(? null?) (values out '())]
-    [_
-     (define apply-f
-       (batch-map b
-                  (λ (remap node)
-                    (define node-with-batchrefs (expr-recurse node (lambda (ref) (batchref b ref))))
-                    (define node* (f node-with-batchrefs))
-                    (define brf*
-                      (let loop ([node* node*])
-                        (match node*
-                          [(? batchref? brf) (remap (batchref-idx brf))]
-                          [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
-                    brf*)))
-
-     (define brfs* (map apply-f brfs))
-     (values out brfs*)]))
+  (define apply-f
+    (batch-map b
+               (λ (remap node)
+                 (define node-with-batchrefs (expr-recurse node (lambda (ref) (batchref b ref))))
+                 (define node* (f node-with-batchrefs))
+                 (define brf*
+                   (let loop ([node* node*])
+                     (match node*
+                       [(? batchref? brf) (remap (batchref-idx brf))]
+                       [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
+                 brf*)))
+  (define brfs* (map apply-f brfs))
+  (values out brfs*))
 
 ;; Function returns indices of children nodes within a batch for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
