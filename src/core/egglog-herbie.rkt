@@ -285,25 +285,23 @@
   result)
 
 (define (egglog->batchref expr batch type)
-  (define idx
-    (let loop ([expr expr]
-               [type type])
-      (define term
-        (match expr
-          [(? number?)
-           (if (representation? type)
-               (literal expr (representation-name type))
-               expr)]
-          [(? symbol?) expr]
-          [(approx spec impl) (approx (loop spec #f) (loop impl type))]
-          [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
-          [(list op args ...)
-           (define args*
-             (for/list ([arg (in-list args)])
-               (loop arg #f)))
-           (cons op args*)]))
-      (batchref-idx (batch-push! batch term))))
-  (batchref batch idx))
+  (let loop ([expr expr]
+             [type type])
+    (define term
+      (match expr
+        [(? number?)
+         (if (representation? type)
+             (literal expr (representation-name type))
+             expr)]
+        [(? symbol?) expr]
+        [(approx spec impl) (approx (loop spec #f) (loop impl type))]
+        [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
+        [(list op args ...)
+         (define args*
+           (for/list ([arg (in-list args)])
+             (loop arg #f)))
+         (cons op args*)]))
+    (batch-add! batch term)))
 
 (define (normalize-cost c min-cost)
   (exact-round (* (/ c min-cost) 100)))
@@ -654,9 +652,6 @@
               #t ;; appl with op -> Is a spec
               #f)])))) ;; appl impl -> Not a spec
 
-  (define (node->batchref node)
-    (batch-push! batch node))
-
   (for ([brf brfs])
     (vector-set! root-mask (batchref-idx brf) #t))
   (for ([node (in-batch batch)]
@@ -673,12 +668,12 @@
         [(? symbol?) #f]
         [(approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
         [(list impl args ...)
-         `(,(hash-ref (if (spec? (node->batchref node))
+         `(,(hash-ref (if (spec? (batchref batch n))
                           (id->e1)
                           (id->e2))
                       impl)
            ,@(for/list ([arg (in-list args)])
-               (remap arg (spec? (node->batchref node)))))]
+               (remap arg (spec? (batchref batch n)))))]
 
         [(hole ty spec) `(lower ,(remap spec #t) ,(symbol->string ty))]))
 

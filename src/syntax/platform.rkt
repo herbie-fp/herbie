@@ -8,7 +8,8 @@
          "types.rkt"
          "syntax.rkt"
          "../utils/float.rkt"
-         "generators.rkt")
+         "generators.rkt"
+         "../core/batch.rkt")
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
@@ -34,6 +35,7 @@
          impl-exists?
          impl-info
          prog->spec
+         batch-to-spec
          get-fpcore-impl
          (struct-out $platform)
          ;; Platform API
@@ -98,6 +100,26 @@
      (define spec (impl-info impl 'spec))
      (define env (map cons vars (map prog->spec args)))
      (pattern-substitute spec env)]))
+
+(define (batch-to-spec batch brfs)
+  (define out (batch-empty))
+  (define lower
+    (batch-map batch
+               (lambda (child-spec node)
+                 (match node
+                   [(? literal?) (batch-add! out (literal-value node))]
+                   [(? number?) (batch-add! out node)]
+                   [(? symbol?) (batch-add! out node)]
+                   [(hole _ spec) (child-spec spec)]
+                   [(approx spec _) (child-spec spec)]
+                   [(list (? impl-exists? impl) args ...)
+                    (define vars (impl-info impl 'vars))
+                    (define spec (impl-info impl 'spec))
+                    (define env (map cons vars (map child-spec args)))
+                    (batch-add! out (pattern-substitute spec env))]
+                   [(list op args ...) (batch-add! out (cons op (map child-spec args)))]))))
+  (define brfs* (map lower brfs))
+  (values out brfs*))
 
 ;; Expression predicates ;;
 

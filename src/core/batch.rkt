@@ -10,7 +10,7 @@
          expr-recurse
          (struct-out batch)
          batch-empty ; Batch
-         batch-push!
+         batch-push! ; only used at taylor.rkt, to be removed from provide!!!
          batch-add! ; Batch -> Expr -> Batchref
          batch-copy ; Batch -> Batch
          batch-length ; Batch -> Integer
