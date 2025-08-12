@@ -96,6 +96,8 @@
   (for/list ([brf brfs])
     (exprs brf)))
 
+;; batch-map does not iterate over nodes that are not a child of brf
+;; A lot of parts of Herbie rely on that
 (define (batch-map batch f)
   (define len (batch-length batch))
   (define out (make-dvector))

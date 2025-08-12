@@ -634,37 +634,33 @@
   (define root-bindings '())
   ; Inserting nodes bottom-up
   (define root-mask (make-vector (batch-length batch) #f))
-  (define spec-mask (make-vector (batch-length batch) #f))
 
-  (for ([node (in-batch batch)]
-        [n (in-naturals)])
-    (match node
-      [(? literal?) (vector-set! spec-mask n #f)] ;; If literal, not a spec
-      [(? number?) (vector-set! spec-mask n #t)] ;; If number, it's a spec
-      [(? symbol?)
-       (vector-set!
-        spec-mask
-        n
-        #f)] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
-      [(hole _ _) (vector-set! spec-mask n #f)] ;; If hole, not a spec
-      [(approx _ _) (vector-set! spec-mask n #f)] ;; If approx, not a spec
+  ;; Batchref -> Boolean
+  (define spec?
+    (batch-map
+     batch
+     (lambda (get-spec node)
+       (match node
+         [(? literal?) #f] ;; If literal, not a spec
+         [(? number?) #t] ;; If number, it's a spec
+         [(? symbol?)
+          #f] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
+         [(hole _ _) #f] ;; If hole, not a spec
+         [(approx _ _) #f] ;; If approx, not a spec
+         [`(if ,cond ,ift ,iff)
+          (get-spec cond)] ;; If the condition or any branch is a spec, then this is a spec
+         [(list appl args ...)
+          (if (hash-has-key? (id->e1) appl)
+              #t ;; appl with op -> Is a spec
+              #f)])))) ;; appl impl -> Not a spec
 
-      ;; If the condition or any branch is a spec, then this is a spec
-      [`(if ,cond ,ift ,iff) (vector-set! spec-mask n (vector-ref spec-mask cond))]
-
-      [(list appl args ...)
-       (if (hash-has-key? (id->e1) appl)
-           ;; appl with op -> Is a spec
-           (vector-set! spec-mask n #t)
-
-           ;; appl impl -> Not a spec
-           (vector-set! spec-mask n #f))]))
+  (define (node->batchref node)
+    (batch-push! batch node))
 
   (for ([brf brfs])
     (vector-set! root-mask (batchref-idx brf) #t))
   (for ([node (in-batch batch)]
         [root? (in-vector root-mask)]
-        [spec? (in-vector spec-mask)]
         [n (in-naturals)])
     (define node*
       (match node
@@ -677,12 +673,12 @@
         [(? symbol?) #f]
         [(approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
         [(list impl args ...)
-         `(,(hash-ref (if spec?
+         `(,(hash-ref (if (spec? (node->batchref node))
                           (id->e1)
                           (id->e2))
                       impl)
            ,@(for/list ([arg (in-list args)])
-               (remap arg spec?)))]
+               (remap arg (spec? (node->batchref node)))))]
 
         [(hole ty spec) `(lower ,(remap spec #t) ,(symbol->string ty))]))
 
@@ -807,7 +803,7 @@
       (define root (batchref-idx brf))
       (define curr-binding-name
         (if (hash-has-key? vars root)
-            (if (vector-ref spec-mask root)
+            (if (spec? brf)
                 (string->symbol (format "?~a" (hash-ref vars root)))
                 (string->symbol (format "?t~a" (hash-ref vars root))))
             (string->symbol (format "?r~a" root))))
