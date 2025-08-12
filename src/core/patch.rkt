@@ -84,7 +84,7 @@
   (define runner
     (if (flag-set? 'generate 'egglog)
         (make-egglog-runner global-batch brfs reprs schedule (*context*))
-        (make-egraph batch* brfs* reprs schedule (*context*))))
+        (make-egraph global-batch brfs reprs schedule (*context*))))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
@@ -157,7 +157,7 @@
   (define runner
     (if (flag-set? 'generate 'egglog)
         (make-egglog-runner global-batch brfs reprs schedule (*context*))
-        (make-egraph batch* brfs* reprs schedule (*context*))))
+        (make-egraph global-batch brfs reprs schedule (*context*))))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
