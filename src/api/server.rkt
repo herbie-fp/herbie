@@ -50,7 +50,7 @@
 (define (trace-start)
   (when (flag-set? 'dump 'trace)
     (call-with-output-file
-     "dump-server.json"
+     "dump-trace.json"
      #:exists 'truncate
      (λ (out)
        (fprintf out "{\"traceEvents\":[")
@@ -59,7 +59,7 @@
 
 (define (trace name phase [args (hash)])
   (when (flag-set? 'dump 'trace)
-    (call-with-output-file "dump-server.json"
+    (call-with-output-file "dump-trace.json"
                            #:exists 'append
                            (λ (out)
                              (fprintf out ",")
@@ -79,7 +79,7 @@
 
 (define (trace-end)
   (when (flag-set? 'dump 'trace)
-    (call-with-output-file "dump-server.json" #:exists 'append (λ (out) (fprintf out "]}\n")))))
+    (call-with-output-file "dump-trace.json" #:exists 'append (λ (out) (fprintf out "]}\n")))))
 
 (define old-exit (exit-handler))
 (exit-handler (λ (v)
@@ -371,7 +371,8 @@
 
 (define (herbie-do-server-job h-command job-id)
   (match-define (herbie-command command test seed pcontext profile? timeline?) h-command)
-  (trace 'job 'B (hash 'job-id job-id 'command (~a command)))
+  (define metadata (hash 'job-id job-id 'command (~a command) 'name (test-name test)))
+  (trace 'herbie 'B metadata)
   (define herbie-result
     (run-herbie command
                 test
@@ -379,9 +380,10 @@
                 #:pcontext pcontext
                 #:profile? profile?
                 #:timeline? timeline?))
-  (trace 'to-json 'i (hash 'job-id job-id))
+  (trace 'herbie 'E metadata)
+  (trace 'to-json 'B metadata)
   (define basic-output ((get-json-converter command) herbie-result job-id))
-  (trace 'job 'E (hash 'job-id job-id))
+  (trace 'to-json 'E metadata)
   ;; Add default fields that all commands have
   (hash-set* basic-output
              'job
