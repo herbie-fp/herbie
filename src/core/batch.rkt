@@ -21,7 +21,7 @@
          batch-ref ; Batch -> Idx -> Node
          batch-pull ; Batchref -> Expr
          batch-apply ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> (Batch, List<Batchref>)
-         batch-children ; Batch -> List<Batchref> -> List<Batchref>
+         batch-reachable ; Batch -> List<Batchref> -> List<Batchref>
          batch-reconstruct-exprs ; Batch -> (Batchref -> Expr)
          batch-remove-zombie ; Batch -> List<Batchref> -> (Batch, List<Batchref>)
          batch-map
@@ -118,21 +118,6 @@
             (dvector-set! visited idx #t)
             res]))])))
 
-#;(define (batch-sequential-map batch f)
-    (define len (batch-length batch))
-    (define out (make-dvector))
-    (define pt -1)
-    (λ (brf)
-      (match-define (batchref b* idx*) brf)
-      (cond
-        [(or (not (equal? b* batch)) (>= idx* len)) ; Little check
-         (error 'batch-free-vars "Inappropriate batchref is passed")]
-        [(>= pt (batchref-idx brf)) (dvector-ref out idx*)]
-        [(for ([node (in-batch batch (add1 pt) (add1 idx*))])
-           (dvector-add! out (f (λ (x) (dvector-ref out x)) node)))
-         (set! pt idx*)
-         (dvector-ref out idx*)])))
-
 ;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
 (define (unbatchify-alts batch altns)
   (define exprs (batch-reconstruct-exprs batch))
@@ -179,7 +164,7 @@
 
 ;; Function returns indices of children nodes within a batch for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
-(define (batch-children batch brfs #:condition [condition (const #t)])
+(define (batch-reachable batch brfs #:condition [condition (const #t)])
   (match brfs
     [(? null?) '()]
     [_
@@ -195,13 +180,10 @@
      (for ([i (in-range max-idx -1 -1)]
            [node (in-batch batch max-idx -1 -1)]
            [child (in-vector child-mask max-idx -1 -1)]
-           #:when (and child (condition node)))
-       (unless child ; if include-vars then chld may not be #t, making sure it's #t
-         (vector-set! child-mask i #t))
-       (expr-recurse node
-                     (λ (n)
-                       (when (condition (batch-ref batch n))
-                         (vector-set! child-mask n #t)))))
+           #:when child)
+       (unless (condition node)
+         (vector-set! child-mask i #f))
+       (expr-recurse node (λ (n) (vector-set! child-mask n #t))))
      ; Return batchrefs of children nodes in ascending order
      (for/list ([child (in-vector child-mask)]
                 [i (in-naturals)]

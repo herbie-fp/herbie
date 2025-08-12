@@ -237,7 +237,7 @@
     (struct-copy alt x [expr brf]))
 
   (^next-alts^ (map make-batchref (^next-alts^) brfs))
-  (define brfs* (batch-children global-batch brfs #:condition node-is-impl?))
+  (define brfs* (batch-reachable global-batch brfs #:condition node-is-impl?))
 
   (reconstruct! global-batch (generate-candidates global-batch brfs*))
   (finalize-iter!)
