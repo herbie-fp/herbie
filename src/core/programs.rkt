@@ -14,7 +14,7 @@
          impl-prog?
          node-is-impl?
          repr-of
-         repr-of-batchref
+         batch-reprs
          location-set
          location-get
          get-locations
@@ -44,17 +44,15 @@
     [(hole precision spec) (get-representation precision)]
     [(list op args ...) (impl-info op 'otype)]))
 
-; Index inside (batch-nodes batch) -> type
-(define (repr-of-batchref brf ctx)
-  (match-define (batchref batch idx) brf)
-  (let loop ([idx idx])
-    (define node (batch-ref batch idx))
-    (match node
-      [(literal val precision) (get-representation precision)]
-      [(? symbol?) (context-lookup ctx node)]
-      [(approx _ impl) (loop impl)]
-      [(hole precision spec) (get-representation precision)]
-      [(list op args ...) (impl-info op 'otype)])))
+(define (batch-reprs batch ctx)
+  (batch-map batch
+             (lambda (get-repr node)
+               (match node
+                 [(literal val precision) (get-representation precision)]
+                 [(? symbol?) (context-lookup ctx node)]
+                 [(approx _ impl) (get-repr impl)]
+                 [(hole precision spec) (get-representation precision)]
+                 [(list op args ...) (impl-info op 'otype)]))))
 
 (define (all-subexpressions expr #:reverse? [reverse? #f])
   (define subexprs

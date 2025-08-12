@@ -106,6 +106,7 @@
       [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
+  (define reprs (batch-reprs batch ctx))
   (define add-to-egraph
     (batch-map batch
                (λ (get-remapping node)
@@ -119,8 +120,7 @@
                                (get-remapping spec)
                                (lambda ()
                                  (define spec* (normalize-spec (batch-pull (batchref batch spec))))
-                                 (define type
-                                   (representation-type (repr-of-batchref (batchref batch impl) ctx)))
+                                 (define type (representation-type (reprs (batchref batch impl))))
                                  (cons spec* type)))
                     (insert-node! (list '$approx (get-remapping spec) (get-remapping impl)))]
                    [(list op (app get-remapping args) ...) (insert-node! (cons op args))]))))

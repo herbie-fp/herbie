@@ -31,9 +31,7 @@
 
 (define (taylor-alts altns global-batch)
   (define brfs (map alt-expr altns))
-  (define reprs
-    (for/list ([brf brfs])
-      (repr-of-batchref brf (*context*))))
+  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
   (define specs (map prog->spec (batch->progs global-batch brfs)))
   (define free-vars (map free-variables specs))
   (define vars (context-vars (*context*)))
@@ -75,9 +73,7 @@
 
   ; run egg
   (define brfs (map alt-expr altns))
-  (define reprs
-    (for/list ([brf brfs])
-      (repr-of-batchref brf (*context*))))
+  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
 
   (define runner
     (if (flag-set? 'generate 'egglog)
@@ -103,9 +99,10 @@
   (define real-altns (filter (compose set-empty? free-vars alt-expr) altns))
 
   (define brfs (map alt-expr real-altns))
+  (define reprs (batch-reprs global-batch (*context*)))
   (define contexts
     (for/list ([brf brfs])
-      (context '() (repr-of-batchref brf (*context*)) '())))
+      (context '() (reprs brf) '())))
 
   (define specs (map prog->spec (batch->progs global-batch brfs)))
   (define-values (status pts)
@@ -147,9 +144,7 @@
           `(lower . ((iteration . 1) (scheduler . simple)))))
 
   (define brfs (map alt-expr altns))
-  (define reprs
-    (for/list ([brf brfs])
-      (repr-of-batchref brf (*context*))))
+  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
 
   (define runner
     (if (flag-set? 'generate 'egglog)
