@@ -79,11 +79,11 @@
     (for/list ([brf brfs])
       (repr-of-batchref brf (*context*))))
 
-  (define-values (batch* brfs*) (batch-remove-zombie global-batch brfs))
+  ;(define-values (batch* brfs*) (batch-remove-zombie global-batch brfs))
 
   (define runner
     (if (flag-set? 'generate 'egglog)
-        (make-egglog-runner batch* brfs* reprs schedule (*context*))
+        (make-egglog-runner global-batch brfs reprs schedule (*context*))
         (make-egraph batch* brfs* reprs schedule (*context*))))
 
   (define batchrefss
@@ -152,11 +152,11 @@
     (for/list ([brf brfs])
       (repr-of-batchref brf (*context*))))
 
-  (define-values (batch* brfs*) (batch-remove-zombie global-batch brfs))
+  ;(define-values (batch* brfs*) (batch-remove-zombie global-batch brfs))
 
   (define runner
     (if (flag-set? 'generate 'egglog)
-        (make-egglog-runner batch* brfs* reprs schedule (*context*))
+        (make-egglog-runner global-batch brfs reprs schedule (*context*))
         (make-egraph batch* brfs* reprs schedule (*context*))))
 
   (define batchrefss
