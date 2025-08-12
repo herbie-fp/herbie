@@ -2,7 +2,6 @@
 
 (require "../syntax/syntax.rkt"
          "../utils/common.rkt"
-         "../utils/alternative.rkt" ; for unbatchify-alts
          "dvector.rkt")
 
 (provide progs->batch ; List<Expr> -> (Batch, List<Batchref>)
@@ -11,7 +10,7 @@
          expr-recurse
          (struct-out batch)
          batch-empty ; Batch
-         batch-push! ; Batch -> Node -> Batchref
+         batch-push!
          batch-add! ; Batch -> Expr -> Batchref
          batch-copy ; Batch -> Batch
          batch-length ; Batch -> Integer
@@ -33,9 +32,7 @@
          batchref>?
          batchref>=?
          batchref=?
-         deref ; Batchref -> Expr
-
-         unbatchify-alts)
+         deref) ; Batchref -> Expr
 
 ;; Batches store these recursive structures, flattened
 (struct batch ([nodes #:mutable] [index #:mutable] [cache #:mutable]))
@@ -83,7 +80,13 @@
 (define (batch-add! b expr)
   (define cache (batch-cache b))
   (define (munge prog)
-    (hash-ref! cache prog (lambda () (batchref-idx (batch-push! b (expr-recurse prog munge))))))
+    (match prog
+      [(batchref b* idx*)
+       (unless (equal? b b*)
+         (error 'batch-add! "expr contains batchref that is not a part of provided batch"))
+       idx*]
+      [_
+       (hash-ref! cache prog (lambda () (batchref-idx (batch-push! b (expr-recurse prog munge)))))]))
   (batchref b (munge expr)))
 
 (define (batch-copy b)
@@ -130,18 +133,6 @@
             (dvector-set! visited idx #t)
             res]))])))
 
-;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
-(define (unbatchify-alts batch altns)
-  (define exprs (batch-reconstruct-exprs batch))
-  (define (unmunge altn)
-    (define expr (alt-expr altn))
-    (match expr
-      [(? batchref? brf)
-       (define expr* (exprs brf))
-       (struct-copy alt altn [expr expr*])]
-      [_ altn]))
-  (map (curry alt-map unmunge) altns))
-
 (define (batch-add-brfs! batch brfs)
   (match brfs
     [(? null?) '()]
@@ -149,9 +140,7 @@
      (define batch* (batchref-batch (car brfs)))
      (brfs-belong-to-batch? batch* brfs)
      (define copy
-       (batch-map batch*
-                  (λ (remap-child node)
-                    (batch-push! batch (expr-recurse node (compose batchref-idx remap-child))))))
+       (batch-map batch* (λ (remap-child node) (batch-add! batch (expr-recurse node remap-child)))))
      (map copy brfs)]))
 
 (define (batch-apply b brfs f)
@@ -165,7 +154,7 @@
                    (let loop ([node* node*])
                      (match node*
                        [(? batchref? brf) (remap (batchref-idx brf))]
-                       [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
+                       [_ (batch-add! out (expr-recurse node* loop))])))
                  brf*)))
   (define brfs* (map apply-f brfs))
   (values out brfs*))

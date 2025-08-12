@@ -1064,40 +1064,38 @@
     (cdr (vector-ref egg-nodes id)))
 
   (define (add-enode enode type)
-    (define idx
-      (let loop ([enode enode]
-                 [type type])
-        (define enode*
-          (match enode
-            [(? number?)
+    (let loop ([enode enode]
+               [type type])
+      (define enode*
+        (match enode
+          [(? number?)
+           (if (representation? type)
+               (literal enode (representation-name type))
+               enode)]
+          [(? symbol?)
+           (if (string-prefix? (symbol->string enode) "$var")
+               (egg-var->var enode ctx)
+               enode)]
+          [(list '$approx spec (app eggref impl))
+           (define spec* (vector-ref id->spec spec))
+           (unless spec*
+             (error 'regraph-extract-variants "no initial approx node in eclass"))
+           (define spec-type
              (if (representation? type)
-                 (literal enode (representation-name type))
-                 enode)]
-            [(? symbol?)
-             (if (string-prefix? (symbol->string enode) "$var")
-                 (egg-var->var enode ctx)
-                 enode)]
-            [(list '$approx spec (app eggref impl))
-             (define spec* (vector-ref id->spec spec))
-             (unless spec*
-               (error 'regraph-extract-variants "no initial approx node in eclass"))
-             (define spec-type
-               (if (representation? type)
-                   (representation-type type)
-                   type))
-             (define final-spec (egg-parsed->expr spec* spec-type))
-             (define final-spec-idx (batchref-idx (batch-add! batch final-spec)))
-             (approx final-spec-idx (loop impl type))]
-            [(list impl (app eggref args) ...)
-             (define args*
-               (for/list ([arg (in-list args)]
-                          [type (in-list (if (representation? type)
-                                             (impl-info impl 'itype)
-                                             (operator-info impl 'itype)))])
-                 (loop arg type)))
-             (cons impl args*)]))
-        (batchref-idx (batch-push! batch enode*))))
-    (batchref batch idx))
+                 (representation-type type)
+                 type))
+           (define final-spec (egg-parsed->expr spec* spec-type))
+           (define final-spec-idx (batch-add! batch final-spec))
+           (approx final-spec-idx (loop impl type))]
+          [(list impl (app eggref args) ...)
+           (define args*
+             (for/list ([arg (in-list args)]
+                        [type (in-list (if (representation? type)
+                                           (impl-info impl 'itype)
+                                           (operator-info impl 'itype)))])
+               (loop arg type)))
+           (cons impl args*)]))
+      (batch-add! batch enode*)))
 
   ; same as add-enode but works with index as an input instead of enode
   (define (add-id id type)

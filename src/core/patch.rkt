@@ -32,8 +32,9 @@
 (define (taylor-alts altns global-batch)
   (define brfs (map alt-expr altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
-  (define specs (map prog->spec (batch->progs global-batch brfs)))
-  (define free-vars (map free-variables specs))
+  (define-values (spec-batch spec-brfs) (batch-to-spec global-batch brfs))
+  (define free-vars (map (batch-free-vars spec-batch) spec-brfs))
+  (define specs (batch->progs spec-batch spec-brfs))
   (define vars (context-vars (*context*)))
 
   (reap [sow]
