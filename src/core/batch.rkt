@@ -91,13 +91,10 @@
   (values out brfs))
 
 (define (batch->progs b brfs)
-  (match brfs
-    [(? null?) '()]
-    [_
-     (brfs-belong-to-batch? b brfs)
-     (define exprs (batch-reconstruct-exprs b))
-     (for/list ([brf brfs])
-       (exprs brf))]))
+  (brfs-belong-to-batch? b brfs)
+  (define exprs (batch-reconstruct-exprs b))
+  (for/list ([brf brfs])
+    (exprs brf)))
 
 (define (batch-map batch f)
   (define len (batch-length batch))
@@ -108,7 +105,8 @@
     (cond
       ; Little check
       [(or (not (equal? b batch)) (>= idx len)) (error 'batch-map "Inappropriate batchref is passed")]
-      [(let loop ([idx idx])
+      [else
+       (let loop ([idx idx])
          (match (and (> (dvector-capacity visited) idx) (dvector-ref visited idx))
            [#t (dvector-ref out idx)]
            [_
@@ -277,7 +275,7 @@
     (check-equal? (batch->progs out-batch brfs*) (batch->progs in-batch brfs))
     (batch-nodes out-batch))
 
-  (check-equal? (create-dvector 0 '(sqrt 0) 2 '(pow 2 1))
+  (check-equal? (create-dvector 2 0 '(sqrt 1) '(pow 0 2))
                 (zombie-test #:nodes (create-dvector 0 1 '(sqrt 0) 2 '(pow 3 2)) #:roots (list 4)))
   (check-equal? (create-dvector 0 '(sqrt 0) '(exp 1))
                 (zombie-test #:nodes (create-dvector 0 6 '(pow 0 1) '(* 2 0) '(sqrt 0) '(exp 4))
@@ -285,14 +283,14 @@
   (check-equal? (create-dvector 0 1/2 '(+ 0 1))
                 (zombie-test #:nodes (create-dvector 0 1/2 '(+ 0 1) '(* 2 0)) #:roots (list 2)))
 
-  (check-equal? (create-dvector 0 1/2 '(exp 1) (approx 2 0))
+  (check-equal? (create-dvector 1/2 '(exp 0) 0 (approx 1 2))
                 (zombie-test #:nodes (create-dvector 0 1/2 '(+ 0 1) '(* 2 0) '(exp 1) (approx 4 0))
                              #:roots (list 5)))
   (check-equal?
-   (create-dvector 'x 2 1/2 '(* 0 0) (approx 3 1) '(pow 2 4))
+   (create-dvector 1/2 'x '(* 1 1) 2 (approx 2 3) '(pow 0 4))
    (zombie-test #:nodes (create-dvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
                 #:roots (list 7)))
   (check-equal?
-   (create-dvector 'x 2 1/2 '(sqrt 1) '(* 0 0) (approx 4 1) '(pow 2 5))
+   (create-dvector 1/2 'x '(* 1 1) 2 (approx 2 3) '(pow 0 4) '(sqrt 3))
    (zombie-test #:nodes (create-dvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
                 #:roots (list 7 3))))

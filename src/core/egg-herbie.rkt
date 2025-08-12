@@ -125,7 +125,7 @@
                     (insert-node! (list '$approx (get-remapping spec) (get-remapping impl)))]
                    [(list op (app get-remapping args) ...) (insert-node! (cons op args))]))))
 
-  (for/list ([brf brfs])
+  (for/list ([brf (in-list brfs)])
     (define brf-id (add-to-egraph brf)) ; remapping of brf
     (egraph_add_root ptr brf-id)
     brf-id))
