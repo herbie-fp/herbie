@@ -13,6 +13,7 @@
          batch-push! ; only used at taylor.rkt, to be removed from provide!!!
          batch-add! ; Batch -> Expr -> Batchref
          batch-copy ; Batch -> Batch
+         batch-copy-only ; Batch -> List<Batchref> -> (Batch, List<Batchref>)
          batch-length ; Batch -> Integer
          batch-tree-size ; Batch -> Integer
          batch-free-vars ; Batch -> (Batchref -> Set<Var>)
@@ -23,9 +24,7 @@
          batch-apply!
          batch-reachable ; Batch -> List<Batchref> -> List<Batchref>
          batch-reconstruct-exprs ; Batch -> (Batchref -> Expr)
-         batch-remove-zombie ; Batch -> List<Batchref> -> (Batch, List<Batchref>)
          batch-map
-         batch-add-brfs!
 
          (struct-out batchref)
          batchref<?
@@ -83,9 +82,10 @@
   (define (munge prog)
     (match prog
       [(batchref b* idx*)
-       (unless (equal? b b*)
-         (error 'batch-add! "expr contains batchref that is not a part of provided batch"))
-       idx*]
+       (if (equal? b b*)
+           idx*
+           (munge (batch-pull
+                   prog)))] ; it's going to be very slow if batchrefs are from different batch
       [_
        (hash-ref! cache prog (lambda () (batchref-idx (batch-push! b (expr-recurse prog munge)))))]))
   (batchref b (munge expr)))
@@ -133,16 +133,6 @@
             (dvector-set! out idx res)
             (dvector-set! visited idx #t)
             res]))])))
-
-(define (batch-add-brfs! batch brfs)
-  (match brfs
-    [(? null?) '()]
-    [_
-     (define batch* (batchref-batch (car brfs)))
-     (brfs-belong-to-batch? batch* brfs)
-     (define copy
-       (batch-map batch* (λ (remap-child node) (batch-add! batch (expr-recurse node remap-child)))))
-     (map copy brfs)]))
 
 (define (batch-apply b brfs f)
   (define out (batch-empty))
@@ -228,7 +218,7 @@
     (error 'brfs-belong-to-batch? "One of batchrefs does not belong to the provided batch")))
 
 ;; The function removes any zombie nodes from batch with respect to the brfs
-(define (batch-remove-zombie batch brfs)
+(define (batch-copy-only batch brfs)
   (batch-apply batch brfs identity))
 
 (define (batch-ref batch reg)
@@ -265,7 +255,7 @@
   (define (zombie-test #:nodes nodes #:roots roots)
     (define in-batch (batch nodes (make-hash) (make-hasheq)))
     (define brfs (map (curry batchref in-batch) roots))
-    (define-values (out-batch brfs*) (batch-remove-zombie in-batch brfs))
+    (define-values (out-batch brfs*) (batch-copy-only in-batch brfs))
     (check-equal? (batch->progs out-batch brfs*) (batch->progs in-batch brfs))
     (batch-nodes out-batch))
 

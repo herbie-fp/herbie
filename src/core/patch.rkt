@@ -78,7 +78,7 @@
 
   (define runner
     (if (flag-set? 'generate 'egglog)
-        (let-values ([(batch* brfs*) (batch-remove-zombie global-batch brfs)])
+        (let-values ([(batch* brfs*) (batch-copy-only global-batch brfs)])
           (make-egglog-runner batch* brfs* reprs schedule (*context*)))
         (make-egraph global-batch brfs reprs schedule (*context*))))
 
@@ -150,7 +150,7 @@
 
   (define runner
     (if (flag-set? 'generate 'egglog)
-        (let-values ([(batch* brfs*) (batch-remove-zombie global-batch brfs)])
+        (let-values ([(batch* brfs*) (batch-copy-only global-batch brfs)])
           (make-egglog-runner batch* brfs* reprs schedule (*context*)))
         (make-egraph global-batch brfs reprs schedule (*context*))))
 

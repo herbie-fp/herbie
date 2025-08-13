@@ -56,10 +56,9 @@
                    (match node
                      [(approx spec impl) impl]
                      [node node]))))
-  (define-values (batch** brfs**) (batch-remove-zombie batch* brfs*))
-  (define-values (batch*** _) (progs->batch vars))
-  (define brfs*** (batch-add-brfs! batch*** brfs**))
-  (values batch*** brfs***))
+  (define-values (batch** _) (progs->batch vars))
+  (define brfs** (map (curry batch-add! batch**) brfs*))
+  (values batch** brfs**))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values
