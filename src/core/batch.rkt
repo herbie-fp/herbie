@@ -143,7 +143,7 @@
                    (let loop ([node* node*])
                      (match node*
                        [(? batchref? brf) (remap (batchref-idx brf))]
-                       [_ (batch-add! out (expr-recurse node* loop))])))
+                       [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
                  brf*)))
   (define brfs* (map apply-f brfs))
   (values out brfs*))
@@ -157,7 +157,7 @@
                  (let loop ([node* node*])
                    (match node*
                      [(? batchref? brf) (remap (batchref-idx brf))]
-                     [_ (batch-add! b (expr-recurse node* loop))])))
+                     [_ (batch-push! b (expr-recurse node* (compose batchref-idx loop)))])))
                brf*)))
 
 ;; Function returns indices of children nodes within a batch for given roots,
