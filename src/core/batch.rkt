@@ -20,6 +20,7 @@
          batch-ref ; Batch -> Idx -> Node
          batch-pull ; Batchref -> Expr
          batch-apply ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> (Batch, List<Batchref>)
+         batch-apply!
          batch-reachable ; Batch -> List<Batchref> -> List<Batchref>
          batch-reconstruct-exprs ; Batch -> (Batchref -> Expr)
          batch-remove-zombie ; Batch -> List<Batchref> -> (Batch, List<Batchref>)
@@ -158,6 +159,18 @@
                  brf*)))
   (define brfs* (map apply-f brfs))
   (values out brfs*))
+
+(define (batch-apply! b f)
+  (batch-map b
+             (λ (remap node)
+               (define node-with-batchrefs (expr-recurse node (lambda (ref) (batchref b ref))))
+               (define node* (f node-with-batchrefs))
+               (define brf*
+                 (let loop ([node* node*])
+                   (match node*
+                     [(? batchref? brf) (remap (batchref-idx brf))]
+                     [_ (batch-add! b (expr-recurse node* loop))])))
+               brf*)))
 
 ;; Function returns indices of children nodes within a batch for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)

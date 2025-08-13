@@ -32,9 +32,9 @@
 (define (taylor-alts altns global-batch)
   (define brfs (map alt-expr altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
-  (define-values (spec-batch spec-brfs) (batch-to-spec global-batch brfs))
-  (define free-vars (map (batch-free-vars spec-batch) spec-brfs))
-  (define specs (batch->progs spec-batch spec-brfs))
+  (define spec-brfs (batch-to-spec! global-batch brfs))
+  (define free-vars (map (batch-free-vars global-batch) spec-brfs))
+  (define specs (batch->progs global-batch spec-brfs))
   (define vars (context-vars (*context*)))
 
   (reap [sow]
@@ -44,13 +44,13 @@
           (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
           (define genexprs (approximate specs var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
-                [spec (in-list specs)]
+                [spec-brf (in-list spec-brfs)]
                 [repr (in-list reprs)]
                 [altn (in-list altns)]
                 [fv (in-list free-vars)]
                 #:when (set-member? fv var)) ; check whether var exists in expr at all
             (for ([i (in-range (*taylor-order-limit*))])
-              (define gen (approx spec (hole (representation-name repr) (genexpr))))
+              (define gen (approx spec-brf (hole (representation-name repr) (genexpr))))
               (define brf (batch-add! global-batch gen)) ; Munge gen
               (sow (alt brf `(taylor ,name ,var) (list altn)))))
           (timeline-stop!))))
@@ -105,7 +105,8 @@
     (for/list ([brf brfs])
       (context '() (reprs brf) '())))
 
-  (define specs (map prog->spec (batch->progs global-batch brfs)))
+  (define spec-brfs (batch-to-spec! global-batch brfs))
+  (define specs (batch->progs global-batch spec-brfs))
   (define-values (status pts)
     (if (null? specs)
         (values 'invalid #f)

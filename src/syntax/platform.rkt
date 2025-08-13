@@ -35,7 +35,7 @@
          impl-exists?
          impl-info
          prog->spec
-         batch-to-spec
+         batch-to-spec!
          get-fpcore-impl
          (struct-out $platform)
          ;; Platform API
@@ -101,22 +101,23 @@
      (define env (map cons vars (map prog->spec args)))
      (pattern-substitute spec env)]))
 
-(define (batch-to-spec batch brfs)
-  (batch-apply batch
-               brfs
-               (lambda (node)
-                 (match node
-                   [(? literal?) (literal-value node)]
-                   [(? number?) node]
-                   [(? symbol?) node]
-                   [(hole _ spec) spec]
-                   [(approx spec _) spec]
-                   [(list (? impl-exists? impl) args ...)
-                    (define vars (impl-info impl 'vars))
-                    (define spec (impl-info impl 'spec))
-                    (define env (map cons vars args))
-                    (pattern-substitute spec env)]
-                   [(list op args ...) (cons op args)]))))
+(define (batch-to-spec! batch brfs)
+  (define f
+    (batch-apply! batch
+                  (lambda (node)
+                    (match node
+                      [(? literal?) (literal-value node)]
+                      [(? number?) node]
+                      [(? symbol?) node]
+                      [(hole _ spec) spec]
+                      [(approx spec _) spec]
+                      [(list (? impl-exists? impl) args ...)
+                       (define vars (impl-info impl 'vars))
+                       (define spec (impl-info impl 'spec))
+                       (define env (map cons vars args))
+                       (pattern-substitute spec env)]
+                      [(list op args ...) (cons op args)]))))
+  (map f brfs))
 
 ;; Expression predicates ;;
 
