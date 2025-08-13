@@ -15,6 +15,7 @@
          node-is-impl?
          repr-of
          batch-reprs
+         batch-reprs-online
          location-set
          location-get
          get-locations
@@ -44,7 +45,7 @@
     [(hole precision spec) (get-representation precision)]
     [(list op args ...) (impl-info op 'otype)]))
 
-(define (batch-reprs batch ctx)
+(define (batch-reprs-online batch ctx)
   (batch-map batch
              (lambda (get-repr node)
                (match node
@@ -53,6 +54,10 @@
                  [(approx _ impl) (get-repr impl)]
                  [(hole precision spec) (get-representation precision)]
                  [(list op args ...) (impl-info op 'otype)]))))
+
+(define (batch-reprs batch brfs ctx)
+  (define f (batch-reprs-online batch ctx))
+  (map f brfs))
 
 (define (all-subexpressions expr #:reverse? [reverse? #f])
   (define subexprs

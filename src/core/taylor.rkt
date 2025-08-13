@@ -130,7 +130,7 @@
 
 (define (taylor var expr-batch)
   "Return a pair (e, n), such that expr ~= e var^n"
-  (define exprs (batch-reconstruct-exprs expr-batch))
+  (define exprs (batch-exprs-online expr-batch))
   (define (batch-recover-expr node)
     (exprs (batch-push! expr-batch node)))
 

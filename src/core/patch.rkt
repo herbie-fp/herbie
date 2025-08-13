@@ -31,9 +31,9 @@
 
 (define (taylor-alts altns global-batch)
   (define brfs (map alt-expr altns))
-  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+  (define reprs (batch-reprs global-batch brfs (*context*)))
   (define spec-brfs (batch-to-spec! global-batch brfs))
-  (define free-vars (map (batch-free-vars global-batch) spec-brfs))
+  (define free-vars (batch-free-vars global-batch spec-brfs))
   (define specs (batch->progs global-batch spec-brfs))
   (define vars (context-vars (*context*)))
 
@@ -63,7 +63,7 @@
   (define approxs (remove-duplicates (taylor-alts altns global-batch) #:key key))
   (define approxs* (run-lowering approxs global-batch))
 
-  (define exprs (batch-reconstruct-exprs global-batch))
+  (define exprs (batch-exprs-online global-batch))
   (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
   (timeline-push! 'outputs (map (compose ~a exprs alt-expr) approxs*))
   (timeline-push! 'count (length altns) (length approxs*))
@@ -74,7 +74,7 @@
 
   ; run egg
   (define brfs (map alt-expr altns))
-  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+  (define reprs (batch-reprs global-batch brfs (*context*)))
 
   (define runner
     (if (flag-set? 'generate 'egglog)
@@ -96,14 +96,14 @@
 
 (define (run-evaluate altns global-batch)
   (timeline-event! 'sample)
-  (define free-vars (batch-free-vars global-batch))
+  (define free-vars (batch-free-vars-online global-batch))
   (define real-altns (filter (compose set-empty? free-vars alt-expr) altns))
 
   (define brfs (map alt-expr real-altns))
-  (define reprs (batch-reprs global-batch (*context*)))
+  (define reprs (batch-reprs global-batch brfs (*context*)))
   (define contexts
-    (for/list ([brf brfs])
-      (context '() (reprs brf) '())))
+    (for/list ([repr reprs])
+      (context '() repr '())))
 
   (define spec-brfs (batch-to-spec! global-batch brfs))
   (define specs (batch->progs global-batch spec-brfs))
@@ -146,7 +146,7 @@
           `(lower . ((iteration . 1) (scheduler . simple)))))
 
   (define brfs (map alt-expr altns))
-  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+  (define reprs (batch-reprs global-batch brfs (*context*)))
 
   (define runner
     (if (flag-set? 'generate 'egglog)
@@ -167,7 +167,7 @@
             (for ([batchref* (in-list batchrefs)])
               (sow (alt batchref* (list 'rr runner #f) (list altn)))))))
 
-  (define exprs (batch-reconstruct-exprs global-batch))
+  (define exprs (batch-exprs-online global-batch))
   (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
   (timeline-push! 'outputs (map (compose ~a exprs alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))

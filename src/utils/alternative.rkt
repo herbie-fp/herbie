@@ -24,7 +24,7 @@
 
 ;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
 (define (unbatchify-alts batch altns)
-  (define exprs (batch-reconstruct-exprs batch))
+  (define exprs (batch-exprs-online batch))
   (define (unmunge altn)
     (define expr (alt-expr altn))
     (match expr
