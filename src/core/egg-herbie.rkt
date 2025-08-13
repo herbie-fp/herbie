@@ -106,7 +106,7 @@
       [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
-  (define reprs (batch-reprs-online batch ctx))
+  (define reprs (batch-reprs batch ctx))
   (define add-to-egraph
     (batch-map batch
                (λ (get-remapping node)

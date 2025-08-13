@@ -10,14 +10,13 @@
          expr-recurse
          (struct-out batch)
          batch-empty ; Batch
-         batch-push! ; only used at taylor.rkt, to be removed from provide!!!
+         batch-push!
          batch-add! ; Batch -> (or Expr Batchref Expr<Batchref>) -> Batchref
          batch-copy ; Batch -> Batch
          batch-copy-only ; Batch -> List<Batchref> -> (Batch, List<Batchref>)
          batch-length ; Batch -> Integer
          batch-tree-size ; Batch -> List<Batchref> -> Integer
          batch-free-vars ; Batch -> (Batchref -> Set<Var>)
-         batch-free-vars-online
          in-batch ; Batch -> Sequence<Node>
          batch-ref ; Batch -> Idx -> Node
          batch-pull ; Batchref -> Expr
@@ -25,7 +24,6 @@
          batch-apply! ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> (Batchref -> Batchref)
          batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-exprs
-         batch-exprs-online ; Batch -> (Batchref -> Expr)
          batch-map
 
          (struct-out batchref)
@@ -110,7 +108,7 @@
 
 (define (batch->progs b brfs)
   (brfs-belong-to-batch? b brfs)
-  (batch-exprs b brfs))
+  (map (batch-exprs b) brfs))
 
 ;; batch-map does not iterate over nodes that are not a child of brf
 ;; A lot of parts of Herbie rely on that
@@ -191,14 +189,10 @@
        (batchref batch i))]))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
-(define (batch-exprs-online batch)
+(define (batch-exprs batch)
   (batch-map batch (lambda (children-exprs node) (expr-recurse node children-exprs))))
 
-(define (batch-exprs batch brfs)
-  (define f (batch-exprs-online batch))
-  (map f brfs))
-
-(define (batch-free-vars-online batch)
+(define (batch-free-vars batch)
   (batch-map batch
              (lambda (get-children-free-vars node)
                (cond
@@ -208,10 +202,6 @@
                   (expr-recurse node
                                 (lambda (i) (set-union! arg-free-vars (get-children-free-vars i))))
                   arg-free-vars]))))
-
-(define (batch-free-vars batch brfs)
-  (define f (batch-free-vars-online batch))
-  (map f brfs))
 
 (define (batch-tree-size batch brfs)
   (define counts
