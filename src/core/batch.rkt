@@ -11,18 +11,18 @@
          (struct-out batch)
          batch-empty ; Batch
          batch-push! ; only used at taylor.rkt, to be removed from provide!!!
-         batch-add! ; Batch -> Expr -> Batchref
+         batch-add! ; Batch -> (or Expr Batchref Expr<Batchref>) -> Batchref
          batch-copy ; Batch -> Batch
          batch-copy-only ; Batch -> List<Batchref> -> (Batch, List<Batchref>)
          batch-length ; Batch -> Integer
-         batch-tree-size ; Batch -> Integer
+         batch-tree-size ; Batch -> List<Batchref> -> Integer
          batch-free-vars ; Batch -> (Batchref -> Set<Var>)
          in-batch ; Batch -> Sequence<Node>
          batch-ref ; Batch -> Idx -> Node
          batch-pull ; Batchref -> Expr
-         batch-apply ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> (Batch, List<Batchref>)
-         batch-apply!
-         batch-reachable ; Batch -> List<Batchref> -> List<Batchref>
+         batch-apply ; Batch -> List<Batchref> -> (Expr<Batchref> -> Expr<Batchref>) -> (Batch, List<Batchref>)
+         batch-apply! ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> (Batchref -> Batchref)
+         batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-reconstruct-exprs ; Batch -> (Batchref -> Expr)
          batch-map
 

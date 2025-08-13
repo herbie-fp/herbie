@@ -102,22 +102,22 @@
      (pattern-substitute spec env)]))
 
 (define (batch-to-spec! batch brfs)
-  (define f
-    (batch-apply! batch
-                  (lambda (node)
-                    (match node
-                      [(? literal?) (literal-value node)]
-                      [(? number?) node]
-                      [(? symbol?) node]
-                      [(hole _ spec) spec]
-                      [(approx spec _) spec]
-                      [(list (? impl-exists? impl) args ...)
-                       (define vars (impl-info impl 'vars))
-                       (define spec (impl-info impl 'spec))
-                       (define env (map cons vars args))
-                       (pattern-substitute spec env)]
-                      [(list op args ...) (cons op args)]))))
-  (map f brfs))
+  (define lower
+    (batch-map batch
+               (lambda (child-spec node)
+                 (match node
+                   [(? literal?) (batch-add! batch (literal-value node))]
+                   [(? number?) (batch-add! batch node)]
+                   [(? symbol?) (batch-add! batch node)]
+                   [(hole _ spec) (child-spec spec)]
+                   [(approx spec _) (child-spec spec)]
+                   [(list (? impl-exists? impl) args ...)
+                    (define vars (impl-info impl 'vars))
+                    (define spec (impl-info impl 'spec))
+                    (define env (map cons vars (map child-spec args)))
+                    (batch-add! batch (pattern-substitute spec env))]
+                   [(list op args ...) (batch-add! batch (cons op (map child-spec args)))]))))
+  (map lower brfs))
 
 ;; Expression predicates ;;
 
