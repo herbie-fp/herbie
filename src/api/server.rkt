@@ -3,6 +3,7 @@
 (require openssl/sha1)
 (require (only-in xml write-xexpr))
 (require json)
+(require data/queue)
 
 (require "../syntax/read.rkt"
          "../syntax/sugar.rkt"
@@ -231,6 +232,7 @@
    (define busy-workers (make-hash))
    (define waiting-workers (make-hash))
    (define current-jobs (make-hash))
+   (define queued-job-ids (make-queue))
    (when (eq? worker-count #t)
      (set! worker-count (processor-count)))
    (for ([i (in-range worker-count)])
@@ -243,20 +245,19 @@
 
        ;; Private API
        [(list 'assign self)
-        (define reassigned (make-hash))
+        (define reassigned '())
         (for ([(wid worker) (in-hash waiting-workers)]
-              [(jid command) (in-hash queued-jobs)])
+              #:when (not (queue-empty? queued-job-ids)))
+          (define jid (dequeue! queued-job-ids))
+          (define command (hash-ref queued-jobs jid))
           (log "Starting worker [~a] on [~a].\n" jid (test-name (herbie-command-test command)))
-          ; Check if the job is already in progress.
-          (unless (hash-has-key? current-jobs jid)
-            (place-channel-put worker (list 'apply self command jid))
-            (hash-set! current-jobs jid wid)
-            (hash-set! reassigned wid jid)
-            (hash-set! busy-workers wid worker)))
-        ; remove X many jobs from the Q and update waiting-workers
-        (for ([(wid jid) (in-hash reassigned)])
-          (hash-remove! waiting-workers wid)
-          (hash-remove! queued-jobs jid))]
+          (place-channel-put worker (list 'apply self command jid))
+          (hash-set! current-jobs jid wid)
+          (hash-set! busy-workers wid worker)
+          (set! reassigned (cons wid reassigned))
+          (hash-remove! queued-jobs jid))
+        (for ([wid reassigned])
+          (hash-remove! waiting-workers wid))]
        ; Job is finished save work and free worker. Move work to 'send state.
        [(list 'finished self wid job-id result)
         (log "Job ~a finished, saving result.\n" job-id)
@@ -285,6 +286,7 @@
            (place-channel-put self (list 'send job-id (hash-ref completed-jobs job-id)))]
           [else
            (hash-set! queued-jobs job-id job)
+           (enqueue! queued-job-ids job-id)
            (place-channel-put self (list 'assign self))])]
        [(list 'wait handler self job-id)
         (log "Waiting for job: ~a\n" job-id)
