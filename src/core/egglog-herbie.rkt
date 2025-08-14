@@ -285,23 +285,25 @@
   result)
 
 (define (egglog->batchref expr batch type)
-  (let loop ([expr expr]
-             [type type])
-    (define term
-      (match expr
-        [(? number?)
-         (if (representation? type)
-             (literal expr (representation-name type))
-             expr)]
-        [(? symbol?) expr]
-        [(approx spec impl) (approx (loop spec #f) (loop impl type))]
-        [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
-        [(list op args ...)
-         (define args*
-           (for/list ([arg (in-list args)])
-             (loop arg #f)))
-         (cons op args*)]))
-    (batch-add! batch term)))
+  (define idx
+    (let loop ([expr expr]
+               [type type])
+      (define term
+        (match expr
+          [(? number?)
+           (if (representation? type)
+               (literal expr (representation-name type))
+               expr)]
+          [(? symbol?) expr]
+          [(approx spec impl) (approx (loop spec #f) (loop impl type))]
+          [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
+          [(list op args ...)
+           (define args*
+             (for/list ([arg (in-list args)])
+               (loop arg #f)))
+           (cons op args*)]))
+      (batchref-idx (batch-push! batch term))))
+  (batchref batch idx))
 
 (define (normalize-cost c min-cost)
   (exact-round (* (/ c min-cost) 100)))

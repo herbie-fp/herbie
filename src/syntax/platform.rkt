@@ -106,9 +106,9 @@
     (batch-map batch
                (lambda (child-spec node)
                  (match node
-                   [(? literal?) (batch-add! batch (literal-value node))]
-                   [(? number?) (batch-add! batch node)]
-                   [(? symbol?) (batch-add! batch node)]
+                   [(? literal?) (batch-push! batch (literal-value node))]
+                   [(? number?) (batch-push! batch node)]
+                   [(? symbol?) (batch-push! batch node)]
                    [(hole _ spec) (child-spec spec)]
                    [(approx spec _) (child-spec spec)]
                    [(list (? impl-exists? impl) args ...)
@@ -116,7 +116,8 @@
                     (define spec (impl-info impl 'spec))
                     (define env (map cons vars (map child-spec args)))
                     (batch-add! batch (pattern-substitute spec env))]
-                   [(list op args ...) (batch-add! batch (cons op (map child-spec args)))]))))
+                   [(list op args ...)
+                    (batch-push! batch (cons op (map (compose batchref-idx child-spec) args)))]))))
   (map lower brfs))
 
 ;; Expression predicates ;;

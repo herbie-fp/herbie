@@ -193,7 +193,7 @@
      (define child (location-get (list idx) node))
      (define child* (batch-location-set b child rest e2))
      (define node* (location-set (list idx) node child*))
-     (batch-add! b node*)]))
+     (batch-push! b (expr-recurse node* batchref-idx))]))
 
 (define/contract (location-get loc prog)
   (-> location? expr? (or/c expr? batchref?))
