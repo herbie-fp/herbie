@@ -126,7 +126,7 @@ await testAPI("/api/explanations", {
   formula: FPCoreFormula,
   sample: POINTS
 }, (body) => {
-  assert.equal(body.explanation.length > 0, true, 'explanation should not be empty ${body.explanation.length}');
+  assert.equal(body.explanation.length > 0, true, 'explanation should not be empty');
 });
 
 // Analyze endpoint

@@ -85,7 +85,7 @@
           [repr (in-list reprs-list)]
           [exact (in-vector exacts)]
           [expr-idx (in-naturals)])
-      (define err (local-error exact brf repr get-exact))
+      (define err (local-error exact (batch-ref expr-batch (batchref-idx brf)) repr get-exact))
       (vector-set! (vector-ref errs expr-idx) pt-idx err)))
 
   (define n 0)
