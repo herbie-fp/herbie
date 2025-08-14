@@ -14,6 +14,7 @@
          batch-add! ; Batch -> (or Expr Batchref Expr<Batchref>) -> Batchref
          batch-copy ; Batch -> Batch
          batch-copy-only ; Batch -> List<Batchref> -> (Batch, List<Batchref>)
+         batch-copy-only!
          batch-length ; Batch -> Integer
          batch-tree-size ; Batch -> List<Batchref> -> Integer
          batch-free-vars ; Batch -> (Batchref -> Set<Var>)
@@ -191,6 +192,12 @@
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-exprs batch)
   (batch-map batch (lambda (children-exprs node) (expr-recurse node children-exprs))))
+
+;; Function constructs a vector of expressions for the given nodes of a batch
+(define (batch-copy-only! batch batch*)
+  (batch-map batch*
+             (lambda (remap node)
+               (batch-push! batch (expr-recurse node (compose batchref-idx remap))))))
 
 (define (batch-free-vars batch)
   (batch-map batch

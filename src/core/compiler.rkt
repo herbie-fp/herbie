@@ -57,7 +57,7 @@
                      [(approx spec impl) impl]
                      [node node]))))
   (define-values (batch** _) (progs->batch vars))
-  (define brfs** (map (curry batch-add! batch**) brfs*))
+  (define brfs** (map (batch-copy-only! batch** batch*) brfs*))
   (values batch** brfs**))
 
 ;; Compiles a program of operator implementations into a procedure
