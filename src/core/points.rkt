@@ -69,7 +69,7 @@
 
 (define (batch-errors batch brfs pcontext ctx)
   (define fn (compile-batch batch brfs ctx))
-  (define num-exprs (batch-length batch))
+  (define num-exprs (length brfs))
   (generate-errors fn pcontext ctx num-exprs))
 
 (define (generate-errors fn pcontext ctx num-exprs)
