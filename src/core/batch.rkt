@@ -83,10 +83,9 @@
   (define (munge prog)
     (match prog
       [(batchref b* idx*)
-       (if (equal? b b*)
-           idx*
-           (munge (batch-pull
-                   prog)))] ; it's going to be very slow if batchrefs are from different batch
+       (unless (equal? b b*)
+         (error 'batch-add! "Batchref belongs to a different batch"))
+       idx*] ; it's going to be very slow if batchrefs are from different batch
       [_
        (hash-ref! cache prog (lambda () (batchref-idx (batch-push! b (expr-recurse prog munge)))))]))
   (batchref b (munge expr)))
