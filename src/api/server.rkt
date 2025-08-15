@@ -48,8 +48,11 @@
 (define (current-timestamp)
   (exact-floor (* 1000 (current-inexact-milliseconds))))
 
+(define *gc-logger* #f)
+
 (define (trace-start)
   (when (flag-set? 'dump 'trace)
+    (set! *gc-logger* (make-log-receiver (current-logger) 'debug 'GC))
     (call-with-output-file
      "dump-trace.json"
      #:exists 'truncate
@@ -60,6 +63,34 @@
 
 (define (trace name phase [args (hash)])
   (when (flag-set? 'dump 'trace)
+    (when *gc-logger*
+      (let drain ()
+        (match (sync/timeout 0 *gc-logger*)
+          [#f (void)]
+          [(vector _lvl _msg (app struct->vector data) _topic)
+           (define mode (~a (vector-ref data 1)))
+           (define start (exact-floor (* 1000 (vector-ref data 9))))
+           (define end (exact-floor (* 1000 (vector-ref data 10))))
+           (call-with-output-file "dump-trace.json"
+                                  #:exists 'append
+                                  (λ (out)
+                                    (fprintf out ",")
+                                    (write-json (hash 'name
+                                                      mode
+                                                      'ph
+                                                      "X"
+                                                      'ts
+                                                      start
+                                                      'dur
+                                                      (- end start)
+                                                      'pid
+                                                      0
+                                                      'tid
+                                                      (equal-hash-code 'gc)
+                                                      'args
+                                                      (hash))
+                                                out)))
+           (drain)])))
     (call-with-output-file "dump-trace.json"
                            #:exists 'append
                            (λ (out)
