@@ -12,40 +12,40 @@
          "programs.rkt")
 
 (provide (contract-out
-          (make-alt-table (pcontext? alt? any/c . -> . alt-table?))
+          (make-alt-table (batch? pcontext? alt? any/c . -> . alt-table?))
           (atab-active-alts (alt-table? . -> . (listof alt?)))
           (atab-all-alts (alt-table? . -> . (listof alt?)))
           (atab-not-done-alts (alt-table? . -> . (listof alt?)))
-          (atab-eval-altns (alt-table? (listof alt?) context? . -> . (values any/c any/c)))
+          (atab-eval-altns (alt-table? batch? (listof alt?) context? . -> . (values any/c any/c)))
           (atab-add-altns (alt-table? (listof alt?) any/c any/c context? . -> . alt-table?))
           (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
           (atab-completed? (alt-table? . -> . boolean?))
-          (atab-min-errors (alt-table? . -> . (listof real?)))))
+          (atab-min-errors (alt-table? . -> . (listof real?))))
+         alt-batch-costs)
 
 ;; Public API
 
 (struct alt-table (point-idx->alts alt->point-idxs alt->done? alt->cost pcontext all) #:prefab)
 
-(define (alt-batch-cost batch brfs repr)
+(define (alt-batch-costs batch repr)
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
-  (define costs
-    (batch-map batch
-               (λ (get-args-costs node)
-                 (match node
-                   [(? literal?) ((node-cost-proc node repr))]
-                   [(? symbol?) ((node-cost-proc node repr))]
-                   [(? number?) 0] ; specs
-                   [(approx _ impl) (get-args-costs impl)]
-                   [(list (? (negate impl-exists?) impl) args ...) 0] ; specs
-                   [(list impl args ...)
-                    (define cost-proc (node-cost-proc node repr))
-                    (define itypes (impl-info impl 'itype))
-                    (apply cost-proc (map get-args-costs args))]))))
-  (map costs brfs))
+  (batch-map batch
+             (λ (get-args-costs node)
+               (match node
+                 [(? literal?) ((node-cost-proc node repr))]
+                 [(? symbol?) ((node-cost-proc node repr))]
+                 [(? number?) 0] ; specs
+                 [(approx _ impl) (get-args-costs impl)]
+                 [(list (? (negate impl-exists?) impl) args ...) 0] ; specs
+                 [(list impl args ...)
+                  (define cost-proc (node-cost-proc node repr))
+                  (define itypes (impl-info impl 'itype))
+                  (apply cost-proc (map get-args-costs args))]))))
 
-(define (make-alt-table pcontext initial-alt ctx)
-  (define cost (alt-cost initial-alt (context-repr ctx)))
-  (define errs (errors (alt-expr initial-alt) pcontext ctx))
+(define (make-alt-table batch pcontext initial-alt ctx)
+  (define cost ((alt-batch-costs batch (context-repr ctx)) (alt-expr initial-alt)))
+  ;(define cost (alt-cost initial-alt (context-repr ctx)))
+  (define errs (batchref-errors (alt-expr initial-alt) pcontext ctx))
   (alt-table (for/vector #:length (pcontext-length pcontext)
                          ([err (in-list errs)])
                (list (pareto-point cost err (list initial-alt))))
@@ -180,10 +180,10 @@
                [alt->done? (hash-remove* alt->done? altns)]
                [alt->cost (hash-remove* alt->cost altns)]))
 
-(define (atab-eval-altns atab altns ctx)
-  (define-values (batch brfs) (progs->batch (map alt-expr altns) #:vars (context-vars ctx)))
+(define (atab-eval-altns atab batch altns ctx)
+  (define brfs (map alt-expr altns))
   (define errss (batch-errors batch brfs (alt-table-pcontext atab) ctx))
-  (define costs (alt-batch-cost batch brfs (context-repr ctx)))
+  (define costs (map (alt-batch-costs batch (context-repr ctx)) brfs))
   (values errss costs))
 
 (define (atab-add-altns atab altns errss costs ctx)
