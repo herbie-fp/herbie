@@ -1,7 +1,6 @@
 #lang racket
 
-(require profile
-         racket/engine
+(require racket/engine
          json)
 
 (require "../syntax/read.rkt"
@@ -22,7 +21,6 @@
          "../core/programs.rkt"
          "../core/points.rkt"
          "../core/explain.rkt"
-         "../utils/profile.rkt"
          "../utils/timeline.rkt"
          (submod "../utils/timeline.rkt" debug))
 
@@ -143,14 +141,8 @@
 ;;  Public interface
 ;;
 
-(define (run-herbie command
-                    test
-                    #:seed [seed #f]
-                    #:pcontext [pcontext #f]
-                    #:profile? [profile? #f]
-                    #:timeline? [timeline? #f])
+(define (run-herbie command test #:seed [seed #f] #:pcontext [pcontext #f] #:timeline? [timeline? #f])
   (define timeline #f)
-  (define profile #f)
 
   (define (on-exception start-time e)
     (parameterize ([*timeline-disabled* (not timeline?)])
@@ -195,15 +187,7 @@
         (job-result command test 'success time (timeline-extract) #f (warning-log) result))))
 
   (define (in-engine _)
-    (cond
-      [profile?
-       (define result
-         (profile-thunk compute-result
-                        #:order 'total
-                        #:delay 0.05
-                        #:render (λ (p order) (set! profile (profile->json p)))))
-       (struct-copy job-result result [profile profile])]
-      [else (compute-result)]))
+    (compute-result))
 
   ;; Branch on whether or not we should run inside an engine
   (define eng (engine in-engine))
