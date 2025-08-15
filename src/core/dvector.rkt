@@ -2,9 +2,11 @@
 
 (provide make-dvector
          dvector-add!
+         dvector-set!
          dvector-ref
          in-dvector
          dvector-length
+         dvector-capacity
          dvector-copy
          create-dvector)
 
@@ -61,6 +63,16 @@
     [else
      (vector-set! vec len elem)
      (set-dvector-length! dvec (add1 len))]))
+
+(define (dvector-set! dvec idx elem)
+  (match-define (dvector vec len) dvec)
+  (cond
+    [(>= idx (dvector-capacity dvec))
+     (dvector-extend! dvec)
+     (dvector-set! dvec idx elem)]
+    [else
+     (vector-set! vec idx elem)
+     (set-dvector-length! dvec (max len (add1 idx)))]))
 
 (define (dvector-ref dvec idx)
   (vector-ref (dvector-vec dvec) idx))

@@ -25,7 +25,7 @@
 
 (define (pareto-regimes sorted start-prog ctx pcontext)
   (timeline-event! 'regimes)
-  (define err-lsts (batch-errors (map alt-expr sorted) pcontext ctx))
+  (define err-lsts (exprs-errors (map alt-expr sorted) pcontext ctx))
   (define branches
     (if (null? sorted)
         '()

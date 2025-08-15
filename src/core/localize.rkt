@@ -68,8 +68,8 @@
                [repr (in-list reprs-list)])
       (struct-copy context ctx [repr repr])))
 
-  (define expr-batch (progs->batch exprs-list))
-  (define roots (batch-roots expr-batch))
+  (define-values (expr-batch brfs) (progs->batch exprs-list))
+  (define roots (list->vector (map batchref-idx brfs)))
 
   (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
 
@@ -81,11 +81,11 @@
     (define (get-exact idx)
       (vector-ref exacts (vector-member idx roots)))
     (for ([expr (in-list exprs-list)]
-          [root (in-vector roots)]
+          [brf brfs]
           [repr (in-list reprs-list)]
           [exact (in-vector exacts)]
           [expr-idx (in-naturals)])
-      (define err (local-error exact (batch-ref expr-batch root) repr get-exact))
+      (define err (local-error exact (batch-ref expr-batch (batchref-idx brf)) repr get-exact))
       (vector-set! (vector-ref errs expr-idx) pt-idx err)))
 
   (define n 0)
@@ -140,8 +140,8 @@
         ['real `(fabs (- ,spec ,var))])))
   (define delta-fn (eval-progs-real compare-specs (map (const delta-ctx) compare-specs)))
 
-  (define expr-batch (progs->batch exprs-list))
-  (define roots (batch-roots expr-batch))
+  (define-values (expr-batch brfs) (progs->batch exprs-list))
+  (define roots (list->vector (map batchref-idx brfs)))
 
   (define ulp-errs (make-matrix roots pcontext))
   (define exacts-out (make-matrix roots pcontext))
@@ -162,12 +162,12 @@
     (define deltas (list->vector (delta-fn pt*)))
 
     (for ([repr (in-list reprs-list)]
-          [root (in-vector roots)]
+          [brf brfs]
           [exact (in-vector exacts)]
           [actual (in-vector actuals)]
           [delta (in-vector deltas)]
           [expr-idx (in-naturals)])
-      (define ulp-err (local-error exact (batch-ref expr-batch root) repr get-exact))
+      (define ulp-err (local-error exact (batch-ref expr-batch (batchref-idx brf)) repr get-exact))
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref approx-out expr-idx) pt-idx actual)
       (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)
