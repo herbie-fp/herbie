@@ -85,7 +85,7 @@
       [(batchref b* idx*)
        (unless (equal? b b*)
          (error 'batch-add! "Batchref belongs to a different batch"))
-       idx*] ; it's going to be very slow if batchrefs are from different batch
+       idx*]
       [_
        (hash-ref! cache prog (lambda () (batchref-idx (batch-push! b (expr-recurse prog munge)))))]))
   (batchref b (munge expr)))
