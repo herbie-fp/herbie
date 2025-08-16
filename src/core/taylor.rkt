@@ -7,33 +7,27 @@
          "programs.rkt"
          "reduce.rkt")
 
-(provide approximate)
+(provide approximate
+         expand-taylor!)
 
-(define (approximate exprs var #:transform [tform (cons identity identity)] #:iters [iters 5])
-  (define exprs*
-    (for/list ([expr (in-list exprs)])
-      (reduce (replace-expression expr var ((car tform) var)))))
-
-  (define-values (batch brfs) (progs->batch exprs*))
-  (define brfs* (expand-taylor! batch brfs))
-
+(define (approximate batch brfs var #:transform [t-inv identity] #:iters [iters 5])
   (define taylor-approxs (taylor var batch))
-  (for/list ([brf brfs*])
+  (for/list ([brf brfs])
     (match-define (cons offset coeffs) (taylor-approxs brf))
     (define i 0)
     (define terms '())
 
     (define (next [iter 0])
-      (define coeff (reduce (replace-expression (coeffs i) var ((cdr tform) var))))
+      (define coeff (reduce (replace-expression (coeffs i) var (t-inv var))))
       (set! i (+ i 1))
       (match coeff
         [0
          (if (< iter iters)
              (next (+ iter 1))
-             (reduce (make-horner ((cdr tform) var) (reverse terms))))]
+             (reduce (make-horner (t-inv var) (reverse terms))))]
         [_
          (set! terms (cons (cons coeff (- i offset 1)) terms))
-         (reduce (make-horner ((cdr tform) var) (reverse terms)))]))
+         (reduce (make-horner (t-inv var) (reverse terms)))]))
     next))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
