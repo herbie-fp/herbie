@@ -74,10 +74,9 @@
   (define vars (context-vars ctx))
   (define num-vars (length vars))
 
-  (timeline-push! 'compiler (batch-tree-size batch brfs) (batch-length batch))
-
   ; Here we need to keep vars even though no roots refer to the vars
   (define-values (batch* brfs*) (batch-for-compiler batch brfs vars))
+  (timeline-push! 'compiler (batch-tree-size batch* brfs*) (batch-length batch*))
 
   (define instructions
     (for/vector #:length (- (batch-length batch*) num-vars)

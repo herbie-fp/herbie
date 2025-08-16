@@ -113,13 +113,18 @@
 (define (score-alt alt)
   (errors-score (batchref-errors (alt-expr alt) (*pcontext*) (*context*))))
 
+(define (score-alts altns)
+  (map errors-score (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*) (*context*))))
+
 ; Pareto mode alt picking
 (define (choose-mult-alts altns)
   (define repr (context-repr (*context*)))
   (cond
     [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
     [else
-     (define best (argmin score-alt altns))
+     (define scores (score-alts altns))
+     (define best-idx (index-of scores (argmin identity scores)))
+     (define best (list-ref altns best-idx))
      (define alt-costs (alt-batch-costs (*global-batch*) repr))
      (define altns* (sort (set-remove altns best) < #:key (compose alt-costs alt-expr)))
      (define simplest (car altns*))
@@ -133,14 +138,16 @@
   (define exprs (batch-exprs (*global-batch*)))
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define repr (context-repr (*context*)))
-  (for ([alt (atab-active-alts (^table^))])
+  (define scores (score-alts picked-alts))
+  (for ([alt (atab-active-alts (^table^))]
+        [sc (in-list scores)])
     (timeline-push! 'alts
                     (~a (exprs (alt-expr alt)))
                     (cond
                       [(set-member? picked-alts alt) "next"]
                       [(set-member? fresh-alts alt) "fresh"]
                       [else "done"])
-                    (score-alt alt)
+                    sc
                     (~a (representation-name repr)))))
 
 (define (choose-alts!)
