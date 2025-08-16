@@ -111,7 +111,7 @@
 ;; and timeline data.
 
 (define (score-alt alt)
-  (errors-score (errors (batch-pull (alt-expr alt)) (*pcontext*) (*context*))))
+  (errors-score (batchref-errors (alt-expr alt) (*pcontext*) (*context*))))
 
 ; Pareto mode alt picking
 (define (choose-mult-alts altns)
@@ -130,11 +130,12 @@
                (list-ref altns** (- (* i div-size) 1))))]))
 
 (define (timeline-push-alts! picked-alts)
-  (define fresh-alts (unbatchify-alts (*global-batch*) (atab-not-done-alts (^table^))))
+  (define exprs (batch-exprs (*global-batch*)))
+  (define fresh-alts (atab-not-done-alts (^table^)))
   (define repr (context-repr (*context*)))
   (for ([alt (atab-active-alts (^table^))])
     (timeline-push! 'alts
-                    (~a (alt-expr alt))
+                    (~a (exprs (alt-expr alt)))
                     (cond
                       [(set-member? picked-alts alt) "next"]
                       [(set-member? fresh-alts alt) "fresh"]
