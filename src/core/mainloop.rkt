@@ -34,7 +34,7 @@
 (define *start-prog* (make-parameter #f))
 (define *pcontext* (make-parameter #f))
 (define *preprocessing* (make-parameter '()))
-(define *global-batch* (make-parameter (batch-empty)))
+(define *global-batch* (make-parameter #f))
 
 ;; These high-level functions give the high-level workflow of Herbie:
 ;; - Initial steps: explain, preprocessing, initialize the alt table
@@ -48,6 +48,7 @@
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
   (*start-prog* initial)
+  (*global-batch* (batch-empty))
   (*preprocessing* preprocessing)
   (define initial-brf (batch-add! (*global-batch*) initial))
   (define start-alt (alt initial-brf 'start '()))
@@ -113,8 +114,7 @@
 (define (score-alt alt)
   (errors-score (errors (alt-expr alt) (*pcontext*) (*context*))))
 (define (batch-score-alts altns)
-  (map errors-score
-       (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*) (*context*))))
+  (map errors-score (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*) (*context*))))
 
 ; Pareto mode alt picking
 (define (choose-mult-alts altns)
