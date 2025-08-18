@@ -13,8 +13,7 @@
          "programs.rkt"
          "rules.rkt"
          "rival.rkt"
-         "taylor.rkt"
-         "reduce.rkt")
+         "taylor.rkt")
 
 (provide generate-candidates)
 
@@ -35,20 +34,21 @@
   (define brfs (map alt-expr altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
   ;; Specs
-  (define spec-brfs (batch-to-spec! global-batch brfs))
+  (define spec-brfs (batch-to-spec! global-batch brfs)) ; These specs will go into (approx spec impl)
   (define free-vars (map (batch-free-vars global-batch) spec-brfs))
   (define specs (batch->progs global-batch spec-brfs))
 
+  ;; Batch, List<List<Batchref>>
   (define-values (taylor-batch taylor-brfs) (batch-for-taylor specs vars transforms-to-try))
 
   (define idx 0)
   (reap [sow]
         (for* ([var (in-list vars)]
                [transform-type transforms-to-try])
-          (define brfs (list-ref taylor-brfs idx))
           (match-define (list name f finv) transform-type)
           (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
-          (define genexprs (approximate taylor-batch brfs var #:transform finv))
+          (define brfs (list-ref taylor-brfs idx))
+          (define genexprs (approximate taylor-batch brfs var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
                 [spec-brf (in-list spec-brfs)]
                 [repr (in-list reprs)]
@@ -57,10 +57,10 @@
                 #:when (set-member? fv var)) ; check whether var exists in expr at all
             (for ([i (in-range (*taylor-order-limit*))])
               (define gen (approx spec-brf (hole (representation-name repr) (genexpr))))
-              (define brf* (batch-add! global-batch gen)) ; Munge gen
-              (sow (alt brf* `(taylor ,name ,var) (list altn)))))
-          (timeline-stop!))
-        (set! idx (add1 idx))))
+              (define brf (batch-add! global-batch gen)) ; Munge gen
+              (sow (alt brf `(taylor ,name ,var) (list altn)))))
+          (set! idx (add1 idx))
+          (timeline-stop!))))
 
 (define (run-taylor altns global-batch)
   (timeline-event! 'series)
