@@ -101,11 +101,9 @@
 (define (expr-cmp a b)
   (match* (a b)
     [((? batchref?) (? batchref?))
-     (define a* (batchref-idx a))
-     (define b* (batchref-idx b))
      (cond
-       [(< a* b*) -1]
-       [(> a* b*) 1]
+       [(batchref<? a b) -1]
+       [(batchref>? a b) 1]
        [else 0])]
     [((? batchref?) _) 1]
     [(_ (? batchref?)) -1]

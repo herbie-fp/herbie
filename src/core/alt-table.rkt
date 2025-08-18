@@ -44,7 +44,6 @@
 
 (define (make-alt-table batch pcontext initial-alt ctx)
   (define cost ((alt-batch-costs batch (context-repr ctx)) (alt-expr initial-alt)))
-  ;(define cost (alt-cost initial-alt (context-repr ctx)))
   (define errs (batchref-errors (alt-expr initial-alt) pcontext ctx))
   (alt-table (for/vector #:length (pcontext-length pcontext)
                          ([err (in-list errs)])
