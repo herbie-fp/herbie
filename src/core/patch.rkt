@@ -30,19 +30,25 @@
                               #;(log ,log-x ,exp-x))))
 
 (define (taylor-alts altns global-batch)
+  (define vars (context-vars (*context*)))
   (define brfs (map alt-expr altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
-  (define spec-brfs (batch-to-spec! global-batch brfs))
+  ;; Specs
+  (define spec-brfs (batch-to-spec! global-batch brfs)) ; These specs will go into (approx spec impl)
   (define free-vars (map (batch-free-vars global-batch) spec-brfs))
-  (define specs (batch->progs global-batch spec-brfs))
-  (define vars (context-vars (*context*)))
 
+  ;; Batch, List<List<Batchref>>
+  (define-values (taylor-batch taylor-brfs)
+    (batch-for-taylor global-batch spec-brfs vars transforms-to-try))
+
+  (define idx 0)
   (reap [sow]
         (for* ([var (in-list vars)]
                [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
           (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
-          (define genexprs (approximate specs var #:transform (cons f finv)))
+          (define brfs (list-ref taylor-brfs idx))
+          (define genexprs (approximate taylor-batch brfs var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
                 [spec-brf (in-list spec-brfs)]
                 [repr (in-list reprs)]
@@ -53,6 +59,7 @@
               (define gen (approx spec-brf (hole (representation-name repr) (genexpr))))
               (define brf (batch-add! global-batch gen)) ; Munge gen
               (sow (alt brf `(taylor ,name ,var) (list altn)))))
+          (set! idx (add1 idx))
           (timeline-stop!))))
 
 (define (run-taylor altns global-batch)

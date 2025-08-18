@@ -40,6 +40,8 @@
 
 (struct batchref (batch idx) #:transparent)
 
+;; --------------------------------- CORE BATCH FUNCTION ------------------------------------
+
 (define (batch-empty)
   (batch (make-dvector) (make-hash) (make-hasheq)))
 
@@ -107,20 +109,18 @@
   (values out brfs))
 
 (define (batch->progs b brfs)
-  (brfs-belong-to-batch? b brfs)
   (map (batch-exprs b) brfs))
 
 ;; batch-map does not iterate over nodes that are not a child of brf
 ;; A lot of parts of Herbie rely on that
 (define (batch-map batch f)
-  (define len (batch-length batch))
   (define out (make-dvector))
   (define visited (make-dvector))
   (λ (brf)
     (match-define (batchref b idx) brf)
     (cond
       ; Little check
-      [(or (not (equal? b batch)) (>= idx len)) (error 'batch-map "Inappropriate batchref is passed")]
+      [(not (equal? b batch)) (error 'batch-map "Batchref is is from a different batch")]
       [else
        (let loop ([idx idx])
          (match (and (> (dvector-capacity visited) idx) (dvector-ref visited idx))
@@ -132,23 +132,24 @@
             (dvector-set! visited idx #t)
             res]))])))
 
-(define (batch-apply b brfs f)
-  (define out (batch-empty))
-  (define apply-f
-    (batch-map b
-               (λ (remap node)
-                 (define node-with-batchrefs (expr-recurse node (lambda (ref) (batchref b ref))))
-                 (define node* (f node-with-batchrefs))
-                 (define brf*
-                   (let loop ([node* node*])
-                     (match node*
-                       [(? batchref? brf) (remap (batchref-idx brf))]
-                       [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
-                 brf*)))
-  (define brfs* (map apply-f brfs))
-  (values out brfs*))
+(define (batch-ref batch reg)
+  (dvector-ref (batch-nodes batch) reg))
 
-(define (batch-apply! b f)
+(define (batch-pull brf)
+  (define (unmunge brf)
+    (expr-recurse (deref brf) unmunge))
+  (unmunge brf))
+
+(define (brfs-belong-to-batch? batch brfs)
+  (unless (andmap (compose (curry equal? batch) batchref-batch) brfs)
+    (error 'brfs-belong-to-batch? "One of batchrefs does not belong to the provided batch")))
+
+;; --------------------------------- CUSTOM BATCH FUNCTION ------------------------------------
+
+;; out - batch to where write new nodes
+;; b - batch from which to read nodes
+;; f - function to modify nodes from b
+(define (batch-apply-internal out b f)
   (batch-map b
              (λ (remap node)
                (define node-with-batchrefs (expr-recurse node (lambda (ref) (batchref b ref))))
@@ -157,8 +158,19 @@
                  (let loop ([node* node*])
                    (match node*
                      [(? batchref? brf) (remap (batchref-idx brf))]
-                     [_ (batch-push! b (expr-recurse node* (compose batchref-idx loop)))])))
+                     [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
                brf*)))
+
+;; Allocates new batch
+(define (batch-apply b brfs f)
+  (define out (batch-empty))
+  (define apply-f (batch-apply-internal out b f))
+  (define brfs* (map apply-f brfs))
+  (values out brfs*))
+
+;; Modifies batch in-place
+(define (batch-apply! b f)
+  (batch-apply-internal b b f))
 
 ;; Function returns indices of children nodes within a batch for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
@@ -217,21 +229,11 @@
                  (apply + 1 (map get-children-counts args)))))
   (apply + (map counts brfs)))
 
-(define (brfs-belong-to-batch? batch brfs)
-  (unless (andmap (compose (curry equal? batch) batchref-batch) brfs)
-    (error 'brfs-belong-to-batch? "One of batchrefs does not belong to the provided batch")))
-
 ;; The function removes any zombie nodes from batch with respect to the brfs
 (define (batch-copy-only batch brfs)
   (batch-apply batch brfs identity))
 
-(define (batch-ref batch reg)
-  (dvector-ref (batch-nodes batch) reg))
-
-(define (batch-pull brf)
-  (define (unmunge brf)
-    (expr-recurse (deref brf) unmunge))
-  (unmunge brf))
+;; --------------------------------- TESTS ---------------------------------------
 
 ; Tests for progs->batch and batch->progs
 (module+ test
