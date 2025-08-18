@@ -34,46 +34,35 @@
   (take (drop lst start) (- end start)))
 
 (define (taylor-alts altns global-batch)
+  (define vars (context-vars (*context*)))
   (define brfs (map alt-expr altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+  ;; Specs
   (define spec-brfs (batch-to-spec! global-batch brfs))
   (define free-vars (map (batch-free-vars global-batch) spec-brfs))
-  (define vars (context-vars (*context*)))
-
   (define specs (batch->progs global-batch spec-brfs))
-  (define specs-length (length specs))
-  (define specs*
-    (for*/list ([var (in-list vars)]
-                [transform-type transforms-to-try]
-                [spec (in-list specs)])
-      (match-define (list name f finv) transform-type)
-      (reduce (replace-expression spec var (f var)))))
-  (define-values (specs-batch specs-brf) (progs->batch specs*))
-  (define specs-brfs* (expand-taylor! specs-batch specs-brf))
 
-  (define i 0)
+  (define-values (specs-batch* specs-brfs* spec-brf->expr)
+    (batch-for-taylor specs vars transforms-to-try))
+
   (reap [sow]
         (for* ([var (in-list vars)]
-               [transform-type transforms-to-try])
+               [transform-type transforms-to-try]
+               [brfs (in-list specs-brfs*)])
           (match-define (list name f finv) transform-type)
           (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
-
-          (define brfs (sublist specs-brfs* i (+ i specs-length)))
-          (define specs-subset (sublist specs* i (+ i specs-length)))
-
-          (define genexprs (approximate specs-batch brfs var #:transform finv))
+          (define genexprs (approximate specs-batch* brfs var #:transform finv))
           (for ([genexpr (in-list genexprs)]
-                [spec (in-list specs-subset)]
+                [brf (in-list brfs)]
                 [repr (in-list reprs)]
                 [altn (in-list altns)]
                 [fv (in-list free-vars)]
                 #:when (set-member? fv var)) ; check whether var exists in expr at all
             (for ([i (in-range (*taylor-order-limit*))])
-              (define gen (approx spec (hole (representation-name repr) (genexpr))))
-              (define brf (batch-add! global-batch gen)) ; Munge gen
-              (sow (alt brf `(taylor ,name ,var) (list altn)))))
-          (timeline-stop!))
-        (set! i (+ i specs-length))))
+              (define gen (approx (spec-brf->expr brf) (hole (representation-name repr) (genexpr))))
+              (define brf* (batch-add! global-batch gen)) ; Munge gen
+              (sow (alt brf* `(taylor ,name ,var) (list altn)))))
+          (timeline-stop!))))
 
 (define (run-taylor altns global-batch)
   (timeline-event! 'series)

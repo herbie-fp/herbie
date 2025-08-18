@@ -120,7 +120,7 @@
     (match-define (batchref b idx) brf)
     (cond
       ; Little check
-      [(or (not (equal? b batch)) (>= idx len)) (error 'batch-map "Inappropriate batchref is passed")]
+      [(not (equal? b batch)) (error 'batch-map "Batchref is is from a different batch")]
       [else
        (let loop ([idx idx])
          (match (and (> (dvector-capacity visited) idx) (dvector-ref visited idx))

@@ -8,7 +8,20 @@
          "reduce.rkt")
 
 (provide approximate
-         expand-taylor!)
+         batch-for-taylor)
+
+(define (batch-for-taylor specs vars transforms-to-try)
+  (define specs-batch (batch-empty))
+  (define expand (expand-taylor! specs-batch))
+  (define brf->spec (batch-exprs specs-batch))
+  (define specs-brfs
+    (for*/list ([var (in-list vars)]
+                [transform-type transforms-to-try])
+      (for/list ([spec (in-list specs)])
+        (match-define (list name f finv) transform-type)
+        (define spec* (reduce (replace-expression spec var (f var))))
+        (expand (batch-add! specs-batch spec*)))))
+  (values specs-batch specs-brfs brf->spec))
 
 (define (approximate batch brfs var #:transform [t-inv identity] #:iters [iters 5])
   (define taylor-approxs (taylor var batch))
@@ -31,29 +44,27 @@
     next))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
-(define (expand-taylor! input-batch brfs)
-  (define f
-    (batch-apply!
-     input-batch
-     (lambda (node)
-       (match node
-         [(list '- ref1 ref2) `(+ ,ref1 (neg ,ref2))]
-         [(list 'pow base (app deref 1/2)) `(sqrt ,base)]
-         [(list 'pow base (app deref 1/3)) `(cbrt ,base)]
-         [(list 'pow base (app deref 2/3)) `(cbrt (* ,base ,base))]
-         [(list 'pow base power)
-          #:when (exact-integer? (deref power))
-          `(pow ,base ,power)]
-         [(list 'pow base power) `(exp (* ,power (log ,base)))]
-         [(list 'tan arg) `(/ (sin ,arg) (cos ,arg))]
-         [(list 'cosh arg) `(* 1/2 (+ (exp ,arg) (/ 1 (exp ,arg))))]
-         [(list 'sinh arg) `(* 1/2 (+ (exp ,arg) (/ -1 (exp ,arg))))]
-         [(list 'tanh arg) `(/ (+ (exp ,arg) (neg (/ 1 (exp ,arg)))) (+ (exp ,arg) (/ 1 (exp ,arg))))]
-         [(list 'asinh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) 1))))]
-         [(list 'acosh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) -1))))]
-         [(list 'atanh arg) `(* 1/2 (log (/ (+ 1 ,arg) (+ 1 (neg ,arg)))))]
-         [_ node]))))
-  (map f brfs))
+(define (expand-taylor! input-batch)
+  (batch-apply!
+   input-batch
+   (lambda (node)
+     (match node
+       [(list '- ref1 ref2) `(+ ,ref1 (neg ,ref2))]
+       [(list 'pow base (app deref 1/2)) `(sqrt ,base)]
+       [(list 'pow base (app deref 1/3)) `(cbrt ,base)]
+       [(list 'pow base (app deref 2/3)) `(cbrt (* ,base ,base))]
+       [(list 'pow base power)
+        #:when (exact-integer? (deref power))
+        `(pow ,base ,power)]
+       [(list 'pow base power) `(exp (* ,power (log ,base)))]
+       [(list 'tan arg) `(/ (sin ,arg) (cos ,arg))]
+       [(list 'cosh arg) `(* 1/2 (+ (exp ,arg) (/ 1 (exp ,arg))))]
+       [(list 'sinh arg) `(* 1/2 (+ (exp ,arg) (/ -1 (exp ,arg))))]
+       [(list 'tanh arg) `(/ (+ (exp ,arg) (neg (/ 1 (exp ,arg)))) (+ (exp ,arg) (/ 1 (exp ,arg))))]
+       [(list 'asinh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) 1))))]
+       [(list 'acosh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) -1))))]
+       [(list 'atanh arg) `(* 1/2 (log (/ (+ 1 ,arg) (+ 1 (neg ,arg)))))]
+       [_ node]))))
 
 ; Tests for expand-taylor
 (module+ test
