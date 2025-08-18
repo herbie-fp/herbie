@@ -59,6 +59,20 @@
      (λ (out)
        (fprintf out "{\"traceEvents\":[")
        (write-json (hash 'name "process_name" 'ph "M" 'ts 0 'pid 0 'tid 0 'args (hash 'name "herbie"))
+                   out)
+       (fprintf out ",")
+       (write-json (hash 'name
+                         "thread_name"
+                         'ph
+                         "M"
+                         'ts
+                         0
+                         'pid
+                         0
+                         'tid
+                         (equal-hash-code 'gc)
+                         'args
+                         (hash 'name "GC"))
                    out)))))
 
 (define (trace-sync)
