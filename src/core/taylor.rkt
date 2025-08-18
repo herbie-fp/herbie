@@ -71,7 +71,7 @@
 
   (define (test-expand-taylor expr)
     (define-values (batch brfs) (progs->batch (list expr)))
-    (define brfs* (expand-taylor! batch brfs))
+    (define brfs* (map (expand-taylor! batch) brfs))
     (car (batch->progs batch brfs*)))
 
   (check-equal? '(* 1/2 (log (/ (+ 1 x) (+ 1 (neg x))))) (test-expand-taylor '(atanh x)))
@@ -510,14 +510,14 @@
 (module+ test
   (require rackunit)
   (define-values (batch brfs) (progs->batch (list '(pow x 1.0))))
-  (define brfs* (expand-taylor! batch brfs))
+  (define brfs* (map (expand-taylor! batch) brfs))
   (define brf (car brfs*))
   (check-pred exact-integer? (car ((taylor 'x batch) brf))))
 
 (module+ test
   (define (coeffs expr #:n [n 7])
     (define-values (batch brfs) (progs->batch (list expr)))
-    (define brfs* (expand-taylor! batch brfs))
+    (define brfs* (map (expand-taylor! batch) brfs))
     (define brf (car brfs*))
     (match-define fn (zero-series ((taylor 'x batch) brf)))
     (build-list n fn))
