@@ -4,7 +4,6 @@
 (require (only-in xml write-xexpr))
 (require json)
 (require data/queue)
-(require profile)
 
 (require "../syntax/read.rkt"
          "../syntax/sugar.rkt"
@@ -24,7 +23,6 @@
          "../config.rkt"
          "datafile.rkt"
          "sandbox.rkt"
-         "../utils/profile.rkt"
          (submod "../utils/timeline.rkt" debug))
 
 (provide job-path
@@ -377,17 +375,13 @@
   (match-define (herbie-command command test seed pcontext profile? timeline?) h-command)
   (define metadata (hash 'job-id job-id 'command (~a command) 'name (test-name test)))
   (trace 'herbie 'B metadata)
-  (define run (λ () (run-herbie command test #:seed seed #:pcontext pcontext #:timeline? timeline?)))
   (define herbie-result
-    (if profile?
-        (let ([profile-data #f])
-          (define result
-            (profile-thunk run
-                           #:order 'total
-                           #:delay 0.05
-                           #:render (λ (p order) (set! profile-data (profile->json p)))))
-          (struct-copy job-result result [profile profile-data]))
-        (run)))
+    (run-herbie command
+                test
+                #:seed seed
+                #:pcontext pcontext
+                #:profile? profile?
+                #:timeline? timeline?))
   (trace 'herbie 'E metadata)
   (trace 'to-json 'B metadata)
   (define basic-output ((get-json-converter command) herbie-result job-id))
