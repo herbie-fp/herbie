@@ -20,6 +20,7 @@
          get-locations
          free-variables
          replace-expression
+         batch-replace-expression
          replace-vars
          batch-get-locations
          batch-location-set)
@@ -241,6 +242,17 @@
       [(? symbol?) expr]
       [(approx spec impl) (approx (loop spec) (loop impl))]
       [(list op args ...) (cons op (map loop args))])))
+
+(define (batch-replace-expression batch from to)
+  (batch-apply! batch
+                (λ (node)
+                  (match node
+                    [(== from) to]
+                    [(? number?) node]
+                    [(? literal?) node]
+                    [(? symbol?) node]
+                    [(approx spec impl) (approx spec impl)]
+                    [(list op args ...) (cons op args)]))))
 
 (module+ test
   (require rackunit)

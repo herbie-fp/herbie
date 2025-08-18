@@ -36,10 +36,10 @@
   ;; Specs
   (define spec-brfs (batch-to-spec! global-batch brfs)) ; These specs will go into (approx spec impl)
   (define free-vars (map (batch-free-vars global-batch) spec-brfs))
-  (define specs (batch->progs global-batch spec-brfs))
 
   ;; Batch, List<List<Batchref>>
-  (define-values (taylor-batch taylor-brfs) (batch-for-taylor specs vars transforms-to-try))
+  (define-values (taylor-batch taylor-brfs)
+    (batch-for-taylor global-batch spec-brfs vars transforms-to-try))
 
   (define idx 0)
   (reap [sow]

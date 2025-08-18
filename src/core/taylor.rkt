@@ -10,17 +10,18 @@
 (provide approximate
          batch-for-taylor)
 
-(define (batch-for-taylor specs vars transforms-to-try)
-  (define specs-batch (batch-empty))
-  (define expand (expand-taylor! specs-batch))
-  (define specs-brfs
+(define (batch-for-taylor batch brfs vars transforms-to-try)
+  (define batch* (batch-empty))
+  (define exprs (batch-exprs batch))
+  (define expand (expand-taylor! batch*))
+  (define brfs*
     (for*/list ([var (in-list vars)]
                 [transform-type transforms-to-try])
-      (for/list ([spec (in-list specs)])
-        (match-define (list name f finv) transform-type)
-        (define spec* (reduce (replace-expression spec var (f var))))
-        (expand (batch-add! specs-batch spec*)))))
-  (values specs-batch specs-brfs))
+      (match-define (list name f finv) transform-type)
+      (define replace (batch-replace-expression batch var (f var)))
+      (for/list ([brf (in-list brfs)])
+        (expand (batch-add! batch* (reduce (exprs (replace brf))))))))
+  (values batch* brfs*))
 
 (define (approximate batch brfs var #:transform [tform (cons identity identity)] #:iters [iters 5])
   (define taylor-approxs (taylor var batch))
