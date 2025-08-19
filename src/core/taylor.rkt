@@ -12,13 +12,14 @@
 
 (define (taylor-apply-transforms batch brfs vars transforms-to-try)
   (define expand (expand-taylor! batch))
+  (define exprs (batch-exprs batch))
   (define brfs*
     (for*/list ([var (in-list vars)]
                 [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
       (define replace (batch-replace-expression! batch var (f var)))
       (for/list ([brf (in-list brfs)])
-        (expand (replace brf)))))
+        (expand (batch-add! batch (reduce (exprs (replace brf))))))))
   brfs*)
 
 (define (approximate batch brfs var #:transform [tform (cons identity identity)] #:iters [iters 5])
