@@ -8,15 +8,15 @@
          "reduce.rkt")
 
 (provide approximate
-         taylor-brfs)
+         taylor-apply-transforms)
 
-(define (taylor-brfs batch brfs vars transforms-to-try)
+(define (taylor-apply-transforms batch brfs vars transforms-to-try)
   (define expand (expand-taylor! batch))
   (define brfs*
     (for*/list ([var (in-list vars)]
                 [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
-      (define replace (batch-replace-expression batch var (f var)))
+      (define replace (batch-replace-expression! batch var (f var)))
       (for/list ([brf (in-list brfs)])
         (expand (replace brf)))))
   brfs*)
