@@ -138,7 +138,7 @@
   (define exprs (batch-exprs (*global-batch*)))
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define repr (context-repr (*context*)))
-  (define scores (batch-score-alts picked-alts))
+  (define scores (batch-score-alts (atab-active-alts (^table^))))
   (for ([alt (atab-active-alts (^table^))]
         [sc (in-list scores)])
     (timeline-push! 'alts
