@@ -38,8 +38,7 @@
   (define free-vars (map (batch-free-vars global-batch) spec-brfs))
 
   ;; Batch, List<List<Batchref>>
-  (define-values (taylor-batch taylor-brfs)
-    (batch-for-taylor global-batch spec-brfs vars transforms-to-try))
+  (define brfs* (taylor-brfs global-batch spec-brfs vars transforms-to-try))
 
   (define idx 0)
   (reap [sow]
@@ -47,8 +46,8 @@
                [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
           (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
-          (define brfs (list-ref taylor-brfs idx))
-          (define genexprs (approximate taylor-batch brfs var #:transform (cons f finv)))
+          (define brfs (list-ref brfs* idx))
+          (define genexprs (approximate global-batch brfs var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
                 [spec-brf (in-list spec-brfs)]
                 [repr (in-list reprs)]
