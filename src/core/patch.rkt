@@ -37,9 +37,9 @@
   (define spec-brfs (batch-to-spec! global-batch brfs)) ; These specs will go into (approx spec impl)
   (define free-vars (map (batch-free-vars global-batch) spec-brfs))
 
-  ;; Batch, List<List<Batchref>>
-  (define-values (taylor-batch taylor-brfs)
-    (batch-for-taylor global-batch spec-brfs vars transforms-to-try))
+  (define-values (taylor-batch taylor-brfs) (batch-copy-only global-batch spec-brfs))
+  ;; List<List<Batchref>>
+  (define taylor-brfs* (taylor-apply-transforms taylor-batch taylor-brfs vars transforms-to-try))
 
   (define idx 0)
   (reap [sow]
@@ -47,7 +47,7 @@
                [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
           (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
-          (define brfs (list-ref taylor-brfs idx))
+          (define brfs (list-ref taylor-brfs* idx))
           (define genexprs (approximate taylor-batch brfs var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
                 [spec-brf (in-list spec-brfs)]
