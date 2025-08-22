@@ -21,7 +21,8 @@
           (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
           (atab-completed? (alt-table? . -> . boolean?))
           (atab-min-errors (alt-table? . -> . (listof real?))))
-         alt-batch-costs)
+         alt-batch-costs
+         remove-duplicative-alts)
 
 ;; Public API
 
@@ -66,6 +67,11 @@
 
 (define (atab-completed? atab)
   (andmap (curry hash-ref (alt-table-alt->done? atab)) (hash-keys (alt-table-alt->point-idxs atab))))
+
+(define (remove-duplicative-alts atab altns)
+  (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pctx _) atab)
+  (define existing-exprs (map (compose batchref-idx alt-expr) (hash-keys alt->point-idxs)))
+  (filter-not (compose (curryr member existing-exprs) batchref-idx alt-expr) altns))
 
 ;;
 ;; Extracting lists from sets or hash tables

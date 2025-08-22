@@ -192,6 +192,8 @@
                                        ([loc (in-list (batch-get-locations expr start-expr))])
                                (reconstruct-alt altn loc full-altn))))))
               #:key (compose batchref-idx alt-expr)))
+  (^patched^ (remove-duplicative-alts (^table^) (^patched^)))
+
   (void))
 
 ;; Finish iteration
@@ -240,10 +242,6 @@
     (choose-alts!))
 
   (define brfs (map alt-expr (^next-alts^)))
-  (define (make-batchref x brf)
-    (struct-copy alt x [expr brf]))
-
-  (^next-alts^ (map make-batchref (^next-alts^) brfs))
   (define brfs* (batch-reachable (*global-batch*) brfs #:condition node-is-impl?))
 
   (reconstruct! (generate-candidates (*global-batch*) brfs*))
