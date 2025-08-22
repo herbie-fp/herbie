@@ -192,7 +192,6 @@
                                        ([loc (in-list (batch-get-locations expr start-expr))])
                                (reconstruct-alt altn loc full-altn))))))
               #:key (compose batchref-idx alt-expr)))
-  (^patched^ (remove-duplicative-alts (^table^) (^patched^)))
 
   (void))
 

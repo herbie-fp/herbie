@@ -102,8 +102,8 @@
 (define (expr-cmp a b)
   (match* (a b)
     [((? batchref?) (? batchref?)) (expr-cmp (deref a) (deref b))]
-    [((? batchref?) _) 1]
-    [(_ (? batchref?)) -1]
+    [((? batchref?) _) (expr-cmp (deref a) b)]
+    [(_ (? batchref?)) (expr-cmp a (deref b))]
     [((? list?) (? list?))
      (define len-a (length a))
      (define len-b (length b))

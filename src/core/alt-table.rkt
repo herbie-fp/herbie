@@ -21,8 +21,7 @@
           (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
           (atab-completed? (alt-table? . -> . boolean?))
           (atab-min-errors (alt-table? . -> . (listof real?))))
-         alt-batch-costs
-         remove-duplicative-alts)
+         alt-batch-costs)
 
 ;; Public API
 
@@ -67,11 +66,6 @@
 
 (define (atab-completed? atab)
   (andmap (curry hash-ref (alt-table-alt->done? atab)) (hash-keys (alt-table-alt->point-idxs atab))))
-
-(define (remove-duplicative-alts atab altns)
-  (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pctx _) atab)
-  (define existing-exprs (map (compose batchref-idx alt-expr) (hash-keys alt->point-idxs)))
-  (filter-not (compose (curryr member existing-exprs) batchref-idx alt-expr) altns))
 
 ;;
 ;; Extracting lists from sets or hash tables
@@ -220,22 +214,25 @@
   (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
   (define max-error (+ 1 (expt 2 (representation-total-bits (context-repr ctx)))))
 
-  (define point-idx->alts*
-    (for/vector #:length (vector-length point-idx->alts)
-                ([pcurve (in-vector point-idx->alts)]
-                 [err (in-list errs)])
-      (cond
-        [(< err max-error) ; Only include points if they are valid
-         (define ppt (pareto-point cost err (list altn)))
-         (pareto-union (list ppt) pcurve #:combine append)]
-        [else pcurve])))
+  (match (hash-has-key? alt->point-idxs altn)
+    [#f
+     (define point-idx->alts*
+       (for/vector #:length (vector-length point-idx->alts)
+                   ([pcurve (in-vector point-idx->alts)]
+                    [err (in-list errs)])
+         (cond
+           [(< err max-error) ; Only include points if they are valid
+            (define ppt (pareto-point cost err (list altn)))
+            (pareto-union (list ppt) pcurve #:combine append)]
+           [else pcurve])))
 
-  (alt-table point-idx->alts*
-             (hash-set alt->point-idxs altn #f)
-             (hash-set alt->done? altn #f)
-             (hash-set alt->cost altn cost)
-             pcontext
-             #f))
+     (alt-table point-idx->alts*
+                (hash-set alt->point-idxs altn #f)
+                (hash-set alt->done? altn #f)
+                (hash-set alt->cost altn cost)
+                pcontext
+                #f)]
+    [_ atab]))
 
 (define (atab-min-errors atab)
   (define pnt-idx->alts (alt-table-point-idx->alts atab))
