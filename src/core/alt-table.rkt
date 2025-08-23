@@ -214,6 +214,7 @@
   (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
   (define max-error (+ 1 (expt 2 (representation-total-bits (context-repr ctx)))))
 
+  ;; Check  whether altn is already inserted into atab
   (match (hash-has-key? alt->point-idxs altn)
     [#f
      (define point-idx->alts*

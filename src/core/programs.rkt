@@ -247,10 +247,12 @@
       [(list op args ...) (cons op (map loop args))])))
 
 (define (batch-replace-expression! batch from to)
+  (define brf (batch-add! batch from))
+  (define from* (deref brf)) ;; a hack on how not to use deref for "from"
   (batch-apply! batch
                 (λ (node)
                   (match node
-                    [(== from) to]
+                    [(== from*) to]
                     [(? number?) node]
                     [(? literal?) node]
                     [(? symbol?) node]

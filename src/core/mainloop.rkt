@@ -123,8 +123,7 @@
     [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
     [else
      (define scores (batch-score-alts altns))
-     (define best-idx (index-of scores (argmin identity scores)))
-     (define best (list-ref altns best-idx))
+     (define best (list-ref altns (index-of scores (argmin identity scores))))
      (define alt-costs (alt-batch-costs (*global-batch*) repr))
      (define altns* (sort (set-remove altns best) < #:key (compose alt-costs alt-expr)))
      (define simplest (car altns*))
@@ -138,9 +137,8 @@
   (define exprs (batch-exprs (*global-batch*)))
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define repr (context-repr (*context*)))
-  (define scores (batch-score-alts (atab-active-alts (^table^))))
   (for ([alt (atab-active-alts (^table^))]
-        [sc (in-list scores)])
+        [sc (in-list (batch-score-alts (atab-active-alts (^table^))))])
     (timeline-push! 'alts
                     (~a (exprs (alt-expr alt)))
                     (cond

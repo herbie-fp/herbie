@@ -14,19 +14,22 @@
   (define expand (expand-taylor! batch))
   (define exprs (batch-exprs batch))
   (define munge (λ (x) (batch-add! batch x)))
-  (define brfs*
+  (define taylor-approximations
     (for*/list ([var (in-list vars)]
+                #:do [(define taylor-approxs (taylor var batch))]
                 [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
       (define replace (batch-replace-expression! batch var (f var)))
       (for/list ([brf (in-list brfs)])
-        (expand (munge (reduce (exprs (replace brf))))))))
-  brfs*)
+        (taylor-approxs (expand (munge (reduce (exprs (replace brf)))))))))
+  taylor-approximations)
 
-(define (approximate batch brfs var #:transform [tform (cons identity identity)] #:iters [iters 5])
-  (define taylor-approxs (taylor var batch))
-  (for/list ([brf brfs])
-    (match-define (cons offset coeffs) (taylor-approxs brf))
+(define (approximate taylor-approxs
+                     var
+                     #:transform [tform (cons identity identity)]
+                     #:iters [iters 5])
+  (for/list ([ta taylor-approxs])
+    (match-define (cons offset coeffs) ta)
     (define i 0)
     (define terms '())
 
