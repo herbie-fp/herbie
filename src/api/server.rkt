@@ -48,18 +48,66 @@
 (define (current-timestamp)
   (exact-floor (* 1000 (current-inexact-milliseconds))))
 
+(define *gc-logger* #f)
+
 (define (trace-start)
   (when (flag-set? 'dump 'trace)
+    (set! *gc-logger* (make-log-receiver (current-logger) 'debug 'GC))
     (call-with-output-file
      "dump-trace.json"
      #:exists 'truncate
      (λ (out)
        (fprintf out "{\"traceEvents\":[")
        (write-json (hash 'name "process_name" 'ph "M" 'ts 0 'pid 0 'tid 0 'args (hash 'name "herbie"))
+                   out)
+       (fprintf out ",")
+       (write-json (hash 'name
+                         "thread_name"
+                         'ph
+                         "M"
+                         'ts
+                         0
+                         'pid
+                         0
+                         'tid
+                         (equal-hash-code 'gc)
+                         'args
+                         (hash 'name "GC"))
                    out)))))
+
+(define (trace-sync)
+  (when *gc-logger*
+    (let drain ()
+      (match (sync/timeout 0 *gc-logger*)
+        [#f (void)]
+        [(vector _lvl _msg (app struct->vector data) _topic)
+         (define mode (~a (vector-ref data 1)))
+         (define start (exact-floor (* 1000 (vector-ref data 9))))
+         (define end (exact-floor (* 1000 (vector-ref data 10))))
+         (call-with-output-file "dump-trace.json"
+                                #:exists 'append
+                                (λ (out)
+                                  (fprintf out ",")
+                                  (write-json (hash 'name
+                                                    mode
+                                                    'ph
+                                                    "X"
+                                                    'ts
+                                                    start
+                                                    'dur
+                                                    (- end start)
+                                                    'pid
+                                                    0
+                                                    'tid
+                                                    (equal-hash-code 'gc)
+                                                    'args
+                                                    (hash))
+                                              out)))
+         (drain)]))))
 
 (define (trace name phase [args (hash)])
   (when (flag-set? 'dump 'trace)
+    (trace-sync)
     (call-with-output-file "dump-trace.json"
                            #:exists 'append
                            (λ (out)
@@ -80,6 +128,7 @@
 
 (define (trace-end)
   (when (flag-set? 'dump 'trace)
+    (trace-sync)
     (call-with-output-file "dump-trace.json" #:exists 'append (λ (out) (fprintf out "]}\n")))))
 
 (define old-exit (exit-handler))
@@ -153,6 +202,7 @@
 
 (define (manager-ask msg . args)
   (log "Asking manager: ~a.\n" msg)
+  (trace-sync)
   (match manager
     [(? place? x) (apply manager-ask-threaded x msg args)]
     ['basic (apply manager-ask-basic msg args)]))
