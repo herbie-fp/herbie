@@ -20,8 +20,8 @@
           (atab-add-altns (alt-table? (listof alt?) any/c any/c context? . -> . alt-table?))
           (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
           (atab-completed? (alt-table? . -> . boolean?))
-          (atab-min-errors (alt-table? . -> . (listof real?))))
-         alt-batch-costs)
+          (atab-min-errors (alt-table? . -> . (listof real?)))
+          (alt-batch-costs (batch? representation? . -> . (batchref? . -> . real?)))))
 
 ;; Public API
 
