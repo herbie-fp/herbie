@@ -122,12 +122,12 @@
       ; Little check
       [(not (equal? b batch)) (error 'batch-map "Batchref is is from a different batch")]
       [else
-       (let loop ([idx idx])
+       (let batch-map ([idx idx])
          (match (and (> (dvector-capacity visited) idx) (dvector-ref visited idx))
            [#t (dvector-ref out idx)]
            [_
             (define node (batch-ref batch idx))
-            (define res (f (λ (x) (loop x)) node))
+            (define res (f (λ (x) (batch-map x)) node))
             (dvector-set! out idx res)
             (dvector-set! visited idx #t)
             res]))])))

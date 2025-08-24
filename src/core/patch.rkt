@@ -38,7 +38,7 @@
   (define free-vars (map (batch-free-vars global-batch) spec-brfs))
 
   ;; List<List<(cons offset coeffs)>>
-  (define taylor-approxs (taylor-apply-transforms global-batch spec-brfs vars transforms-to-try))
+  (define taylor-coeffs (taylor-coefficients global-batch spec-brfs vars transforms-to-try))
 
   (define idx 0)
   (reap [sow]
@@ -46,8 +46,8 @@
                [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
           (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
-          (define taylor-approxs* (list-ref taylor-approxs idx))
-          (define genexprs (approximate taylor-approxs* var #:transform (cons f finv)))
+          (define taylor-coeffs* (list-ref taylor-coeffs idx))
+          (define genexprs (approximate taylor-coeffs* var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
                 [spec-brf (in-list spec-brfs)]
                 [repr (in-list reprs)]

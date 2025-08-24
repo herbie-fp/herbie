@@ -8,21 +8,21 @@
          "reduce.rkt")
 
 (provide approximate
-         taylor-apply-transforms)
+         taylor-coefficients)
 
-(define (taylor-apply-transforms batch brfs vars transforms-to-try)
+(define (taylor-coefficients batch brfs vars transforms-to-try)
   (define expand (expand-taylor! batch))
   (define exprs (batch-exprs batch))
   (define munge (λ (x) (batch-add! batch x)))
-  (define taylor-approximations
+  (define taylor-coeffs
     (for*/list ([var (in-list vars)]
-                #:do [(define taylor-approxs (taylor var batch))]
+                #:do [(define taylor* (taylor var batch))]
                 [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
       (define replace (batch-replace-expression! batch var (f var)))
       (for/list ([brf (in-list brfs)])
-        (taylor-approxs (expand (munge (reduce (exprs (replace brf)))))))))
-  taylor-approximations)
+        (taylor* (expand (munge (reduce (exprs (replace brf)))))))))
+  taylor-coeffs)
 
 (define (approximate taylor-approxs
                      var
