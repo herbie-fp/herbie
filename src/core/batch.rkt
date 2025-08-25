@@ -118,11 +118,13 @@
   (define visited (make-dvector))
   (define args-cache #f)
   (λ (brf . args)
-    ;; When args change - history needs to be erased
-    (unless (equal? args args-cache)
+    ;; When args change - nodes need to reevaluated as they can rely on old args
+    (define args* (equal-hash-code args))
+    (unless (equal? args* args-cache)
       (set! out (make-dvector))
       (set! visited (make-dvector))
-      (set! args-cache args))
+      (set! args-cache args*))
+
     (match-define (batchref b idx) brf)
     (unless (equal? b batch)
       (error 'batch-map "Batchref belongs to a different batch"))

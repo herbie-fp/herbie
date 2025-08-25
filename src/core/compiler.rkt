@@ -54,9 +54,10 @@
   ;; Modifying batch
   (define-values (batch* brfs*) (rewrite batch (map (drop-spec! batch) brfs)))
   (define evaluator (evaluate batch*))
+  (define args (make-hash))
 
   (define (fn pt)
-    (define args (make-hash (map cons vars (vector->list pt))))
+    (for-each (curry hash-set! args) vars (vector->list pt))
     (list->vector (map (curryr evaluator args) brfs*)))
   fn)
 
