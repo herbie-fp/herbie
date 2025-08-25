@@ -20,6 +20,7 @@
          get-locations
          free-variables
          replace-expression
+         batch-replace-expression!
          replace-vars
          batch-get-locations
          batch-location-set)
@@ -100,6 +101,9 @@
 
 (define (expr-cmp a b)
   (match* (a b)
+    [((? batchref?) (? batchref?)) (expr-cmp (deref a) (deref b))]
+    [((? batchref?) _) (expr-cmp (deref a) b)]
+    [(_ (? batchref?)) (expr-cmp a (deref b))]
     [((? list?) (? list?))
      (define len-a (length a))
      (define len-b (length b))
@@ -242,6 +246,19 @@
       [(? symbol?) expr]
       [(approx spec impl) (approx (loop spec) (loop impl))]
       [(list op args ...) (cons op (map loop args))])))
+
+(define (batch-replace-expression! batch from to)
+  (define brf (batch-add! batch from))
+  (define from* (deref brf)) ;; a hack on how not to use deref for "from"
+  (batch-apply! batch
+                (λ (node)
+                  (match node
+                    [(== from*) to]
+                    [(? number?) node]
+                    [(? literal?) node]
+                    [(? symbol?) node]
+                    [(approx spec impl) (approx spec impl)]
+                    [(list op args ...) (cons op args)]))))
 
 (module+ test
   (require rackunit)
