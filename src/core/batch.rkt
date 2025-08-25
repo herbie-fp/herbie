@@ -158,33 +158,25 @@
                      [_ (batch-push! b (expr-recurse node* (compose batchref-idx loop)))])))
                brf*)))
 
-;; Function returns indices of children nodes within a batch for given roots,
-;;   where a child node is a child of a root + meets a condition - (condition node)
 (define (batch-reachable batch brfs #:condition [condition (const #t)])
-  (match brfs
-    [(? null?) '()]
-    [_
-     ; Little check
-     (brfs-belong-to-batch? batch brfs)
-     ; Define len to be as small as possible
-     (define max-idx (apply max (map batchref-idx brfs)))
-     (define len (add1 max-idx))
-     (define child-mask (make-vector len #f))
-
-     (for ([brf (in-list brfs)])
-       (vector-set! child-mask (batchref-idx brf) #t))
-     (for ([i (in-range max-idx -1 -1)]
-           [node (in-batch batch max-idx -1 -1)]
-           [child (in-vector child-mask max-idx -1 -1)]
-           #:when child)
-       (unless (condition node)
-         (vector-set! child-mask i #f))
-       (expr-recurse node (λ (n) (vector-set! child-mask n #t))))
-     ; Return batchrefs of children nodes in ascending order
-     (for/list ([child (in-vector child-mask)]
-                [i (in-naturals)]
-                #:when child)
-       (batchref batch i))]))
+  ; Little check
+  (brfs-belong-to-batch? batch brfs)
+  (define len (batch-length batch))
+  (define child-mask (make-vector len #f))
+  (for ([brf (in-list brfs)])
+    (vector-set! child-mask (batchref-idx brf) #t))
+  (for ([i (in-range (sub1 len) -1 -1)]
+        [node (in-batch batch (sub1 len) -1 -1)]
+        [child (in-vector child-mask (sub1 len) -1 -1)]
+        #:when child)
+    (cond
+      [(condition node) (expr-recurse node (λ (n) (vector-set! child-mask n #t)))]
+      [else (vector-set! child-mask i #f)]))
+  ; Return batchrefs of children nodes in ascending order
+  (for/list ([child (in-vector child-mask)]
+             [i (in-naturals)]
+             #:when child)
+    (batchref batch i)))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-exprs batch)
