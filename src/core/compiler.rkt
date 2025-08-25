@@ -18,9 +18,10 @@
                     [(approx spec impl) impl]
                     [node node]))))
 
-(define (rewrite! batch)
-  (batch-apply!
+(define (rewrite batch brfs)
+  (batch-apply
    batch
+   brfs
    (lambda (node)
      (match node
        [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
@@ -52,13 +53,11 @@
   (define vars (context-vars ctx))
   (define args (make-hash))
   ;; Modifying batch
-  (define drop-spec-f (drop-spec! batch))
-  (define rewrite-f (rewrite! batch))
-  (define brfs* (map (compose rewrite-f drop-spec-f) brfs))
+  (define-values (batch* brfs*) (rewrite batch (map (drop-spec! batch) brfs)))
 
   (define (fn pt)
     (for-each (curry hash-set! args) vars (vector->list pt))
-    (list->vector (map (evaluate batch args) brfs*)))
+    (list->vector (map (evaluate batch* args) brfs*)))
   fn)
 
 ;; Like `compile-progs`, but a single prog.
