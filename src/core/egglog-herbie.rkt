@@ -47,7 +47,7 @@
 
 ;; Herbie's version of an egglog runner.
 ;; Defines parameters for running rewrite rules with egglog
-(struct egglog-runner (batch reprs schedule ctx)
+(struct egglog-runner (batch brfs reprs schedule ctx)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -64,7 +64,7 @@
 ;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
-(define (make-egglog-runner batch reprs schedule ctx)
+(define (make-egglog-runner batch brfs reprs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -90,11 +90,12 @@
       [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
 
   ; make the runner
-  (egglog-runner batch reprs schedule ctx))
+  (egglog-runner batch brfs reprs schedule ctx))
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
 (define (run-egglog-multi-extractor runner output-batch) ; multi expression extraction
   (define insert-batch (egglog-runner-batch runner))
+  (define insert-brfs (egglog-runner-brfs runner))
   (define curr-program (make-egglog-program))
 
   ;; Dump-file
@@ -184,7 +185,7 @@
   ;; keep track of the mapping between each binding and its corresponding constructor.
 
   (define-values (all-bindings extract-bindings)
-    (egglog-add-exprs insert-batch (egglog-runner-ctx runner) curr-program))
+    (egglog-add-exprs insert-batch insert-brfs (egglog-runner-ctx runner) curr-program))
 
   (egglog-program-add! `(ruleset run-extract-commands) curr-program)
   (egglog-program-add! `(rule () (,@all-bindings) :ruleset run-extract-commands) curr-program)
@@ -301,7 +302,7 @@
              (for/list ([arg (in-list args)])
                (loop arg #f)))
            (cons op args*)]))
-      (batch-push! batch term)))
+      (batchref-idx (batch-push! batch term))))
   (batchref batch idx))
 
 (define (normalize-cost c min-cost)
@@ -608,7 +609,7 @@
               :ruleset
               ,tag)))
 
-(define (egglog-add-exprs batch ctx curr-program)
+(define (egglog-add-exprs batch brfs ctx curr-program)
   (define mappings (build-vector (batch-length batch) values))
   (define bindings (make-hash))
   (define vars (make-hash))
@@ -633,37 +634,30 @@
   (define root-bindings '())
   ; Inserting nodes bottom-up
   (define root-mask (make-vector (batch-length batch) #f))
-  (define spec-mask (make-vector (batch-length batch) #f))
 
-  (for ([node (in-batch batch)]
-        [n (in-naturals)])
-    (match node
-      [(? literal?) (vector-set! spec-mask n #f)] ;; If literal, not a spec
-      [(? number?) (vector-set! spec-mask n #t)] ;; If number, it's a spec
-      [(? symbol?)
-       (vector-set!
-        spec-mask
-        n
-        #f)] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
-      [(hole _ _) (vector-set! spec-mask n #f)] ;; If hole, not a spec
-      [(approx _ _) (vector-set! spec-mask n #f)] ;; If approx, not a spec
+  ;; Batchref -> Boolean
+  (define spec?
+    (batch-map
+     batch
+     (lambda (get-spec node)
+       (match node
+         [(? literal?) #f] ;; If literal, not a spec
+         [(? number?) #t] ;; If number, it's a spec
+         [(? symbol?)
+          #f] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
+         [(hole _ _) #f] ;; If hole, not a spec
+         [(approx _ _) #f] ;; If approx, not a spec
+         [`(if ,cond ,ift ,iff)
+          (get-spec cond)] ;; If the condition or any branch is a spec, then this is a spec
+         [(list appl args ...)
+          (if (hash-has-key? (id->e1) appl)
+              #t ;; appl with op -> Is a spec
+              #f)])))) ;; appl impl -> Not a spec
 
-      ;; If the condition or any branch is a spec, then this is a spec
-      [`(if ,cond ,ift ,iff) (vector-set! spec-mask n (vector-ref spec-mask cond))]
-
-      [(list appl args ...)
-       (if (hash-has-key? (id->e1) appl)
-           ;; appl with op -> Is a spec
-           (vector-set! spec-mask n #t)
-
-           ;; appl impl -> Not a spec
-           (vector-set! spec-mask n #f))]))
-
-  (for ([root (in-vector (batch-roots batch))])
-    (vector-set! root-mask root #t))
+  (for ([brf brfs])
+    (vector-set! root-mask (batchref-idx brf) #t))
   (for ([node (in-batch batch)]
         [root? (in-vector root-mask)]
-        [spec? (in-vector spec-mask)]
         [n (in-naturals)])
     (define node*
       (match node
@@ -676,12 +670,12 @@
         [(? symbol?) #f]
         [(approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
         [(list impl args ...)
-         `(,(hash-ref (if spec?
+         `(,(hash-ref (if (spec? (batchref batch n))
                           (id->e1)
                           (id->e2))
                       impl)
            ,@(for/list ([arg (in-list args)])
-               (remap arg spec?)))]
+               (remap arg (spec? (batchref batch n)))))]
 
         [(hole ty spec) `(lower ,(remap spec #t) ,(symbol->string ty))]))
 
@@ -802,10 +796,11 @@
     (set! constructor-num (add1 constructor-num)))
 
   (define curr-bindings
-    (for/list ([root (batch-roots batch)])
+    (for/list ([brf brfs])
+      (define root (batchref-idx brf))
       (define curr-binding-name
         (if (hash-has-key? vars root)
-            (if (vector-ref spec-mask root)
+            (if (spec? brf)
                 (string->symbol (format "?~a" (hash-ref vars root)))
                 (string->symbol (format "?t~a" (hash-ref vars root))))
             (string->symbol (format "?r~a" root))))

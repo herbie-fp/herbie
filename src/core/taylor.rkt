@@ -14,12 +14,12 @@
     (for/list ([expr (in-list exprs)])
       (reduce (replace-expression expr var ((car tform) var)))))
 
-  ; maybe we want to remove zombie nodes after (not a big problem currently)
-  (define batch (expand-taylor (progs->batch exprs*)))
+  (define-values (batch brfs) (progs->batch exprs*))
+  (define brfs* (expand-taylor! batch brfs))
 
   (define taylor-approxs (taylor var batch))
-  (for/list ([root (in-vector (batch-roots batch))])
-    (match-define (cons offset coeffs) (vector-ref taylor-approxs root))
+  (for/list ([brf brfs*])
+    (match-define (cons offset coeffs) (taylor-approxs brf))
     (define i 0)
     (define terms '())
 
@@ -37,36 +37,38 @@
     next))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
-(define (expand-taylor input-batch)
-  (batch-replace
-   input-batch
-   (lambda (node)
-     (match node
-       [(list '- ref1 ref2) `(+ ,ref1 (neg ,ref2))]
-       [(list 'pow base (app deref 1/2)) `(sqrt ,base)]
-       [(list 'pow base (app deref 1/3)) `(cbrt ,base)]
-       [(list 'pow base (app deref 2/3)) `(cbrt (* ,base ,base))]
-       [(list 'pow base power)
-        #:when (exact-integer? (deref power))
-        `(pow ,base ,power)]
-       [(list 'pow base power) `(exp (* ,power (log ,base)))]
-       [(list 'tan arg) `(/ (sin ,arg) (cos ,arg))]
-       [(list 'cosh arg) `(* 1/2 (+ (exp ,arg) (/ 1 (exp ,arg))))]
-       [(list 'sinh arg) `(* 1/2 (+ (exp ,arg) (/ -1 (exp ,arg))))]
-       [(list 'tanh arg) `(/ (+ (exp ,arg) (neg (/ 1 (exp ,arg)))) (+ (exp ,arg) (/ 1 (exp ,arg))))]
-       [(list 'asinh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) 1))))]
-       [(list 'acosh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) -1))))]
-       [(list 'atanh arg) `(* 1/2 (log (/ (+ 1 ,arg) (+ 1 (neg ,arg)))))]
-       [_ node]))))
+(define (expand-taylor! input-batch brfs)
+  (define f
+    (batch-apply!
+     input-batch
+     (lambda (node)
+       (match node
+         [(list '- ref1 ref2) `(+ ,ref1 (neg ,ref2))]
+         [(list 'pow base (app deref 1/2)) `(sqrt ,base)]
+         [(list 'pow base (app deref 1/3)) `(cbrt ,base)]
+         [(list 'pow base (app deref 2/3)) `(cbrt (* ,base ,base))]
+         [(list 'pow base power)
+          #:when (exact-integer? (deref power))
+          `(pow ,base ,power)]
+         [(list 'pow base power) `(exp (* ,power (log ,base)))]
+         [(list 'tan arg) `(/ (sin ,arg) (cos ,arg))]
+         [(list 'cosh arg) `(* 1/2 (+ (exp ,arg) (/ 1 (exp ,arg))))]
+         [(list 'sinh arg) `(* 1/2 (+ (exp ,arg) (/ -1 (exp ,arg))))]
+         [(list 'tanh arg) `(/ (+ (exp ,arg) (neg (/ 1 (exp ,arg)))) (+ (exp ,arg) (/ 1 (exp ,arg))))]
+         [(list 'asinh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) 1))))]
+         [(list 'acosh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) -1))))]
+         [(list 'atanh arg) `(* 1/2 (log (/ (+ 1 ,arg) (+ 1 (neg ,arg)))))]
+         [_ node]))))
+  (map f brfs))
 
 ; Tests for expand-taylor
 (module+ test
   (require rackunit)
 
   (define (test-expand-taylor expr)
-    (define batch (progs->batch (list expr)))
-    (define batch* (expand-taylor batch))
-    (car (batch->progs batch*)))
+    (define-values (batch brfs) (progs->batch (list expr)))
+    (define brfs* (expand-taylor! batch brfs))
+    (car (batch->progs batch brfs*)))
 
   (check-equal? '(* 1/2 (log (/ (+ 1 x) (+ 1 (neg x))))) (test-expand-taylor '(atanh x)))
   (check-equal? '(log (+ x (sqrt (+ (* x x) -1)))) (test-expand-taylor '(acosh x)))
@@ -128,65 +130,62 @@
 
 (define (taylor var expr-batch)
   "Return a pair (e, n), such that expr ~= e var^n"
-  (define taylor-approxs (make-vector (batch-length expr-batch))) ; vector of approximations
+  (define exprs (batch-exprs expr-batch))
+  (define (batch-recover-expr node)
+    (exprs (batch-push! expr-batch node)))
 
-  (for ([node (in-batch expr-batch)]
-        [n (in-naturals)])
-    (define approx
-      (match node
-        [(? (curry equal? var)) (taylor-exact 0 1)]
-        [(? number?) (taylor-exact node)]
-        [(? symbol?) (taylor-exact node)]
-        [`(,const) (taylor-exact node)]
-        [`(+ ,args ...) (apply taylor-add (map (curry vector-ref taylor-approxs) args))]
-        [`(neg ,arg) (taylor-negate ((curry vector-ref taylor-approxs) arg))]
-        [`(* ,left ,right)
-         (taylor-mult (vector-ref taylor-approxs left) (vector-ref taylor-approxs right))]
-        [`(/ ,num ,den)
-         #:when (equal? (batch-ref expr-batch num) 1)
-         (taylor-invert (vector-ref taylor-approxs den))]
-        [`(/ ,num ,den)
-         (taylor-quotient (vector-ref taylor-approxs num) (vector-ref taylor-approxs den))]
-        [`(sqrt ,arg) (taylor-sqrt var (vector-ref taylor-approxs arg))]
-        [`(cbrt ,arg) (taylor-cbrt var (vector-ref taylor-approxs arg))]
-        [`(exp ,arg)
-         (define arg* (normalize-series (vector-ref taylor-approxs arg)))
-         (if (positive? (car arg*))
-             (taylor-exact (batch-pull expr-batch n))
-             (taylor-exp (zero-series arg*)))]
-        [`(sin ,arg)
-         (define arg* (normalize-series (vector-ref taylor-approxs arg)))
-         (cond
-           [(positive? (car arg*)) (taylor-exact (batch-pull expr-batch n))]
-           [(= (car arg*) 0)
-            ; Our taylor-sin function assumes that a0 is 0,
-            ; because that way it is especially simple. We correct for this here
-            ; We use the identity sin (x + y) = sin x cos y + cos x sin y
-            (taylor-add
-             (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0))) (taylor-cos (zero-series arg*)))
-             (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0))) (taylor-sin (zero-series arg*))))]
-           [else (taylor-sin (zero-series arg*))])]
-        [`(cos ,arg)
-         (define arg* (normalize-series (vector-ref taylor-approxs arg)))
-         (cond
-           [(positive? (car arg*)) (taylor-exact (batch-pull expr-batch n))]
-           [(= (car arg*) 0)
-            ; Our taylor-cos function assumes that a0 is 0,
-            ; because that way it is especially simple. We correct for this here
-            ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-            (taylor-add (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
-                                     (taylor-cos (zero-series arg*)))
-                        (taylor-negate (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
-                                                    (taylor-sin (zero-series arg*)))))]
-           [else (taylor-cos (zero-series arg*))])]
-        [`(log ,arg) (taylor-log var (vector-ref taylor-approxs arg))]
-        [`(pow ,base ,power)
-         #:when (exact-integer? (batch-ref expr-batch power))
-         (taylor-pow (normalize-series (vector-ref taylor-approxs base))
-                     (batch-ref expr-batch power))]
-        [_ (taylor-exact (batch-pull expr-batch n))]))
-    (vector-set! taylor-approxs n approx))
-  taylor-approxs)
+  (batch-map
+   expr-batch
+   (lambda (get-taylor-approx node)
+     (match node
+       [(? (curry equal? var)) (taylor-exact 0 1)]
+       [(? number?) (taylor-exact node)]
+       [(? symbol?) (taylor-exact node)]
+       [`(,const) (taylor-exact node)]
+       [`(+ ,args ...) (apply taylor-add (map get-taylor-approx args))]
+       [`(neg ,arg) (taylor-negate (get-taylor-approx arg))]
+       [`(* ,left ,right) (taylor-mult (get-taylor-approx left) (get-taylor-approx right))]
+       [`(/ ,num ,den)
+        #:when (equal? (batch-ref expr-batch num) 1)
+        (taylor-invert (get-taylor-approx den))]
+       [`(/ ,num ,den) (taylor-quotient (get-taylor-approx num) (get-taylor-approx den))]
+       [`(sqrt ,arg) (taylor-sqrt var (get-taylor-approx arg))]
+       [`(cbrt ,arg) (taylor-cbrt var (get-taylor-approx arg))]
+       [`(exp ,arg)
+        (define arg* (normalize-series (get-taylor-approx arg)))
+        (if (positive? (car arg*))
+            (taylor-exact (batch-recover-expr node))
+            (taylor-exp (zero-series arg*)))]
+       [`(sin ,arg)
+        (define arg* (normalize-series (get-taylor-approx arg)))
+        (cond
+          [(positive? (car arg*)) (taylor-exact (batch-recover-expr node))]
+          [(= (car arg*) 0)
+           ; Our taylor-sin function assumes that a0 is 0,
+           ; because that way it is especially simple. We correct for this here
+           ; We use the identity sin (x + y) = sin x cos y + cos x sin y
+           (taylor-add
+            (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0))) (taylor-cos (zero-series arg*)))
+            (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0))) (taylor-sin (zero-series arg*))))]
+          [else (taylor-sin (zero-series arg*))])]
+       [`(cos ,arg)
+        (define arg* (normalize-series (get-taylor-approx arg)))
+        (cond
+          [(positive? (car arg*)) (taylor-exact (batch-recover-expr node))]
+          [(= (car arg*) 0)
+           ; Our taylor-cos function assumes that a0 is 0,
+           ; because that way it is especially simple. We correct for this here
+           ; We use the identity cos (x + y) = cos x cos y - sin x sin y
+           (taylor-add (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
+                                    (taylor-cos (zero-series arg*)))
+                       (taylor-negate (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
+                                                   (taylor-sin (zero-series arg*)))))]
+          [else (taylor-cos (zero-series arg*))])]
+       [`(log ,arg) (taylor-log var (get-taylor-approx arg))]
+       [`(pow ,base ,power)
+        #:when (exact-integer? (batch-ref expr-batch power))
+        (taylor-pow (normalize-series (get-taylor-approx base)) (batch-ref expr-batch power))]
+       [_ (taylor-exact (batch-recover-expr node))]))))
 
 ; A taylor series is represented by a function f : nat -> expr,
 ; representing the coefficients (the 1 / n! terms not included),
@@ -506,17 +505,17 @@
 
 (module+ test
   (require rackunit)
-  (define batch (progs->batch (list '(pow x 1.0))))
-  (set! batch (expand-taylor batch))
-  (define root (vector-ref (batch-roots batch) 0))
-  (check-pred exact-integer? (car (vector-ref (taylor 'x batch) root))))
+  (define-values (batch brfs) (progs->batch (list '(pow x 1.0))))
+  (define brfs* (expand-taylor! batch brfs))
+  (define brf (car brfs*))
+  (check-pred exact-integer? (car ((taylor 'x batch) brf))))
 
 (module+ test
   (define (coeffs expr #:n [n 7])
-    (define batch (progs->batch (list expr)))
-    (set! batch (expand-taylor batch))
-    (define root (vector-ref (batch-roots batch) 0))
-    (match-define fn (zero-series (vector-ref (taylor 'x batch) root)))
+    (define-values (batch brfs) (progs->batch (list expr)))
+    (define brfs* (expand-taylor! batch brfs))
+    (define brf (car brfs*))
+    (match-define fn (zero-series ((taylor 'x batch) brf)))
     (build-list n fn))
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
