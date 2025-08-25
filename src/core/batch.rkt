@@ -118,34 +118,32 @@
   (define visited (make-dvector))
   (λ (brf)
     (match-define (batchref b idx) brf)
-    (cond
-      ; Little check
-      [(or (not (equal? b batch)) (>= idx len)) (error 'batch-map "Inappropriate batchref is passed")]
-      [else
-       (let loop ([idx idx])
-         (match (and (> (dvector-capacity visited) idx) (dvector-ref visited idx))
-           [#t (dvector-ref out idx)]
-           [_
-            (define node (batch-ref batch idx))
-            (define res (f (λ (x) (loop x)) node))
-            (dvector-set! out idx res)
-            (dvector-set! visited idx #t)
-            res]))])))
+    (unless (equal? b batch)
+      (error 'batch-map "Batchref belongs to a different batch"))
+    (let loop ([idx idx])
+      (cond
+        [(equal? #t (and (> (dvector-capacity visited) idx) (dvector-ref visited idx)))
+         (dvector-ref out idx)]
+        [else
+         (define node (batch-ref batch idx))
+         (define res (f (λ (x) (loop x)) node))
+         (dvector-set! out idx res)
+         (dvector-set! visited idx #t)
+         res]))))
 
 (define (batch-apply b brfs f)
   (define out (batch-empty))
   (define apply-f
-    (batch-map b
-               (λ (remap node)
-                 (define node-with-batchrefs (expr-recurse node (lambda (ref) (batchref b ref))))
-                 (define node* (f node-with-batchrefs))
-                 (define brf*
-                   (let loop ([node* node*])
-                     (match node*
-                       [(? batchref? brf) (remap (batchref-idx brf))]
-                       [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
-                 brf*)))
-  (define brfs* (map apply-f brfs))
+    (λ (remap node)
+      (define node-with-batchrefs (expr-recurse node (lambda (ref) (batchref b ref))))
+      (define node* (f node-with-batchrefs))
+      (define brf*
+        (let loop ([node* node*])
+          (match node*
+            [(? batchref? brf) (remap (batchref-idx brf))]
+            [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
+      brf*))
+  (define brfs* (map (batch-map b apply-f) brfs))
   (values out brfs*))
 
 (define (batch-apply! b f)
@@ -173,7 +171,7 @@
      (define len (add1 max-idx))
      (define child-mask (make-vector len #f))
 
-     (for ([brf brfs])
+     (for ([brf (in-list brfs)])
        (vector-set! child-mask (batchref-idx brf) #t))
      (for ([i (in-range max-idx -1 -1)]
            [node (in-batch batch max-idx -1 -1)]

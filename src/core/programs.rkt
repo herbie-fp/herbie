@@ -219,17 +219,18 @@
   (reap [sow]
         (let loop ([brf brf]
                    [loc '()])
-          (if (batchref<? brf sub-brf)
-              (void)
-              (match (deref brf)
-                [(== (deref sub-brf)) (sow (reverse loc))]
-                [(? literal?) (void)]
-                [(? symbol?) (void)]
-                [(approx _ impl) (loop impl (cons 2 loc))]
-                [(list _ args ...)
-                 (for ([arg (in-list args)]
-                       [i (in-naturals 1)])
-                   (loop arg (cons i loc)))])))))
+          (cond
+            [(batchref<? brf sub-brf) (void)]
+            [(equal? brf sub-brf) (sow (reverse loc))]
+            [else
+             (match (deref brf)
+               [(? literal?) (void)]
+               [(? symbol?) (void)]
+               [(approx _ impl) (loop impl (cons 2 loc))]
+               [(list _ args ...)
+                (for ([arg (in-list args)]
+                      [i (in-naturals 1)])
+                  (loop arg (cons i loc)))])]))))
 
 (define/contract (replace-expression expr from to)
   (-> expr? expr? expr? expr?)
