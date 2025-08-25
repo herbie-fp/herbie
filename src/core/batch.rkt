@@ -118,19 +118,18 @@
   (define visited (make-dvector))
   (λ (brf)
     (match-define (batchref b idx) brf)
-    (cond
-      ; Little check
-      [(not (equal? b batch)) (error 'batch-map "Batchref is is from a different batch")]
-      [else
-       (let batch-map ([idx idx])
-         (match (and (> (dvector-capacity visited) idx) (dvector-ref visited idx))
-           [#t (dvector-ref out idx)]
-           [_
-            (define node (batch-ref batch idx))
-            (define res (f (λ (x) (batch-map x)) node))
-            (dvector-set! out idx res)
-            (dvector-set! visited idx #t)
-            res]))])))
+    (unless (equal? b batch)
+      (error 'batch-map "Batchref belongs to a different batch"))
+    (let loop ([idx idx])
+      (cond
+        [(equal? #t (and (> (dvector-capacity visited) idx) (dvector-ref visited idx)))
+         (dvector-ref out idx)]
+        [else
+         (define node (batch-ref batch idx))
+         (define res (f (λ (x) (loop x)) node))
+         (dvector-set! out idx res)
+         (dvector-set! visited idx #t)
+         res]))))
 
 (define (batch-ref batch reg)
   (dvector-ref (batch-nodes batch) reg))
@@ -175,30 +174,24 @@
 ;; Function returns indices of children nodes within a batch for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
 (define (batch-reachable batch brfs #:condition [condition (const #t)])
-  (match brfs
-    [(? null?) '()]
-    [_
-     ; Little check
-     (brfs-belong-to-batch? batch brfs)
-     ; Define len to be as small as possible
-     (define max-idx (apply max (map batchref-idx brfs)))
-     (define len (add1 max-idx))
-     (define child-mask (make-vector len #f))
-
-     (for ([brf brfs])
-       (vector-set! child-mask (batchref-idx brf) #t))
-     (for ([i (in-range max-idx -1 -1)]
-           [node (in-batch batch max-idx -1 -1)]
-           [child (in-vector child-mask max-idx -1 -1)]
-           #:when child)
-       (unless (condition node)
-         (vector-set! child-mask i #f))
-       (expr-recurse node (λ (n) (vector-set! child-mask n #t))))
-     ; Return batchrefs of children nodes in ascending order
-     (for/list ([child (in-vector child-mask)]
-                [i (in-naturals)]
-                #:when child)
-       (batchref batch i))]))
+  ; Little check
+  (brfs-belong-to-batch? batch brfs)
+  (define len (batch-length batch))
+  (define child-mask (make-vector len #f))
+  (for ([brf (in-list brfs)])
+    (vector-set! child-mask (batchref-idx brf) #t))
+  (for ([i (in-range (sub1 len) -1 -1)]
+        [node (in-batch batch (sub1 len) -1 -1)]
+        [child (in-vector child-mask (sub1 len) -1 -1)]
+        #:when child)
+    (cond
+      [(condition node) (expr-recurse node (λ (n) (vector-set! child-mask n #t)))]
+      [else (vector-set! child-mask i #f)]))
+  ; Return batchrefs of children nodes in ascending order
+  (for/list ([child (in-vector child-mask)]
+             [i (in-naturals)]
+             #:when child)
+    (batchref batch i)))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-exprs batch)
