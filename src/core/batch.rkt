@@ -116,7 +116,13 @@
 (define (batch-map batch f)
   (define out (make-dvector))
   (define visited (make-dvector))
-  (λ (brf)
+  (define args-cache #f)
+  (λ (brf . args)
+    ;; When args change - history needs to be erased
+    (unless (equal? args args-cache)
+      (set! out (make-dvector))
+      (set! visited (make-dvector))
+      (set! args-cache args))
     (match-define (batchref b idx) brf)
     (unless (equal? b batch)
       (error 'batch-map "Batchref belongs to a different batch"))
@@ -126,7 +132,7 @@
          (dvector-ref out idx)]
         [else
          (define node (batch-ref batch idx))
-         (define res (f (λ (x) (loop x)) node))
+         (define res (apply f (λ (x) (loop x)) node args))
          (dvector-set! out idx res)
          (dvector-set! visited idx #t)
          res]))))

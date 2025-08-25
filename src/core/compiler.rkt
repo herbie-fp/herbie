@@ -28,9 +28,9 @@
        [(list op args ...) (cons (impl-info op 'fl) args)]
        [_ node]))))
 
-(define (evaluate batch args)
+(define (evaluate batch)
   (batch-map batch
-             (lambda (evaluate-child node)
+             (lambda (evaluate-child node args)
                (match node
                  [(list op) (op)]
                  [(list op a) (op (evaluate-child a))]
@@ -51,13 +51,13 @@
 
 (define (compile-batch batch brfs ctx)
   (define vars (context-vars ctx))
-  (define args (make-hash))
   ;; Modifying batch
   (define-values (batch* brfs*) (rewrite batch (map (drop-spec! batch) brfs)))
+  (define evaluator (evaluate batch*))
 
   (define (fn pt)
-    (for-each (curry hash-set! args) vars (vector->list pt))
-    (list->vector (map (evaluate batch* args) brfs*)))
+    (define args (make-hash (map cons vars (vector->list pt))))
+    (list->vector (map (curryr evaluator args) brfs*)))
   fn)
 
 ;; Like `compile-progs`, but a single prog.
