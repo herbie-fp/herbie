@@ -121,8 +121,7 @@
     ;; When args change - nodes need to reevaluated as they can rely on old args
     (define args* (equal-hash-code args))
     (unless (equal? args* args-cache)
-      (set! out (make-dvector))
-      (set! visited (make-dvector))
+      (dvector-fill! visited #f)
       (set! args-cache args*))
 
     (match-define (batchref b idx) brf)

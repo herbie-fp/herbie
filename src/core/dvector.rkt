@@ -8,6 +8,7 @@
          dvector-length
          dvector-capacity
          dvector-copy
+         dvector-fill!
          create-dvector)
 
 (define starting-length 128)
@@ -80,6 +81,10 @@
 (define (dvector-copy dvec)
   (match-define (dvector vec len) dvec)
   (dvector (vector-copy vec) len))
+
+(define (dvector-fill! dvec val)
+  (match-define (dvector vec len) dvec)
+  (vector-fill! vec val))
 
 (define (in-dvector dvec [start 0] [end (dvector-length dvec)] [step 1])
   (when (or (< (dvector-length dvec) (or end (dvector-length dvec))) (> start (dvector-length dvec)))
