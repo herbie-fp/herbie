@@ -31,16 +31,15 @@
        [_ node]))))
 
 (define (evaluate batch vars)
-  (batch-map-iterative
-   batch
-   (lambda (evaluate-child node pt)
-     (match node
-       [(list op) (op)]
-       [(list op a) (op (evaluate-child a))]
-       [(list op a b) (op (evaluate-child a) (evaluate-child b))]
-       [(list op a b c) (op (evaluate-child a) (evaluate-child b) (evaluate-child c))]
-       [(list op args ...) (apply op (map evaluate-child args))]
-       [(? symbol?) (vector-ref pt (index-of vars node))]))))
+  (batch-map batch
+             (lambda (evaluate-child node pt)
+               (match node
+                 [(list op) (op)]
+                 [(list op a) (op (evaluate-child a))]
+                 [(list op a b) (op (evaluate-child a) (evaluate-child b))]
+                 [(list op a b c) (op (evaluate-child a) (evaluate-child b) (evaluate-child c))]
+                 [(list op args ...) (apply op (map evaluate-child args))]
+                 [(? symbol?) (vector-ref pt (index-of vars node))]))))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values

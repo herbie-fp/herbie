@@ -122,6 +122,7 @@
 
   (λ (brf . args)
     ;; When args change - nodes need to reevaluated as they can rely on old args
+    ;; This logic will break if the same object is passed over and over
     (unless (null? args)
       (unless (eq? args args-cache)
         (set! cnt (add1 cnt))
@@ -151,6 +152,7 @@
 
   (λ (brf . args)
     ;; When args change - nodes need to reevaluated as they can rely on old args
+    ;; This logic will break if the same object is passed over and over
     (unless (null? args)
       (unless (equal? args args-cache)
         (set! pt -1)
