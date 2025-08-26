@@ -117,23 +117,26 @@
   (define out (make-dvector))
   (define visited (make-dvector))
   (define args-cache #f)
+
   (λ (brf . args)
     ;; When args change - nodes need to reevaluated as they can rely on old args
-    (define args* (equal-hash-code args))
-    (unless (equal? args* args-cache)
-      (dvector-fill! visited #f)
-      (set! args-cache args*))
+    (unless (null? args)
+      (define args* (equal-hash-code args))
+      (unless (equal? args* args-cache)
+        (dvector-fill! visited #f)
+        (set! args-cache args*)))
 
     (match-define (batchref b idx) brf)
-    (unless (equal? b batch)
+    (unless (eq? b batch)
       (error 'batch-map "Batchref belongs to a different batch"))
+
     (let loop ([idx idx])
       (cond
         [(equal? #t (and (> (dvector-capacity visited) idx) (dvector-ref visited idx)))
          (dvector-ref out idx)]
         [else
          (define node (batch-ref batch idx))
-         (define res (apply f (λ (x) (loop x)) node args))
+         (define res (apply f loop node args))
          (dvector-set! out idx res)
          (dvector-set! visited idx #t)
          res]))))
