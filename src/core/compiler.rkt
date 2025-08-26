@@ -11,6 +11,7 @@
          compile-batch
          compile-prog)
 
+;; Drops spec in-place
 (define (drop-spec! batch)
   (batch-apply! batch
                 (lambda (node)
@@ -18,6 +19,7 @@
                     [(approx spec impl) impl]
                     [node node]))))
 
+;; Allocates a new batch with executable instructions
 (define (rewrite batch brfs)
   (batch-apply
    batch
@@ -28,16 +30,17 @@
        [(list op args ...) (cons (impl-info op 'fl) args)]
        [_ node]))))
 
-(define (evaluate batch)
-  (batch-map batch
-             (lambda (evaluate-child node args)
-               (match node
-                 [(list op) (op)]
-                 [(list op a) (op (evaluate-child a))]
-                 [(list op a b) (op (evaluate-child a) (evaluate-child b))]
-                 [(list op a b c) (op (evaluate-child a) (evaluate-child b) (evaluate-child c))]
-                 [(list op args ...) (apply op (map evaluate-child args))]
-                 [(? symbol?) (hash-ref args node)]))))
+(define (evaluate batch vars)
+  (batch-map-iterative
+   batch
+   (lambda (evaluate-child node pt)
+     (match node
+       [(list op) (op)]
+       [(list op a) (op (evaluate-child a))]
+       [(list op a b) (op (evaluate-child a) (evaluate-child b))]
+       [(list op a b c) (op (evaluate-child a) (evaluate-child b) (evaluate-child c))]
+       [(list op args ...) (apply op (map evaluate-child args))]
+       [(? symbol?) (vector-ref pt (index-of vars node))]))))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values
@@ -53,12 +56,10 @@
   (define vars (context-vars ctx))
   ;; Modifying batch
   (define-values (batch* brfs*) (rewrite batch (map (drop-spec! batch) brfs)))
-  (define evaluator (evaluate batch*))
-  (define args (make-hash))
+  (define evaluator (evaluate batch* vars))
 
   (define (fn pt)
-    (for-each (curry hash-set! args) vars (vector->list pt))
-    (list->vector (map (curryr evaluator args) brfs*)))
+    (list->vector (map (curryr evaluator pt) brfs*)))
   fn)
 
 ;; Like `compile-progs`, but a single prog.

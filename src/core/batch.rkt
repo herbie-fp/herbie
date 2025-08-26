@@ -26,6 +26,7 @@
          batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-exprs
          batch-map
+         batch-map-iterative
 
          (struct-out batchref)
          batchref<?
@@ -116,16 +117,15 @@
 (define (batch-map batch f)
   (define out (make-dvector))
   (define visited (make-dvector))
-  (define checksum #f)
+  (define args-cache #f)
   (define cnt 0)
 
   (λ (brf . args)
     ;; When args change - nodes need to reevaluated as they can rely on old args
     (unless (null? args)
-      (define checksum* (equal-hash-code args))
-      (unless (equal? checksum* checksum)
+      (unless (eq? args args-cache)
         (set! cnt (add1 cnt))
-        (set! checksum checksum*)))
+        (set! args-cache args)))
 
     (match-define (batchref b idx) brf)
     (unless (eq? b batch)
@@ -141,6 +141,31 @@
          (dvector-set! out idx res)
          (dvector-set! visited idx cnt)
          res]))))
+
+;; batch-map does not iterate over nodes that are not a child of brf
+;; A lot of parts of Herbie rely on that
+(define (batch-map-iterative batch f)
+  (define out (make-dvector))
+  (define args-cache #f)
+  (define pt -1)
+
+  (λ (brf . args)
+    ;; When args change - nodes need to reevaluated as they can rely on old args
+    (unless (null? args)
+      (unless (equal? args args-cache)
+        (set! pt -1)
+        (set! args-cache args)))
+
+    (match-define (batchref b idx) brf)
+    (unless (eq? b batch)
+      (error 'batch-map "Batchref belongs to a different batch"))
+
+    (when (< pt idx)
+      (for ([node (in-batch batch (add1 pt) (add1 idx))]
+            [n (in-range (add1 pt) (add1 idx))])
+        (dvector-set! out n (apply f (curry dvector-ref out) node args)))
+      (set! pt idx))
+    (dvector-ref out idx)))
 
 (define (batch-ref batch reg)
   (dvector-ref (batch-nodes batch) reg))
