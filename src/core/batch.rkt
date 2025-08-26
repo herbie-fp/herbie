@@ -116,15 +116,16 @@
 (define (batch-map batch f)
   (define out (make-dvector))
   (define visited (make-dvector))
-  (define args-cache #f)
+  (define checksum #f)
+  (define cnt 0)
 
   (λ (brf . args)
     ;; When args change - nodes need to reevaluated as they can rely on old args
     (unless (null? args)
-      (define args* (equal-hash-code args))
-      (unless (equal? args* args-cache)
-        (dvector-fill! visited #f)
-        (set! args-cache args*)))
+      (define checksum* (equal-hash-code args))
+      (unless (equal? checksum* checksum)
+        (set! cnt (add1 cnt))
+        (set! checksum checksum*)))
 
     (match-define (batchref b idx) brf)
     (unless (eq? b batch)
@@ -132,13 +133,13 @@
 
     (let loop ([idx idx])
       (cond
-        [(equal? #t (and (> (dvector-capacity visited) idx) (dvector-ref visited idx)))
+        [(and (> (dvector-capacity visited) idx) (= cnt (dvector-ref visited idx)))
          (dvector-ref out idx)]
         [else
          (define node (batch-ref batch idx))
          (define res (apply f loop node args))
          (dvector-set! out idx res)
-         (dvector-set! visited idx #t)
+         (dvector-set! visited idx cnt)
          res]))))
 
 (define (batch-ref batch reg)
