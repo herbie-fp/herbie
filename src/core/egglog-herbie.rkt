@@ -639,7 +639,8 @@
   (define spec?
     (batch-recurse
      batch
-     (lambda (node get-spec)
+     (lambda (brf get-spec)
+       (define node (deref brf))
        (match node
          [(? literal?) #f] ;; If literal, not a spec
          [(? number?) #t] ;; If number, it's a spec

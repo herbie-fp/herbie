@@ -30,7 +30,8 @@
 (define (alt-batch-costs batch)
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
   (batch-recurse batch
-                 (λ (node recurse repr)
+                 (λ (brf recurse repr)
+                   (define node (deref brf))
                    (match node
                      [(? literal?) ((node-cost-proc node repr))]
                      [(? symbol?) ((node-cost-proc node repr))]

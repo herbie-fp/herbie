@@ -139,12 +139,11 @@
 (define (taylor var expr-batch)
   "Return a pair (e, n), such that expr ~= e var^n"
   (define exprs (batch-exprs expr-batch))
-  (define (batch-recover-expr node)
-    (exprs (batch-push! expr-batch node)))
 
   (batch-recurse
    expr-batch
-   (lambda (node get-taylor-approx)
+   (lambda (brf get-taylor-approx)
+     (define node (deref brf))
      (match node
        [(? (curry equal? var)) (taylor-exact 0 1)]
        [(? number?) (taylor-exact node)]
@@ -154,7 +153,7 @@
        [`(neg ,arg) (taylor-negate (get-taylor-approx arg))]
        [`(* ,left ,right) (taylor-mult (get-taylor-approx left) (get-taylor-approx right))]
        [`(/ ,num ,den)
-        #:when (equal? (batch-ref expr-batch num) 1)
+        #:when (equal? (deref num) 1)
         (taylor-invert (get-taylor-approx den))]
        [`(/ ,num ,den) (taylor-quotient (get-taylor-approx num) (get-taylor-approx den))]
        [`(sqrt ,arg) (taylor-sqrt var (get-taylor-approx arg))]
@@ -162,12 +161,12 @@
        [`(exp ,arg)
         (define arg* (normalize-series (get-taylor-approx arg)))
         (if (positive? (car arg*))
-            (taylor-exact (batch-recover-expr node))
+            (taylor-exact (exprs brf))
             (taylor-exp (zero-series arg*)))]
        [`(sin ,arg)
         (define arg* (normalize-series (get-taylor-approx arg)))
         (cond
-          [(positive? (car arg*)) (taylor-exact (batch-recover-expr node))]
+          [(positive? (car arg*)) (taylor-exact (exprs brf))]
           [(= (car arg*) 0)
            ; Our taylor-sin function assumes that a0 is 0,
            ; because that way it is especially simple. We correct for this here
@@ -179,7 +178,7 @@
        [`(cos ,arg)
         (define arg* (normalize-series (get-taylor-approx arg)))
         (cond
-          [(positive? (car arg*)) (taylor-exact (batch-recover-expr node))]
+          [(positive? (car arg*)) (taylor-exact (exprs brf))]
           [(= (car arg*) 0)
            ; Our taylor-cos function assumes that a0 is 0,
            ; because that way it is especially simple. We correct for this here
@@ -191,9 +190,9 @@
           [else (taylor-cos (zero-series arg*))])]
        [`(log ,arg) (taylor-log var (get-taylor-approx arg))]
        [`(pow ,base ,power)
-        #:when (exact-integer? (batch-ref expr-batch power))
-        (taylor-pow (normalize-series (get-taylor-approx base)) (batch-ref expr-batch power))]
-       [_ (taylor-exact (batch-recover-expr node))]))))
+        #:when (exact-integer? (deref power))
+        (taylor-pow (normalize-series (get-taylor-approx base)) (deref power))]
+       [_ (taylor-exact (exprs brf))]))))
 
 ; A taylor series is represented by a function f : nat -> expr,
 ; representing the coefficients (the 1 / n! terms not included),

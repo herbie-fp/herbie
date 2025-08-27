@@ -47,7 +47,8 @@
 
 (define (batch-reprs batch ctx)
   (batch-recurse batch
-                 (lambda (node get-repr)
+                 (lambda (brf get-repr)
+                   (define node (deref brf))
                    (match node
                      [(literal val precision) (get-representation precision)]
                      [(? symbol?) (context-lookup ctx node)]
@@ -248,8 +249,7 @@
       [(list op args ...) (cons op (map loop args))])))
 
 (define (batch-replace-expression! batch from to)
-  (define brf (batch-add! batch from))
-  (define from* (deref brf)) ;; a hack on how not to use deref for "from"
+  (define from* (deref (batch-add! batch from))) ;; a hack on how not to use deref for "from"
   (batch-apply! batch
                 (λ (node)
                   (match node

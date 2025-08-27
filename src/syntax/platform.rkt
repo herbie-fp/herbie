@@ -104,11 +104,12 @@
 (define (batch-to-spec! batch brfs)
   (define lower
     (batch-recurse batch
-                   (lambda (node child-spec)
+                   (lambda (brf child-spec)
+                     (define node (deref brf))
                      (match node
                        [(? literal?) (batch-push! batch (literal-value node))]
-                       [(? number?) (batch-push! batch node)]
-                       [(? symbol?) (batch-push! batch node)]
+                       [(? number?) brf]
+                       [(? symbol?) brf]
                        [(hole _ spec) (child-spec spec)]
                        [(approx spec _) (child-spec spec)]
                        [(list (? impl-exists? impl) args ...)

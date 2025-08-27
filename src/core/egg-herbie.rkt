@@ -109,7 +109,8 @@
   (define reprs (batch-reprs batch ctx))
   (define add-to-egraph
     (batch-recurse batch
-                   (λ (node get-remapping)
+                   (λ (brf get-remapping)
+                     (define node (deref brf))
                      (match node
                        [(literal v _) (insert-node! v)]
                        [(? number?) (insert-node! node)]
@@ -119,9 +120,8 @@
                         (hash-ref! id->spec ; Save original (spec, type) for extraction
                                    (get-remapping spec)
                                    (lambda ()
-                                     (define spec*
-                                       (normalize-spec (batch-pull (batchref batch spec))))
-                                     (define type (representation-type (reprs (batchref batch impl))))
+                                     (define spec* (normalize-spec (batch-pull spec)))
+                                     (define type (representation-type (reprs impl)))
                                      (cons spec* type)))
                         (insert-node! (list '$approx (get-remapping spec) (get-remapping impl)))]
                        [(list op (app get-remapping args) ...) (insert-node! (cons op args))]))))

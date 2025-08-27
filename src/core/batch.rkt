@@ -132,14 +132,14 @@
     (unless (eq? b batch)
       (error 'batch-recurse "Batchref belongs to a different batch"))
 
-    (let loop ([idx idx]
+    (let loop ([brf (batchref batch idx)]
                [args args])
+      (define idx (batchref-idx brf))
       (cond
         [(and (> (dvector-capacity visited) idx) (= cnt (dvector-ref visited idx)))
          (dvector-ref out idx)]
         [else
-         (define node (batch-ref batch idx))
-         (define res (apply f node (λ (idx . args) (loop idx args)) args))
+         (define res (apply f brf (λ (brf . args) (loop brf args)) args))
          (dvector-set! out idx res)
          (dvector-set! visited idx cnt)
          res]))))
@@ -187,13 +187,13 @@
 ;; f - function to modify nodes from b
 (define (batch-apply-internal out b f)
   (batch-recurse b
-                 (λ (node remap)
-                   (define node-with-batchrefs (expr-recurse node (lambda (ref) (batchref b ref))))
-                   (define node* (f node-with-batchrefs))
+                 (λ (brf remap)
+                   (define node (deref brf))
+                   (define node* (f node))
                    (define brf*
                      (let loop ([node* node*])
                        (match node*
-                         [(? batchref? brf) (remap (batchref-idx brf))]
+                         [(? batchref? brf) (remap brf)]
                          [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
                    brf*)))
 
@@ -232,18 +232,19 @@
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-exprs batch)
-  (batch-recurse batch (lambda (node children-exprs) (expr-recurse node children-exprs))))
+  (batch-recurse batch (lambda (brf children-exprs) (expr-recurse (deref brf) children-exprs))))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-copy-only! batch batch*)
   (batch-recurse batch*
-                 (lambda (node remap)
-                   (batch-push! batch (expr-recurse node (compose batchref-idx remap))))))
+                 (lambda (brf remap)
+                   (batch-push! batch (expr-recurse (deref brf) (compose batchref-idx remap))))))
 
 (define (batch-free-vars batch)
   (batch-recurse
    batch
-   (lambda (node get-children-free-vars)
+   (lambda (brf get-children-free-vars)
+     (define node (deref brf))
      (cond
        [(symbol? node) (set node)]
        [else
@@ -254,8 +255,8 @@
 (define (batch-tree-size batch brfs)
   (define counts
     (batch-recurse batch
-                   (lambda (node get-children-counts)
-                     (define args (reap [sow] (expr-recurse node sow)))
+                   (lambda (brf get-children-counts)
+                     (define args (reap [sow] (expr-recurse (deref brf) sow)))
                      (apply + 1 (map get-children-counts args)))))
   (apply + (map counts brfs)))
 
