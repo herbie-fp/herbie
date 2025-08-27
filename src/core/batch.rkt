@@ -25,8 +25,8 @@
          batch-apply! ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> (Batchref -> Batchref)
          batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-exprs
-         batch-map
-         batch-map-iterative
+         batch-recurse
+         batch-iterate
 
          (struct-out batchref)
          batchref<?
@@ -112,9 +112,9 @@
 (define (batch->progs b brfs)
   (map (batch-exprs b) brfs))
 
-;; batch-map does not iterate over nodes that are not a child of brf
+;; batch-recurse does not iterate over nodes that are not a child of brf
 ;; A lot of parts of Herbie rely on that
-(define (batch-map batch f)
+(define (batch-recurse batch f)
   (define out (make-dvector))
   (define visited (make-dvector))
   (define args-cache #f)
@@ -130,15 +130,16 @@
 
     (match-define (batchref b idx) brf)
     (unless (eq? b batch)
-      (error 'batch-map "Batchref belongs to a different batch"))
+      (error 'batch-recurse "Batchref belongs to a different batch"))
 
-    (let loop ([idx idx])
+    (let loop ([idx idx]
+               [args args])
       (cond
         [(and (> (dvector-capacity visited) idx) (= cnt (dvector-ref visited idx)))
          (dvector-ref out idx)]
         [else
          (define node (batch-ref batch idx))
-         (define res (apply f loop node args))
+         (define res (apply f node (λ (idx . args) (loop idx args)) args))
          (dvector-set! out idx res)
          (dvector-set! visited idx cnt)
          res]))))
@@ -152,18 +153,18 @@
     ;; When args change - nodes need to reevaluated as they can rely on old args
     ;; This logic will break if the same object is passed over and over
     (unless (null? args)
-      (unless (equal? args args-cache)
+      (unless (eq? args args-cache)
         (set! pt -1)
         (set! args-cache args)))
 
     (match-define (batchref b idx) brf)
     (unless (eq? b batch)
-      (error 'batch-map "Batchref belongs to a different batch"))
+      (error 'batch-iterate "Batchref belongs to a different batch"))
 
     (when (< pt idx)
       (for ([node (in-batch batch (add1 pt) (add1 idx))]
             [n (in-range (add1 pt) (add1 idx))])
-        (dvector-set! out n (apply f (curry dvector-ref out) node args)))
+        (dvector-set! out n (apply f node (curry dvector-ref out) args)))
       (set! pt idx))
     (dvector-ref out idx)))
 
@@ -185,16 +186,16 @@
 ;; b - batch from which to read nodes
 ;; f - function to modify nodes from b
 (define (batch-apply-internal out b f)
-  (batch-map b
-             (λ (remap node)
-               (define node-with-batchrefs (expr-recurse node (lambda (ref) (batchref b ref))))
-               (define node* (f node-with-batchrefs))
-               (define brf*
-                 (let loop ([node* node*])
-                   (match node*
-                     [(? batchref? brf) (remap (batchref-idx brf))]
-                     [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
-               brf*)))
+  (batch-recurse b
+                 (λ (node remap)
+                   (define node-with-batchrefs (expr-recurse node (lambda (ref) (batchref b ref))))
+                   (define node* (f node-with-batchrefs))
+                   (define brf*
+                     (let loop ([node* node*])
+                       (match node*
+                         [(? batchref? brf) (remap (batchref-idx brf))]
+                         [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
+                   brf*)))
 
 ;; Allocates new batch
 (define (batch-apply b brfs f)
@@ -231,31 +232,31 @@
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-exprs batch)
-  (batch-map batch (lambda (children-exprs node) (expr-recurse node children-exprs))))
+  (batch-recurse batch (lambda (node children-exprs) (expr-recurse node children-exprs))))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-copy-only! batch batch*)
-  (batch-map batch*
-             (lambda (remap node)
-               (batch-push! batch (expr-recurse node (compose batchref-idx remap))))))
+  (batch-recurse batch*
+                 (lambda (node remap)
+                   (batch-push! batch (expr-recurse node (compose batchref-idx remap))))))
 
 (define (batch-free-vars batch)
-  (batch-map batch
-             (lambda (get-children-free-vars node)
-               (cond
-                 [(symbol? node) (set node)]
-                 [else
-                  (define arg-free-vars (mutable-set))
-                  (expr-recurse node
-                                (lambda (i) (set-union! arg-free-vars (get-children-free-vars i))))
-                  arg-free-vars]))))
+  (batch-recurse
+   batch
+   (lambda (node get-children-free-vars)
+     (cond
+       [(symbol? node) (set node)]
+       [else
+        (define arg-free-vars (mutable-set))
+        (expr-recurse node (lambda (i) (set-union! arg-free-vars (get-children-free-vars i))))
+        arg-free-vars]))))
 
 (define (batch-tree-size batch brfs)
   (define counts
-    (batch-map batch
-               (lambda (get-children-counts node)
-                 (define args (reap [sow] (expr-recurse node sow)))
-                 (apply + 1 (map get-children-counts args)))))
+    (batch-recurse batch
+                   (lambda (node get-children-counts)
+                     (define args (reap [sow] (expr-recurse node sow)))
+                     (apply + 1 (map get-children-counts args)))))
   (apply + (map counts brfs)))
 
 ;; The function removes any zombie nodes from batch with respect to the brfs

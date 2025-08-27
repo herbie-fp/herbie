@@ -11,6 +11,7 @@
          create-dvector)
 
 (define starting-length 128)
+(define default-filling-value -1)
 
 (struct dvector ([vec #:mutable] [length #:mutable])
   #:methods gen:custom-write
@@ -27,7 +28,7 @@
         (λ (a hc) ; secondary-hash-code
           (+ (hc (dvector-vec a)) (* 7 (+ 1 (dvector-length a)))))))
 
-(define (make-dvector [size 0] [v -1])
+(define (make-dvector [size 0] [v default-filling-value])
   (define size*
     (cond
       [(< size starting-length) starting-length]
@@ -50,7 +51,7 @@
 (define (dvector-extend! dvec)
   (match-define (dvector vec _) dvec)
   (define cap (dvector-capacity dvec))
-  (define vec* (make-vector (* 2 cap)))
+  (define vec* (make-vector (* 2 cap) default-filling-value))
   (vector-copy! vec* 0 vec)
   (set-dvector-vec! dvec vec*))
 

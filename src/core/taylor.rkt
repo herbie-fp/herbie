@@ -142,9 +142,9 @@
   (define (batch-recover-expr node)
     (exprs (batch-push! expr-batch node)))
 
-  (batch-map
+  (batch-recurse
    expr-batch
-   (lambda (get-taylor-approx node)
+   (lambda (node get-taylor-approx)
      (match node
        [(? (curry equal? var)) (taylor-exact 0 1)]
        [(? number?) (taylor-exact node)]

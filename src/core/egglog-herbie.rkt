@@ -637,9 +637,9 @@
 
   ;; Batchref -> Boolean
   (define spec?
-    (batch-map
+    (batch-recurse
      batch
-     (lambda (get-spec node)
+     (lambda (node get-spec)
        (match node
          [(? literal?) #f] ;; If literal, not a spec
          [(? number?) #t] ;; If number, it's a spec

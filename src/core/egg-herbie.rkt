@@ -108,22 +108,23 @@
 
   (define reprs (batch-reprs batch ctx))
   (define add-to-egraph
-    (batch-map batch
-               (λ (get-remapping node)
-                 (match node
-                   [(literal v _) (insert-node! v)]
-                   [(? number?) (insert-node! node)]
-                   [(? symbol?) (insert-node! (var->egg-var node ctx))]
-                   [(hole prec spec) (get-remapping spec)] ; "hole" terms currently disappear
-                   [(approx spec impl)
-                    (hash-ref! id->spec ; Save original (spec, type) for extraction
-                               (get-remapping spec)
-                               (lambda ()
-                                 (define spec* (normalize-spec (batch-pull (batchref batch spec))))
-                                 (define type (representation-type (reprs (batchref batch impl))))
-                                 (cons spec* type)))
-                    (insert-node! (list '$approx (get-remapping spec) (get-remapping impl)))]
-                   [(list op (app get-remapping args) ...) (insert-node! (cons op args))]))))
+    (batch-recurse batch
+                   (λ (node get-remapping)
+                     (match node
+                       [(literal v _) (insert-node! v)]
+                       [(? number?) (insert-node! node)]
+                       [(? symbol?) (insert-node! (var->egg-var node ctx))]
+                       [(hole prec spec) (get-remapping spec)] ; "hole" terms currently disappear
+                       [(approx spec impl)
+                        (hash-ref! id->spec ; Save original (spec, type) for extraction
+                                   (get-remapping spec)
+                                   (lambda ()
+                                     (define spec*
+                                       (normalize-spec (batch-pull (batchref batch spec))))
+                                     (define type (representation-type (reprs (batchref batch impl))))
+                                     (cons spec* type)))
+                        (insert-node! (list '$approx (get-remapping spec) (get-remapping impl)))]
+                       [(list op (app get-remapping args) ...) (insert-node! (cons op args))]))))
 
   (for/list ([brf (in-list brfs)])
     (define brf-id (add-to-egraph brf)) ; remapping of brf

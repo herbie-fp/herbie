@@ -46,14 +46,14 @@
     [(list op args ...) (impl-info op 'otype)]))
 
 (define (batch-reprs batch ctx)
-  (batch-map batch
-             (lambda (get-repr node)
-               (match node
-                 [(literal val precision) (get-representation precision)]
-                 [(? symbol?) (context-lookup ctx node)]
-                 [(approx _ impl) (get-repr impl)]
-                 [(hole precision spec) (get-representation precision)]
-                 [(list op args ...) (impl-info op 'otype)]))))
+  (batch-recurse batch
+                 (lambda (node get-repr)
+                   (match node
+                     [(literal val precision) (get-representation precision)]
+                     [(? symbol?) (context-lookup ctx node)]
+                     [(approx _ impl) (get-repr impl)]
+                     [(hole precision spec) (get-representation precision)]
+                     [(list op args ...) (impl-info op 'otype)]))))
 
 (define (all-subexpressions expr #:reverse? [reverse? #f])
   (define subexprs
