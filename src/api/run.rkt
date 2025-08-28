@@ -96,7 +96,9 @@
                [test-number (in-naturals)])
       (define result (job-wait job-id))
       (print-test-result (+ test-number 1) total-tests test result)
-      (generate-bench-report result (test-name test) test-number dir total-tests)))
+      (define report (generate-bench-report result (test-name test) test-number dir total-tests))
+      (job-forget job-id)
+      report))
 
   (define info (make-report-info results #:seed seed))
   (write-datafile (build-path dir "results.json") info)
