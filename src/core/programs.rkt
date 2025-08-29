@@ -47,12 +47,12 @@
 
 (define (batch-reprs batch ctx)
   (batch-recurse batch
-                 (lambda (brf get-repr)
+                 (lambda (brf recurse)
                    (define node (deref brf))
                    (match node
                      [(literal val precision) (get-representation precision)]
                      [(? symbol?) (context-lookup ctx node)]
-                     [(approx _ impl) (get-repr impl)]
+                     [(approx _ impl) (recurse impl)]
                      [(hole precision spec) (get-representation precision)]
                      [(list op args ...) (impl-info op 'otype)]))))
 

@@ -109,22 +109,22 @@
   (define reprs (batch-reprs batch ctx))
   (define add-to-egraph
     (batch-recurse batch
-                   (λ (brf get-remapping)
+                   (λ (brf recurse)
                      (define node (deref brf))
                      (match node
                        [(literal v _) (insert-node! v)]
                        [(? number?) (insert-node! node)]
                        [(? symbol?) (insert-node! (var->egg-var node ctx))]
-                       [(hole prec spec) (get-remapping spec)] ; "hole" terms currently disappear
+                       [(hole prec spec) (recurse spec)] ; "hole" terms currently disappear
                        [(approx spec impl)
                         (hash-ref! id->spec ; Save original (spec, type) for extraction
-                                   (get-remapping spec)
+                                   (recurse spec)
                                    (lambda ()
                                      (define spec* (normalize-spec (batch-pull spec)))
                                      (define type (representation-type (reprs impl)))
                                      (cons spec* type)))
-                        (insert-node! (list '$approx (get-remapping spec) (get-remapping impl)))]
-                       [(list op (app get-remapping args) ...) (insert-node! (cons op args))]))))
+                        (insert-node! (list '$approx (recurse spec) (recurse impl)))]
+                       [(list op (app recurse args) ...) (insert-node! (cons op args))]))))
 
   (for/list ([brf (in-list brfs)])
     (define brf-id (add-to-egraph brf)) ; remapping of brf

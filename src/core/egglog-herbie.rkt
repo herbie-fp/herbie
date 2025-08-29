@@ -639,7 +639,7 @@
   (define spec?
     (batch-recurse
      batch
-     (lambda (brf get-spec)
+     (lambda (brf recurse)
        (define node (deref brf))
        (match node
          [(? literal?) #f] ;; If literal, not a spec
@@ -649,7 +649,7 @@
          [(hole _ _) #f] ;; If hole, not a spec
          [(approx _ _) #f] ;; If approx, not a spec
          [`(if ,cond ,ift ,iff)
-          (get-spec cond)] ;; If the condition or any branch is a spec, then this is a spec
+          (recurse cond)] ;; If the condition or any branch is a spec, then this is a spec
          [(list appl args ...)
           (if (hash-has-key? (id->e1) appl)
               #t ;; appl with op -> Is a spec

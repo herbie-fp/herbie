@@ -104,22 +104,21 @@
 (define (batch-to-spec! batch brfs)
   (define lower
     (batch-recurse batch
-                   (lambda (brf child-spec)
+                   (lambda (brf recurse)
                      (define node (deref brf))
                      (match node
                        [(? literal?) (batch-push! batch (literal-value node))]
                        [(? number?) brf]
                        [(? symbol?) brf]
-                       [(hole _ spec) (child-spec spec)]
-                       [(approx spec _) (child-spec spec)]
+                       [(hole _ spec) (recurse spec)]
+                       [(approx spec _) (recurse spec)]
                        [(list (? impl-exists? impl) args ...)
                         (define vars (impl-info impl 'vars))
                         (define spec (impl-info impl 'spec))
-                        (define env (map cons vars (map child-spec args)))
+                        (define env (map cons vars (map recurse args)))
                         (batch-add! batch (pattern-substitute spec env))]
                        [(list op args ...)
-                        (batch-push! batch
-                                     (cons op (map (compose batchref-idx child-spec) args)))]))))
+                        (batch-push! batch (cons op (map (compose batchref-idx recurse) args)))]))))
   (map lower brfs))
 
 ;; Expression predicates ;;
