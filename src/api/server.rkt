@@ -28,6 +28,7 @@
 (provide job-path
          job-start
          job-status
+         job-forget
          job-wait
          job-results
          job-timeline
@@ -154,6 +155,10 @@
   (log "Checking on: ~a.\n" job-id)
   (manager-ask 'check job-id))
 
+(define (job-forget job-id)
+  (log "Forgetting job: ~a.\n" job-id)
+  (manager-ask 'forget job-id))
+
 (define (job-wait job-id)
   (define finished-result (manager-ask 'wait manager job-id))
   (log "Done waiting for: ~a\n" job-id)
@@ -245,7 +250,10 @@
     [(list 'improve)
      (for/list ([(job-id result) (in-hash completed-jobs)]
                 #:when (equal? (hash-ref result 'command) "improve"))
-       result)]))
+       result)]
+    [(list 'forget job-id)
+     (hash-remove! completed-jobs job-id)
+     (void)]))
 
 ;; Implementation of threaded manager
 
@@ -369,13 +377,17 @@
         (define total (+ (hash-count busy-workers) (hash-count queued-jobs)))
         (log "Currently ~a jobs total.\n" total)
         (place-channel-put handler total)]
-       ; Retreive the improve results for results.json
+       ; Retrieve the improve results for results.json
        [(list 'improve handler)
         (define improved-list
           (for/list ([(job-id result) (in-hash completed-jobs)]
                      #:when (equal? (hash-ref result 'command) "improve"))
             result))
-        (place-channel-put handler improved-list)]))))
+        (place-channel-put handler improved-list)]
+       ; Forget a completed job result
+       [(list 'forget handler job-id)
+        (hash-remove! completed-jobs job-id)
+        (place-channel-put handler (void))]))))
 
 ;; Implementation of threaded worker
 
