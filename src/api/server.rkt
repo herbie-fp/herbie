@@ -43,9 +43,6 @@
 
 ;; Tracing support
 
-(define (current-thread-id)
-  (equal-hash-code (current-thread)))
-
 (define (current-timestamp)
   (exact-floor (* 1000 (current-inexact-milliseconds))))
 
@@ -106,26 +103,17 @@
                                               out)))
          (drain)]))))
 
-(define (trace name phase [args (hash)])
+(define (trace worker-id name phase [args (hash)])
   (when (flag-set? 'dump 'trace)
     (trace-sync)
-    (call-with-output-file "dump-trace.json"
-                           #:exists 'append
-                           (λ (out)
-                             (fprintf out ",")
-                             (write-json (hash 'name
-                                               (~a name)
-                                               'ph
-                                               (~a phase)
-                                               'ts
-                                               (current-timestamp)
-                                               'pid
-                                               0
-                                               'tid
-                                               (current-thread-id)
-                                               'args
-                                               args)
-                                         out)))))
+    (call-with-output-file
+     "dump-trace.json"
+     #:exists 'append
+     (λ (out)
+       (fprintf out ",")
+       (write-json
+        (hash 'name (~a name) 'ph (~a phase) 'ts (current-timestamp) 'pid 0 'tid worker-id 'args args)
+        out)))))
 
 (define (trace-end)
   (when (flag-set? 'dump 'trace)
@@ -226,7 +214,7 @@
      job-id]
     [(list 'wait 'basic job-id)
      (define command (hash-ref queued-jobs job-id #f))
-     (define result (and command (herbie-do-server-job command job-id)))
+     (define result (and command (herbie-do-server-job 0 command job-id)))
      (when command
        (hash-remove! queued-jobs job-id)
        (hash-set! completed-jobs job-id result))
@@ -234,14 +222,14 @@
     [(list 'result job-id) (hash-ref completed-jobs job-id #f)]
     [(list 'timeline job-id)
      (define command (hash-ref queued-jobs job-id #f))
-     (define result (and command (herbie-do-server-job command job-id)))
+     (define result (and command (herbie-do-server-job 0 command job-id)))
      (when command
        (hash-remove! queued-jobs job-id)
        (hash-set! completed-jobs job-id result))
      result]
     [(list 'check job-id)
      (define command (hash-ref queued-jobs job-id #f))
-     (define result (and command (herbie-do-server-job command job-id)))
+     (define result (and command (herbie-do-server-job 0 command job-id)))
      (when command
        (hash-remove! queued-jobs job-id)
        (hash-set! completed-jobs job-id result))
@@ -416,7 +404,7 @@
                (let loop ()
                  (match-define (list manager worker-id job-id command) (thread-receive))
                  (log "run-job: ~a, ~a\n" worker-id job-id)
-                 (define out-result (herbie-do-server-job command job-id))
+                 (define out-result (herbie-do-server-job worker-id command job-id))
                  (log "Job: ~a finished, returning work to manager\n" job-id)
                  (place-channel-put manager (list 'finished manager worker-id job-id out-result))
                  (loop)))))
@@ -433,10 +421,10 @@
         (log "Timeline requested from worker[~a] for job ~a\n" worker-id current-job-id)
         (place-channel-put handler (reverse (unbox timeline)))]))))
 
-(define (herbie-do-server-job h-command job-id)
+(define (herbie-do-server-job worker-id h-command job-id)
   (match-define (herbie-command command test seed pcontext profile? timeline?) h-command)
   (define metadata (hash 'job-id job-id 'command (~a command) 'name (test-name test)))
-  (trace 'herbie 'B metadata)
+  (trace worker-id 'herbie 'B metadata)
   (define herbie-result
     (run-herbie command
                 test
@@ -444,10 +432,10 @@
                 #:pcontext pcontext
                 #:profile? profile?
                 #:timeline? timeline?))
-  (trace 'herbie 'E metadata)
-  (trace 'to-json 'B metadata)
+  (trace worker-id 'herbie 'E metadata)
+  (trace worker-id 'to-json 'B metadata)
   (define basic-output ((get-json-converter command) herbie-result job-id))
-  (trace 'to-json 'E metadata)
+  (trace worker-id 'to-json 'E metadata)
   ;; Add default fields that all commands have
   (hash-set* basic-output
              'job
