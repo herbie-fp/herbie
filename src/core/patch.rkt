@@ -49,8 +49,7 @@
                 [altn (in-list altns)]
                 [fv (in-list free-vars)]
                 #:when (set-member? fv var)) ; check whether var exists in expr at all
-            (define zero-poly 0)
-            (define gen0 (approx spec-brf (hole (representation-name repr) zero-poly)))
+            (define gen0 (approx spec-brf (hole (representation-name repr) 0)))
             (define brf0 (batch-add! global-batch gen0))
             (sow (alt brf0 `(taylor ,name ,var) (list altn)))
             (for ([i (in-range (*taylor-order-limit*))])

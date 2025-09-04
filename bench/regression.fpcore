@@ -136,3 +136,13 @@
       (log (/ (sinh x) x))))
   
   (log (/ (sinh x) x)))
+
+(FPCore (x)
+  :name "bug1188 (missed optimization)"
+  :alt
+  (! :herbie-platform default
+   (if (>= (fabs x) (pow 2 52))
+      0.0
+      (sin (* PI x))))
+
+  (sin (* PI x)))
