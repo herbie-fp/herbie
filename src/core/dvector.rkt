@@ -11,7 +11,7 @@
          create-dvector)
 
 (define starting-length 128)
-(define default-filling-value -1)
+(define default-filling-value #f)
 
 (struct dvector ([vec #:mutable] [length #:mutable])
   #:methods gen:custom-write

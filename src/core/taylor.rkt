@@ -5,12 +5,14 @@
          "../syntax/syntax.rkt"
          "batch.rkt"
          "programs.rkt"
-         "reduce.rkt")
+         "reduce.rkt"
+         "batch-reduce.rkt")
 
 (provide approximate
          taylor-coefficients)
 
 (define (taylor-coefficients batch brfs vars transforms-to-try)
+  (define batch-reducer (batch-reduce batch))
   (define expand (expand-taylor! batch))
   (define exprs (batch-exprs batch))
   (define munge (λ (x) (batch-add! batch x)))
@@ -21,7 +23,12 @@
       (match-define (list name f finv) transform-type)
       (define replace (batch-replace-expression! batch var (f var)))
       (for/list ([brf (in-list brfs)])
-        (taylor* (expand (munge (reduce (exprs (replace brf)))))))))
+        (define replacement (replace brf))
+        (define reduction (reduce (exprs replacement)))
+        (printf "~a -> ~a\n" (exprs replacement) (reduce (exprs replacement)))
+        ;(define batch-reduction (batch-pull (batch-reducer replacement)))
+        ;(println (equal? batch-reduction reduction))
+        (taylor* (expand (munge reduction))))))
   taylor-coeffs)
 
 (define (approximate taylor-approxs

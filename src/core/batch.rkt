@@ -24,6 +24,7 @@
          batch-apply ; Batch -> List<Batchref> -> (Expr<Batchref> -> Expr<Batchref>) -> (Batch, List<Batchref>)
          batch-apply! ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> (Batchref -> Batchref)
          batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
+         batch-direct-parents
          batch-exprs
          batch-recurse
          batch-iterate
@@ -37,14 +38,14 @@
          deref) ; Batchref -> Expr
 
 ;; Batches store these recursive structures, flattened
-(struct batch ([nodes #:mutable] [index #:mutable] [cache #:mutable]))
+(struct batch ([nodes #:mutable] [index #:mutable] [cache #:mutable] [dir-parents #:mutable]))
 
 (struct batchref (batch idx) #:transparent)
 
 ;; --------------------------------- CORE BATCH FUNCTION ------------------------------------
 
 (define (batch-empty)
-  (batch (make-dvector) (make-hash) (make-hasheq)))
+  (batch (make-dvector) (make-hash) (make-hasheq) (make-hasheq)))
 
 (define (in-batch batch [start 0] [end #f] [step 1])
   (in-dvector (batch-nodes batch) start end step))
@@ -73,13 +74,16 @@
 
 (define (batch-push! b term)
   (define hashcons (batch-index b))
+  (define parents (batch-dir-parents b))
   (hash-ref! hashcons
              term
              (lambda ()
                (define idx (hash-count hashcons))
                (hash-set! hashcons term idx)
                (dvector-add! (batch-nodes b) term)
-               (batchref b idx))))
+               (define brf (batchref b idx))
+               (expr-recurse term (λ (x) (hash-update! parents x (curry cons brf) '())))
+               brf)))
 
 (define (batch-add! b expr)
   (define cache (batch-cache b))
@@ -94,7 +98,10 @@
   (batchref b (munge expr)))
 
 (define (batch-copy b)
-  (batch (dvector-copy (batch-nodes b)) (hash-copy (batch-index b)) (hash-copy (batch-cache b))))
+  (batch (dvector-copy (batch-nodes b))
+         (hash-copy (batch-index b))
+         (hash-copy (batch-cache b))
+         (hash-copy (batch-dir-parents b))))
 
 (define (deref x)
   (match-define (batchref b idx) x)
@@ -149,6 +156,9 @@
         (dvector-set! out n (f (batchref batch n) (curry dvector-ref out))))
       (set! pt idx))
     (dvector-ref out idx)))
+
+(define (batch-direct-parents batch brf)
+  (hash-ref (batch-dir-parents batch) (batchref-idx brf) '()))
 
 (define (batch-ref batch reg)
   (dvector-ref (batch-nodes batch) reg))
@@ -283,7 +293,7 @@
 (module+ test
   (require rackunit)
   (define (zombie-test #:nodes nodes #:roots roots)
-    (define in-batch (batch nodes (make-hash) (make-hasheq)))
+    (define in-batch (batch nodes (make-hash) (make-hasheq) (make-hasheq)))
     (define brfs (map (curry batchref in-batch) roots))
     (define-values (out-batch brfs*) (batch-copy-only in-batch brfs))
     (check-equal? (batch->progs out-batch brfs*) (batch->progs in-batch brfs))
