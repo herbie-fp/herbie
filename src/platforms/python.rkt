@@ -123,7 +123,7 @@
   #:fpcore (hypot x y) #:cost 1)
 
 (define-operation (hypot.3D [x <binary64>] [y <binary64>] [z <binary64>]) <binary64>
-  #:spec (sqrt (+ (+ (* x x) (* y y)) (* z z)) #:impl (from-rival)
+  #:spec (sqrt (+ (+ (* x x) (* y y)) (* z z))) #:impl (from-rival)
   #:fpcore (hypot (hypot x y) z) #:cost 1)
 
 (define-operation (fma.py [x <binary64>] [y <binary64>] [z <binary64>]) <binary64>
