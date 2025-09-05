@@ -7,12 +7,10 @@
 (provide (rename-out [timeline-push! timeline-push!/unsafe] [timeline-start! timeline-start!/unsafe])
          (contract-out (timeline-event! (symbol? . -> . void?))
                        (timeline-push! (symbol? jsexpr? ... . -> . void?))
-                       (timeline-adjust! (symbol? symbol? jsexpr? ... . -> . void?))
                        (timeline-start! (symbol? jsexpr? ... . -> . (-> void?))))
          timeline-load!
          timeline-extract
          timeline-merge
-         timeline-relink
          *timeline-disabled*)
 (module+ debug
   (provide *timeline*))
@@ -48,7 +46,7 @@
       (make-hasheq (list (cons 'type (~a type))
                          (cons 'time (current-inexact-milliseconds))
                          (cons 'gc-time (current-gc-milliseconds))
-                         (cons 'memory (list (list live-memory alloc-memory))))))
+                         (list 'memory (list live-memory alloc-memory)))))
     (set-box! (*timeline*) (cons b (unbox (*timeline*))))))
 
 (define (timeline-push! key . values)
@@ -73,14 +71,6 @@
                        '()))
        (set! *timeline-active-key* key)
        (set! *timeline-active-value* (list val))])))
-
-(define (timeline-adjust! type key . values)
-  (unless (*timeline-disabled*)
-    (for/first ([cell (unbox (*timeline*))]
-                #:when (equal? (hash-ref cell 'type) (~a type)))
-      (hash-set! cell key values)
-      true)
-    (void)))
 
 (define *timeline-1st-timer* #f)
 (define *timeline-2nd-timer* #f)
@@ -145,13 +135,6 @@
              (hash-update! evt* 'memory (λ (v) (diff-memory-records (hash-ref next 'memory) v)))
              evt*)))
 
-(define (timeline-relink link timeline)
-  (for/list ([event (in-list timeline)])
-    (for/hasheq ([(k v) (in-hash event)])
-      (if (equal? k 'link)
-          (values k (map (λ (p) (path->string (build-path link p))) v))
-          (values k v)))))
-
 (define timeline-types (make-hasheq))
 
 (define-syntax define-timeline
@@ -204,7 +187,6 @@
 (define-timeline memory [live +] [alloc +])
 (define-timeline method [method])
 (define-timeline mixsample [time +] [function false] [precision false])
-(define-timeline rules [rule false] [count +])
 (define-timeline times [time +] [input false])
 (define-timeline series [time +] [var false] [transform false])
 (define-timeline compiler [before +] [after +])
@@ -219,26 +201,12 @@
 (define-timeline sampling #:custom merge-sampling-tables)
 (define-timeline bogosity #:custom (λ (x y) (list (hash-union (car x) (car y) #:combine +))))
 (define-timeline symmetry #:unmergable)
-(define-timeline remove-preprocessing #:unmergable)
-(define-timeline locations #:unmergable)
 (define-timeline bstep #:unmergable)
 (define-timeline kept #:unmergable)
 (define-timeline min-error #:unmergable)
 (define-timeline egraph #:unmergable)
 (define-timeline stop [reason false] [count +])
 (define-timeline branch #:unmergable)
-(define-timeline explanations
-                 [op false]
-                 [expr (const #f)]
-                 [expl false]
-                 [count +]
-                 [mcount +]
-                 [flows (const #f)]
-                 [locations (const #f)])
-(define-timeline confusion #:custom (λ (x y) (list (map + (car x) (car y)))))
-(define-timeline total-confusion #:custom (λ (x y) (list (map + (car x) (car y)))))
-(define-timeline maybe-confusion #:custom (λ (x y) (list (map + (car x) (car y)))))
-(define-timeline freqs [key false] [val +])
 
 (define (timeline-merge . timelines)
   ;; The timelines in this case are JSON objects, as above

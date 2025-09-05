@@ -3,8 +3,7 @@
 ;; Arithmetic identities for rewriting programs.
 
 (require "../utils/common.rkt"
-         "../syntax/syntax.rkt"
-         "programs.rkt")
+         "../syntax/syntax.rkt")
 
 (provide *rules*
          *sound-rules*
@@ -13,7 +12,7 @@
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
 ;; are patterns, meaning that symbols represent pattern variables.
-(struct rule (name input output itypes otype tags)
+(struct rule (name input output tags)
   #:methods gen:custom-write
   [(define (write-proc rule port mode)
      (fprintf port "#<rule ~a>" (rule-name rule)))])
@@ -32,11 +31,6 @@
 (define (*sound-rules*)
   (filter (conjoin rule-enabled? rule-sound?) *all-rules*))
 
-;;  Rule definition syntax
-
-(define (make-rule-context input output)
-  (map (curryr cons 'real) (set-union (free-variables input) (free-variables output))))
-
 (define (add-unsound expr)
   (match expr
     [(list op args ...) (cons (sym-append "unsound-" op) (map add-unsound args))]
@@ -45,15 +39,9 @@
 (define-syntax define-rule
   (syntax-rules ()
     [(define-rule rname group input output)
-     (set! *all-rules*
-           (cons (rule 'rname 'input 'output (make-rule-context 'input 'output) 'real '(group sound))
-                 *all-rules*))]
+     (set! *all-rules* (cons (rule 'rname 'input 'output '(group sound)) *all-rules*))]
     [(define-rule rname group input output #:unsound)
-     (set!
-      *all-rules*
-      (cons
-       (rule 'rname 'input (add-unsound 'output) (make-rule-context 'input 'output) 'real '(group))
-       *all-rules*))]))
+     (set! *all-rules* (cons (rule 'rname 'input (add-unsound 'output) '(group)) *all-rules*))]))
 
 (define-syntax-rule (define-rules group
                       [rname input output flags ...] ...)
@@ -241,6 +229,15 @@
   [fabs-cbrt (fabs (/ (cbrt a) a)) (/ (cbrt a) a)]
   [fabs-cbrt-rev (/ (cbrt a) a) (fabs (/ (cbrt a) a))])
 
+; Copysign
+(define-rules arithmetic
+  [copysign-neg (copysign a (neg b)) (neg (copysign a b))]
+  [neg-copysign (neg (copysign a b)) (copysign a (neg b))]
+  [copysign-other-neg (copysign (neg a) b) (copysign a b)]
+  [copysign-fabs (copysign a (fabs b)) (fabs a)]
+  [copysign-other-fabs (copysign (fabs a) b) (copysign a b)]
+  [fabs-copysign (fabs (copysign a b)) (fabs a)])
+
 ; Square root
 (define-rules arithmetic
   [sqrt-pow2 (pow (sqrt x) y) (pow x (/ y 2))]
@@ -283,6 +280,11 @@
   [cbrt-fabs-rev (fabs (cbrt x)) (cbrt (fabs x))]
   [cbrt-div-cbrt (/ (cbrt x) (fabs (cbrt x))) (copysign 1 x)]
   [cbrt-div-cbrt2 (/ (fabs (cbrt x)) (cbrt x)) (copysign 1 x)])
+
+; Min and max
+(define-rules arithmetic
+  [fmin-swap (fmin a b) (fmin b a)]
+  [fmax-swap (fmax a b) (fmax b a)])
 
 ; Exponentials
 (define-rules exponents

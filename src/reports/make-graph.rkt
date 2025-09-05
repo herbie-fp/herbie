@@ -3,15 +3,16 @@
 (require (only-in xml write-xexpr xexpr?)
          (only-in fpbench core->tex *expr-cse-able?* [core-common-subexpr-elim core-cse]))
 
-(require "../utils/common.rkt"
-         "../core/points.rkt"
+(require "../utils/alternative.rkt"
+         "../utils/common.rkt"
          "../utils/float.rkt"
-         "../utils/alternative.rkt"
-         "../syntax/types.rkt"
          "../syntax/read.rkt"
+         "../syntax/types.rkt"
          "../core/bsearch.rkt"
+         "../core/points.rkt"
          "../api/sandbox.rkt"
-         "common.rkt")
+         "common.rkt"
+         "history.rkt")
 
 (provide make-graph
          dummy-graph)
@@ -20,9 +21,9 @@
   `(html (head (meta ([charset "utf-8"]))
                (title "Result page for the " ,(~a command) " command is not available right now.")
                ,@js-tex-include
-               (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"]))
-               (script ([src "https://unpkg.com/d3@6.7.0/dist/d3.min.js"]))
-               (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"]))
+               (script ([src "https://www.jsdelivr.com/package/npm/mathjs@14"] [defer ""]))
+               (script ([src "https://cdn.jsdelivr.net/npm/d3@7"] [defer ""]))
+               (script ([src "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6"] [defer ""]))
                (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
                (script ([src "../report.js"])))
          (body (h2 "Result page for the " ,(~a command) " command is not available right now."))))
@@ -33,11 +34,9 @@
   (define time (hash-ref result-hash 'time))
   (define warnings (hash-ref result-hash 'warnings))
   (define repr (test-output-repr test))
-  (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
   (define identifier (test-identifier test))
 
-  (define preprocessing (map (compose read open-input-string) (hash-ref backend 'preprocessing)))
   (define start-expr (read (open-input-string (hash-ref (hash-ref backend 'start) 'expr))))
   (define start-cost (hash-ref (hash-ref backend 'start) 'cost))
   (define start-error (hash-ref (hash-ref backend 'start) 'errors))
@@ -52,7 +51,7 @@
   (define end-costs (map (curryr hash-ref 'cost) end))
   (define end-histories
     (for/list ([end-analysis (in-list end)])
-      (read (open-input-string (hash-ref end-analysis 'history)))))
+      (hash-ref end-analysis 'history)))
 
   ; Speedup is going to be #f if cost is 0 for each alternative
   (define speedup
@@ -66,14 +65,15 @@
       (and (not (null? better)) (apply max better))))
 
   (define end-error (car end-errors))
+  (define alt-number 0)
 
   `(html
     (head (meta ([charset "utf-8"]))
           (title "Result for " ,(~a (test-name test)))
           ,@js-tex-include
-          (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"]))
-          (script ([src "https://unpkg.com/d3@6.7.0/dist/d3.min.js"]))
-          (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"]))
+          (script ([src "https://www.jsdelivr.com/package/npm/mathjs@14"] [defer ""]))
+          (script ([src "https://cdn.jsdelivr.net/npm/d3@7"] [defer ""]))
+          (script ([src "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6"] [defer ""]))
           (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
           (script ([src "../report.js"])))
     (body
@@ -85,22 +85,19 @@
      (div ([id "large"])
           ,(render-comparison
             "Percentage Accurate"
-            (format-accuracy (errors-score start-error) repr-bits #:unit "%")
-            (format-accuracy (errors-score end-error) repr-bits #:unit "%")
-            #:title
-            (format "Minimum Accuracy: ~a → ~a"
-                    (format-accuracy (apply max (map ulps->bits start-error)) repr-bits #:unit "%")
-                    (format-accuracy (apply max (map ulps->bits end-error)) repr-bits #:unit "%")))
+            (format-accuracy (errors-score start-error) repr #:unit "%")
+            (format-accuracy (errors-score end-error) repr #:unit "%")
+            #:title (format "Minimum Accuracy: ~a → ~a"
+                            (format-accuracy (apply max (map ulps->bits start-error)) repr #:unit "%")
+                            (format-accuracy (apply max (map ulps->bits end-error)) repr #:unit "%")))
           ,(render-large "Time" (format-time time))
           ,(render-large "Alternatives" (~a (length end-exprs)))
-          ,(if (*pareto-mode*)
-               (render-large "Speedup"
-                             (if speedup
-                                 (~r speedup #:precision '(= 1))
-                                 "N/A")
-                             "×"
-                             #:title "Relative speed of fastest alternative that improves accuracy.")
-               ""))
+          ,(render-large "Speedup"
+                         (if speedup
+                             (~r speedup #:precision '(= 1))
+                             "N/A")
+                         "×"
+                         #:title "Relative speed of fastest alternative that improves accuracy."))
      ,(render-warnings warnings)
      ,(render-specification test)
      (figure ([id "graphs"])
@@ -139,7 +136,7 @@
                   (h2 "Initial Program"
                       ": "
                       (span ((class "subhead"))
-                            (data ,(format-accuracy (errors-score start-error) repr-bits #:unit "%"))
+                            (data ,(format-accuracy (errors-score start-error) repr #:unit "%"))
                             " accurate, "
                             (data "1.0×")
                             " speedup")
@@ -150,15 +147,16 @@
                   [expr end-exprs]
                   [errs end-errors]
                   [cost end-costs]
-                  [history end-histories])
-         (define-values (dropdown body)
-           (render-program expr ctx #:ident identifier #:instructions preprocessing))
+                  [history end-histories]
+                  #:unless (equal? start-expr expr))
+         (set! alt-number (add1 alt-number))
+         (define-values (dropdown body) (render-program expr ctx #:ident identifier))
          `(section ([id ,(format "alternative~a" i)] (class "programs"))
                    (h2 "Alternative "
-                       ,(~a i)
+                       ,(~a alt-number)
                        ": "
                        (span ((class "subhead"))
-                             (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%"))
+                             (data ,(format-accuracy (errors-score errs) repr #:unit "%"))
                              " accurate, "
                              (data ,(if (zero? cost)
                                         "N/A"
@@ -168,24 +166,24 @@
                        ,dropdown
                        ,(render-help "report.html#alternatives"))
                    ,body
-                   (details (summary "Derivation") (ol ((class "history")) ,@history))))
+                   (details (summary "Derivation")
+                            (ol ((class "history")) ,@(render-history history ctx)))))
      ,@(for/list ([i (in-naturals 1)]
                   [target (in-list targets)])
          (define target-error (hash-ref target 'errors))
          (define target-cost (hash-ref target 'cost))
          (define target-expr (read (open-input-string (hash-ref target 'expr))))
          (let-values ([(dropdown body) (render-program target-expr ctx #:ident identifier)])
-           `(section
-             ([id ,(format "target~a" i)] (class "programs"))
-             (h2 "Developer Target "
-                 ,(~a i)
-                 ": "
-                 (span ((class "subhead"))
-                       (data ,(format-accuracy (errors-score target-error) repr-bits #:unit "%"))
-                       " accurate, "
-                       (data ,(~r (/ start-cost target-cost) #:precision '(= 1)) "×")
-                       " speedup")
-                 ,dropdown
-                 ,(render-help "report.html#target"))
-             ,body)))
+           `(section ([id ,(format "target~a" i)] (class "programs"))
+                     (h2 "Developer Target "
+                         ,(~a i)
+                         ": "
+                         (span ((class "subhead"))
+                               (data ,(format-accuracy (errors-score target-error) repr #:unit "%"))
+                               " accurate, "
+                               (data ,(~r (/ start-cost target-cost) #:precision '(= 1)) "×")
+                               " speedup")
+                         ,dropdown
+                         ,(render-help "report.html#target"))
+                     ,body)))
      ,(render-reproduction test))))

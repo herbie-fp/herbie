@@ -3,14 +3,15 @@
 (require rackunit)
 (require "../utils/common.rkt"
          "../utils/float.rkt"
-         "../syntax/load-plugin.rkt"
          "../syntax/types.rkt"
          "rival.rkt"
          "rules.rkt"
          "programs.rkt"
+         "../syntax/platform.rkt"
+         "../syntax/load-platform.rkt"
          "sampling.rkt")
 
-(load-herbie-builtins)
+(activate-platform! (*platform-name*))
 
 (define num-test-points (make-parameter 100))
 (define double-repr (get-representation 'binary64))
@@ -21,13 +22,14 @@
 
 (define (drop-unsound expr)
   (match expr
-    [(list (? (λ (x) (string-contains? (~a x) "unsound")) op) args ...)
+    [(list op args ...)
+     #:when (string-contains? (~a op) "unsound")
      (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
      (cons op* (map drop-unsound args))]
     [_ expr]))
 
 (define (check-rule test-rule)
-  (match-define (rule name p1 p2 _ _ _) test-rule)
+  (match-define (rule name p1 p2 _) test-rule)
   (define ctx (env->ctx p1 p2))
 
   (match-define (list pts exs1 exs2)

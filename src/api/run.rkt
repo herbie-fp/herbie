@@ -7,6 +7,8 @@
          "../syntax/read.rkt"
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
+         "../syntax/platform.rkt"
+         "../syntax/load-platform.rkt"
          "../utils/common.rkt"
          "../utils/profile.rkt"
          "../utils/timeline.rkt"
@@ -31,19 +33,20 @@
         (table-row-target-prog row)
         (fpcore->prog (table-row-spec row) ctx)
         (fpcore->prog (table-row-pre row) ctx)
-        (table-row-preprocess row)
         (representation-name repr)
         (for/list ([(k v) (in-dict var-reprs)])
           (cons k (representation-name v)))
         (table-row-conversions row)))
 
 (define (make-report bench-dirs #:dir dir #:threads threads)
+  (activate-platform! (*platform-name*))
   (define tests (reverse (sort (append-map load-tests bench-dirs) test<?)))
   (run-tests tests #:dir dir #:threads threads))
 
 (define (rerun-report json-file #:dir dir #:threads threads)
   (define data (call-with-input-file json-file read-datafile))
   (define tests (map extract-test (report-info-tests data)))
+  (activate-platform! (*platform-name*))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))
@@ -56,13 +59,10 @@
             (define out
               (with-handlers ([exn? (const #f)])
                 (call-with-input-file (build-path dir (table-row-link res) name) read-json)))
-            (and out (not (eof-object? out)) (cons (table-row-link res) out)))))
-
-(define (merge-timeline-jsons tl)
-  (apply timeline-merge (map timeline-relink (dict-keys tl) (dict-values tl))))
+            (and out (not (eof-object? out)) out))))
 
 (define (merge-profile-jsons ps)
-  (profile->json (apply profile-merge (map json->profile (dict-values ps)))))
+  (profile->json (apply profile-merge (map json->profile ps))))
 
 (define (generate-bench-report result bench-name test-number dir total-tests)
   (define report-path (bench-folder-path bench-name test-number))
@@ -96,7 +96,8 @@
                [test-number (in-naturals)])
       (define result (job-wait job-id))
       (print-test-result (+ test-number 1) total-tests test result)
-      (generate-bench-report result (test-name test) test-number dir total-tests)))
+      (begin0 (generate-bench-report result (test-name test) test-number dir total-tests)
+        (job-forget job-id))))
 
   (define info (make-report-info results #:seed seed))
   (write-datafile (build-path dir "results.json") info)
@@ -105,7 +106,7 @@
   (copy-file (web-resource "report.css") (build-path dir "report.css") #t)
   (copy-file (web-resource "logo-car.png") (build-path dir "logo-car.png") #t)
   (copy-file (web-resource "report.html") (build-path dir "index.html") #t)
-  (define timeline (merge-timeline-jsons (read-json-files info dir "timeline.json")))
+  (define timeline (apply timeline-merge (read-json-files info dir "timeline.json")))
   (call-with-output-file (build-path dir "timeline.json")
                          (curry write-json timeline)
                          #:exists 'replace)

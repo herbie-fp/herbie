@@ -1,25 +1,22 @@
 #lang racket
 
-(require "../utils/common.rkt"
-         "../utils/errors.rkt")
+(require math/bigfloat
+         math/base
+         math/flonum)
 
-(provide type-name?
-         (struct-out representation)
-         get-representation
-         repr-exists?
+(provide (struct-out representation)
          repr->prop
+         shift
+         unshift
+         <bool>
+         <binary32>
+         <binary64>
          (struct-out context)
          *context*
          context-extend
-         context-append
-         context-lookup)
-
-(module+ internals
-  (provide define-type
-           define-representation
-           register-generator!
-           register-representation!
-           register-representation-alias!))
+         context-lookup
+         define-type
+         make-representation)
 
 ;; Types
 
@@ -36,13 +33,11 @@
 ;; Representations
 
 (struct representation
-        (name type repr? bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value?)
+        (name type bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value?)
   #:transparent
   #:methods gen:custom-write
   [(define (write-proc repr port mode)
      (fprintf port "#<representation ~a>" (representation-name repr)))])
-
-(define representations (hash))
 
 ;; Converts a representation into a rounding property
 (define (repr->prop repr)
@@ -50,70 +45,73 @@
     ['bool '()]
     ['real (list (cons ':precision (representation-name repr)))]))
 
-;; Repr / operator generation
-;; Some plugins might define 'parameterized' reprs (e.g. fixed point with
-;; m integer and n fractional bits). Since defining an infinite number of reprs
-;; is impossible, Herbie stores a list of 'repr generators' to query if it comes
-;; across a repr that is not known at the time.
+(define (make-representation #:name name
+                             #:bf->repr bf->repr
+                             #:repr->bf repr->bf
+                             #:ordinal->repr ordinal->repr
+                             #:repr->ordinal repr->ordinal
+                             #:total-bits total-bits
+                             #:special-value? special-value?)
+  (representation name 'real bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value?))
 
-;; Generators take one argument, a repr name, and returns true if knows what the
-;; repr is and has generated that repr and its operators, and false otherwise
-(define repr-generators '())
-(define *current-generator* (make-parameter #f))
+(module hairy racket/base
+  (require (only-in math/private/bigfloat/mpfr get-mpfr-fun _mpfr-pointer _rnd_t bf-rounding-mode))
+  (require ffi/unsafe)
+  (provide bigfloat->float32)
+  (define mpfr-get-flt (get-mpfr-fun 'mpfr_get_flt (_fun _mpfr-pointer _rnd_t -> _float)))
+  (define (bigfloat->float32 x)
+    (mpfr-get-flt x (bf-rounding-mode))))
+(require (submod "." hairy))
 
-(define/contract (register-generator! proc)
-  (-> (-> any/c any/c) void?)
-  (unless (set-member? repr-generators proc)
-    (set! repr-generators (cons proc repr-generators))))
+(define (float32->bit-field x)
+  (integer-bytes->integer (real->floating-point-bytes x 4) #f #f))
 
-;; Queries each plugin to generate the representation
-(define (generate-repr repr-name)
-  (or (hash-has-key? representations repr-name)
-      (for/or ([proc repr-generators])
-        ;; Check if a user accidently created an infinite loop in their plugin!
-        (when (and (eq? proc (*current-generator*)) (not (hash-has-key? representations repr-name)))
-          (raise-herbie-error
-           (string-append
-            "Tried to generate `~a` representation while generating the same representation. "
-            "Check your plugin to make sure you register your representation(s) "
-            "before calling `get-representation`!")
-           repr-name))
-        (parameterize ([*current-generator* proc])
-          (proc repr-name)))))
+(define (float32->ordinal x)
+  (if (negative? x)
+      (- (float32->bit-field (- x)))
+      (float32->bit-field (abs x))))
 
-;; Returns the representation associated with `name`
-;; attempts to generate the repr if not initially found
-(define (get-representation name)
-  (or (hash-ref representations name #f)
-      (and (generate-repr name) (hash-ref representations name #f))
-      (raise-herbie-error "Could not find support for ~a representation: ~a"
-                          name
-                          (string-join (map ~s (hash-keys representations)) ", "))))
+(define (bit-field->float32 x)
+  (floating-point-bytes->real (integer->integer-bytes x 4 #f #f) #f))
 
-(define (repr-exists? name)
-  (hash-has-key? representations name))
+(define (ordinal->float32 x)
+  (if (negative? x)
+      (- (bit-field->float32 (- x)))
+      (bit-field->float32 x)))
 
-;; Registers a representation that can be invoked with ':precision <name>'.
-;; Creates a new representation with the given traits and associates it
-;; with the same name. See `register-representation-alias!` for associating
-;; a representation with a different name.
-(define (register-representation! name type repr? . args)
-  (unless (type-name? type)
-    (raise-herbie-error "Tried to register a representation for type ~a: not found" type))
-  (define repr (apply representation name type repr? args))
-  (set! representations (hash-set representations name repr)))
+(define (shift bits fn)
+  (define shift-val (expt 2 bits))
+  (λ (x) (fn (- x shift-val))))
 
-;; Associates an existing representation with a (possibly different) name.
-;; Useful for defining an common alias for an equivalent representation,
-;; e.g. float for binary32.
-(define (register-representation-alias! name repr)
-  (unless (representation? repr)
-    (raise-herbie-error "Tried to register an alias for representation ~a: not found"
-                        (representation-name repr)))
-  (set! representations (hash-set representations name repr)))
+(define (unshift bits fn)
+  (define shift-val (expt 2 bits))
+  (λ (x) (+ (fn x) shift-val)))
 
-(define-syntax-rule (define-representation (name type repr?) args ...)
-  (register-representation! 'name 'type repr? args ...))
+;; Does not use make-representation to define a repr of bool
+(define <bool>
+  (representation 'bool 'bool identity identity (curry = 0) (lambda (x) (if x 0 -1)) 1 (const #f)))
+
+(define <binary32>
+  (make-representation #:name 'binary32
+                       #:bf->repr bigfloat->float32
+                       #:repr->bf (lambda (x)
+                                    (parameterize ([bf-precision 24])
+                                      (bf x)))
+                       #:ordinal->repr ordinal->float32
+                       #:repr->ordinal float32->ordinal
+                       #:total-bits 32
+                       #:special-value? nan?))
+
+(define <binary64>
+  (make-representation #:name 'binary64
+                       #:bf->repr bigfloat->flonum
+                       #:repr->bf (lambda (x)
+                                    (parameterize ([bf-precision 53])
+                                      (bf x)))
+                       #:ordinal->repr ordinal->flonum
+                       #:repr->ordinal flonum->ordinal
+                       #:total-bits 64
+                       #:special-value? nan?))
 
 ;; Contexts
 
@@ -127,12 +125,6 @@
                ctx
                [vars (cons var (context-vars ctx))]
                [var-reprs (cons repr (context-var-reprs ctx))]))
-
-(define (context-append ctx var repr)
-  (struct-copy context
-               ctx
-               [vars (append (context-vars ctx) (list var))]
-               [var-reprs (append (context-var-reprs ctx) (list repr))]))
 
 (define (context-lookup ctx var)
   (dict-ref (map cons (context-vars ctx) (context-var-reprs ctx)) var))

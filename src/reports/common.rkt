@@ -25,19 +25,19 @@
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt")
 
-(provide render-menu
+(provide format-accuracy
+         render-menu
          render-warnings
          render-large
          render-comparison
          render-specification
          render-program
-         render-bogosity
          render-help
          render-reproduction
          format-percent
          write-html
          program->fpcore
-         program->tex
+         fpcore->tex
          fpcore->string
          js-tex-include
          doc-url
@@ -51,6 +51,16 @@
          core->tex
          expr->tex
          core->js)
+
+(define (format-accuracy numerator repr #:sign [sign #f] #:unit [unit ""])
+  (define denominator (representation-total-bits repr))
+  (cond
+    [(and numerator (positive? denominator))
+     (define percent (~r (- 100 (* (/ numerator denominator) 100)) #:precision '(= 1)))
+     (if (and (positive? numerator) sign)
+         (format "+~a~a" percent unit)
+         (format "~a~a" percent unit))]
+    [else ""]))
 
 (define (write-html xexpr out)
   (fprintf out "<!doctype html>\n")
@@ -71,21 +81,6 @@
   (match expr
     [(list op args ...) (ormap list? args)]
     [_ #f]))
-
-(define (fpcore->string core)
-  (define-values (ident args props expr)
-    (match core
-      [(list 'FPCore name (list args ...) props ... expr) (values name args props expr)]
-      [(list 'FPCore (list args ...) props ... expr) (values #f args props expr)]))
-  (define props* ; make sure each property (name, value) gets put on the same line
-    (for/list ([(prop name)
-                (in-dict (apply dict-set* '() props))]) ; how to make a list of pairs from a list
-      (format "~a ~a" prop name)))
-  (define top
-    (if ident
-        (format "FPCore ~a ~a" ident args)
-        (format "FPCore ~a" args)))
-  (pretty-format `(,top ,@props* ,expr) #:mode 'display))
 
 (define (doc-url page)
   (format "https://herbie.uwplse.org/doc/~a/~a" *herbie-version* page))
@@ -149,123 +144,16 @@
                                                       ("Wolfram" "wl" ,core->wls)
                                                       ("TeX" "tex" ,(λ (c i) (core->tex c)))))
 
-(define (program->tex prog ctx #:loc [loc #f])
-  (define prog* (program->fpcore prog ctx))
-  (if (supported-by-lang? prog* "tex")
-      (core->tex prog* #:loc (and loc (cons 2 loc)) #:color "blue")
+(define (fpcore->tex fpcore #:loc [loc #f])
+  (if (supported-by-lang? fpcore "tex")
+      (core->tex fpcore #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
-(define (combine-fpcore-instruction i e c)
-  (match i
-    [(list 'abs x)
-     (define x* (string->symbol (string-append (symbol->string x) "_m")))
-     (define e* (replace-expression e x x*))
-     (define p (index-of (context-vars c) x))
-     (define c* (struct-copy context c [vars (list-set (context-vars c) p x*)]))
-     (cons e* c*)]
-    [(list 'negabs x)
-     (define x-string (symbol->string x))
-     (define x-sign (string->symbol (string-append x-string "_s")))
-     (define x* (string->symbol (string-append x-string "_m")))
-     (define p (index-of (context-vars c) x))
-     (define r (list-ref (context-var-reprs c) p))
-     (define c* (struct-copy context c [vars (list-set (context-vars c) p x*)]))
-     (define c** (context-extend c* x-sign r))
-     (define *-impl (get-fpcore-impl '* (repr->prop (context-repr c)) (list r (context-repr c))))
-     (define e* (list *-impl x-sign (replace-expression e x x*)))
-     (cons e* c**)]
-    [_ (cons e c)]))
-
-(define (format-prelude-instruction instruction ctx ctx* language converter)
-  (define (converter* e c)
-    (define fpcore (program->fpcore e c))
-    (define output (converter fpcore "code"))
-    (define lines (string-split output "\n"))
-    (match language
-      ["FPCore" (pretty-format e #:mode 'display)]
-      ["Fortran" (string-trim (third lines) #px"\\s+code\\s+=\\s+")]
-      ["MATLAB" (string-trim (second lines) #px"\\s+tmp\\s+=\\s+")]
-      ["Wolfram" (string-trim (first lines) #px".*:=\\s+")]
-      ["TeX" output]
-      [_ (string-trim (second lines) #px"\\s+return\\s+")]))
-  (match instruction
-    [(list 'abs x)
-     (define x* (string->symbol (string-append (symbol->string x) "_m")))
-     (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
-     (define fabs-impl (get-fpcore-impl 'fabs (repr->prop r) (list r)))
-     (define e (list fabs-impl x))
-     (define c (context (list x) r r))
-     (list (format "~a = ~a" x* (converter* e c)))]
-    [(list 'negabs x)
-     ; TODO: why are x* and x-sign unused?
-     (define x* (string->symbol (format "~a_m" x)))
-     (define r (context-lookup ctx x))
-     (define fabs-impl (get-fpcore-impl 'fabs (repr->prop r) (list r)))
-     (define copysign-impl (get-fpcore-impl 'copysign (repr->prop r) (list r r)))
-     (define e* (list fabs-impl x))
-     (define x-sign (string->symbol (format "~a_s" x)))
-     (define e-sign (list copysign-impl (literal 1 (representation-name r)) x))
-     (define c (context (list x) r r))
-     (list (format "~a = ~a" (format "~a\\_m" x) (converter* e* c))
-           (format "~a = ~a" (format "~a\\_s" x) (converter* e-sign c)))]
-    [(list 'sort vs ...)
-     (define vs (context-vars ctx))
-     (define vs* (context-vars ctx*))
-     ;; We added some sign-* variables to the front of the variable
-     ;; list in `ctx*`, we only want the originals here
-     (list (format-sort-instruction (take-right vs* (length vs)) language))]))
-
-(define (format-sort-instruction vs l)
-  (match l
-    ["C" (format "assert(~a);" (format-less-than-condition vs))]
-    ["Java" (format "assert ~a;" (format-less-than-condition vs))]
-    ["Python"
-     (define comma-joined (comma-join vs))
-     (format "[~a] = sort([~a])" comma-joined comma-joined)]
-    ["Julia"
-     (define comma-joined (comma-join vs))
-     (format "~a = sort([~a])" comma-joined comma-joined)]
-    ["MATLAB"
-     (define comma-joined (comma-join vs))
-     (format "~a = num2cell(sort([~a])){:}" comma-joined comma-joined)]
-    ["TeX"
-     (define comma-joined (comma-join vs))
-     (format "[~a] = \\mathsf{sort}([~a])\\\\" comma-joined comma-joined)]
-    [_
-     (match vs
-       [(list x y) (format sort-note (format "~a and ~a" x y))]
-       [(list vs ...)
-        (format sort-note
-                (string-join (map ~a vs)
-                             ", "
-                             ;; "Lil Jon, he always tells the truth"
-                             #:before-last ", and "))])]))
-
-(define (format-less-than-condition variables)
-  (string-join (for/list ([a (in-list variables)]
-                          [b (in-list (cdr variables))])
-                 (format "~a < ~a" a b))
-               " && "))
-
-(define (comma-join vs)
-  (string-join (map ~a vs) ", "))
-
-(define sort-note "NOTE: ~a should be sorted in increasing order before calling this function.")
-
-(define (render-program expr
-                        ctx
-                        #:ident [identifier #f]
-                        #:pre [precondition '(TRUE)]
-                        #:instructions [instructions empty])
+(define (render-program expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)])
   (define output-repr (context-repr ctx))
-  (match-define (cons expr* ctx*)
-    (foldl (match-lambda*
-             [(list i (cons e c)) (combine-fpcore-instruction i e c)])
-           (cons expr ctx)
-           instructions))
   (define out-prog
     (parameterize ([*expr-cse-able?* at-least-two-ops?])
-      (core-cse (program->fpcore expr* ctx* #:ident identifier))))
+      (core-cse (program->fpcore expr ctx #:ident identifier))))
 
   (define output-prec (representation-name output-repr))
   (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec)))
@@ -281,19 +169,7 @@
                     (symbol->string identifier)
                     "code"))
               (define out (converter out-prog* name))
-              (define prelude-lines
-                (string-join
-                 (append-map (lambda (instruction)
-                               (format-prelude-instruction instruction ctx ctx* lang converter))
-                             instructions)
-                 (if (equal? lang "TeX") "\\\\\n" "\n")
-                 #:after-last "\n"))
-              (sow (cons lang
-                         ((if (equal? lang "TeX")
-                              (curry format "\\begin{array}{l}\n~a\\\\\n~a\\end{array}\n")
-                              string-append)
-                          prelude-lines
-                          out)))))))
+              (sow (cons lang out))))))
 
   (define math-out (dict-ref versions "TeX" ""))
 
@@ -362,18 +238,6 @@
                      (~r (* (/ num den) 100) #:precision '(= 1)))
                  "%"))
 
-(define (render-bogosity domain-info)
-  (define total (round (apply + (hash-values domain-info))))
-  (define tags '(valid unknown infinite unsamplable invalid precondition))
-  `(div ((class "bogosity"))
-        ,@(for/list ([tag tags])
-            (define pct (format-percent (hash-ref domain-info tag 0) total))
-            `(div ((class ,(format "bogosity-~a" tag)) [data-id ,(format "bogosity-~a" tag)]
-                                                       [data-type ,(~a tag)]
-                                                       [data-timespan
-                                                        ,(~a (hash-ref domain-info tag 0))]
-                                                       [title ,(format "~a (~a)" tag pct)])))))
-
 (define/contract (render-reproduction test #:bug? [bug? #f])
   (->* (test?) (#:bug? boolean?) xexpr?)
 
@@ -399,12 +263,14 @@
 
 (define js-tex-include
   '((link ([rel "stylesheet"]
-           [href "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css"]
-           [integrity "sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH"]
+           [href "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css"]
+           [integrity "sha384-5TcZemv2l/9On385z///+d7MSYlvIEw9FuZTIdZ14vJLqWphw7e7ZPuOiCHJcFCP"]
            [crossorigin "anonymous"]))
-    (script ([src "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js"]
-             [integrity "sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm"]
-             [crossorigin "anonymous"]))
-    (script ([src "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js"]
-             [integrity "sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH"]
+    (script ([defer ""] [src "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"]
+                        [integrity
+                         "sha384-cMkvdD8LoxVzGF/RPUKAcvmm49FQ0oxwDF3BGKtDXcEc+T1b2N+teh/OJfpU0jr6"]
+                        [crossorigin "anonymous"]))
+    (script ([defer ""]
+             [src "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js"]
+             [integrity "sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh"]
              [crossorigin "anonymous"]))))

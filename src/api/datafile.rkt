@@ -2,7 +2,8 @@
 
 (require json
          racket/date)
-(require "../syntax/types.rkt"
+(require "../syntax/platform.rkt"
+         "../syntax/types.rkt"
          "../utils/common.rkt"
          "../utils/pareto.rkt")
 
@@ -17,7 +18,6 @@
         (name identifier
               status
               pre
-              preprocess
               precision
               conversions
               vars
@@ -35,8 +35,7 @@
   #:prefab)
 
 (struct report-info (date commit branch seed flags points iterations tests merged-cost-accuracy)
-  #:prefab
-  #:mutable)
+  #:prefab)
 
 (define (make-report-info tests #:seed [seed #f])
   (report-info (current-date)
@@ -99,7 +98,6 @@
                              identifier
                              status
                              pre
-                             preprocess
                              prec
                              conversions
                              vars
@@ -127,7 +125,6 @@
                  (list cost error (~a expr))))]))
     (make-hash `((name . ,name) (identifier . ,(~s identifier))
                                 (pre . ,(~s pre))
-                                (preprocess . ,(~s preprocess))
                                 (prec . ,(~s prec))
                                 (bits . ,(representation-total-bits (get-representation prec)))
                                 (conversions . ,(map (curry map ~s) conversions))
@@ -208,7 +205,6 @@
                               (parse-string (hash-ref test 'identifier "#f"))
                               (get 'status)
                               (parse-string (hash-ref test 'pre "TRUE"))
-                              (parse-string (hash-ref test 'preprocess "()"))
                               (parse-string (hash-ref test 'prec "binary64"))
                               (let ([cs (hash-ref test 'conversions "()")])
                                 (if (string? cs)
@@ -228,9 +224,6 @@
                               cost-accuracy)))
                (hash-ref json 'merged-cost-accuracy null)))
 
-(define (unique? a)
-  (or (null? a) (andmap (curry equal? (car a)) (cdr a))))
-
 (define (merge-datafiles dfs #:dirs [dirs #f])
   (when (null? dfs)
     (error 'merge-datafiles "Cannot merge no datafiles"))
@@ -239,7 +232,7 @@
                           report-info-flags
                           report-info-points
                           report-info-iterations))]
-        #:unless (unique? (map f dfs)))
+        #:unless (<= (set-count (list->set (map f dfs))) 1))
     (error 'merge-datafiles "Cannot merge datafiles at different ~a" f))
   (unless dirs
     (set! dirs (map (const #f) dfs)))

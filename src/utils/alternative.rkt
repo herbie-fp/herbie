@@ -1,40 +1,19 @@
 #lang racket
 
-(require "../syntax/platform.rkt")
+(require "../syntax/platform.rkt"
+         "../core/batch.rkt")
 (provide (struct-out alt)
          make-alt
-         alt?
-         alt-expr
-         alt-add-event
-         *start-prog*
-         *all-alts*
          alt-cost
-         alt-equal?
          alt-map
-         alt-add-preprocessing
-         make-alt-preprocessing)
+         unbatchify-alts)
 
-;; Alts are a lightweight audit trail.
-;; An alt records a low-level view of how Herbie got
-;; from one program to another.
-;; They are a labeled linked list of changes.
+;; Alts are an expression plus a derivation for it.
 
-(struct alt (expr event prevs preprocessing) #:prefab)
+(struct alt (expr event prevs) #:prefab)
 
 (define (make-alt expr)
-  (alt expr 'start '() '()))
-
-(define (make-alt-preprocessing expr preprocessing)
-  (alt expr 'start '() preprocessing))
-
-(define (alt-equal? x y)
-  (equal? (alt-expr x) (alt-expr y)))
-
-(define (alt-add-event altn event)
-  (alt (alt-expr altn) event (list altn) (alt-preprocessing altn)))
-
-(define (alt-add-preprocessing altn preprocessing)
-  (alt (alt-expr altn) 'add-preprocessing (list altn) preprocessing))
+  (alt expr 'start '()))
 
 (define (alt-cost altn repr)
   (define expr-cost (platform-cost-proc (*active-platform*)))
@@ -43,9 +22,14 @@
 (define (alt-map f altn)
   (f (struct-copy alt altn [prevs (map (curry alt-map f) (alt-prevs altn))])))
 
-;; A useful parameter for many of Herbie's subsystems, though
-;; ultimately one that should be located somewhere else or perhaps
-;; exorcised
-
-(define *start-prog* (make-parameter #f))
-(define *all-alts* (make-parameter '()))
+;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
+(define (unbatchify-alts batch altns)
+  (define exprs (batch-exprs batch))
+  (define (unmunge altn)
+    (define expr (alt-expr altn))
+    (match expr
+      [(? batchref? brf)
+       (define expr* (exprs brf))
+       (struct-copy alt altn [expr expr*])]
+      [_ altn]))
+  (map (curry alt-map unmunge) altns))

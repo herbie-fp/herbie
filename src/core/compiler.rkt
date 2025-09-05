@@ -2,11 +2,13 @@
 
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
+         "../syntax/platform.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
          "batch.rkt")
 
 (provide compile-progs
+         compile-batch
          compile-prog)
 
 ;; Interpreter taking a narrow IR
@@ -45,15 +47,18 @@
     [(list op a b c) (op (vector-ref regs a) (vector-ref regs b) (vector-ref regs c))]
     [(list op args ...) (apply op (map (curry vector-ref regs) args))]))
 
-(define (if-proc c a b)
-  (if c a b))
-
-(define (batch-remove-approx batch)
-  (batch-replace batch
+; This functions needs to preserve vars
+(define (batch-for-compiler batch brfs vars)
+  (define-values (batch* brfs*)
+    (batch-apply batch
+                 brfs
                  (lambda (node)
                    (match node
                      [(approx spec impl) impl]
                      [node node]))))
+  (define-values (batch** _) (progs->batch vars))
+  (define brfs** (map (batch-copy-only! batch** batch*) brfs*))
+  (values batch** brfs**))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values
@@ -62,26 +67,26 @@
 ;; Requires some hooks to complete the translation.
 (define (compile-progs exprs ctx)
   (define vars (context-vars ctx))
-  (define num-vars (length vars))
-  (define batch
-    (if (batch? exprs)
-        exprs
-        (progs->batch exprs #:vars vars)))
+  (define-values (batch brfs) (progs->batch exprs #:vars vars))
+  (compile-batch batch brfs ctx))
 
-  (timeline-push! 'compiler (batch-tree-size batch) (batch-length batch))
+(define (compile-batch batch brfs ctx)
+  (define vars (context-vars ctx))
+  (define num-vars (length vars))
 
   ; Here we need to keep vars even though no roots refer to the vars
-  (define batch* (batch-remove-zombie (batch-remove-approx batch) #:keep-vars #t))
+  (define-values (batch* brfs*) (batch-for-compiler batch brfs vars))
+  (timeline-push! 'compiler (batch-tree-size batch* brfs*) (batch-length batch*))
 
   (define instructions
     (for/vector #:length (- (batch-length batch*) num-vars)
-                ([node (in-vector (batch-nodes batch*) num-vars)])
+                ([node (in-batch batch* num-vars)])
       (match node
         [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
-        [(list 'if c t f) (list if-proc c t f)]
         [(list op args ...) (cons (impl-info op 'fl) args)])))
+  (define rootvec (list->vector (map batchref-idx brfs*)))
 
-  (make-progs-interpreter vars instructions (batch-roots batch*)))
+  (make-progs-interpreter vars instructions rootvec))
 
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)

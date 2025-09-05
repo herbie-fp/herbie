@@ -123,7 +123,7 @@
 (define (reduce-node* expr)
   (match (reduce-evaluation expr)
     [(? number?) expr]
-    [(? variable?) expr]
+    [(? symbol?) expr]
     [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
      (make-addition-node (combine-aterms (gather-additive-terms expr)))]
     [(or `(* ,_ ...)
@@ -144,7 +144,7 @@
   (let ([label (or label expr)])
     (match expr
       [(? number?) `((,expr 1))]
-      [(? variable?) `((1 ,expr))]
+      [(? symbol?) `((1 ,expr))]
       [`(+ ,args ...) (append-map recurse args)]
       [`(neg ,arg) (map negate-term (recurse arg))]
       [`(- ,arg ,args ...) (append (recurse arg) (map negate-term (append-map recurse args)))]
@@ -167,10 +167,10 @@
     ['NAN `(NAN)]
     [(? symbol?) `(1 (1 . ,expr))]
     [`(neg ,arg)
-     (let ([terms (gather-multiplicative-terms arg)])
-       (if (eq? (car terms) 'NAN)
-           '(NAN)
-           (cons (- (car terms)) (cdr terms))))]
+     (define terms (gather-multiplicative-terms arg))
+     (if (eq? (car terms) 'NAN)
+         '(NAN)
+         (cons (- (car terms)) (cdr terms)))]
     [`(* ,args ...)
      (define terms (map gather-multiplicative-terms args))
      (if (ormap (curry eq? 'NAN) (map car terms))

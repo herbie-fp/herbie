@@ -51,10 +51,10 @@
 
   (check-equal? (e2->expr '(Var "y")) 'y)
 
-  (check-equal? (e2->expr '(IfTy (Var "y")
-                                 (Num (bigrat (from-string "1") (from-string "2")))
-                                 (Num (bigrat (from-string "0") (from-string "1")))))
-                '(if y 1/2 0))
+  (check-equal? (e2->expr '(Iff64Ty (Var "y")
+                                    (Num (bigrat (from-string "1") (from-string "2")))
+                                    (Num (bigrat (from-string "0") (from-string "1")))))
+                '(if.f64 y 1/2 0))
 
   (check-equal? (e2->expr '(Mulf64Ty (Num (bigrat (from-string "2") (from-string "1")))
                                      (Num (bigrat (from-string "3") (from-string "1")))))
@@ -154,10 +154,10 @@
                                                (Var "z"))))
                 '(*.f32 3/2 (+.f32 4/5 z)))
 
-  (check-equal? (e2->expr '(IfTy (Var "cond")
-                                 (Num (bigrat (from-string "7") (from-string "8")))
-                                 (Num (bigrat (from-string "-2") (from-string "3")))))
-                '(if cond 7/8 -2/3)))
+  (check-equal? (e2->expr '(Iff32Ty (Var "cond")
+                                    (Num (bigrat (from-string "7") (from-string "8")))
+                                    (Num (bigrat (from-string "-2") (from-string "3")))))
+                '(if.f32 cond 7/8 -2/3)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing API
@@ -262,6 +262,8 @@
                                        (Neqf64Ty . !=.f64)
                                        (NotboolTy . not.bool)
                                        (OrboolTy . or.bool)
+                                       (Iff32Ty . if.f32)
+                                       (Iff64Ty . if.f64)
                                        (Pif32Ty . PI.f32)
                                        (Pif64Ty . PI.f64)
                                        (Powf32Ty . pow.f32)
@@ -293,11 +295,9 @@
 ; run-tests
 (module+ test
   (require rackunit
-           "../syntax/load-plugin.rkt"
            "egglog-herbie.rkt")
 
   (when (find-executable-path "egglog")
-    (load-herbie-builtins)
     (populate-e->id-tables)
     (test-e1->expr)
     (test-e2->expr)))
@@ -306,15 +306,16 @@
 (module+ test
   (require rackunit
            "egglog-herbie.rkt"
-           "../syntax/load-plugin.rkt"
            "../syntax/types.rkt"
            "batch.rkt"
            "rules.rkt"
-           "../config.rkt")
+           "../config.rkt"
+           "../syntax/platform.rkt"
+           "../utils/float.rkt"
+           "../syntax/load-platform.rkt")
+  (activate-platform! "c")
 
-  (load-herbie-builtins)
-
-  (define batch
+  (define-values (batch brfs)
     (progs->batch (list '(-.f64 (sin.f64 (+.f64 x eps)) (sin.f64 x))
                         '(sin.f64 (+.f64 x eps))
                         '(+.f64 x eps)
@@ -322,7 +323,7 @@
                         'eps
                         '(sin.f64 x))))
 
-  (define batch2
+  (define-values (batch2 brfs2)
     (progs->batch
      (list
       '(-.f64 (sin.f64 (+.f64 x #s(literal 1 binary64))) (sin.f64 x))
@@ -363,11 +364,9 @@
       #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (- (sin (- 1 (* -1 x))) (sin x))))
       #s(approx (sin (+ x 1)) #s(hole binary64 (sin (- 1 (* -1 x))))))))
 
-  (define roots (batch-roots batch))
+  (define ctx (context '(x eps) <binary64> (make-list 2 <binary64>)))
 
-  (define ctx (make-debug-context '(x eps)))
-
-  (define reprs (make-list (vector-length (batch-roots batch)) (context-repr ctx)))
+  (define reprs (make-list (length brfs) (context-repr ctx)))
 
   (define rules (*rules*))
   (define schedule
@@ -376,4 +375,4 @@
       (lower . ((iteration . 1) (scheduler . simple)))))
 
   (when (find-executable-path "egglog")
-    (run-egglog-multi-extractor (egglog-runner batch roots reprs schedule ctx) batch)))
+    (run-egglog-multi-extractor (egglog-runner batch brfs reprs schedule ctx) batch)))

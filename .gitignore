@@ -17,6 +17,7 @@ rival
 regraph
 egg-herbie/pkg
 odyssey
+generic-flonum
 
 # Racket
 *.zo

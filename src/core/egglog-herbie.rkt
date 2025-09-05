@@ -6,7 +6,6 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../config.rkt"
-         "../syntax/load-plugin.rkt"
          "batch.rkt"
          "egglog-program.rkt"
          "../utils/common.rkt"
@@ -48,7 +47,7 @@
 
 ;; Herbie's version of an egglog runner.
 ;; Defines parameters for running rewrite rules with egglog
-(struct egglog-runner (batch roots reprs schedule ctx)
+(struct egglog-runner (batch brfs reprs schedule ctx)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -65,7 +64,7 @@
 ;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
-(define (make-egglog-runner batch roots reprs schedule #:context [ctx (*context*)])
+(define (make-egglog-runner batch brfs reprs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -91,12 +90,12 @@
       [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
 
   ; make the runner
-  (egglog-runner batch roots reprs schedule ctx))
+  (egglog-runner batch brfs reprs schedule ctx))
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
 (define (run-egglog-multi-extractor runner output-batch) ; multi expression extraction
-  (define insert-batch
-    (batch-remove-zombie (egglog-runner-batch runner) (egglog-runner-roots runner)))
+  (define insert-batch (egglog-runner-batch runner))
+  (define insert-brfs (egglog-runner-brfs runner))
   (define curr-program (make-egglog-program))
 
   ;; Dump-file
@@ -186,7 +185,7 @@
   ;; keep track of the mapping between each binding and its corresponding constructor.
 
   (define-values (all-bindings extract-bindings)
-    (egglog-add-exprs insert-batch (egglog-runner-ctx runner) curr-program))
+    (egglog-add-exprs insert-batch insert-brfs (egglog-runner-ctx runner) curr-program))
 
   (egglog-program-add! `(ruleset run-extract-commands) curr-program)
   (egglog-program-add! `(rule () (,@all-bindings) :ruleset run-extract-commands) curr-program)
@@ -262,8 +261,6 @@
                     dump-file
                     #:num-extracts (length extract-commands)))
 
-  (define output-mutable-batch (batch->mutable-batch output-batch))
-
   ;; (Listof (Listof exprs))
   (define herbie-exprss
     (for/list ([next-expr (in-list stdout-content)])
@@ -271,14 +268,10 @@
 
   (define result
     (for/list ([variants (in-list herbie-exprss)])
-      (remove-duplicates (for/list ([v (in-list variants)])
-                           (egglog->batchref v
-                                             output-batch
-                                             output-mutable-batch
-                                             (context-repr (egglog-runner-ctx runner))))
-                         #:key batchref-idx)))
-
-  (batch-copy-mutable-nodes! output-batch output-mutable-batch)
+      (remove-duplicates
+       (for/list ([v (in-list variants)])
+         (egglog->batchref v output-batch (context-repr (egglog-runner-ctx runner))))
+       #:key batchref-idx)))
 
   ;; Close everything subprocess related
   (close-output-port egglog-in)
@@ -291,7 +284,7 @@
   ;; (Listof (Listof batchref))
   result)
 
-(define (egglog->batchref expr input-batch out type)
+(define (egglog->batchref expr batch type)
   (define idx
     (let loop ([expr expr]
                [type type])
@@ -302,10 +295,6 @@
                (literal expr (representation-name type))
                expr)]
           [(? symbol?) expr]
-          [`(if ,cond ,ift ,iff)
-           (if (representation? type)
-               (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
-               (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
           [(approx spec impl) (approx (loop spec #f) (loop impl type))]
           [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
           [(list op args ...)
@@ -313,22 +302,17 @@
              (for/list ([arg (in-list args)])
                (loop arg #f)))
            (cons op args*)]))
-      (mutable-batch-push! out term)))
-  (batchref input-batch idx))
+      (batchref-idx (batch-push! batch term))))
+  (batchref batch idx))
 
 (define (normalize-cost c min-cost)
   (exact-round (* (/ c min-cost) 100)))
 
 (define (prelude curr-program #:mixed-egraph? [mixed-egraph? #t])
-  (load-herbie-builtins)
   (define pform (*active-platform*))
 
   (define spec-egraph
-    `(datatype M
-               (Num BigRat :cost 4294967295)
-               (Var String :cost 4294967295)
-               (If M M M :cost 4294967295)
-               ,@(platform-spec-nodes)))
+    `(datatype M (Num BigRat :cost 4294967295) (Var String :cost 4294967295) ,@(platform-spec-nodes)))
 
   (egglog-program-add! spec-egraph curr-program)
 
@@ -340,31 +324,20 @@
   (for ([repr (in-list (all-repr-names))])
     (set! raw-costs (cons (platform-repr-cost pform (get-representation repr)) raw-costs)))
 
-  ;; Add raw if-cost
-  (set! raw-costs
-        (cons (match (platform-impl-cost pform 'if)
-                [`(max ,n) n] ; Not quite right (copied from egg-herbie.rkt)
-                [`(sum ,n) n])
-              raw-costs))
-
   ;; Add raw platform-impl-nodes
   (for ([impl (in-list (platform-impls pform))])
-    (set! raw-costs (cons (platform-impl-cost pform impl) raw-costs)))
+    (set! raw-costs (cons (impl-info impl 'cost) raw-costs)))
 
-  (define min-cost (apply min raw-costs))
+  (define nonzero-costs (filter (negate zero?) raw-costs))
+  (define min-cost
+    (if (empty? nonzero-costs)
+        1
+        (apply min nonzero-costs)))
 
   (define typed-graph
     `(datatype MTy
                ,@(num-typed-nodes pform min-cost)
                ,@(var-typed-nodes pform min-cost)
-               (IfTy MTy
-                     MTy
-                     MTy
-                     :cost
-                     ,(normalize-cost (match (platform-impl-cost pform 'if)
-                                        [`(max ,n) n] ; Not quite right (copied from egg-herbie.rkt)
-                                        [`(sum ,n) n])
-                                      min-cost))
                (Approx M MTy)
                ,@(platform-impl-nodes pform min-cost)))
   (egglog-program-add! typed-graph curr-program)
@@ -404,11 +377,6 @@
 
   (for ([curr-expr (num-lifting-rules)])
     (egglog-program-add! curr-expr curr-program))
-
-  (for ([curr-expr (if-lowering-rules)])
-    (egglog-program-add! curr-expr curr-program))
-
-  (egglog-program-add! (if-lifting-rule) curr-program)
 
   (egglog-program-add! (approx-lifting-rule) curr-program)
 
@@ -487,7 +455,7 @@
     `(,typed-name ,@(for/list ([i (in-range arity)])
                       'MTy)
                   :cost
-                  ,(normalize-cost (platform-impl-cost pform impl) min-cost))))
+                  ,(normalize-cost (impl-info impl 'cost) min-cost))))
 
 (define (typed-num-id repr-name)
   (string->symbol (string-append "Num" (symbol->string repr-name))))
@@ -533,33 +501,6 @@
             (union (lift e) se))
            :ruleset
            lifting)))
-
-(define (if-lowering-rules)
-  (for/list ([repr (in-list (all-repr-names))])
-    `(rule ((= e (If ifc ift iff)) (= tifc (lower ifc "bool"))
-                                   (= tift (lower ift ,(symbol->string repr)))
-                                   (= tiff (lower iff ,(symbol->string repr))))
-           ((let t0 ,(symbol->string repr)
-              )
-            (let et0 (IfTy
-                      tifc
-                      tift
-                      tiff)
-              )
-            (union (lower e t0) et0))
-           :ruleset
-           lowering)))
-
-(define (if-lifting-rule)
-  `(rule ((= e (IfTy ifc ift iff)) (= sifc (lift ifc)) (= sift (lift ift)) (= siff (lift iff)))
-         ((let se (If
-                   sifc
-                   sift
-                   siff)
-            )
-          (union (lift e) se))
-         :ruleset
-         lifting))
 
 (define (approx-lifting-rule)
   `(rule ((= e (Approx spec impl))) ((union (lift e) spec)) :ruleset lifting))
@@ -637,7 +578,6 @@
          (bigrat (from-string ,(number->string (numerator (literal-value expr))))
                  (from-string ,(number->string (denominator (literal-value expr))))))]
       [(? symbol?) expr]
-      [`(if ,cond ,ift ,iff) `(IfTy ,(loop cond repr) ,(loop ift repr) ,(loop iff repr))]
       [(list op args ...)
        `(,(hash-ref (id->e2) op) ,@(for/list ([arg (in-list args)]
                                               [itype (in-list (impl-info op 'itype))])
@@ -650,7 +590,6 @@
        `(Num (bigrat (from-string ,(number->string (numerator expr)))
                      (from-string ,(number->string (denominator expr)))))]
       [(? symbol?) expr]
-      [`(if ,cond ,ift ,iff) `(If ,(loop cond) ,(loop ift) ,(loop iff))]
       [(list op args ...) `(,(hash-ref (id->e1) op) ,@(map loop args))])))
 
 (define (expr->e1-expr expr)
@@ -660,23 +599,17 @@
        `(Num (bigrat (from-string ,(number->string (numerator expr)))
                      (from-string ,(number->string (denominator expr)))))]
       [(? symbol?) `(Var ,(symbol->string expr))]
-      [`(if ,cond ,ift ,iff) `(If ,(loop cond) ,(loop ift) ,(loop iff))]
       [(list op args ...) `(,(hash-ref (id->e1) op) ,@(map loop args))])))
 
 (define (egglog-rewrite-rules rules tag)
   (for/list ([rule (in-list rules)]
              #:when (not (symbol? (rule-input rule))))
-    (if (not (representation? (rule-otype rule)))
-        `(rewrite ,(expr->e1-pattern (rule-input rule))
-                  ,(expr->e1-pattern (rule-output rule))
-                  :ruleset
-                  ,tag)
-        `(rewrite ,(expr->e2-pattern (rule-input rule) (rule-otype rule))
-                  ,(expr->e2-pattern (rule-output rule) (rule-otype rule))
-                  :ruleset
-                  ,tag))))
+    `(rewrite ,(expr->e1-pattern (rule-input rule))
+              ,(expr->e1-pattern (rule-output rule))
+              :ruleset
+              ,tag)))
 
-(define (egglog-add-exprs batch ctx curr-program)
+(define (egglog-add-exprs batch brfs ctx curr-program)
   (define mappings (build-vector (batch-length batch) values))
   (define bindings (make-hash))
   (define vars (make-hash))
@@ -701,37 +634,30 @@
   (define root-bindings '())
   ; Inserting nodes bottom-up
   (define root-mask (make-vector (batch-length batch) #f))
-  (define spec-mask (make-vector (batch-length batch) #f))
 
-  (for ([n (in-range (batch-length batch))])
-    (define node (vector-ref (batch-nodes batch) n))
-    (match node
-      [(? literal?) (vector-set! spec-mask n #f)] ;; If literal, not a spec
-      [(? number?) (vector-set! spec-mask n #t)] ;; If number, it's a spec
-      [(? symbol?)
-       (vector-set!
-        spec-mask
-        n
-        #f)] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
-      [(hole _ _) (vector-set! spec-mask n #f)] ;; If hole, not a spec
-      [(approx _ _) (vector-set! spec-mask n #f)] ;; If approx, not a spec
+  ;; Batchref -> Boolean
+  (define spec?
+    (batch-map
+     batch
+     (lambda (get-spec node)
+       (match node
+         [(? literal?) #f] ;; If literal, not a spec
+         [(? number?) #t] ;; If number, it's a spec
+         [(? symbol?)
+          #f] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
+         [(hole _ _) #f] ;; If hole, not a spec
+         [(approx _ _) #f] ;; If approx, not a spec
+         [`(if ,cond ,ift ,iff)
+          (get-spec cond)] ;; If the condition or any branch is a spec, then this is a spec
+         [(list appl args ...)
+          (if (hash-has-key? (id->e1) appl)
+              #t ;; appl with op -> Is a spec
+              #f)])))) ;; appl impl -> Not a spec
 
-      ;; If the condition or any branch is a spec, then this is a spec
-      [`(if ,cond ,ift ,iff) (vector-set! spec-mask n (vector-ref spec-mask cond))]
-
-      [(list appl args ...)
-       (if (hash-has-key? (id->e1) appl)
-           ;; appl with op -> Is a spec
-           (vector-set! spec-mask n #t)
-
-           ;; appl impl -> Not a spec
-           (vector-set! spec-mask n #f))]))
-
-  (for ([root (in-vector (batch-roots batch))])
-    (vector-set! root-mask root #t))
-  (for ([node (in-vector (batch-nodes batch))]
+  (for ([brf brfs])
+    (vector-set! root-mask (batchref-idx brf) #t))
+  (for ([node (in-batch batch)]
         [root? (in-vector root-mask)]
-        [spec? (in-vector spec-mask)]
         [n (in-naturals)])
     (define node*
       (match node
@@ -742,16 +668,14 @@
          `(Num (bigrat (from-string ,(number->string (numerator node)))
                        (from-string ,(number->string (denominator node)))))]
         [(? symbol?) #f]
-        [`(if ,cond ,ift ,iff)
-         (list (if spec? 'If 'IfTy) (remap cond spec?) (remap ift spec?) (remap iff spec?))]
         [(approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
         [(list impl args ...)
-         `(,(hash-ref (if spec?
+         `(,(hash-ref (if (spec? (batchref batch n))
                           (id->e1)
                           (id->e2))
                       impl)
            ,@(for/list ([arg (in-list args)])
-               (remap arg spec?)))]
+               (remap arg (spec? (batchref batch n)))))]
 
         [(hole ty spec) `(lower ,(remap spec #t) ,(symbol->string ty))]))
 
@@ -872,10 +796,11 @@
     (set! constructor-num (add1 constructor-num)))
 
   (define curr-bindings
-    (for/list ([root (batch-roots batch)])
+    (for/list ([brf brfs])
+      (define root (batchref-idx brf))
       (define curr-binding-name
         (if (hash-has-key? vars root)
-            (if (vector-ref spec-mask root)
+            (if (spec? brf)
                 (string->symbol (format "?~a" (hash-ref vars root)))
                 (string->symbol (format "?t~a" (hash-ref vars root))))
             (string->symbol (format "?r~a" root))))
@@ -1079,7 +1004,7 @@
 (define (egglog-expr-typed? expr)
   (match expr
     [(? number?) #t]
-    [(? variable?) #t]
+    [(? symbol?) #t]
     [`(,impl ,args ...) (and (not (eq? impl 'typed-id)) (andmap egglog-expr-typed? args))]))
 
 (define (e1->expr expr)
@@ -1088,10 +1013,6 @@
       [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
        (/ (string->number n) (string->number d))]
       [`(,(? egglog-var? var) ,v) (string->symbol v)]
-      [`(If ,cond ,ift ,iff)
-       `(if ,(loop cond)
-            ,(loop ift)
-            ,(loop iff))]
       [`(,op ,args ...) `(,(hash-ref (e1->id) op) ,@(map loop args))])))
 
 (define (e2->expr expr)
@@ -1100,9 +1021,5 @@
       [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
        (/ (string->number n) (string->number d))]
       [`(,(? egglog-var? var) ,v) (string->symbol v)]
-      [`(IfTy ,cond ,ift ,iff)
-       `(if ,(loop cond)
-            ,(loop ift)
-            ,(loop iff))]
       [`(Approx ,spec ,impl) (approx (e1->expr spec) (loop impl))] ;;; todo approx bug or not?
       [`(,impl ,args ...) `(,(hash-ref (e2->id) impl) ,@(map loop args))])))

@@ -1,26 +1,10 @@
 #lang racket
 
+(require racket/hash)
+
 (provide (all-defined-out))
 
 ;;; Flags
-
-(define all-flags
-  #hash([precision . (double fallback)]
-        [setup . (simplify search)]
-        [localize . (costs errors)]
-        [generate . (rr taylor simplify better-rr proofs egglog evaluate)]
-        [reduce . (regimes avg-error binary-search branch-expressions simplify)]
-        [rules
-         . (arithmetic polynomials
-                       fractions
-                       exponents
-                       trigonometry
-                       hyperbolic
-                       numerics
-                       special
-                       bools
-                       branches)]
-        [dump . (egg rival egglog)]))
 
 (define default-flags
   #hash([precision . ()]
@@ -28,19 +12,45 @@
         [localize . ()]
         [generate . (rr taylor proofs evaluate)]
         [reduce . (regimes binary-search branch-expressions)]
-        [rules
-         . (arithmetic polynomials
-                       fractions
-                       exponents
-                       trigonometry
-                       hyperbolic
-                       numerics
-                       special
-                       bools
-                       branches)]
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic)]
         [dump . ()]))
 
-(define (check-flag-deprecated! category flag)
+(define deprecated-flags
+  #hash([precision . (double fallback)]
+        [setup . (simplify)]
+        [localize . (costs errors)]
+        [generate . (better-rr simplify)]
+        [reduce . (avg-error simplify)]
+        [rules . (numerics special bools branches)]))
+
+(define debug-flags #hash([generate . (egglog)] [dump . (egg rival egglog trace)]))
+
+(define all-flags (hash-union default-flags deprecated-flags debug-flags #:combine set-union))
+
+(define (flag-deprecated? category flag)
+  (set-member? (dict-ref deprecated-flags category '()) flag))
+
+; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
+(define *flags* (make-parameter (make-immutable-hash (hash->list default-flags))))
+
+(define (flag-set? class flag)
+  (set-member? (dict-ref (*flags*) class) flag))
+
+(define (enable-flag! category flag)
+  (when (flag-deprecated? category flag)
+    (warn-flag-deprecated! category flag))
+  (define (update cat-flags)
+    (set-add cat-flags flag))
+  (*flags* (dict-update (*flags*) category update)))
+
+(define (disable-flag! category flag)
+  (when (flag-deprecated? category flag)
+    (warn-flag-deprecated! category flag))
+  (define (update cat-flags)
+    (set-remove cat-flags flag))
+  (*flags* (dict-update (*flags*) category update)))
+
+(define (warn-flag-deprecated! category flag)
   (match* (category flag)
     [('precision 'double)
      (eprintf "The precision:double option has been removed.\n")
@@ -78,32 +88,11 @@
      (eprintf "The localize:errors option has been removed.\n")
      (eprintf "  Herbie no longer performs localization.\n")
      (eprintf "See <herbie://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
+    [('rules _)
+     (eprintf "The rules:~a ruleset has been removed.\n")
+     (eprintf "  These rules are no longer used by Herbie.\n")
+     (eprintf "See <herbie://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
     [(_ _) (void)]))
-
-(define (enable-flag! category flag)
-  (check-flag-deprecated! category flag)
-  (define (update cat-flags)
-    (set-add cat-flags flag))
-  (*flags* (dict-update (*flags*) category update)))
-
-(define (disable-flag! category flag)
-  (check-flag-deprecated! category flag)
-  (define (update cat-flags)
-    (set-remove cat-flags flag))
-  (*flags* (dict-update (*flags*) category update)))
-
-(define (flag-set? class flag)
-  (set-member? (dict-ref (*flags*) class) flag))
-
-(define (flag-deprecated? category flag)
-  (match* (category flag)
-    [('precision 'double) #t]
-    [('precision 'fallback) #t]
-    [('generate 'better-rr) #t]
-    [(_ _) #f]))
-
-; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
-(define *flags* (make-parameter (make-immutable-hash (hash->list default-flags))))
 
 (define (changed-flags)
   (filter identity
@@ -130,8 +119,6 @@
 ;; The maximum number of consecutive skipped points for sampling valid points
 (define *max-skipped-points* (make-parameter 100))
 
-(define *max-bsearch-bits* (make-parameter 48))
-
 ;; Maximum MPFR precision allowed during exact evaluation
 (define *max-mpfr-prec* (make-parameter 10000))
 
@@ -139,9 +126,6 @@
 (define *node-limit* (make-parameter 4000))
 (define *proof-max-length* (make-parameter 200))
 (define *proof-max-string-length* (make-parameter 10000))
-
-;; In localization, the maximum number of locations returned
-(define *localize-expressions-limit* (make-parameter 4))
 
 ;; How long of a Taylor series to generate; too long and we time out
 (define *taylor-order-limit* (make-parameter 4))
@@ -151,17 +135,13 @@
 (define *binary-search-accuracy* (make-parameter 48))
 
 ;; Pherbie related options
-(define *pareto-mode* (make-parameter #t))
 (define *pareto-pick-limit* (make-parameter 5))
 
 ;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))
 
 ;; The platform that Herbie will evaluate with.
-(define *platform-name* (make-parameter 'c))
-
-;; Plugins loaded locally rather than through Racket.
-(define *loose-plugins* (make-parameter '()))
+(define *platform-name* (make-parameter (if (equal? (system-type 'os) 'windows) "c-windows" "c")))
 
 ;; Sets the number of total points for Herbie to sample.
 (define *reeval-pts* (make-parameter 8000))
@@ -174,6 +154,20 @@
 
 ;; The number of iterations for the egglog search
 (define *default-egglog-iter-limit* (make-parameter 50))
+
+;;; The random seed
+
+(define the-seed #f)
+
+(define (get-seed)
+  (or the-seed (error "Seed is not set yet!")))
+
+(define (set-seed! seed)
+  "Reset the random number generator to a new seed"
+  (set! the-seed seed)
+  (if (vector? seed)
+      (current-pseudo-random-generator (vector->pseudo-random-generator seed))
+      (random-seed seed)))
 
 ;;; About Herbie:
 
@@ -189,7 +183,7 @@
      (if (equal? out "") default out)]
     [else default]))
 
-(define *herbie-version* "2.2")
+(define *herbie-version* "2.3")
 
 (define *herbie-commit* (git-command "rev-parse" "HEAD" #:default *herbie-version*))
 

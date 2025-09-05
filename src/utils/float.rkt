@@ -50,25 +50,18 @@
   (real->double-flonum (log x 2)))
 
 (define (random-generate repr)
-  ((representation-ordinal->repr repr) (random-bits (representation-total-bits repr))))
+  (define bits (sub1 (representation-total-bits repr)))
+  ((representation-ordinal->repr repr) (random-integer (- (expt 2 bits)) (expt 2 bits))))
 
 (define (=/total x1 x2 repr)
   (define ->ordinal (representation-repr->ordinal repr))
   (define special? (representation-special-value? repr))
-  (or (= (->ordinal x1) (->ordinal x2))
-      (if (real? x1) ; Infinities are considered special values for real reprs for some reason
-          (and (nan? x1) (nan? x2))
-          (and (special? x1) (special? x2)))))
+  (or (= (->ordinal x1) (->ordinal x2)) (and (special? x1) (special? x2))))
 
 (define (</total x1 x2 repr)
   (define special? (representation-special-value? repr))
   (define ->ordinal (representation-repr->ordinal repr))
   (cond
-    [(and (real? x1) (real? x2))
-     (cond
-       [(nan? x1) #f]
-       [(nan? x2) #t]
-       [else (< x1 x2)])]
     [(special? x1) #f]
     [(special? x2) #t]
     [else (< (->ordinal x1) (->ordinal x2))]))
@@ -125,7 +118,8 @@
              (loop (+ precision 4))))]))) ; 2^4 > 10
 
 (define (real->repr x repr)
-  ((representation-bf->repr repr) (bf x)))
+  (parameterize ([bf-precision (representation-total-bits repr)])
+    ((representation-bf->repr repr) (bf x))))
 
 (define (repr->real x repr)
   (match x

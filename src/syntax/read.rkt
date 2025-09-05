@@ -3,7 +3,6 @@
 (require "../core/programs.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
-         "load-plugin.rkt"
          "platform.rkt"
          "sugar.rkt"
          "syntax-check.rkt"
@@ -18,17 +17,7 @@
          load-tests
          parse-test)
 
-(struct test
-        (name identifier
-              vars
-              input
-              output
-              expected
-              spec
-              pre
-              preprocess
-              output-repr-name
-              var-repr-names)
+(struct test (name identifier vars input output expected spec pre output-repr-name var-repr-names)
   #:prefab)
 
 (define (test-output-repr test)
@@ -196,7 +185,7 @@
                #:when (eq? key ':alt))
       (match (parse-platform-name val) ; plat-name is symbol or #f
         ; If plat-name extracted, check if name matches
-        [(? symbol? plat-name) (cons val (equal? plat-name (*platform-name*)))]
+        [(? symbol? plat-name) (cons val (equal? (~a plat-name) (*platform-name*)))]
         ; try to lower
         [#f
          (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
@@ -216,7 +205,6 @@
         (dict-ref prop-dict ':herbie-expected #t)
         spec
         pre*
-        (dict-ref prop-dict ':herbie-preprocess empty)
         (representation-name default-repr)
         (for/list ([var (in-list var-names)]
                    [repr (in-list var-reprs)])
@@ -291,11 +279,12 @@
 
 (module+ test
   (require rackunit
-           "load-plugin.rkt")
-  (load-herbie-builtins)
+           "../utils/float.rkt"
+           "../syntax/load-platform.rkt")
 
+  (activate-platform! (*platform-name*))
   (define precision 'binary64)
-  (define ctx (make-debug-context '(x y z a)))
+  (define ctx (context '(x y z a) <binary64> (make-list 4 <binary64>)))
 
   ;; inlining
 

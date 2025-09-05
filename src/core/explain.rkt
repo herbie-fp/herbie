@@ -7,6 +7,7 @@
          "../utils/float.rkt"
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
+         "../syntax/platform.rkt"
          "localize.rkt"
          "points.rkt"
          "programs.rkt"
@@ -35,11 +36,10 @@
     [(symbol? expr) #f]
     [else #t]))
 
-(define (actual-errors expr pcontext)
+(define (actual-errors expr ctx pcontext)
   (match-define (cons subexprs pt-errorss)
-    (parameterize ([*pcontext* pcontext])
-      (flip-lists (hash->list (first (compute-local-errors (list (all-subexpressions expr))
-                                                           (*context*)))))))
+    (flip-lists
+     (hash->list (first (compute-local-errors (list (all-subexpressions expr)) ctx pcontext)))))
 
   (define pt-worst-subexpr
     (append* (reap [sow]
@@ -503,9 +503,9 @@
                             oflow-hash
                             uflow-hash)
 
-  (define tcount-hash (actual-errors expr pctx))
+  (define tcount-hash (actual-errors expr ctx pctx))
 
-  (define repr (repr-of expr (*context*)))
+  (define repr (repr-of expr ctx))
   (define (values->json vs repr)
     (map (lambda (value) (value->json value repr)) (vector->list vs)))
 
