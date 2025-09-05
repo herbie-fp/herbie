@@ -2,12 +2,12 @@
 
 (require "../src/utils/common.rkt"
          "../src/core/points.rkt"
-         "../src/syntax/load-plugin.rkt"
          "../src/utils/alternative.rkt"
          "../src/api/sandbox.rkt"
          "../src/syntax/read.rkt"
          "../src/syntax/types.rkt"
-         "../src/syntax/platform.rkt")
+         "../src/syntax/platform.rkt"
+         "../src/syntax/load-platform.rkt")
 
 (define *precision* (make-parameter #f))
 
@@ -27,12 +27,9 @@
                   (cons var (representation-name repr)))]))
 
 (define (run-tests . bench-dirs)
-  (define default-precision
-    (if (*precision*)
-        (representation-name (*precision*))
-        (*default-precision*)))
+  (activate-platform! (*platform-name*))
   (define tests
-    (parameterize ([*default-precision* default-precision])
+    (parameterize ([*default-precision* (*precision*)])
       (append-map load-tests bench-dirs)))
   (define seed (pseudo-random-generator->vector (current-pseudo-random-generator)))
   (printf "Running Herbie on ~a tests, seed: ~a\n" (length tests) seed)
@@ -41,7 +38,7 @@
     (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length tests))
     (define the-test*
       (if (*precision*)
-          (override-test-precision the-test (*precision*))
+          (override-test-precision the-test (get-representation (*precision*)))
           the-test))
     (define result (run-herbie 'improve the-test* #:seed seed))
     (match-define (job-result _ test status time timeline profile warnings backend) result)
@@ -93,35 +90,22 @@
 
 (module+ main
   ;; Load all the plugins
-  (load-herbie-plugins)
-
   (define seed (random 1 (expt 2 31)))
   (set-seed! seed)
 
-  (command-line #:program "ci.rkt"
-                #:multi [("--plugin")
-                         path
-                         "Which additional Herbie plugins to use"
-                         (dynamic-require path #f)
-                         (*loose-plugins* (cons path (*loose-plugins*)))]
-                #:once-each
-                [("--seed")
-                 rs
-                 "The random seed to use in point generation. If false (#f), a random seed is used'"
-                 (define given-seed (read (open-input-string rs)))
-                 (when given-seed
-                   (set-seed! given-seed))]
-                [("--platform")
-                 platform
-                 "Which platform to use for tests"
-                 (activate-platform! (string->symbol platform))]
-                [("--precision")
-                 prec
-                 "Which precision to use for tests"
-                 (*precision* (get-representation (string->symbol prec)))]
-                [("--num-iters")
-                 num
-                 "The number of iterations to use for the main loop"
-                 (*num-iterations* (string->number num))]
-                #:args bench-dir
-                (exit (if (apply run-tests bench-dir) 0 1))))
+  (command-line
+   #:program "ci.rkt"
+   #:once-each [("--seed")
+                rs
+                "The random seed to use in point generation. If false (#f), a random seed is used'"
+                (define given-seed (read (open-input-string rs)))
+                (when given-seed
+                  (set-seed! given-seed))]
+   [("--platform") platform "Which platform to use for tests" (*platform-name* platform)]
+   [("--precision") prec "Which precision to use for tests" (*precision* (string->symbol prec))]
+   [("--num-iters")
+    num
+    "The number of iterations to use for the main loop"
+    (*num-iterations* (string->number num))]
+   #:args bench-dir
+   (exit (if (apply run-tests bench-dir) 0 1))))

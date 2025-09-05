@@ -25,7 +25,8 @@
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt")
 
-(provide render-menu
+(provide format-accuracy
+         render-menu
          render-warnings
          render-large
          render-comparison
@@ -36,7 +37,7 @@
          format-percent
          write-html
          program->fpcore
-         program->tex
+         fpcore->tex
          fpcore->string
          js-tex-include
          doc-url
@@ -50,6 +51,16 @@
          core->tex
          expr->tex
          core->js)
+
+(define (format-accuracy numerator repr #:sign [sign #f] #:unit [unit ""])
+  (define denominator (representation-total-bits repr))
+  (cond
+    [(and numerator (positive? denominator))
+     (define percent (~r (- 100 (* (/ numerator denominator) 100)) #:precision '(= 1)))
+     (if (and (positive? numerator) sign)
+         (format "+~a~a" percent unit)
+         (format "~a~a" percent unit))]
+    [else ""]))
 
 (define (write-html xexpr out)
   (fprintf out "<!doctype html>\n")
@@ -70,21 +81,6 @@
   (match expr
     [(list op args ...) (ormap list? args)]
     [_ #f]))
-
-(define (fpcore->string core)
-  (define-values (ident args props expr)
-    (match core
-      [(list 'FPCore name (list args ...) props ... expr) (values name args props expr)]
-      [(list 'FPCore (list args ...) props ... expr) (values #f args props expr)]))
-  (define props* ; make sure each property (name, value) gets put on the same line
-    (for/list ([(prop name)
-                (in-dict (apply dict-set* '() props))]) ; how to make a list of pairs from a list
-      (format "~a ~a" prop name)))
-  (define top
-    (if ident
-        (format "FPCore ~a ~a" ident args)
-        (format "FPCore ~a" args)))
-  (pretty-format `(,top ,@props* ,expr) #:mode 'display))
 
 (define (doc-url page)
   (format "https://herbie.uwplse.org/doc/~a/~a" *herbie-version* page))
@@ -148,10 +144,9 @@
                                                       ("Wolfram" "wl" ,core->wls)
                                                       ("TeX" "tex" ,(λ (c i) (core->tex c)))))
 
-(define (program->tex prog ctx #:loc [loc #f])
-  (define prog* (program->fpcore prog ctx))
-  (if (supported-by-lang? prog* "tex")
-      (core->tex prog* #:loc (and loc (cons 2 loc)) #:color "blue")
+(define (fpcore->tex fpcore #:loc [loc #f])
+  (if (supported-by-lang? fpcore "tex")
+      (core->tex fpcore #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
 (define (render-program expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)])
@@ -268,12 +263,14 @@
 
 (define js-tex-include
   '((link ([rel "stylesheet"]
-           [href "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css"]
-           [integrity "sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH"]
+           [href "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css"]
+           [integrity "sha384-5TcZemv2l/9On385z///+d7MSYlvIEw9FuZTIdZ14vJLqWphw7e7ZPuOiCHJcFCP"]
            [crossorigin "anonymous"]))
-    (script ([src "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js"]
-             [integrity "sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm"]
-             [crossorigin "anonymous"]))
-    (script ([src "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js"]
-             [integrity "sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH"]
+    (script ([defer ""] [src "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"]
+                        [integrity
+                         "sha384-cMkvdD8LoxVzGF/RPUKAcvmm49FQ0oxwDF3BGKtDXcEc+T1b2N+teh/OJfpU0jr6"]
+                        [crossorigin "anonymous"]))
+    (script ([defer ""]
+             [src "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js"]
+             [integrity "sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh"]
              [crossorigin "anonymous"]))))

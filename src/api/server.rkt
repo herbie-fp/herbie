@@ -2,12 +2,15 @@
 
 (require openssl/sha1)
 (require (only-in xml write-xexpr))
+(require json)
+(require data/queue)
 
-(require "../syntax/load-plugin.rkt"
-         "../syntax/read.rkt"
+(require "../syntax/read.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
+         "../syntax/platform.rkt"
+         "../syntax/load-platform.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
@@ -17,6 +20,7 @@
          "../reports/history.rkt"
          "../reports/pages.rkt"
          "../reports/plot.rkt"
+         "../config.rkt"
          "datafile.rkt"
          "sandbox.rkt"
          (submod "../utils/timeline.rkt" debug))
@@ -24,6 +28,7 @@
 (provide job-path
          job-start
          job-status
+         job-forget
          job-wait
          job-results
          job-timeline
@@ -35,6 +40,90 @@
 (define (log msg . args)
   (when false
     (apply eprintf msg args)))
+
+;; Tracing support
+
+(define (current-timestamp)
+  (exact-floor (* 1000 (current-inexact-milliseconds))))
+
+(define *gc-logger* #f)
+
+(define (trace-start)
+  (when (flag-set? 'dump 'trace)
+    (set! *gc-logger* (make-log-receiver (current-logger) 'debug 'GC))
+    (call-with-output-file
+     "dump-trace.json"
+     #:exists 'truncate
+     (λ (out)
+       (fprintf out "{\"traceEvents\":[")
+       (write-json (hash 'name "process_name" 'ph "M" 'ts 0 'pid 0 'tid 0 'args (hash 'name "herbie"))
+                   out)
+       (fprintf out ",")
+       (write-json (hash 'name
+                         "thread_name"
+                         'ph
+                         "M"
+                         'ts
+                         0
+                         'pid
+                         0
+                         'tid
+                         (equal-hash-code 'gc)
+                         'args
+                         (hash 'name "GC"))
+                   out)))))
+
+(define (trace-sync)
+  (when *gc-logger*
+    (let drain ()
+      (match (sync/timeout 0 *gc-logger*)
+        [#f (void)]
+        [(vector _lvl _msg (app struct->vector data) _topic)
+         (define mode (~a (vector-ref data 1)))
+         (define start (exact-floor (* 1000 (vector-ref data 9))))
+         (define end (exact-floor (* 1000 (vector-ref data 10))))
+         (call-with-output-file "dump-trace.json"
+                                #:exists 'append
+                                (λ (out)
+                                  (fprintf out ",")
+                                  (write-json (hash 'name
+                                                    mode
+                                                    'ph
+                                                    "X"
+                                                    'ts
+                                                    start
+                                                    'dur
+                                                    (- end start)
+                                                    'pid
+                                                    0
+                                                    'tid
+                                                    (equal-hash-code 'gc)
+                                                    'args
+                                                    (hash))
+                                              out)))
+         (drain)]))))
+
+(define (trace worker-id name phase [args (hash)])
+  (when (flag-set? 'dump 'trace)
+    (trace-sync)
+    (call-with-output-file
+     "dump-trace.json"
+     #:exists 'append
+     (λ (out)
+       (fprintf out ",")
+       (write-json
+        (hash 'name (~a name) 'ph (~a phase) 'ts (current-timestamp) 'pid 0 'tid worker-id 'args args)
+        out)))))
+
+(define (trace-end)
+  (when (flag-set? 'dump 'trace)
+    (trace-sync)
+    (call-with-output-file "dump-trace.json" #:exists 'append (λ (out) (fprintf out "]}\n")))))
+
+(define old-exit (exit-handler))
+(exit-handler (λ (v)
+                (trace-end)
+                (old-exit v)))
 
 ;; Job-specific public API
 (define (job-path id)
@@ -54,6 +143,10 @@
   (log "Checking on: ~a.\n" job-id)
   (manager-ask 'check job-id))
 
+(define (job-forget job-id)
+  (log "Forgetting job: ~a.\n" job-id)
+  (manager-ask 'forget job-id))
+
 (define (job-wait job-id)
   (define finished-result (manager-ask 'wait manager job-id))
   (log "Done waiting for: ~a\n" job-id)
@@ -70,6 +163,7 @@
 ;; Whole-server public methods
 
 (define (server-start threads)
+  (trace-start)
   (cond
     [threads
      (eprintf "Starting Herbie ~a with ~a workers and seed ~a...\n"
@@ -100,7 +194,8 @@
 (define manager #f)
 
 (define (manager-ask msg . args)
-  (log "Asking manager: ~a, ~a.\n" msg args)
+  (log "Asking manager: ~a.\n" msg)
+  (trace-sync)
   (match manager
     [(? place? x) (apply manager-ask-threaded x msg args)]
     ['basic (apply manager-ask-basic msg args)]))
@@ -119,28 +214,34 @@
      job-id]
     [(list 'wait 'basic job-id)
      (define command (hash-ref queued-jobs job-id #f))
-     (define result (and command (herbie-do-server-job command job-id)))
+     (define result (and command (herbie-do-server-job 0 command job-id)))
      (when command
+       (hash-remove! queued-jobs job-id)
        (hash-set! completed-jobs job-id result))
      result]
     [(list 'result job-id) (hash-ref completed-jobs job-id #f)]
     [(list 'timeline job-id)
      (define command (hash-ref queued-jobs job-id #f))
-     (define result (and command (herbie-do-server-job command job-id)))
+     (define result (and command (herbie-do-server-job 0 command job-id)))
      (when command
+       (hash-remove! queued-jobs job-id)
        (hash-set! completed-jobs job-id result))
      result]
     [(list 'check job-id)
      (define command (hash-ref queued-jobs job-id #f))
-     (define result (and command (herbie-do-server-job command job-id)))
+     (define result (and command (herbie-do-server-job 0 command job-id)))
      (when command
+       (hash-remove! queued-jobs job-id)
        (hash-set! completed-jobs job-id result))
      job-id]
-    [(list 'count) 0]
+    [(list 'count) (hash-count queued-jobs)]
     [(list 'improve)
      (for/list ([(job-id result) (in-hash completed-jobs)]
                 #:when (equal? (hash-ref result 'command) "improve"))
-       result)]))
+       result)]
+    [(list 'forget job-id)
+     (hash-remove! completed-jobs job-id)
+     (void)]))
 
 ;; Implementation of threaded manager
 
@@ -170,16 +271,14 @@
                          *reeval-pts*
                          *node-limit*
                          *max-find-range-depth*
-                         *pareto-mode*
                          *platform-name*
-                         *loose-plugins*
                          *functions*)
-   (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
-     (load-herbie-plugins))
+   (activate-platform! (*platform-name*))
    ; not sure if the above code is actaully needed.
    (define busy-workers (make-hash))
    (define waiting-workers (make-hash))
    (define current-jobs (make-hash))
+   (define queued-job-ids (make-queue))
    (when (eq? worker-count #t)
      (set! worker-count (processor-count)))
    (for ([i (in-range worker-count)])
@@ -192,19 +291,19 @@
 
        ;; Private API
        [(list 'assign self)
-        (define reassigned (make-hash))
+        (define reassigned '())
         (for ([(wid worker) (in-hash waiting-workers)]
-              [(jid command) (in-hash queued-jobs)])
+              #:when (not (queue-empty? queued-job-ids)))
+          (define jid (dequeue! queued-job-ids))
+          (define command (hash-ref queued-jobs jid))
           (log "Starting worker [~a] on [~a].\n" jid (test-name (herbie-command-test command)))
-          ; Check if the job is already in progress.
-          (unless (hash-has-key? current-jobs jid)
-            (place-channel-put worker (list 'apply self command jid))
-            (hash-set! reassigned wid jid)
-            (hash-set! busy-workers wid worker)))
-        ; remove X many jobs from the Q and update waiting-workers
-        (for ([(wid jid) (in-hash reassigned)])
-          (hash-remove! waiting-workers wid)
-          (hash-remove! queued-jobs jid))]
+          (place-channel-put worker (list 'apply self command jid))
+          (hash-set! current-jobs jid wid)
+          (hash-set! busy-workers wid worker)
+          (set! reassigned (cons wid reassigned))
+          (hash-remove! queued-jobs jid))
+        (for ([wid reassigned])
+          (hash-remove! waiting-workers wid))]
        ; Job is finished save work and free worker. Move work to 'send state.
        [(list 'finished self wid job-id result)
         (log "Job ~a finished, saving result.\n" job-id)
@@ -233,6 +332,7 @@
            (place-channel-put self (list 'send job-id (hash-ref completed-jobs job-id)))]
           [else
            (hash-set! queued-jobs job-id job)
+           (enqueue! queued-job-ids job-id)
            (place-channel-put self (list 'assign self))])]
        [(list 'wait handler self job-id)
         (log "Waiting for job: ~a\n" job-id)
@@ -265,13 +365,17 @@
         (define total (+ (hash-count busy-workers) (hash-count queued-jobs)))
         (log "Currently ~a jobs total.\n" total)
         (place-channel-put handler total)]
-       ; Retreive the improve results for results.json
+       ; Retrieve the improve results for results.json
        [(list 'improve handler)
         (define improved-list
           (for/list ([(job-id result) (in-hash completed-jobs)]
                      #:when (equal? (hash-ref result 'command) "improve"))
             result))
-        (place-channel-put handler improved-list)]))))
+        (place-channel-put handler improved-list)]
+       ; Forget a completed job result
+       [(list 'forget handler job-id)
+        (hash-remove! completed-jobs job-id)
+        (place-channel-put handler (void))]))))
 
 ;; Implementation of threaded worker
 
@@ -292,18 +396,15 @@
                          *reeval-pts*
                          *node-limit*
                          *max-find-range-depth*
-                         *pareto-mode*
                          *platform-name*
-                         *loose-plugins*
                          *functions*)
-   (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
-     (load-herbie-plugins))
+   (activate-platform! (*platform-name*))
    (define worker-thread
      (thread (λ ()
                (let loop ()
                  (match-define (list manager worker-id job-id command) (thread-receive))
                  (log "run-job: ~a, ~a\n" worker-id job-id)
-                 (define out-result (herbie-do-server-job command job-id))
+                 (define out-result (herbie-do-server-job worker-id command job-id))
                  (log "Job: ~a finished, returning work to manager\n" job-id)
                  (place-channel-put manager (list 'finished manager worker-id job-id out-result))
                  (loop)))))
@@ -320,9 +421,10 @@
         (log "Timeline requested from worker[~a] for job ~a\n" worker-id current-job-id)
         (place-channel-put handler (reverse (unbox timeline)))]))))
 
-(define (herbie-do-server-job h-command job-id)
+(define (herbie-do-server-job worker-id h-command job-id)
   (match-define (herbie-command command test seed pcontext profile? timeline?) h-command)
-  (log "Started ~a job (~a): ~a\n" command job-id (test-name test))
+  (define metadata (hash 'job-id job-id 'command (~a command) 'name (test-name test)))
+  (trace worker-id 'herbie 'B metadata)
   (define herbie-result
     (run-herbie command
                 test
@@ -330,9 +432,10 @@
                 #:pcontext pcontext
                 #:profile? profile?
                 #:timeline? timeline?))
-  (log "Completed ~a job (~a), starting reporting\n" command job-id)
+  (trace worker-id 'herbie 'E metadata)
+  (trace worker-id 'to-json 'B metadata)
   (define basic-output ((get-json-converter command) herbie-result job-id))
-  (log "Completed reporting ~a job (~a)\n" command job-id)
+  (trace worker-id 'to-json 'E metadata)
   ;; Add default fields that all commands have
   (hash-set* basic-output
              'job
@@ -412,7 +515,7 @@
                       (improve-result-target backend)
                       (improve-result-end backend))))
        (define exprs (append-map collect-expressions all-alts))
-       (make-hash (map cons exprs (batch-errors exprs pcontext ctx)))]
+       (make-hash (map cons exprs (exprs-errors exprs pcontext ctx)))]
       [else #f]))
 
   (define test-fpcore (alt->fpcore test (make-alt (test-input test))))
@@ -429,18 +532,12 @@
       ['timeout #f]
       ['failure (exception->datum backend)]))
 
-  (define histories
+  (define derivations
     (for/list ([altn (in-list altns)]
                [analysis (if (hash? backend-hash)
                              (hash-ref backend-hash 'end)
                              '())])
-      (define history (read (open-input-string (hash-ref analysis 'history))))
-      (define block `(div ([id "history"]) (ol ,@history)))
-      (call-with-output-string (curry write-xexpr block))))
-
-  (define derivations
-    (for/list ([altn (in-list altns)])
-      (render-json altn pcontext (test-context test) errcache)))
+      (hash-ref analysis 'history)))
 
   (hasheq 'test
           (~s test-fpcore)
@@ -450,8 +547,6 @@
           profile
           'alternatives ; FIXME: currently used by Odyssey but should maybe be in 'backend?
           fpcores
-          'histories ; FIXME: currently used by Odyssey but should switch to 'derivations below
-          histories
           'derivations
           derivations
           'backend
@@ -478,7 +573,7 @@
   (match-define (alt-analysis alt test-errors) analysis)
   (define cost (alt-cost alt repr))
 
-  (define history (render-history alt pcontext (test-context test) errcache))
+  (define history-json (render-json alt pcontext (test-context test) errcache))
 
   (define vars (test-vars test))
   (define splitpoints
@@ -491,7 +586,7 @@
   (hasheq 'expr
           (~s (alt-expr alt))
           'history
-          (~s history)
+          history-json
           'errors
           test-errors
           'cost
@@ -510,12 +605,12 @@
            ,(test-name test)
            :precision
            ,(test-output-repr-name test)
-           ,@(if (eq? (test-pre test) '(TRUE))
+           ,@(if (equal? (test-pre test) '(TRUE))
                  '()
                  `(:pre ,(prog->fpcore (test-pre test) (test-context test))))
            ,@(if (equal? (test-spec test) empty)
                  '()
-                 `(:herbie-spec ,(prog->fpcore (test-spec test) (test-context test))))
+                 `(:spec ,(prog->fpcore (test-spec test) (test-context test))))
            ,@(if (equal? (test-expected test) #t)
                  '()
                  `(:herbie-expected ,(test-expected test)))

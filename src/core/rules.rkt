@@ -3,8 +3,7 @@
 ;; Arithmetic identities for rewriting programs.
 
 (require "../utils/common.rkt"
-         "../syntax/syntax.rkt"
-         "programs.rkt")
+         "../syntax/syntax.rkt")
 
 (provide *rules*
          *sound-rules*
@@ -13,7 +12,7 @@
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
 ;; are patterns, meaning that symbols represent pattern variables.
-(struct rule (name input output itypes otype tags)
+(struct rule (name input output tags)
   #:methods gen:custom-write
   [(define (write-proc rule port mode)
      (fprintf port "#<rule ~a>" (rule-name rule)))])
@@ -32,11 +31,6 @@
 (define (*sound-rules*)
   (filter (conjoin rule-enabled? rule-sound?) *all-rules*))
 
-;;  Rule definition syntax
-
-(define (make-rule-context input output)
-  (map (curryr cons 'real) (set-union (free-variables input) (free-variables output))))
-
 (define (add-unsound expr)
   (match expr
     [(list op args ...) (cons (sym-append "unsound-" op) (map add-unsound args))]
@@ -45,15 +39,9 @@
 (define-syntax define-rule
   (syntax-rules ()
     [(define-rule rname group input output)
-     (set! *all-rules*
-           (cons (rule 'rname 'input 'output (make-rule-context 'input 'output) 'real '(group sound))
-                 *all-rules*))]
+     (set! *all-rules* (cons (rule 'rname 'input 'output '(group sound)) *all-rules*))]
     [(define-rule rname group input output #:unsound)
-     (set!
-      *all-rules*
-      (cons
-       (rule 'rname 'input (add-unsound 'output) (make-rule-context 'input 'output) 'real '(group))
-       *all-rules*))]))
+     (set! *all-rules* (cons (rule 'rname 'input (add-unsound 'output) '(group)) *all-rules*))]))
 
 (define-syntax-rule (define-rules group
                       [rname input output flags ...] ...)

@@ -7,10 +7,7 @@
          "../utils/common.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
-         "../utils/float.rkt"
          "batch.rkt"
-         "egglog-herbie.rkt"
-         "../config.rkt"
          "egg-herbie.rkt"
          "points.rkt"
          "programs.rkt"
@@ -19,7 +16,8 @@
 (provide find-preprocessing
          preprocess-pcontext
          remove-unnecessary-preprocessing
-         compile-preprocessing)
+         compile-preprocessing
+         compile-useful-preprocessing)
 
 (define (has-fabs-impl? repr)
   (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))
@@ -72,12 +70,13 @@
   ;; make egg runner
   (define rules (*sound-rules*))
 
-  (define batch (progs->batch (cons spec (map cdr identities))))
+  (define-values (batch brfs) (progs->batch (cons spec (map cdr identities))))
   (define runner
     (make-egraph batch
-                 (batch-roots batch)
-                 (make-list (vector-length (batch-roots batch)) (context-repr ctx))
-                 `((,rules . ((node . ,(*node-limit*)))))))
+                 brfs
+                 (make-list (length brfs) (context-repr ctx))
+                 `((,rules . ((node . ,(*node-limit*)))))
+                 ctx))
 
   ;; collect equalities
   (for/list ([(ident spec*) (in-dict identities)]
@@ -168,7 +167,7 @@
      (define repr (context-lookup context a))
      (define fmin (get-fpcore-impl 'fmin (repr->prop repr) (list repr repr)))
      (define fmax (get-fpcore-impl 'fmax (repr->prop repr) (list repr repr)))
-     (replace-vars (list (cons a (list fmin a b)) (cons b (list fmax a b))) expression)]
+     (replace-vars (list (list a fmin a b) (list b fmax a b)) expression)]
     [(list 'abs var)
      (define repr (context-lookup context var))
      (define fabs (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))
@@ -182,3 +181,9 @@
      (define copysign (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr)))
      `(,mul (,copysign ,(literal 1 (representation-name repr)) ,var)
             ,(replace-expression expression var replacement))]))
+
+(define (compile-useful-preprocessing expression context pcontext preprocessing)
+  (define useful-preprocessing
+    (remove-unnecessary-preprocessing expression context pcontext preprocessing))
+  (for/fold ([expr expression]) ([prep (in-list (reverse useful-preprocessing))])
+    (compile-preprocessing expr context prep)))

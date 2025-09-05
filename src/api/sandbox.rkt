@@ -8,6 +8,7 @@
          "../syntax/syntax.rkt"
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
+         "../syntax/load-platform.rkt"
          "../core/localize.rkt"
          "../utils/alternative.rkt"
          "../core/compiler.rkt"
@@ -18,6 +19,7 @@
          "../core/sampling.rkt"
          "../core/mainloop.rkt"
          "../syntax/platform.rkt"
+         "../core/programs.rkt"
          "../core/points.rkt"
          "../core/explain.rkt"
          "../utils/profile.rkt"
@@ -80,7 +82,7 @@
 
   ;; compute error/cost for output expression
   ;; and sort alternatives by accuracy + cost on testing subset
-  (define test-errs (batch-errors (map alt-expr alternatives) test-pcontext (*context*)))
+  (define test-errs (exprs-errors (map alt-expr alternatives) test-pcontext (*context*)))
   (define sorted-end-exprs (sort-alts alternatives test-errs))
   (define end-exprs (map (compose alt-expr car) sorted-end-exprs))
   (define end-errs (map cdr sorted-end-exprs))
@@ -107,14 +109,13 @@
   (unless pcontext
     (error 'explain "cannot run without a pcontext"))
 
-  (*pcontext* pcontext)
   (define-values (fperrors
                   sorted-explanations-table
                   confusion-matrix
                   maybe-confusion-matrix
                   total-confusion-matrix
                   freqs)
-    (explain (test-input test) (*context*) (*pcontext*)))
+    (explain (test-input test) (*context*) pcontext))
 
   sorted-explanations-table)
 
@@ -127,8 +128,7 @@
   (unless pcontext
     (error 'get-local-error "cannnot run without a pcontext"))
 
-  (*pcontext* pcontext)
-  (local-error-as-tree (test-input test) (*context*)))
+  (local-error-as-tree (test-input test) (*context*) pcontext))
 
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility

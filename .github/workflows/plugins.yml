@@ -24,12 +24,7 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
-      - name: "Check out softposit-herbie master"
-        uses: actions/checkout@master
-        with:
-          repository: herbie-fp/softposit-herbie
-          path: plugin
       - name: "Install SoftPosit support"
-        run: raco pkg install --no-cache --auto --name softposit-herbie plugin/
+        run: raco pkg install softposit-rkt
       - name: "Run posit benchmarks"
-        run: racket infra/ci.rkt --plugin "infra/plugins-ci.rkt" --platform softposit --precision posit16 --seed 0 plugin/bench/posits.fpcore
+        run: racket infra/ci.rkt --platform infra/softposit.rkt --precision posit16 --seed 0 infra/bench/posits.fpcore

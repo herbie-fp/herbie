@@ -1,15 +1,13 @@
 #lang racket
 
-(require racket/lazy-require)
+(require racket/lazy-require
+         racket/runtime-path)
 (require "config.rkt"
          "utils/multi-command-line.rkt"
          "utils/errors.rkt"
-         "syntax/load-plugin.rkt"
-         "syntax/platform.rkt")
+         "syntax/load-platform.rkt")
 
-;; Load all the plugins
-(load-herbie-plugins)
-
+;; Define the built-in platforms to force bundling them
 (lazy-require ["api/demo.rkt" (run-demo)]
               ["api/run.rkt" (make-report rerun-report)]
               ["api/shell.rkt" (run-shell run-improve)])
@@ -76,7 +74,7 @@
    [("--platform")
     platform
     ("The platform to use during improvement" "[Default: default]")
-    (activate-platform! (string->symbol platform))]
+    (*platform-name* platform)]
    [("--num-iters")
     num
     ("The number of iterations to use for the main loop. Herbie may find additional improvements
@@ -101,23 +99,12 @@
      during sampling. May fix \"Cannot sample enough valid points\" but will slow."
      (format "[Default: ~a iterations]" (*max-find-range-depth*)))
     (*max-find-range-depth* (string->number num))]
-   [("--no-pareto")
-    ("Disables Pareto-Herbie (Pherbie). Pareto-mode performs accuracy and expression cost
-     optimization and extracts multiple output expressions that are Pareto-optimal. Disabling
-     this feature forces Herbie to extract a single, most-accurate output expression."
-     "[Default: Pareto-Herbie enabled]")
-    (*pareto-mode* #f)]
    [("--profile") "Whether to profile each run (no-op, always on)" (void)]
-   #:multi [("--plugin")
-            path
-            ("Path to a Herbie plugin." "Allows for dynamic loading of \"loose\" plugins.")
-            (dynamic-require path #f)
-            (*loose-plugins* (cons path (*loose-plugins*)))]
-   [("-o" "--disable")
-    flag
-    ("Disable a search flag (formatted category:name)."
-     "See `+o/--enable` for the full list of search flags.")
-    (apply disable-flag! (string->flag flag))]
+   #:multi [("-o" "--disable")
+            flag
+            ("Disable a search flag (formatted category:name)."
+             "See `+o/--enable` for the full list of search flags.")
+            (apply disable-flag! (string->flag flag))]
    [("+o" "--enable")
     flag
     ("Enable a search flag (formatted category:name)."

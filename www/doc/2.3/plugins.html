@@ -1,0 +1,150 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie Other APIs</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Other Herbie APIs</h1>
+    <a href="../../"><img class="logo" src="../../logo-car.png" /></a>
+    <nav>
+      <ul>
+        <li><a href="../../demo/">Try</a></li>
+        <li><a href="installing.html">Install</a></li>
+        <li><a href="tutorial.html">Learn</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <p><a href="../../">Herbie</a> <a href="platforms.html">platforms</a>
+  are the main way to customize Herbie's behavior. The typical
+  platform just defines the set of representations and operations that
+  available to Herbie when compiling. However, platform files can
+  technically contain arbitrary Racket code, and thus can call other
+  Herbie APIs, including importing external libraries, defining new
+  representations, and so on. This page documents such APIs. Note that
+  a level of comfort with Racket is assumed.</p>
+
+  <p>Please note that all of the APIs on this page are considered
+  unstable and may change version to version. If you run into issues,
+  please
+  <a href="https://github.com/uwplse/herbie/issues">file a
+  bug</a>.</p>
+
+  <h2>Defining representations</h2>
+
+  <p><dfn>Representations</dfn> what Herbie calls different number
+  formats. They play a central role
+  in <a href="platforms.html">platforms</a>. Concretely, a
+  representation is a set of Racket values that represent both real
+  numbers and bit patterns.</p>
+
+  <p>Specifically, a representation value needs to be convertible to
+  Racket <a href="https://docs.racket-lang.org/math/bigfloat.html"><code>bigfloat</code></a>
+  values (which are basically MPFR floats) and also
+  to <em>ordinals</em>, meaning integers between
+  -2<sup><var>w</var>&minus;1</sup> and
+  2<sup><var>w</var>&minus;1</sup>&minus;1 for some bit width <var>w</var>.</p>
+
+  <p>Create representations with <code>make-representation</code>:</p>
+
+  <code>
+  <table>
+    <tr><td colspan=2>(<b>make-representation</b></td></tr>
+    <tr><td></td><td>#:name <var>name</var></td></tr>
+    <tr><td></td><td>#:total-bits <var>width</var></td></tr>
+    <tr><td></td><td>#:bf->repr <var>bf->repr</var></td></tr>
+    <tr><td></td><td>#:repr->bf <var>repr->bf</var></td></tr>
+    <tr><td></td><td>#:ordinal->repr <var>ordinal->repr</var></td></tr>
+    <tr><td></td><td>#:repr->ordinal <var>repr->ordinal</var></td></tr>
+    <tr><td></td><td>#:special-value? <var>special?</var>)</td></tr>
+  </table>
+  </code>
+
+  <p>The <code>#:name</code> should be either a symbol, or a list
+  containing symbols and integers. The <code>#:total-bits<code> value
+  should be a positive integer. The <code>#:total-bits</code>
+  parameter determines the total ordinal range your format takes up,
+  not just its significand range, so for example for double-precision
+  floats you need a <code>#:total-bits</code> of 64.</p>
+
+  <p>The <code>#:bf->repr</code> and <code>#:repr->bf</code> values
+  should be that convert between representation values and Racket
+  bigfloats. The <code>repr->bf</code> function should use as large a
+  bigfloat precision as needed to exactly represent the value, while
+  the <code>bf->repr</code> function should round as per the current
+  value of
+  the <a href="https://docs.racket-lang.org/math/bigfloat.html#%28def._%28%28lib._math%2Fbigfloat..rkt%29._bf-rounding-mode%29%29">bf-rounding-mode</a>
+  parameter.</p>
+
+  <p>All non-NaN bigfloat values should result in non-NaN
+  representation values. For example, <code>(bf->repr (bf
+  "1e1000000"))</code> should yield the largest real value in the
+  representation. Infinite values, as in <code>(bf->repr
+  +inf.bf)</code>, should be interpreted as really large real values,
+  not as infinite values. For example,
+  the <a href="https://posithub.org/">posit</a> format has an
+  "infinite" value, but it behaves more like a NaN, so converting
+  bigfloat infinity to a posit should yield its largest real value
+  instead.</p>
+
+  <p>The <code>#:ordinal->repr</code> and <code>#:repr->ordinal</code>
+  functions represent ordinals as Racket integers between
+  -2<sup><var>width</var>&minus;1</sup> (inclusive) and
+  2<sup><var>width</var>&minus;1</sup> (exclusive). Ordinals
+  must be in real-number order; that is, if <code>(repr->bf x)</code>
+  is less than <code>(repr->bf y)</code>, then <code>(repr->ordinal
+  x)</code> should be less than <code>(repr->ordinal y)</code>.</p>
+
+  <p>The <code>#:special</code> function should return true for NaN
+  values (or whatever your representation calls values that don't
+  represent any real number) and false for all other values. Special
+  values can be anywhere in the ordinal range, and you can have as
+  many or as few of them as you want.</p>
+
+  <p><code>make-representation</code> returns a representation object,
+  which you can then use
+  in <a href="platforms.html"><code>define-representation</code>
+  and <code>define-operation</code></a>.</p>
+
+  <h2>Defining Generators</h2>
+
+  <p><dfn>Generators</dfn> are helper functions for generating
+  implementations in <code>define-operation</code>. For example,
+  <a href="platforms.html"><code>from-ffi</code></a> is a
+  generator.</p>
+
+  <p>To define a generator, use <code>define-generator</code>:</p>
+
+  <code><table>
+  <tr><td colspan=2>(<b>define-generator</b> ((from-<var>foo</var> <var>args</var> ...) spec ctx)</td></tr>
+  <tr><td></td><td><var>body</var> ...)</td></tr>
+  </table></code>
+
+  <p>Here, <code>from-<var>foo</var></code> is the name of your
+  generator, and <var>args</var> are any additional arguments the
+  generator takes. For example, <code>from-libm</code> takes one
+  argument, the symbol name, while <code>from-ffi</code> takes an open
+  library and a symbol name.</p>
+
+  <p>Then, inside the <var>body</var>, you can use those arguments as
+  well as <code>spec</code> and <code>ctx</code>, to construct an
+  actual implementation function.</p>
+
+  <p>The specification <code>spec</code> is a Racket tree made up of
+  lists and symbols and numbers.</p>
+
+  <p>The signature <code>ctx</code> is "context" object; you can
+  access its <code>context-repr</code> to get the operation's output
+  representation, its <code>context-vars</code> to access its variable
+  names (as a list of symbols), and its <code>context-var-reprs</code>
+  to access its input representations (as a parallel list of
+  representations). The <code>context-lookup<code> function can be
+  used to look up a input argument's representation by name.</p>
+
+</body>
+</html>

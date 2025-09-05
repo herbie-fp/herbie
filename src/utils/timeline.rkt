@@ -46,7 +46,7 @@
       (make-hasheq (list (cons 'type (~a type))
                          (cons 'time (current-inexact-milliseconds))
                          (cons 'gc-time (current-gc-milliseconds))
-                         (cons 'memory (list (list live-memory alloc-memory))))))
+                         (list 'memory (list live-memory alloc-memory)))))
     (set-box! (*timeline*) (cons b (unbox (*timeline*))))))
 
 (define (timeline-push! key . values)

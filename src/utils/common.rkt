@@ -15,12 +15,11 @@
          sym-append
          format-time
          format-bits
-         format-accuracy
-         format-cost
          web-resource
          prop-dict/c
          props->dict
          dict->props
+         fpcore->string
          (all-from-out "../config.rkt"))
 
 (module+ test
@@ -125,24 +124,6 @@
     [(and (positive? r) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
     [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
 
-(define (format-accuracy numerator denominator #:sign [sign #f] #:unit [unit ""])
-  (cond
-    [(and numerator (positive? denominator))
-     (define percent (~r (- 100 (* (/ numerator denominator) 100)) #:precision '(= 1)))
-     (if (and (positive? numerator) sign)
-         (format "+~a~a" percent unit)
-         (format "~a~a" percent unit))]
-    [else ""]))
-
-(define (format-cost r repr #:sign [sign #f])
-  (cond
-    [(not r) ""]
-    [else
-     (define val (~r (/ (round (* r 10)) 10) #:precision 2))
-     (cond
-       [(and (positive? r) sign) (format "+~a" val)]
-       [else (format "~a" val)])]))
-
 (define-runtime-path web-resource-path "../reports/resources/")
 
 (define (web-resource [name #f])
@@ -172,3 +153,17 @@
   (apply append
          (for/list ([(k v) (in-dict prop-dict)])
            (list k v))))
+
+(define (fpcore->string core)
+  (define-values (ident args props expr)
+    (match core
+      [(list 'FPCore name (list args ...) props ... expr) (values name args props expr)]
+      [(list 'FPCore (list args ...) props ... expr) (values #f args props expr)]))
+  (define props* ; make sure each property (name, value) gets put on the same line
+    (for/list ([(prop name) (in-dict (props->dict props))])
+      (format "~a ~a" prop (pretty-format name (- 69 (string-length (~a prop))) #:mode 'write))))
+  (define top
+    (if ident
+        (format "FPCore ~a ~a" ident args)
+        (format "FPCore ~a" args)))
+  (format "(~a\n  ~a\n  ~a)" top (string-join props* "\n  ") (pretty-format expr 70 #:mode 'write)))

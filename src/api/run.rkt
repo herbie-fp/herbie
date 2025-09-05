@@ -7,6 +7,8 @@
          "../syntax/read.rkt"
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
+         "../syntax/platform.rkt"
+         "../syntax/load-platform.rkt"
          "../utils/common.rkt"
          "../utils/profile.rkt"
          "../utils/timeline.rkt"
@@ -37,12 +39,14 @@
         (table-row-conversions row)))
 
 (define (make-report bench-dirs #:dir dir #:threads threads)
+  (activate-platform! (*platform-name*))
   (define tests (reverse (sort (append-map load-tests bench-dirs) test<?)))
   (run-tests tests #:dir dir #:threads threads))
 
 (define (rerun-report json-file #:dir dir #:threads threads)
   (define data (call-with-input-file json-file read-datafile))
   (define tests (map extract-test (report-info-tests data)))
+  (activate-platform! (*platform-name*))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))
@@ -92,7 +96,8 @@
                [test-number (in-naturals)])
       (define result (job-wait job-id))
       (print-test-result (+ test-number 1) total-tests test result)
-      (generate-bench-report result (test-name test) test-number dir total-tests)))
+      (begin0 (generate-bench-report result (test-name test) test-number dir total-tests)
+        (job-forget job-id))))
 
   (define info (make-report-info results #:seed seed))
   (write-datafile (build-path dir "results.json") info)

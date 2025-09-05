@@ -1,26 +1,10 @@
 #lang racket
 
+(require racket/hash)
+
 (provide (all-defined-out))
 
 ;;; Flags
-
-(define all-flags
-  #hash([precision . (double fallback)]
-        [setup . (simplify search)]
-        [localize . (costs errors)]
-        [generate . (rr taylor simplify better-rr proofs egglog evaluate)]
-        [reduce . (regimes avg-error binary-search branch-expressions simplify)]
-        [rules
-         . (arithmetic polynomials
-                       fractions
-                       exponents
-                       trigonometry
-                       hyperbolic
-                       numerics
-                       special
-                       bools
-                       branches)]
-        [dump . (egg rival egglog)]))
 
 (define default-flags
   #hash([precision . ()]
@@ -28,30 +12,23 @@
         [localize . ()]
         [generate . (rr taylor proofs evaluate)]
         [reduce . (regimes binary-search branch-expressions)]
-        [rules
-         . (arithmetic polynomials
-                       fractions
-                       exponents
-                       trigonometry
-                       hyperbolic
-                       numerics
-                       special
-                       bools
-                       branches)]
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic)]
         [dump . ()]))
 
+(define deprecated-flags
+  #hash([precision . (double fallback)]
+        [setup . (simplify)]
+        [localize . (costs errors)]
+        [generate . (better-rr simplify)]
+        [reduce . (avg-error simplify)]
+        [rules . (numerics special bools branches)]))
+
+(define debug-flags #hash([generate . (egglog)] [dump . (egg rival egglog trace)]))
+
+(define all-flags (hash-union default-flags deprecated-flags debug-flags #:combine set-union))
+
 (define (flag-deprecated? category flag)
-  (match* (category flag)
-    [('precision 'double) #t]
-    [('precision 'fallback) #t]
-    [('setup 'simplify) #t]
-    [('generate 'better-rr) #t]
-    [('generate 'simplify) #t]
-    [('reduce 'simplify) #t]
-    [('reduce 'avg-error) #t]
-    [('localize 'costs) #t]
-    [('localize 'errors) #t]
-    [(_ _) #f]))
+  (set-member? (dict-ref deprecated-flags category '()) flag))
 
 ; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
 (define *flags* (make-parameter (make-immutable-hash (hash->list default-flags))))
@@ -111,6 +88,10 @@
      (eprintf "The localize:errors option has been removed.\n")
      (eprintf "  Herbie no longer performs localization.\n")
      (eprintf "See <herbie://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
+    [('rules _)
+     (eprintf "The rules:~a ruleset has been removed.\n")
+     (eprintf "  These rules are no longer used by Herbie.\n")
+     (eprintf "See <herbie://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
     [(_ _) (void)]))
 
 (define (changed-flags)
@@ -154,17 +135,13 @@
 (define *binary-search-accuracy* (make-parameter 48))
 
 ;; Pherbie related options
-(define *pareto-mode* (make-parameter #t))
 (define *pareto-pick-limit* (make-parameter 5))
 
 ;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))
 
 ;; The platform that Herbie will evaluate with.
-(define *platform-name* (make-parameter 'c))
-
-;; Plugins loaded locally rather than through Racket.
-(define *loose-plugins* (make-parameter '()))
+(define *platform-name* (make-parameter (if (equal? (system-type 'os) 'windows) "c-windows" "c")))
 
 ;; Sets the number of total points for Herbie to sample.
 (define *reeval-pts* (make-parameter 8000))
@@ -206,7 +183,7 @@
      (if (equal? out "") default out)]
     [else default]))
 
-(define *herbie-version* "2.2")
+(define *herbie-version* "2.3")
 
 (define *herbie-commit* (git-command "rev-parse" "HEAD" #:default *herbie-version*))
 

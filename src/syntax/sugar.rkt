@@ -32,10 +32,9 @@
 ;; - let expressions are inlined
 ;; - numbers are rounded to a particular format
 ;;
-;; <expr> ::= (if <expr> <expr> <expr>)
-;;        ::= (<impl> <expr> ...)
-;;        ::= (literal <number> <repr>)
-;;        ::= <id>
+;; <expr> ::= (<impl> <expr> ...)
+;;          | (literal <number> <repr>)
+;;          | <id>
 ;;
 ;; Every operator has a type signature where types are representations.
 ;; In practice, most operator implemenetations have uniform representations but
@@ -51,10 +50,9 @@
 ;; - casts are mapped to the identity operation
 ;; - numbers are formatless
 ;;
-;; <expr> ::= (if <expr> <expr> <expr>)
-;;        ::= (<op> <expr> ...)
-;;        ::= <number>
-;;        ::= <id>
+;; <expr> ::= (<op> <expr> ...)
+;;          | <number>
+;;          | <id>
 ;;
 
 #lang racket
@@ -139,7 +137,7 @@
       ; applications
       [`(,op ,args ...) `(,op ,@(map (curryr loop env) args))]
       ; constants
-      [(? constant-operator?) (list expr)]
+      [(? operator-exists? op) (list expr)]
       ; variables
       [(? symbol?) (dict-ref env expr expr)]
       ; other
@@ -180,12 +178,7 @@
                   [(? exact?) expr]
                   [_ (inexact->exact expr)])
                 (dict-ref prop-dict ':precision))]
-      [(? variable?) expr]
-      [(list 'if cond ift iff)
-       (define cond* (loop cond prop-dict))
-       (define ift* (loop ift prop-dict))
-       (define iff* (loop iff prop-dict))
-       (list 'if cond* ift* iff*)]
+      [(? symbol?) expr]
       [(list '! props ... body)
        (loop body
              (if (not (null? props))
@@ -242,16 +235,19 @@
   (define (munge expr #:root? [root? #f])
     (match expr
       [(? literal?) (literal->fpcore expr)]
+      [(? number?) expr]
       [(? symbol?) expr]
       [(approx _ impl) (munge impl)]
-      [(list 'if cond ift iff) (list 'if (munge cond) (munge ift) (munge iff))]
+      [(hole _ spec) (munge spec)]
       [(list (? impl-exists? impl) args ...)
        (define args* (map munge args))
        (define vars (impl-info impl 'vars))
        (define node (replace-vars (map cons vars args*) (impl-info impl 'fpcore)))
        (if root?
            node
-           (push! impl node))]))
+           (push! impl node))]
+      [(list spec-op) spec-op]
+      [(list spec-op args ...) (list* spec-op (map munge args))]))
 
   (define root (munge expr #:root? #t))
   (cons (list->vector (reverse instrs)) root))
