@@ -184,8 +184,8 @@
            ; Our taylor-cos function assumes that a0 is 0,
            ; because that way it is especially simple. We correct for this here
            ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-           (taylor-sub (taylor-scale `(cos ,((cdr arg*) 0)) (taylor-cos (zero-series arg*)))
-                       (taylor-scale `(sin ,((cdr arg*) 0)) (taylor-sin (zero-series arg*))))]
+           (taylor-add (taylor-scale `(cos ,((cdr arg*) 0)) (taylor-cos (zero-series arg*)))
+                       (taylor-scale `(neg (sin ,((cdr arg*) 0))) (taylor-sin (zero-series arg*))))]
           [else (taylor-cos (zero-series arg*))])]
        [`(log ,arg) (taylor-log var (get-taylor-approx arg))]
        [`(pow ,base ,power)
