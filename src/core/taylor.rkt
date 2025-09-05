@@ -151,7 +151,7 @@
        [(? symbol?) (taylor-exact node)]
        [`(,const) (taylor-exact node)]
        [`(+ ,args ...) (apply taylor-add (map get-taylor-approx args))]
-       [`(neg ,arg) (taylor-negate (get-taylor-approx arg))]
+       [`(neg ,arg) (taylor-scale -1 (get-taylor-approx arg))]
        [`(* ,left ,right) (taylor-mult (get-taylor-approx left) (get-taylor-approx right))]
        [`(/ ,num ,den)
         #:when (equal? (batch-ref expr-batch num) 1)
@@ -187,10 +187,10 @@
            ; Our taylor-cos function assumes that a0 is 0,
            ; because that way it is especially simple. We correct for this here
            ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-           (taylor-add (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
-                                    (taylor-cos (zero-series arg*)))
-                       (taylor-negate (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
-                                                   (taylor-sin (zero-series arg*)))))]
+           (taylor-add (taylor-scale `(cos ,((cdr arg*) 0))
+                                     (taylor-cos (zero-series arg*)))
+                       (taylor-scale `(neg (sin ,((cdr arg*) 0)))
+                                     (taylor-sin (zero-series arg*))))]
           [else (taylor-cos (zero-series arg*))])]
        [`(log ,arg) (taylor-log var (get-taylor-approx arg))]
        [`(pow ,base ,power)
