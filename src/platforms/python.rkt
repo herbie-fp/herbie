@@ -106,7 +106,7 @@
   #:spec (sqrt (+ (pow (- y x) 2) (pow (- w z) 2))) #:impl (from-rival)
   #:fpcore (dist (array x z) (array y w)) #:cost 1)
 
-(define-operation (dist.3D [x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>] [u <binary64> [v <binary64>]) <binary64>
+(define-operation (dist.3D [x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>] [u <binary64>] [v <binary64>]) <binary64>
   #:spec (sqrt (+ (+ (pow (- y x) 2) (pow (- w z) 2)) (pow (- v u) 2))) #:impl (from-rival)
   #:fpcore (dist (array x z u) (array y w v)) #:cost 1)
 
