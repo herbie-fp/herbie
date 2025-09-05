@@ -159,9 +159,7 @@
        [`(/ ,num ,den) (taylor-quotient (get-taylor-approx num) (get-taylor-approx den))]
        [`(sqrt ,arg) (taylor-sqrt var (get-taylor-approx arg))]
        [`(cbrt ,arg) (taylor-cbrt var (get-taylor-approx arg))]
-       [`(fabs ,arg)
-        (or (taylor-fabs var (get-taylor-approx arg))
-            (taylor-exact node))]
+       [`(fabs ,arg) (or (taylor-fabs var (get-taylor-approx arg)) (taylor-exact node))]
        [`(exp ,arg)
         (define arg* (normalize-series (get-taylor-approx arg)))
         (if (positive? (car arg*))
@@ -175,9 +173,8 @@
            ; Our taylor-sin function assumes that a0 is 0,
            ; because that way it is especially simple. We correct for this here
            ; We use the identity sin (x + y) = sin x cos y + cos x sin y
-           (taylor-add
-            (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0))) (taylor-cos (zero-series arg*)))
-            (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0))) (taylor-sin (zero-series arg*))))]
+           (taylor-add (taylor-scale `(sin ,((cdr arg*) 0)) (taylor-cos (zero-series arg*)))
+                       (taylor-scale `(cos ,((cdr arg*) 0)) (taylor-sin (zero-series arg*))))]
           [else (taylor-sin (zero-series arg*))])]
        [`(cos ,arg)
         (define arg* (normalize-series (get-taylor-approx arg)))
@@ -187,10 +184,8 @@
            ; Our taylor-cos function assumes that a0 is 0,
            ; because that way it is especially simple. We correct for this here
            ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-           (taylor-add (taylor-scale `(cos ,((cdr arg*) 0))
-                                     (taylor-cos (zero-series arg*)))
-                       (taylor-scale `(neg (sin ,((cdr arg*) 0)))
-                                     (taylor-sin (zero-series arg*))))]
+           (taylor-sub (taylor-scale `(cos ,((cdr arg*) 0)) (taylor-cos (zero-series arg*)))
+                       (taylor-scale `(sin ,((cdr arg*) 0)) (taylor-sin (zero-series arg*))))]
           [else (taylor-cos (zero-series arg*))])]
        [`(log ,arg) (taylor-log var (get-taylor-approx arg))]
        [`(pow ,base ,power)
