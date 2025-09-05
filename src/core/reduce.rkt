@@ -73,7 +73,7 @@
        (define args* (map reduce args))
        (define val (apply eval-application op args*))
        (or val (reduce-node (list* op args*)))]))
-  (printf "reduce* ~a -> ~a\n" expr res)
+  ;(printf "reduce* ~a -> ~a\n" expr res)
   res)
 
 (define (reduce-evaluation expr)
@@ -137,7 +137,7 @@
        (make-multiplication-node (combine-mterms (gather-multiplicative-terms expr)))]
       [`(exp (* ,c (log ,x))) (reduce-node* `(pow ,x ,c))]
       [else (reduce-inverses expr)]))
-  (printf "reduce-node ~a -> ~a\n" expr res)
+  ;(printf "reduce-node ~a -> ~a\n" expr res)
   res)
 
 (define (negate-term term)
@@ -164,7 +164,7 @@
 
         [`(pow ,arg 1) `((1 1))]
         [else `((1 ,expr))])))
-  (printf "gather-additive-terms ~a -> ~a\n" expr res)
+  ;(printf "gather-additive-terms ~a -> ~a\n" expr res)
   res)
 
 (define (even-denominator? x)
@@ -229,7 +229,7 @@
                   (for/list ([term (cdr terms)])
                     (cons (* a (car term)) (cdr term)))))]
       [else `(1 (1 . ,expr))]))
-  (printf "gather-multiplicative-terms ~a -> ~a\n" expr res)
+  ;(printf "gather-multiplicative-terms ~a -> ~a\n" expr res)
   res)
 
 (define (combine-aterms terms)
@@ -244,7 +244,7 @@
                   (sow (cons v k))))
           expr<?
           #:key cdr))
-  (printf "combine-aterms ~a -> ~a\n" terms res)
+  ;(printf "combine-aterms ~a -> ~a\n" terms res)
   res)
 
 (define (combine-mterms terms)
@@ -260,7 +260,7 @@
                           (sow (cons v k))))
                   expr<?
                   #:key cdr))))
-  (printf "combine-mterms ~a -> ~a\n" terms res)
+  ;(printf "combine-mterms ~a -> ~a\n" terms res)
   res)
 
 (define (aterm->expr term)
@@ -278,7 +278,7 @@
       [(null? pos) `(neg ,(make-addition-node* (map negate-term neg)))]
       [(null? neg) (make-addition-node* pos)]
       [else `(- ,(make-addition-node* pos) ,(make-addition-node* (map negate-term neg)))]))
-  (printf "make-addition-node ~a -> ~a\n" terms res)
+  ;(printf "make-addition-node ~a -> ~a\n" terms res)
   res)
 
 ;; TODO : Use (- x y) when it is simpler
@@ -299,7 +299,7 @@
       [`(,a . (/ 1 ,denom)) `(/ ,a ,denom)]
       [`(,a . ()) a]
       [`(,a . ,e) `(* ,a ,e)]))
-  (printf "make-multiplication-node ~a -> ~a\n" term res)
+  ;(printf "make-multiplication-node ~a -> ~a\n" term res)
   res)
 
 (define (make-multiplication-subnode terms)

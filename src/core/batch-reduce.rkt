@@ -59,7 +59,9 @@
                        [(list 'exp (app deref 0)) 1]
                        [(list 'log (app deref 1)) 0]
                        [_ #f]))
-                   res)))
+                   (if res
+                       (batch-push! batch res)
+                       res))))
 
 (define (batch-reduce batch)
   (define eval-application* (batch-eval-application batch))
@@ -87,7 +89,7 @@
                           (define brf* (batch-add! batch (list* op args*)))
                           (define val ((eval-application) brf*))
                           (or val ((reduce-node) brf*))])))
-                   (printf "reduce* ~a -> ~a\n" (batch-pull brf) (batch-pull res))
+                   ;(printf "reduce* ~a -> ~a\n" (batch-pull brf) (batch-pull res))
                    res)))
 
 ;; Covered by tests
@@ -163,7 +165,7 @@
           (define rewrite (batch-add! batch `(pow ,x ,c)))
           (recurse rewrite)]
          [else ((reduce-inverses) brf)]))
-     (printf "reduce-node ~a -> ~a\n" (batch-pull brf) (batch-pull res))
+     ;(printf "reduce-node ~a -> ~a\n" (batch-pull brf) (batch-pull res))
      res)))
 
 (define (negate-term term)
@@ -189,7 +191,7 @@
                    (cons brf (cddr term))))]
          [`(pow ,arg ,(app deref 1)) `((,(batch-push! batch 1) ,(batch-push! batch 1)))]
          [else `((,(batch-push! batch 1) ,brf))]))
-     (printf "batch-gather-additive-terms ~a -> ~a\n" (batch-pull brf) (~a-terms res))
+     ;(printf "batch-gather-additive-terms ~a -> ~a\n" (batch-pull brf) (~a-terms res))
      res)))
 
 (define (even-denominator? x)
@@ -249,9 +251,8 @@
           (define exact-pow
             (match (deref (car terms))
               ['NAN (batch-push! batch 'NAN)]
-              [x
-               (printf "!!!!!~a" (batch-pull (batch-add! batch (list* 'pow (car terms) a))))
-               ((eval-application) (batch-add! batch (list* 'pow (car terms) a)))]))
+              ;(printf "!!!!!~a\n" (list 'pow (car terms) a))
+              [x ((eval-application) (batch-add! batch (list 'pow (car terms) a)))]))
           (if exact-pow
               (cons exact-pow
                     (for/list ([term (cdr terms)])
@@ -261,7 +262,7 @@
                      (for/list ([term (cdr terms)])
                        (cons (batch-push! batch (* a (deref (car term)))) (cdr term)))))]
          [else `(,(batch-push! batch 1) (,(batch-push! batch 1) . ,brf))]))
-     (printf "batch-gather-multiplicative-terms ~a -> ~a\n" (batch-pull brf) (~a-terms res))
+     #;(printf "batch-gather-multiplicative-terms ~a -> ~a\n" (batch-pull brf) (~a-terms res))
      res)))
 
 (define (~a-terms terms)
@@ -286,7 +287,7 @@
                   (sow (cons (batch-push! (global-batch) v) k))))
           expr<?
           #:key cdr))
-  (printf "combine-aterms ~a -> ~a\n" (~a-terms terms) (~a-terms res))
+  ;(printf "combine-aterms ~a -> ~a\n" (~a-terms terms) (~a-terms res))
   res)
 
 (define (combine-mterms terms)
@@ -302,7 +303,7 @@
                           (sow (cons (batch-push! (global-batch) v) k))))
                   expr<?
                   #:key cdr))))
-  (printf "combine-mterms ~a -> ~a\n" (~a-terms terms) (~a-terms res))
+  ;(printf "combine-mterms ~a -> ~a\n" (~a-terms terms) (~a-terms res))
   res)
 
 ;;---------------------------------------------------------------------------------------------
@@ -325,7 +326,7 @@
       [else
        (batch-add! (global-batch)
                    `(- ,(make-addition-node* pos) ,(make-addition-node* (map negate-term neg))))]))
-  (printf "make-addition-node ~a -> ~a\n" (~a-terms terms) (batch-pull res))
+  ;(printf "make-addition-node ~a -> ~a\n" (~a-terms terms) (batch-pull res))
   res)
 
 ;; TODO : Use (- x y) when it is simpler
@@ -388,7 +389,7 @@
   (define batch (batch-empty))
   (define evaluator (batch-eval-application batch))
   (define (evaluator-results expr)
-    (evaluator (batch-add! batch expr)))
+    (batch-pull (evaluator (batch-add! batch expr))))
 
   ;; Checks for batch-eval-application
   ;(check-equal? (evaluator-results '(+ 1 (cbrt 8))) 3)
