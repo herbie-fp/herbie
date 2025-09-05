@@ -161,7 +161,7 @@
               `(pow ,_ ,(app deref (? (conjoin rational? (negate even-denominator?))))))
           (make-multiplication-node (combine-mterms ((gather-multiplicative-terms)
                                                      brf)))] ; also weird here
-         [`(exp (* ,c (log ,x)))
+         [(list 'exp (app deref (list '* c (app deref (list 'log x)))))
           (define rewrite (batch-add! batch `(pow ,x ,c)))
           (recurse rewrite)]
          [else ((reduce-inverses) brf)]))
@@ -236,7 +236,7 @@
           (define exact-cbrt
             (match (deref (car terms))
               ['NAN (batch-push! batch 'NAN)]
-              [x ((eval-application) (batch-add! batch (list* 'cbrt (car terms))))]))
+              [x ((eval-application) (batch-add! batch (list 'cbrt (car terms))))]))
           (if exact-cbrt
               (cons exact-cbrt
                     (for/list ([term (cdr terms)])
@@ -251,7 +251,6 @@
           (define exact-pow
             (match (deref (car terms))
               ['NAN (batch-push! batch 'NAN)]
-              ;(printf "!!!!!~a\n" (list 'pow (car terms) a))
               [x ((eval-application) (batch-add! batch (list 'pow (car terms) a)))]))
           (if exact-pow
               (cons exact-pow
@@ -262,7 +261,7 @@
                      (for/list ([term (cdr terms)])
                        (cons (batch-push! batch (* a (deref (car term)))) (cdr term)))))]
          [else `(,(batch-push! batch 1) (,(batch-push! batch 1) . ,brf))]))
-     #;(printf "batch-gather-multiplicative-terms ~a -> ~a\n" (batch-pull brf) (~a-terms res))
+     ;(printf "batch-gather-multiplicative-terms ~a -> ~a\n" (batch-pull brf) (~a-terms res))
      res)))
 
 (define (~a-terms terms)
@@ -338,15 +337,18 @@
      (batch-add! (global-batch) `(+ ,(aterm->expr term) ,(make-addition-node terms)))]))
 
 (define (make-multiplication-node term)
-  (match (cons (car term) (make-multiplication-subnode (cdr term)))
-    [(cons (app deref 'NAN) e) (list (batch-push! (global-batch) 'NAN))]
-    [(cons (app deref 0) e) (batch-push! (global-batch) 0)]
-    [(cons (app deref 1) '()) (batch-push! (global-batch) 1)]
-    [(cons (app deref 1) e) e]
-    [(cons a (app deref 1)) a]
-    [(cons a (app deref (list '/ (app deref 1) denom))) (batch-add! (global-batch) `(/ ,a ,denom))]
-    [(cons a '()) a]
-    [(cons a e) (batch-add! (global-batch) `(* ,a ,e))]))
+  (define res
+    (match (cons (car term) (make-multiplication-subnode (cdr term)))
+      [(cons (app deref 'NAN) e) (list (batch-push! (global-batch) 'NAN))]
+      [(cons (app deref 0) e) (batch-push! (global-batch) 0)]
+      [(cons (app deref 1) '()) (batch-push! (global-batch) 1)]
+      [(cons (app deref 1) e) e]
+      [(cons a (app deref 1)) a]
+      [(cons a (app deref (list '/ (app deref 1) denom))) (batch-add! (global-batch) `(/ ,a ,denom))]
+      [(cons a '()) a]
+      [(cons a e) (batch-add! (global-batch) `(* ,a ,e))]))
+  ;(printf "make-multiplication-node ~a -> ~a\n" (~a-terms term) (batch-pull res))
+  res)
 
 (define (make-multiplication-subnode terms)
   (make-multiplication-subsubsubnode
@@ -389,7 +391,10 @@
   (define batch (batch-empty))
   (define evaluator (batch-eval-application batch))
   (define (evaluator-results expr)
-    (batch-pull (evaluator (batch-add! batch expr))))
+    (define res (evaluator (batch-add! batch expr)))
+    (if res
+        (batch-pull res)
+        res))
 
   ;; Checks for batch-eval-application
   ;(check-equal? (evaluator-results '(+ 1 (cbrt 8))) 3)
@@ -432,11 +437,7 @@
 (module+ main
   (define batch (batch-empty))
   (define reducer (batch-reduce batch))
-  (batch-pull (reducer (batch-add! batch '(- (* (+ x 1) (+ x 1)) 1))))
-  (batch-pull (reducer (batch-add! batch '(+ (/ 1 (neg x)) (/ 1 (neg x))))))
-  (batch-pull (reducer (batch-add! batch '(- (* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1)) 1))))
-  (batch-pull (reducer (batch-add! batch '(* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1)))))
-  (batch-pull (reducer (batch-add! batch '(+ (* (/ 1 x) (/ 1 x)) (+ (/ 1 x) (/ 1 x))))))
+  (batch-pull (reducer (batch-add! batch '(exp (* (log (/ 2 x)) -1)))))
   ;(- (* (+ x 1) (+ x 1)) 1) -> (- (pow (+ 1 x) 2) 1)
   ;(+ (/ 1 (neg x)) (/ 1 (neg x))) -> (neg (* 2 (/ 1 x)))
   ;(- (* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1)) 1) -> (- (pow (- 1 (/ 1 x)) 2) 1)

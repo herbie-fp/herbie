@@ -25,9 +25,10 @@
       (for/list ([brf (in-list brfs)])
         (define replacement (replace brf))
         (define reduction (reduce (exprs replacement)))
-        (printf "~a -> ~a\n" (exprs replacement) (reduce (exprs replacement)))
-        ;(define batch-reduction (batch-pull (batch-reducer replacement)))
-        ;(println (equal? batch-reduction reduction))
+        ;(printf "~a -> ~a\n" (exprs replacement) (reduce (exprs replacement)))
+        (define batch-reduction (batch-pull (batch-reducer replacement)))
+        (unless (equal? batch-reduction reduction)
+          (printf "Results do not match for ~a\n" (exprs replacement)))
         (taylor* (expand (munge reduction))))))
   taylor-coeffs)
 
