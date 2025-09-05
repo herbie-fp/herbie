@@ -337,7 +337,7 @@
       (check-equal? out expected-out)
       (check-equal? computed-in in)))
 
-  (check-equal? (egg-expr->expr '(sound-sqrt $var0 $var1) (*context*)) '(sqrt x))
+  (check-equal? (egg-expr->expr '(sound-sqrt $var0 $var1) ctx) '(sqrt x))
 
   (set! ctx (context '(x a b c r) <binary64> (make-list 5 <binary64>)))
   (define extended-expr-list
