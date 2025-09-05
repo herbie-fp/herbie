@@ -333,4 +333,8 @@
     [`(,power . ,x) `(pow ,x ,power)]))
 
 (module+ main
-  (reduce '(- (* (+ x 1) (+ x 1)) 1)))
+  (reduce '(- (* (+ x 1) (+ x 1)) 1))
+  (reduce '(+ (/ 1 (neg x)) (/ 1 (neg x))))
+  (reduce '(- (* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1)) 1))
+  (reduce '(* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1)))
+  (reduce '(+ (* (/ 1 x) (/ 1 x)) (+ (/ 1 x) (/ 1 x)))))
