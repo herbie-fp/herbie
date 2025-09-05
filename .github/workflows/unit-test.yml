@@ -28,9 +28,6 @@ jobs:
       - name: "Install SoftPosit support"
         run: raco pkg install softposit-rkt
 
-      - name: "Test raco fmt compliance"
-        run: make fmt && git diff --exit-code
-
       # Run the Herbie unit tests
       - name: "Run Herbie unit tests"
         run: raco test src/ infra/ egg-herbie/
@@ -73,3 +70,7 @@ jobs:
           node-version: 20
       - name: "Test the endpoint"
         run: node infra/test-api.mjs
+
+      # Enforce raco fmt formatting
+      - name: "Test raco fmt compliance"
+        run: make fmt && git diff --exit-code
