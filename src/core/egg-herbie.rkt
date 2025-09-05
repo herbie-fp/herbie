@@ -287,9 +287,14 @@
       [(list 'Rewrite=> rule expr) (list 'Rewrite=> (get-canon-rule-name rule rule) (loop expr type))]
       [(list 'Rewrite<= rule expr) (list 'Rewrite<= (get-canon-rule-name rule rule) (loop expr type))]
       [(list op args ...)
-       #:when (string-contains? (~a op) "unsound")
+       #:when (string-prefix? (symbol->string op) "unsound")
        (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
        (cons op* (map loop args (map (const 'real) args)))]
+      [(list op args ...)
+       #:when (string-prefix? (symbol->string op) "sound-")
+       (define op* (string->symbol (substring (symbol->string (car expr)) (string-length "sound-"))))
+       (define args* (drop-right args 1))
+       (cons op* (map loop args* (map (const 'real) args*)))]
       [(list op args ...)
        ;; Unfortunately the type parameter doesn't tell us much because mixed exprs exist
        ;; so if we see something like (and a b) we literally don't know which "and" it is
@@ -331,6 +336,8 @@
       (define computed-in (egg-expr->expr out ctx))
       (check-equal? out expected-out)
       (check-equal? computed-in in)))
+
+  (check-equal? (egg-expr->expr '(sound-sqrt $var0 $var1) ctx) '(sqrt x))
 
   (set! ctx (context '(x a b c r) <binary64> (make-list 5 <binary64>)))
   (define extended-expr-list
@@ -574,7 +581,8 @@
     [(cons f _) ; application
      (cond
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
-       [(string-contains? (~a f) "unsound") (list 'real)]
+       [(string-prefix? (symbol->string f) "unsound-") (list 'real)]
+       [(string-prefix? (symbol->string f) "sound-") (list 'real)]
        [else
         (filter values
                 (list (and (impl-exists? f) (impl-info f 'otype))
@@ -594,6 +602,11 @@
        [(string-contains? (~a f) "unsound")
         (define op (string->symbol (string-replace (symbol->string f) "unsound-" "")))
         (list* op (map (λ (x) (lookup (u32vector-ref ids x) 'real)) (range (u32vector-length ids))))]
+       [(string-prefix? (~a f) "sound-")
+        (define op (string->symbol (substring (symbol->string f) (string-length "sound-"))))
+        (list* op
+               (map (λ (x) (lookup (u32vector-ref ids x) 'real))
+                    (range (- (u32vector-length ids) 1))))]
        [else
         (define itypes
           (cond
