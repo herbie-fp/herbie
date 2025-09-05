@@ -95,28 +95,28 @@
   [remainder.py #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 1])
 
 (define-operations ([x <binary64>] [y <binary64>] [w <binary64>]) <binary64>
-  [fsum.3var #:spec (+ (+ x y) w) #:impl (curry apply flsum) #:fpcore (fsum (array x y w)) #:cost 1]
-  [prod.3var #:spec (* (* x y) w) #:impl (from-rival)        #:fpcore (prod (array x y w)) #:cost 1])
+  [fsum.3var #:spec (+ (+ x y) w) #:impl (curry apply flsum) #:fpcore (fsum x y w) #:cost 1]
+  [prod.3var #:spec (* (* x y) w) #:impl (from-rival)        #:fpcore (prod x y w) #:cost 1])
 
 (define-operations ([x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>]) <binary64>
-  [fsum.4var #:spec (+ (+ (+ x y) z) w) #:impl (curry apply flsum) #:fpcore (fsum (array x y w z)) #:cost 1]
-  [prod.4var #:spec (* (* (* x y) w) z) #:impl (from-rival)        #:fpcore (prod (array x y w z)) #:cost 1]
+  [fsum.4var #:spec (+ (+ (+ x y) z) w) #:impl (curry apply flsum) #:fpcore (fsum x y w z) #:cost 1]
+  [prod.4var #:spec (* (* (* x y) w) z) #:impl (from-rival)        #:fpcore (prod x y w z) #:cost 1])
 
-(define-operation (dist.2D [x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>]) <binary64>
+(define-operation (dist.2D [x <binary64>] [y <binary64>] [z <binary64>] [w <binary64>]) <binary64>
   #:spec (sqrt (+ (pow (- y x) 2) (pow (- w z) 2))) #:impl (from-rival)
-  #:fpcore (dist (array x z) (array y w)) #:cost 1)
+  #:fpcore (dist x y z w) #:cost 1)
 
-(define-operation (dist.3D [x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>] [u <binary64>] [v <binary64>]) <binary64>
+(define-operation (dist.3D [x <binary64>] [y <binary64>] [z <binary64>] [w <binary64>] [u <binary64>] [v <binary64>]) <binary64>
   #:spec (sqrt (+ (+ (pow (- y x) 2) (pow (- w z) 2)) (pow (- v u) 2))) #:impl (from-rival)
-  #:fpcore (dist (array x z u) (array y w v)) #:cost 1)
+  #:fpcore (dist x y z w u v) #:cost 1)
 
-(define-operation (sumprod.2D [x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>]) <binary64>
+(define-operation (sumprod.2D [x <binary64>] [y <binary64>] [z <binary64>] [w <binary64>]) <binary64>
   #:spec (+ (* x y) (* z w)) #:impl (from-rival)
-  #:fpcore (sumprod (array x z) (array y w)) #:cost 1)
+  #:fpcore (sumprod x y z w) #:cost 1)
 
-(define-operation (sumprod.3D [x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>] [u <binary64> [v <binary64>]) <binary64>
+(define-operation (sumprod.3D [x <binary64>] [y <binary64>] [z <binary64>] [w <binary64>] [u <binary64>] [v <binary64>]) <binary64>
   #:spec (+ (+ (* x y) (* z w)) (* u v)) #:impl (from-rival)
-  #:fpcore (sumprod (array x z u) (array y w v)) #:cost 1)
+  #:fpcore (sumprod x y z w u v) #:cost 1)
 
 (define-operation (hypot.2D [x <binary64>] [y <binary64>]) <binary64>
   #:spec (sqrt (+ (* x x) (* y y))) #:impl (from-libm 'hypot)
@@ -124,7 +124,7 @@
 
 (define-operation (hypot.3D [x <binary64>] [y <binary64>] [z <binary64>]) <binary64>
   #:spec (sqrt (+ (+ (* x x) (* y y)) (* z z))) #:impl (from-rival)
-  #:fpcore (hypot (hypot x y) z) #:cost 1)
+  #:fpcore (hypot x y z) #:cost 1)
 
 (define-operation (fma.py [x <binary64>] [y <binary64>] [z <binary64>]) <binary64>
   #:spec (+ (* x y) z) #:impl (from-libm 'fma)
