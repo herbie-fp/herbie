@@ -21,7 +21,7 @@
 
 (define-operation (if.py [c <bool>] [t <binary64>] [f <binary64>]) <binary64>
   #:spec (if c t f) #:impl if-impl
-  #:cost boolean-move-cost #:aggregate if-cost)
+  #:cost (if-cost boolean-move-cost))
 
 
 
