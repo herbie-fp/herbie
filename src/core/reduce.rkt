@@ -81,7 +81,10 @@
     [`(,op ,args ...)
      (define args* (map* reduce args))
      (define val (apply eval-application op args*))
-     (or val (reduce-node (if (eq? args* args) expr (list* op args*))))]))
+     (or val
+         (reduce-node (if (eq? args* args)
+                          expr
+                          (list* op args*))))]))
 
 (define (reduce-evaluation expr)
   (match expr
