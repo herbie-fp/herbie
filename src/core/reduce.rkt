@@ -61,6 +61,16 @@
   (check-equal? (eval-application 'log 1) 0)
   (check-equal? (eval-application 'exp 2) #f)) ; Not exact
 
+(define (map* f x)
+  (match x
+    ['() x]
+    [(cons a as)
+     (define b (f a))
+     (define bs (map* f as))
+     (if (and (eq? a b) (eq? as bs))
+         x
+         (cons b bs))]))
+
 (define (reduce expr)
   (hash-ref! (reduce-cache) expr (λ () (reduce* expr))))
 
@@ -69,9 +79,9 @@
     [(? number?) expr]
     [(? symbol?) expr]
     [`(,op ,args ...)
-     (define args* (map reduce args))
+     (define args* (map* reduce args))
      (define val (apply eval-application op args*))
-     (or val (reduce-node (list* op args*)))]))
+     (or val (reduce-node (if (eq? args* args) expr (list* op args*))))]))
 
 (define (reduce-evaluation expr)
   (match expr
