@@ -10,7 +10,7 @@ export PATH="$PATH:$HOME/.cargo/bin/"
 SEED=$(date "+%Y%j")
 BENCHDIR="bench/graphics/pbrt.fpcore"
 BENCHNAME="pbrt"
-REPORTDIR="reports2"
+REPORTDIR="reports"
 NUMITERS=10
 
 mkdir -p "$REPORTDIR"
