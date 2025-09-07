@@ -15,7 +15,8 @@
          test-output-repr
          test-var-reprs
          load-tests
-         parse-test)
+         parse-test
+         load-port)
 
 (struct test (name identifier vars input output expected spec pre output-repr-name var-repr-names)
   #:prefab)

@@ -113,6 +113,8 @@
 ;; Number of iterations of the core loop for improving program accuracy
 (define *num-iterations* (make-parameter 4))
 
+(define *dump-exprs* (make-parameter #f))
+
 ;; The maximum depth for splitting the space when searching for valid areas of points.
 (define *max-find-range-depth* (make-parameter 12))
 

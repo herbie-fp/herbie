@@ -13,7 +13,8 @@
          "points.rkt"
          "preprocess.rkt"
          "programs.rkt"
-         "regimes.rkt")
+         "regimes.rkt"
+         "../config.rkt")
 
 (provide run-improve!
          sort-alts)
@@ -59,6 +60,7 @@
   (for/list ([altn alternatives])
     (define expr (alt-expr altn))
     (define expr* (compile-useful-preprocessing expr context pcontext (*preprocessing*)))
+    (when (*dump-exprs*) (displayln expr))
     (alt expr* 'add-preprocessing (list altn))))
 
 (define (extract!)

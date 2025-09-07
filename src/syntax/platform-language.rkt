@@ -13,6 +13,9 @@
          fpcore-context
          if-impl
          if-cost
+         create-operator-impl!
+         platform-register-implementation!
+         make-operator-impl
          (rename-out [platform-module-begin #%module-begin])
          (except-out (all-from-out racket) #%module-begin)
          (all-from-out "platform.rkt")
