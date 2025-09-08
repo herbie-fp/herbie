@@ -48,6 +48,7 @@ racket -y "src/main.rkt" report \
         --threads 4 \
         "$BENCHDIR" "$REPORTDIR"/"final_$BENCHNAME"
 
+cat "src/platforms/grow.rkt" > grow_platform
 # dirs=""
 # for bench in "$BENCHDIR"/*; do
 #   name=$(basename "$bench" .fpcore)
