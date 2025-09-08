@@ -307,5 +307,12 @@
     [`(-1/3 . ,x) `(/ 1 (cbrt ,x))]
     [`(,power . ,x) `(pow ,x ,power)]))
 
-(module+ main
-  (reduce '(exp (* (log (/ 2 x)) -1))))
+(module+ test
+  (require rackunit)
+  (check-equal? '(- (pow (+ 1 x) 2) 1) (reduce '(- (* (+ x 1) (+ x 1)) 1)))
+  (check-equal? '(neg (* 2 (/ 1 x))) (reduce '(+ (/ 1 (neg x)) (/ 1 (neg x)))))
+  (check-equal? '(- (pow (- 1 (/ 1 x)) 2) 1)
+                (reduce '(- (* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1)) 1)))
+  (check-equal? '(pow (- 1 (/ 1 x)) 2) (reduce '(* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1))))
+  (check-equal? '(+ (* 2 (/ 1 x)) (/ 1 (pow x 2)))
+                (reduce '(+ (* (/ 1 x) (/ 1 x)) (+ (/ 1 x) (/ 1 x))))))

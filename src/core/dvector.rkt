@@ -11,9 +11,8 @@
          create-dvector)
 
 (define starting-length 128)
-(define default-filling-value #f)
 
-(struct dvector ([vec #:mutable] [length #:mutable])
+(struct dvector ([vec #:mutable] [length #:mutable] [filling-value #:mutable])
   #:methods gen:custom-write
   [(define (write-proc dvec port mode)
      (define elems
@@ -28,7 +27,7 @@
         (λ (a hc) ; secondary-hash-code
           (+ (hc (dvector-vec a)) (* 7 (+ 1 (dvector-length a)))))))
 
-(define (make-dvector [size 0] [v default-filling-value])
+(define (make-dvector [size 0] [v #f])
   (define size*
     (cond
       [(< size starting-length) starting-length]
@@ -37,7 +36,7 @@
          (if (< size size*)
              size*
              (loop (* size* 2))))]))
-  (dvector (make-vector size* v) size))
+  (dvector (make-vector size* v) size v))
 
 (define (create-dvector . args)
   (define dvec (make-dvector))
@@ -49,14 +48,14 @@
   (vector-length (dvector-vec dvec)))
 
 (define (dvector-extend! dvec)
-  (match-define (dvector vec _) dvec)
+  (match-define (dvector vec _ filling-val) dvec)
   (define cap (dvector-capacity dvec))
-  (define vec* (make-vector (* 2 cap) default-filling-value))
+  (define vec* (make-vector (* 2 cap) filling-val))
   (vector-copy! vec* 0 vec)
   (set-dvector-vec! dvec vec*))
 
 (define (dvector-add! dvec elem)
-  (match-define (dvector vec len) dvec)
+  (match-define (dvector vec len _) dvec)
   (cond
     [(equal? len (dvector-capacity dvec))
      (dvector-extend! dvec)
@@ -66,7 +65,7 @@
      (set-dvector-length! dvec (add1 len))]))
 
 (define (dvector-set! dvec idx elem)
-  (match-define (dvector vec len) dvec)
+  (match-define (dvector vec len _) dvec)
   (cond
     [(>= idx (dvector-capacity dvec))
      (dvector-extend! dvec)
@@ -79,8 +78,8 @@
   (vector-ref (dvector-vec dvec) idx))
 
 (define (dvector-copy dvec)
-  (match-define (dvector vec len) dvec)
-  (dvector (vector-copy vec) len))
+  (match-define (dvector vec len filling-val) dvec)
+  (dvector (vector-copy vec) len filling-val))
 
 (define (in-dvector dvec [start 0] [end (dvector-length dvec)] [step 1])
   (when (or (< (dvector-length dvec) (or end (dvector-length dvec))) (> start (dvector-length dvec)))
