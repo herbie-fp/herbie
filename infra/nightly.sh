@@ -21,6 +21,7 @@ racket -y "src/main.rkt" report \
         --seed "$SEED" \
         --dump-exprs \
         --platform "no-accelerators" \
+        --threads 4 \
         "$BENCHDIR" "$REPORTDIR"/"orig_$BENCHNAME" > "$REPORTDIR/expr_dump.txt"
 
 # generate accelerator candidates
@@ -31,6 +32,7 @@ for ((i = 0; i < $NUMITERS; i++)) do
     racket -y "src/main.rkt" report \
             --seed "$SEED" \
             --platform "grow" \
+            --threads 4 \
             "$REPORTDIR/candidates.fpcore" "$REPORTDIR"/"iter$i" 
 
     racket -y "growlibm/extend-platform.rkt"  "$REPORTDIR"/"iter$i/results.json" >> "src/platforms/grow.rkt"
@@ -43,6 +45,7 @@ done
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
         --platform "grow" \
+        --threads 4 \
         "$BENCHDIR" "$REPORTDIR"/"final_$BENCHNAME"
 
 # dirs=""
