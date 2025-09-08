@@ -121,42 +121,37 @@
   (hash-ref! (reduce-node-cache) expr (λ () (reduce-node* expr))))
 
 (define (reduce-node* expr)
-  (match (reduce-evaluation expr)
-    [(? number?) expr]
-    [(? symbol?) expr]
+  (define expr* (reduce-evaluation expr))
+  (match expr*
+    [(? number?) expr*]
+    [(? symbol?) expr*]
     [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
-     (make-addition-node (combine-aterms (gather-additive-terms expr)))]
+     (make-addition-node (combine-aterms (gather-additive-terms expr*)))]
     [(or `(* ,_ ...)
          `(/ ,_ ...)
          `(cbrt ,_)
          `(pow ,_ ,(? (conjoin rational? (negate even-denominator?)))))
-     (make-multiplication-node (combine-mterms (gather-multiplicative-terms expr)))]
+     (make-multiplication-node (combine-mterms (gather-multiplicative-terms expr*)))]
     [`(exp (* ,c (log ,x))) (reduce-node* `(pow ,x ,c))]
-    [else (reduce-inverses expr)]))
+    [else (reduce-inverses expr*)]))
 
 (define (negate-term term)
   (cons (- (car term)) (cdr term)))
 
-(define (gather-additive-terms expr #:label [label #f])
-  (define (recurse subexpr #:label [label #f])
-    (gather-additive-terms subexpr #:label label))
-
-  (let ([label (or label expr)])
-    (match expr
-      [(? number?) `((,expr 1))]
-      [(? symbol?) `((1 ,expr))]
-      [`(+ ,args ...) (append-map recurse args)]
-      [`(neg ,arg) (map negate-term (recurse arg))]
-      [`(- ,arg ,args ...) (append (recurse arg) (map negate-term (append-map recurse args)))]
-
-      ; Prevent fall-through to the next case
-      [`(/ ,arg) `((1 ,expr))]
-      [`(/ ,arg ,args ...)
-       (for/list ([term (recurse arg)])
-         (list* (car term) (reduce-node (list* '/ (cadr term) args)) (cons label (cddr term))))]
-
-      [`(pow ,arg 1) `((1 1))]
-      [else `((1 ,expr))])))
+(define (gather-additive-terms expr)
+  (match expr
+    [(? number?) `((,expr 1))]
+    [(? symbol?) `((1 ,expr))]
+    [`(+ ,args ...) (append-map gather-additive-terms args)]
+    [`(neg ,arg) (map negate-term (gather-additive-terms arg))]
+    [`(- ,arg ,args ...)
+     (append (gather-additive-terms arg) (map negate-term (append-map gather-additive-terms args)))]
+    ; Prevent fall-through to the next case
+    [`(/ ,arg) `((1 ,expr))]
+    [`(/ ,arg ,args ...)
+     (for/list ([term (gather-additive-terms arg)])
+       (list (car term) (reduce-node (list* '/ (cadr term) args))))]
+    [else `((1 ,expr))]))
 
 (define (even-denominator? x)
   (even? (denominator x)))
@@ -219,6 +214,7 @@
                 (for/list ([term (cdr terms)])
                   (cons (* a (car term)) (cdr term)))))]
     [else `(1 (1 . ,expr))]))
+
 (define (combine-aterms terms)
   (define h (make-hash))
   (for ([term terms])
