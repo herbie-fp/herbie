@@ -65,16 +65,13 @@
   (hash-ref! (reduce-cache) expr (λ () (reduce* expr))))
 
 (define (reduce* expr)
-  (define res
-    (match expr
-      [(? number?) expr]
-      [(? symbol?) expr]
-      [`(,op ,args ...)
-       (define args* (map reduce args))
-       (define val (apply eval-application op args*))
-       (or val (reduce-node (list* op args*)))]))
-  ;(printf "reduce* ~a -> ~a\n" expr res)
-  res)
+  (match expr
+    [(? number?) expr]
+    [(? symbol?) expr]
+    [`(,op ,args ...)
+     (define args* (map reduce args))
+     (define val (apply eval-application op args*))
+     (or val (reduce-node (list* op args*)))]))
 
 (define (reduce-evaluation expr)
   (match expr
@@ -124,21 +121,18 @@
   (hash-ref! (reduce-node-cache) expr (λ () (reduce-node* expr))))
 
 (define (reduce-node* expr)
-  (define res
-    (match (reduce-evaluation expr)
-      [(? number?) expr]
-      [(? symbol?) expr]
-      [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
-       (make-addition-node (combine-aterms (gather-additive-terms expr)))]
-      [(or `(* ,_ ...)
-           `(/ ,_ ...)
-           `(cbrt ,_)
-           `(pow ,_ ,(? (conjoin rational? (negate even-denominator?)))))
-       (make-multiplication-node (combine-mterms (gather-multiplicative-terms expr)))]
-      [`(exp (* ,c (log ,x))) (reduce-node* `(pow ,x ,c))]
-      [else (reduce-inverses expr)]))
-  ;(printf "reduce-node ~a -> ~a\n" expr res)
-  res)
+  (match (reduce-evaluation expr)
+    [(? number?) expr]
+    [(? symbol?) expr]
+    [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
+     (make-addition-node (combine-aterms (gather-additive-terms expr)))]
+    [(or `(* ,_ ...)
+         `(/ ,_ ...)
+         `(cbrt ,_)
+         `(pow ,_ ,(? (conjoin rational? (negate even-denominator?)))))
+     (make-multiplication-node (combine-mterms (gather-multiplicative-terms expr)))]
+    [`(exp (* ,c (log ,x))) (reduce-node* `(pow ,x ,c))]
+    [else (reduce-inverses expr)]))
 
 (define (negate-term term)
   (cons (- (car term)) (cdr term)))
@@ -147,121 +141,108 @@
   (define (recurse subexpr #:label [label #f])
     (gather-additive-terms subexpr #:label label))
 
-  (define res
-    (let ([label (or label expr)])
-      (match expr
-        [(? number?) `((,expr 1))]
-        [(? symbol?) `((1 ,expr))]
-        [`(+ ,args ...) (append-map recurse args)]
-        [`(neg ,arg) (map negate-term (recurse arg))]
-        [`(- ,arg ,args ...) (append (recurse arg) (map negate-term (append-map recurse args)))]
+  (let ([label (or label expr)])
+    (match expr
+      [(? number?) `((,expr 1))]
+      [(? symbol?) `((1 ,expr))]
+      [`(+ ,args ...) (append-map recurse args)]
+      [`(neg ,arg) (map negate-term (recurse arg))]
+      [`(- ,arg ,args ...) (append (recurse arg) (map negate-term (append-map recurse args)))]
 
-        ; Prevent fall-through to the next case
-        [`(/ ,arg) `((1 ,expr))]
-        [`(/ ,arg ,args ...)
-         (for/list ([term (recurse arg)])
-           (list* (car term) (reduce-node (list* '/ (cadr term) args)) (cons label (cddr term))))]
+      ; Prevent fall-through to the next case
+      [`(/ ,arg) `((1 ,expr))]
+      [`(/ ,arg ,args ...)
+       (for/list ([term (recurse arg)])
+         (list* (car term) (reduce-node (list* '/ (cadr term) args)) (cons label (cddr term))))]
 
-        [`(pow ,arg 1) `((1 1))]
-        [else `((1 ,expr))])))
-  ;(printf "gather-additive-terms ~a -> ~a\n" expr res)
-  res)
+      [`(pow ,arg 1) `((1 1))]
+      [else `((1 ,expr))])))
 
 (define (even-denominator? x)
   (even? (denominator x)))
 
 (define (gather-multiplicative-terms expr)
-  (define res
-    (match expr
-      [(? number?) (list expr)]
-      ['NAN `(NAN)]
-      [(? symbol?) `(1 (1 . ,expr))]
-      [`(neg ,arg)
-       (define terms (gather-multiplicative-terms arg))
-       (if (eq? (car terms) 'NAN)
-           '(NAN)
-           (cons (- (car terms)) (cdr terms)))]
-      [`(* ,args ...)
-       (define terms (map gather-multiplicative-terms args))
-       (if (ormap (curry eq? 'NAN) (map car terms))
-           '(NAN)
-           (cons (apply * (map car terms)) (apply append (map cdr terms))))]
-      [`(/ ,arg)
-       (define terms (gather-multiplicative-terms arg))
-       (cons (if (member (car terms) '(0 NAN))
-                 'NAN
-                 (/ (car terms)))
-             (map negate-term (cdr terms)))]
-      [`(/ ,arg ,args ...)
-       (define num (gather-multiplicative-terms arg))
-       (define dens (map gather-multiplicative-terms args))
-       (cons (if (or (eq? (car num) 'NAN) (ormap (compose (curryr member '(0 NAN)) car) dens))
-                 'NAN
-                 (apply / (car num) (map car dens)))
-             (append (cdr num) (map negate-term (append-map cdr dens))))]
-      [`(cbrt ,arg)
-       (define terms (gather-multiplicative-terms arg))
-       (define exact-cbrt
-         (match (car terms)
-           ['NAN 'NAN]
-           [x (eval-application 'cbrt (car terms))]))
-       (if exact-cbrt
-           (cons exact-cbrt
-                 (for/list ([term (cdr terms)])
-                   (cons (/ (car term) 3) (cdr term))))
-           (list* 1
-                  (cons 1 `(cbrt ,(car terms)))
-                  (for/list ([term (cdr terms)])
-                    (cons (/ (car term) 3) (cdr term)))))]
-      [`(pow ,arg 0) '(1)]
-      [`(pow ,arg ,(? (conjoin rational? (negate even-denominator?)) a))
-       (define terms (gather-multiplicative-terms arg))
-       (define exact-pow
-         (match (car terms)
-           ['NAN 'NAN]
-           [x (eval-application 'pow (car terms) a)]))
-       (if exact-pow
-           (cons exact-pow
-                 (for/list ([term (cdr terms)])
-                   (cons (* a (car term)) (cdr term))))
-           (list* 1
-                  (cons a (car terms))
-                  (for/list ([term (cdr terms)])
-                    (cons (* a (car term)) (cdr term)))))]
-      [else `(1 (1 . ,expr))]))
-  ;(printf "gather-multiplicative-terms ~a -> ~a\n" expr res)
-  res)
-
+  (match expr
+    [(? number?) (list expr)]
+    ['NAN `(NAN)]
+    [(? symbol?) `(1 (1 . ,expr))]
+    [`(neg ,arg)
+     (define terms (gather-multiplicative-terms arg))
+     (if (eq? (car terms) 'NAN)
+         '(NAN)
+         (cons (- (car terms)) (cdr terms)))]
+    [`(* ,args ...)
+     (define terms (map gather-multiplicative-terms args))
+     (if (ormap (curry eq? 'NAN) (map car terms))
+         '(NAN)
+         (cons (apply * (map car terms)) (apply append (map cdr terms))))]
+    [`(/ ,arg)
+     (define terms (gather-multiplicative-terms arg))
+     (cons (if (member (car terms) '(0 NAN))
+               'NAN
+               (/ (car terms)))
+           (map negate-term (cdr terms)))]
+    [`(/ ,arg ,args ...)
+     (define num (gather-multiplicative-terms arg))
+     (define dens (map gather-multiplicative-terms args))
+     (cons (if (or (eq? (car num) 'NAN) (ormap (compose (curryr member '(0 NAN)) car) dens))
+               'NAN
+               (apply / (car num) (map car dens)))
+           (append (cdr num) (map negate-term (append-map cdr dens))))]
+    [`(cbrt ,arg)
+     (define terms (gather-multiplicative-terms arg))
+     (define exact-cbrt
+       (match (car terms)
+         ['NAN 'NAN]
+         [x (eval-application 'cbrt (car terms))]))
+     (if exact-cbrt
+         (cons exact-cbrt
+               (for/list ([term (cdr terms)])
+                 (cons (/ (car term) 3) (cdr term))))
+         (list* 1
+                (cons 1 `(cbrt ,(car terms)))
+                (for/list ([term (cdr terms)])
+                  (cons (/ (car term) 3) (cdr term)))))]
+    [`(pow ,arg 0) '(1)]
+    [`(pow ,arg ,(? (conjoin rational? (negate even-denominator?)) a))
+     (define terms (gather-multiplicative-terms arg))
+     (define exact-pow
+       (match (car terms)
+         ['NAN 'NAN]
+         [x (eval-application 'pow (car terms) a)]))
+     (if exact-pow
+         (cons exact-pow
+               (for/list ([term (cdr terms)])
+                 (cons (* a (car term)) (cdr term))))
+         (list* 1
+                (cons a (car terms))
+                (for/list ([term (cdr terms)])
+                  (cons (* a (car term)) (cdr term)))))]
+    [else `(1 (1 . ,expr))]))
 (define (combine-aterms terms)
   (define h (make-hash))
   (for ([term terms])
     (define sum (hash-ref! h (cadr term) 0))
     (hash-set! h (cadr term) (+ (car term) sum)))
-  (define res
-    (sort (reap [sow]
-                (for ([(k v) (in-hash h)]
-                      #:when (not (= v 0)))
-                  (sow (cons v k))))
-          expr<?
-          #:key cdr))
-  ;(printf "combine-aterms ~a -> ~a\n" terms res)
-  res)
+  (sort (reap [sow]
+              (for ([(k v) (in-hash h)]
+                    #:when (not (= v 0)))
+                (sow (cons v k))))
+        expr<?
+        #:key cdr))
 
 (define (combine-mterms terms)
-  (define res
-    (cons (car terms)
-          (let ([h (make-hash)])
-            (for ([term (cdr terms)])
-              (define sum (hash-ref! h (cdr term) 0))
-              (hash-set! h (cdr term) (+ (car term) sum)))
-            (sort (reap [sow]
-                        (for ([(k v) (in-hash h)]
-                              #:unless (= v 0))
-                          (sow (cons v k))))
-                  expr<?
-                  #:key cdr))))
-  ;(printf "combine-mterms ~a -> ~a\n" terms res)
-  res)
+  (cons (car terms)
+        (let ([h (make-hash)])
+          (for ([term (cdr terms)])
+            (define sum (hash-ref! h (cdr term) 0))
+            (hash-set! h (cdr term) (+ (car term) sum)))
+          (sort (reap [sow]
+                      (for ([(k v) (in-hash h)]
+                            #:unless (= v 0))
+                        (sow (cons v k))))
+                expr<?
+                #:key cdr))))
 
 (define (aterm->expr term)
   (match term
@@ -272,14 +253,11 @@
 
 (define (make-addition-node terms)
   (define-values (pos neg) (partition (λ (x) (and (real? (car x)) (positive? (car x)))) terms))
-  (define res
-    (cond
-      [(and (null? pos) (null? neg)) 0]
-      [(null? pos) `(neg ,(make-addition-node* (map negate-term neg)))]
-      [(null? neg) (make-addition-node* pos)]
-      [else `(- ,(make-addition-node* pos) ,(make-addition-node* (map negate-term neg)))]))
-  ;(printf "make-addition-node ~a -> ~a\n" terms res)
-  res)
+  (cond
+    [(and (null? pos) (null? neg)) 0]
+    [(null? pos) `(neg ,(make-addition-node* (map negate-term neg)))]
+    [(null? neg) (make-addition-node* pos)]
+    [else `(- ,(make-addition-node* pos) ,(make-addition-node* (map negate-term neg)))]))
 
 ;; TODO : Use (- x y) when it is simpler
 (define (make-addition-node* terms)
@@ -289,18 +267,15 @@
     [`(,term ,terms ...) `(+ ,(aterm->expr term) ,(make-addition-node terms))]))
 
 (define (make-multiplication-node term)
-  (define res
-    (match (cons (car term) (make-multiplication-subnode (cdr term)))
-      [`(NAN . ,e) '(NAN)]
-      [`(0 . ,e) 0]
-      [`(1 . ()) 1]
-      [`(1 . ,e) e]
-      [`(,a . 1) a]
-      [`(,a . (/ 1 ,denom)) `(/ ,a ,denom)]
-      [`(,a . ()) a]
-      [`(,a . ,e) `(* ,a ,e)]))
-  ;(printf "make-multiplication-node ~a -> ~a\n" term res)
-  res)
+  (match (cons (car term) (make-multiplication-subnode (cdr term)))
+    [`(NAN . ,e) '(NAN)]
+    [`(0 . ,e) 0]
+    [`(1 . ()) 1]
+    [`(1 . ,e) e]
+    [`(,a . 1) a]
+    [`(,a . (/ 1 ,denom)) `(/ ,a ,denom)]
+    [`(,a . ()) a]
+    [`(,a . ,e) `(* ,a ,e)]))
 
 (define (make-multiplication-subnode terms)
   (make-multiplication-subsubsubnode

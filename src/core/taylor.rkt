@@ -12,16 +12,16 @@
          taylor-coefficients)
 
 (define (taylor-coefficients batch brfs vars transforms-to-try)
-  (define reduce* (batch-reduce batch))
-  (define expand (expand-taylor! batch))
+  (define reducer (batch-reduce batch))
+  (define expander (expand-taylor! batch))
   (define taylor-coeffs
     (for*/list ([var (in-list vars)]
-                #:do [(define taylor* (taylor var batch))]
+                #:do [(define taylorer (taylor var batch))]
                 [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
-      (define replace (batch-replace-expression! batch var (f var)))
+      (define replacer (batch-replace-expression! batch var (f var)))
       (for/list ([brf (in-list brfs)])
-        (taylor* (expand (reduce* (replace brf)))))))
+        (taylorer (expander (reducer (replacer brf)))))))
   taylor-coeffs)
 
 (define (approximate taylor-approxs
