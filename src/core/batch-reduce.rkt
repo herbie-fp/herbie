@@ -17,46 +17,42 @@
   (define exact-value? (conjoin number? exact?))
   (batch-recurse batch
                  (λ (brf recurse)
-                   (define res
-                     (match (deref brf)
-                       [(? exact-value? val) val]
-                       [(list '+ (app deref (? exact-value? as)) ...) (apply + as)]
-                       [(list '- (app deref (? exact-value? as)) ...) (apply - as)]
-                       [(list '* (app deref (? exact-value? as)) ...) (apply * as)]
-                       [(list '/ (app deref (? exact-value? num)) (app deref (? exact-value? den)))
-                        (and (not (zero? den)) (/ num den))]
-                       [(list 'neg (app deref (? exact-value? arg))) (- arg)]
-                       [(list 'pow (app deref (? exact-value? a)) (app deref (? exact-value? b)))
-                        (cond
-                          [(and (zero? b) (not (zero? a))) 1]
-                          [(and (zero? a) (positive? b)) 0]
-                          [(and (not (zero? a)) (integer? b)) (expt a b)]
-                          [(= a -1) (if (even? (numerator b)) 1 -1)]
-                          [(= a 1) 1]
-                          [else #f])]
-                       [(list 'sqrt (app deref (? exact-value? a)))
-                        (define s1 (sqrt (numerator a)))
-                        (define s2 (sqrt (denominator a)))
-                        (and (real? s1) (real? s2) (exact? s1) (exact? s2) (/ s1 s2))]
-                       [(list 'cbrt (app deref (? exact-value? a)))
-                        (define inexact-num (inexact->exact (expt (abs (numerator a)) 1/3)))
-                        (define inexact-den (inexact->exact (expt (abs (denominator a)) 1/3)))
-                        (and (real? inexact-num)
-                             (real? inexact-den)
-                             (= (expt inexact-num 3) (abs (numerator a)))
-                             (= (expt inexact-den 3) (abs (denominator a)))
-                             (* (sgn a) (/ inexact-num inexact-den)))]
-                       [(list 'fabs (app deref (? exact-value? a))) (abs a)]
-                       [(list 'floor (app deref (? exact-value? a))) (floor a)]
-                       [(list 'ceil (app deref (? exact-value? a))) (ceiling a)]
-                       [(list 'round (app deref (? exact-value? a))) (round a)]
-                       ;; Added
-                       [(list 'exp (app deref 0)) 1]
-                       [(list 'log (app deref 1)) 0]
-                       [_ #f]))
-                   (if res
-                       (batch-push! batch res)
-                       res))))
+                   (match (deref brf)
+                     [(? exact-value? val)
+                      val] ;; this part is not naive in rewriting. should be considered for the future
+                     [(list '+ (app deref (? exact-value? as)) ...) (apply + as)]
+                     [(list '- (app deref (? exact-value? as)) ...) (apply - as)]
+                     [(list '* (app deref (? exact-value? as)) ...) (apply * as)]
+                     [(list '/ (app deref (? exact-value? num)) (app deref (? exact-value? den)))
+                      (and (not (zero? den)) (/ num den))]
+                     [(list 'neg (app deref (? exact-value? arg))) (- arg)]
+                     [(list 'pow (app deref (? exact-value? a)) (app deref (? exact-value? b)))
+                      (cond
+                        [(and (zero? b) (not (zero? a))) 1]
+                        [(and (zero? a) (positive? b)) 0]
+                        [(and (not (zero? a)) (integer? b)) (expt a b)]
+                        [(= a -1) (if (even? (numerator b)) 1 -1)]
+                        [(= a 1) 1]
+                        [else #f])]
+                     [(list 'sqrt (app deref (? exact-value? a)))
+                      (define s1 (sqrt (numerator a)))
+                      (define s2 (sqrt (denominator a)))
+                      (and (real? s1) (real? s2) (exact? s1) (exact? s2) (/ s1 s2))]
+                     [(list 'cbrt (app deref (? exact-value? a)))
+                      (define inexact-num (inexact->exact (expt (abs (numerator a)) 1/3)))
+                      (define inexact-den (inexact->exact (expt (abs (denominator a)) 1/3)))
+                      (and (real? inexact-num)
+                           (real? inexact-den)
+                           (= (expt inexact-num 3) (abs (numerator a)))
+                           (= (expt inexact-den 3) (abs (denominator a)))
+                           (* (sgn a) (/ inexact-num inexact-den)))]
+                     [(list 'fabs (app deref (? exact-value? a))) (abs a)]
+                     [(list 'floor (app deref (? exact-value? a))) (floor a)]
+                     [(list 'ceil (app deref (? exact-value? a))) (ceiling a)]
+                     [(list 'round (app deref (? exact-value? a))) (round a)]
+                     [(list 'exp (app deref 0)) 1]
+                     [(list 'log (app deref 1)) 0]
+                     [_ #f]))))
 
 (define (batch-reduce batch)
   (define eval-application (batch-eval-application batch))
@@ -83,6 +79,8 @@
                         (define args* (map recurse args))
                         (define brf* (batch-add! batch (list* op args*)))
                         (define val (eval-application brf*))
+                        (when val ;; convert to batchref if result is not #f
+                          (set! val (batch-push! batch val)))
                         (or val ((reduce-node) brf*))])))))
 
 ;; Covered by tests
@@ -141,165 +139,154 @@
                            gather-multiplicative-terms
                            reduce-evaluation
                            reduce-inverses)
-  (batch-recurse
-   batch
-   (λ (brf recurse)
-     (define node (deref brf))
-     (define brf* (reduce-evaluation brf))
-     (match (deref brf*)
-       [(? number?) brf*] ; that's kinda weird, why we do not return a reduced evaluation
-       [(? symbol?) brf*]
-       [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
-        (make-addition-node (combine-aterms (gather-additive-terms brf*)))]
-       [(or `(* ,_ ...)
-            `(/ ,_ ...)
-            `(cbrt ,_)
-            `(pow ,_ ,(app deref (? (conjoin rational? (negate even-denominator?))))))
-        (make-multiplication-node (combine-mterms (gather-multiplicative-terms
-                                                   brf*)))] ; also weird here
-       [(list 'exp (app deref (list '* c (app deref (list 'log x)))))
-        (define rewrite (batch-add! batch `(pow ,x ,c)))
-        (recurse rewrite)]
-       [else (reduce-inverses brf*)]))))
+  (batch-recurse batch
+                 (λ (brf recurse)
+                   (define brf* (reduce-evaluation brf))
+                   (match (deref brf*)
+                     [(? number?) brf*]
+                     [(? symbol?) brf*]
+                     [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
+                      (make-addition-node (combine-aterms (gather-additive-terms brf*)))]
+                     [(or `(* ,_ ...)
+                          `(/ ,_ ...)
+                          `(cbrt ,_)
+                          `(pow ,_ ,(app deref (? (conjoin rational? (negate even-denominator?))))))
+                      (make-multiplication-node (combine-mterms (gather-multiplicative-terms brf*)))]
+                     [(list 'exp (app deref (list '* c (app deref (list 'log x)))))
+                      (define rewrite (batch-add! batch `(pow ,x ,c)))
+                      (recurse rewrite)]
+                     [else (reduce-inverses brf*)]))))
 
-(define (negate-term term)
-  (cons (batch-push! (global-batch) (- (deref (car term)))) (cdr term)))
+(define/contract (negate-term term)
+  (-> (or/c (cons/c number? (or/c list? batchref?)) (list/c number? (or/c list? batchref?)))
+      (or/c (cons/c number? (or/c list? batchref?)) (list/c number? (or/c list? batchref?))))
+  (cons (- (car term)) (cdr term)))
 
-; (list (cons number? expr?))
 (define (batch-gather-additive-terms batch)
-  (batch-recurse
-   batch
-   (λ (brf recurse)
-     (match (deref brf)
-       [(? number? n) `((,brf ,(batch-push! batch 1)))]
-       [(? symbol?) `((,(batch-push! batch 1) ,brf))]
-       [`(+ ,args ...) (append-map recurse args)]
-       [`(neg ,arg) (map negate-term (recurse arg))]
-       [`(- ,arg ,args ...) (append (recurse arg) (map negate-term (append-map recurse args)))]
-       ; Prevent fall-through to the next case
-       [`(/ ,arg) `((,(batch-push! batch 1) ,brf))]
-       [`(/ ,arg ,args ...)
-        (for/list ([term (recurse arg)])
-          (list (car term) ((reduce-node) (batch-add! batch (list* '/ (cadr term) args)))))]
-       [else `((,(batch-push! batch 1) ,brf))]))))
+  (define/contract (gather-additive-terms brf recurse)
+    (-> batchref? procedure? (listof (list/c (or/c symbol? number?) batchref?)))
+    (match (deref brf)
+      [(? number? n) `((,n ,(batch-push! batch 1)))]
+      [(? symbol?) `((1 ,brf))]
+      [`(+ ,args ...) (append-map recurse args)]
+      [`(neg ,arg) (map negate-term (recurse arg))]
+      [`(- ,arg ,args ...) (append (recurse arg) (map negate-term (append-map recurse args)))]
+      ; Prevent fall-through to the next case
+      [`(/ ,arg) `((1 ,brf))]
+      [`(/ ,arg ,args ...)
+       (for/list ([term (recurse arg)])
+         (list (car term) ((reduce-node) (batch-add! batch (list* '/ (cadr term) args)))))]
+      [else `((1 ,brf))]))
+  (batch-recurse batch gather-additive-terms))
 
 (define (even-denominator? x)
   (even? (denominator x)))
 
-; (cons number? (list (cons number? expr?)))
+;; (cons num1 (list (cons num2 exp2) (cons num3 exp3))) = num1 * (exp2 ^ num2) * (exp3 ^ num3)
 (define (batch-gather-multiplicative-terms batch eval-application)
-  (batch-recurse
-   batch
-   (λ (brf recurse)
-     (match (deref brf)
-       [(? number?)
-        (list brf)
-        #;(cons brf 0)]
-       ['NAN (list (batch-push! batch 'NAN))]
-       [(? symbol?) `(,(batch-push! batch 1) (,(batch-push! batch 1) . ,brf))]
-       [`(neg ,arg)
-        (define terms (recurse arg))
-        (if (eq? (deref (car terms)) 'NAN)
-            (list (batch-push! batch 'NAN))
-            (negate-term terms))]
-       [`(* ,args ...)
-        (define terms (map recurse args))
-        (if (ormap (curry eq? 'NAN) (map (compose deref car) terms))
-            (list (batch-push! batch 'NAN))
-            (cons (batch-push! batch (apply * (map (compose deref car) terms)))
-                  (apply append (map cdr terms))))]
-       [`(/ ,arg)
-        (define terms (recurse arg))
-        (cons (if (member (deref (car terms)) '(0 NAN))
-                  (batch-push! batch 'NAN)
-                  (batch-push! batch (/ (deref (car terms)))))
-              (map negate-term (cdr terms)))]
-       [`(/ ,arg ,args ...)
-        (define num (recurse arg))
-        (define dens (map recurse args))
-        (cons (if (or (eq? (deref (car num)) 'NAN)
-                      (ormap (compose (curryr member '(0 NAN)) deref car) dens))
-                  (batch-push! batch 'NAN)
-                  (batch-push! batch (apply / (deref (car num)) (map (compose deref car) dens))))
-              (append (cdr num) (map negate-term (append-map cdr dens))))]
-       [`(cbrt ,arg)
-        (define terms (recurse arg))
-        (define exact-cbrt
-          (match (deref (car terms))
-            ['NAN (batch-push! batch 'NAN)]
-            [x (eval-application (batch-add! batch (list 'cbrt (car terms))))]))
-        (if exact-cbrt
-            (cons exact-cbrt
+  (define (nan)
+    `(NAN ((1 . ,(batch-push! batch 1)))))
+  (define/contract (gather-multiplicative-terms brf recurse)
+    (-> batchref?
+        procedure?
+        (cons/c (or/c symbol? number?) (listof (cons/c (or/c symbol? number?) batchref?))))
+    (match (deref brf)
+      [(? number? n) `(,n . ())]
+      ['NAN (nan)]
+      [(? symbol?) `(1 . ((1 . ,brf)))]
+      [`(neg ,arg)
+       (define terms (recurse arg))
+       (if (eq? (car terms) 'NAN)
+           (nan)
+           (negate-term terms))]
+      [`(* ,args ...)
+       (define terms (map recurse args))
+       (if (ormap (curry eq? 'NAN) (map car terms))
+           (nan)
+           (cons (apply * (map car terms)) (append-map cdr terms)))]
+      [`(/ ,arg)
+       (define term (recurse arg))
+       (if (member (car term) '(0 NAN))
+           (nan)
+           (cons (/ (car term)) (map negate-term (cdr term))))]
+      [`(/ ,arg ,args ...)
+       (define num (recurse arg))
+       (define dens (map recurse args))
+       (if (or (eq? (car num) 'NAN) (ormap (compose (curryr member '(0 NAN)) car) dens))
+           (nan)
+           (cons (apply / (car num) (map car dens))
+                 (append (cdr num) (map negate-term (append-map cdr dens)))))]
+      [`(cbrt ,arg)
+       (define terms (recurse arg))
+       (cond
+         [(equal? (car terms) 'NAN) (nan)]
+         [else
+          (define exact-cbrt (eval-application (batch-add! batch (list 'cbrt (car terms)))))
+          (if exact-cbrt
+              (cons exact-cbrt
+                    (for/list ([term (cdr terms)])
+                      (cons (/ (car term) 3) (cdr term))))
+              (cons 1
+                    (list* (cons 1 (batch-add! batch `(cbrt ,(car terms))))
+                           (for/list ([term (cdr terms)])
+                             (cons (/ (car term) 3) (cdr term))))))])]
+      [`(pow ,arg ,(app deref 0)) `(1 . ())] ; should we do a check for nan?
+      [`(pow ,arg ,(app deref (? (conjoin rational? (negate even-denominator?)) a)))
+       (define terms (recurse arg))
+       (define exact-pow
+         (match (car terms)
+           ['NAN 'NAN]
+           [x (eval-application (batch-add! batch (list 'pow x a)))]))
+       (if exact-pow
+           (cons exact-pow
+                 (for/list ([term (cdr terms)])
+                   (cons (* a (car term)) (cdr term))))
+           (list* 1
+                  (cons a (car terms))
                   (for/list ([term (cdr terms)])
-                    (cons (batch-push! batch (/ (deref (car term)) 3)) (cdr term))))
-            (list* (batch-push! batch 1)
-                   (cons (batch-push! batch 1) (batch-add! batch `(cbrt ,(car terms))))
-                   (for/list ([term (cdr terms)])
-                     (cons (batch-push! batch (/ (deref (car term)) 3)) (cdr term)))))]
-       [`(pow ,arg ,(app deref 0)) (list (batch-push! batch 1))]
-       [`(pow ,arg ,(app deref (? (conjoin rational? (negate even-denominator?)) a)))
-        (define terms (recurse arg))
-        (define exact-pow
-          (match (deref (car terms))
-            ['NAN (batch-push! batch 'NAN)]
-            [x (eval-application (batch-add! batch (list 'pow (car terms) a)))]))
-        (if exact-pow
-            (cons exact-pow
-                  (for/list ([term (cdr terms)])
-                    (cons (batch-push! batch (* a (deref (car term)))) (cdr term))))
-            (list* (batch-push! batch 1)
-                   (cons (batch-push! batch a) (car terms))
-                   (for/list ([term (cdr terms)])
-                     (cons (batch-push! batch (* a (deref (car term)))) (cdr term)))))]
-       [else `(,(batch-push! batch 1) (,(batch-push! batch 1) . ,brf))]))))
+                    (cons (* a (car term)) (cdr term)))))]
+      [_ `(1 . ((1 . ,brf)))]))
+  (batch-recurse batch gather-multiplicative-terms))
 
-(define (~a-terms terms)
-  (map (λ (x)
-         (match x
-           [(cons a '()) (cons (batch-pull a) '())]
-           [(cons a (list b)) (cons (batch-pull a) (list (batch-pull b)))]
-           [(? list?) (map batch-pull x)]
-           [(cons a b) (cons (batch-pull a) (batch-pull b))]
-           [_ (batch-pull x)]))
-       terms))
-
-(define (combine-aterms terms)
+(define/contract (combine-aterms terms)
+  (-> (listof (list/c number? batchref?)) (listof (cons/c number? batchref?)))
   (define h (make-hash))
   (for ([term terms])
     (define sum (hash-ref! h (cadr term) 0))
-    (hash-set! h (cadr term) (+ (deref (car term)) sum)))
+    (hash-set! h (cadr term) (+ (car term) sum)))
   (sort (reap [sow]
               (for ([(k v) (in-hash h)]
                     #:when (not (= v 0)))
-                (sow (cons (batch-push! (global-batch) v) k))))
+                (sow (cons v k))))
         expr<?
         #:key cdr))
 
-(define (combine-mterms terms)
+(define/contract (combine-mterms terms)
+  (-> (cons/c (or/c symbol? number?) (listof (cons/c number? batchref?)))
+      (cons/c (or/c symbol? number?) (listof (cons/c number? batchref?))))
   (cons (car terms)
         (let ([h (make-hash)])
           (for ([term (cdr terms)])
             (define sum (hash-ref! h (cdr term) 0))
-            (hash-set! h (cdr term) (+ (deref (car term)) sum)))
+            (hash-set! h (cdr term) (+ (car term) sum)))
           (sort (reap [sow]
                       (for ([(k v) (in-hash h)]
                             #:unless (= v 0))
-                        (sow (cons (batch-push! (global-batch) v) k))))
+                        (sow (cons v k))))
                 expr<?
                 #:key cdr))))
 
-;;---------------------------------------------------------------------------------------------
-
-(define (aterm->expr term)
+(define/contract (aterm->expr term)
+  (-> (cons/c number? batchref?) batchref?)
   (match term
-    [`(,(app deref 1) . ,x) x]
-    [`(,x . ,(app deref 1)) x]
-    [`(,(app deref -1) . ,x) (batch-add! (global-batch) `(neg ,x))]
+    [`(1 . ,x) x]
+    [`(,x . ,(app deref 1)) (batch-push! (global-batch) x)]
+    [`(-1 . ,x) (batch-add! (global-batch) `(neg ,x))]
     [`(,coeff . ,x) (batch-add! (global-batch) `(* ,coeff ,x))]))
 
-(define (make-addition-node terms)
-  (define-values (pos neg)
-    (partition (λ (x) (and (real? (deref (car x))) (positive? (deref (car x))))) terms))
+(define/contract (make-addition-node terms)
+  (-> (listof (cons/c number? batchref?)) batchref?)
+  (define-values (pos neg) (partition (λ (x) (and (real? (car x)) (positive? (car x)))) terms))
   (cond
     [(and (null? pos) (null? neg)) (batch-push! (global-batch) 0)]
     [(null? pos) (batch-add! (global-batch) `(neg ,(make-addition-node* (map negate-term neg))))]
@@ -309,32 +296,34 @@
                  `(- ,(make-addition-node* pos) ,(make-addition-node* (map negate-term neg))))]))
 
 ;; TODO : Use (- x y) when it is simpler
-(define (make-addition-node* terms)
+(define/contract (make-addition-node* terms)
+  (-> (listof (cons/c number? batchref?)) batchref?)
   (match terms
     ['() (batch-push! (global-batch) 0)]
     [`(,term) (aterm->expr term)]
     [`(,term ,terms ...)
      (batch-add! (global-batch) `(+ ,(aterm->expr term) ,(make-addition-node terms)))]))
 
-(define (make-multiplication-node term)
+(define/contract (make-multiplication-node term)
+  (-> (listof (or/c number? (cons/c number? batchref?))) batchref?)
   (match (cons (car term) (make-multiplication-subnode (cdr term)))
-    [(cons (app deref 'NAN) e) (list (batch-push! (global-batch) 'NAN))]
-    [(cons (app deref 0) e) (batch-push! (global-batch) 0)]
-    [(cons (app deref 1) '()) (batch-push! (global-batch) 1)]
-    [(cons (app deref 1) e) e]
-    [(cons a (app deref 1)) a]
+    [(cons 'NAN e) (list (batch-push! (global-batch) 'NAN))]
+    [(cons 0 e) (batch-push! (global-batch) 0)]
+    [(cons 1 '()) (batch-push! (global-batch) 1)]
+    [(cons 1 e) e]
+    [(cons a (app deref 1)) (batch-push! (global-batch) a)]
     [(cons a (app deref (list '/ (app deref 1) denom))) (batch-add! (global-batch) `(/ ,a ,denom))]
-    [(cons a '()) a]
+    [(cons a '()) (batch-push! (global-batch) a)]
     [(cons a e) (batch-add! (global-batch) `(* ,a ,e))]))
 
-(define (make-multiplication-subnode terms)
+(define/contract (make-multiplication-subnode terms)
+  (-> (listof (cons/c number? batchref?)) batchref?)
   (make-multiplication-subsubsubnode
-   (list (cons (batch-push! (global-batch) 1)
-               (mterm->expr (cons (batch-push! (global-batch) 1)
-                                  (make-multiplication-subsubnode terms)))))))
+   (list (cons 1 (mterm->expr (cons 1 (make-multiplication-subsubnode terms)))))))
 
-(define (make-multiplication-subsubnode terms)
-  (define-values (pos neg) (partition (compose positive? deref car) terms))
+(define/contract (make-multiplication-subsubnode terms)
+  (-> (listof (cons/c number? batchref?)) batchref?)
+  (define-values (pos neg) (partition (compose positive? car) terms))
   (cond
     [(and (null? pos) (null? neg)) (batch-push! (global-batch) 1)]
     [(null? pos)
@@ -345,7 +334,8 @@
                  `(/ ,(make-multiplication-subsubsubnode pos)
                      ,(make-multiplication-subsubsubnode (map negate-term neg))))]))
 
-(define (make-multiplication-subsubsubnode terms)
+(define/contract (make-multiplication-subsubsubnode terms)
+  (-> (listof (cons/c number? batchref?)) batchref?)
   (match terms
     ['() (batch-push! (global-batch) 1)]
     [`(,term) (mterm->expr term)]
@@ -353,14 +343,15 @@
      (batch-add! (global-batch)
                  `(* ,(mterm->expr term) ,(make-multiplication-subsubsubnode terms)))]))
 
-(define (mterm->expr term)
+(define/contract (mterm->expr term)
+  (-> (cons/c number? batchref?) batchref?)
   (match term
-    [(cons (app deref 1) x) x]
-    [(cons (app deref -1) x) (batch-add! (global-batch) `(/ 1 ,x))]
-    [(cons (app deref 1/2) x) (batch-add! (global-batch) `(sqrt ,x))]
-    [(cons (app deref -1/2) x) (batch-add! (global-batch) `(/ 1 (sqrt ,x)))]
-    [(cons (app deref 1/3) x) (batch-add! (global-batch) `(cbrt ,x))]
-    [(cons (app deref -1/3) x) (batch-add! (global-batch) `(/ 1 (cbrt ,x)))]
+    [(cons 1 x) x]
+    [(cons -1 x) (batch-add! (global-batch) `(/ 1 ,x))]
+    [(cons 1/2 x) (batch-add! (global-batch) `(sqrt ,x))]
+    [(cons -1/2 x) (batch-add! (global-batch) `(/ 1 (sqrt ,x)))]
+    [(cons 1/3 x) (batch-add! (global-batch) `(cbrt ,x))]
+    [(cons -1/3 x) (batch-add! (global-batch) `(/ 1 (cbrt ,x)))]
     [(cons power x) (batch-add! (global-batch) `(pow ,x ,power))]))
 
 (module+ test
@@ -368,14 +359,9 @@
   (define batch (batch-empty))
   (define evaluator (batch-eval-application batch))
   (define (evaluator-results expr)
-    (define res (evaluator (batch-add! batch expr)))
-    (if res
-        (batch-pull res)
-        res))
+    (evaluator (batch-add! batch expr)))
 
   ;; Checks for batch-eval-application
-  ;(check-equal? (evaluator-results '(+ 1 (cbrt 8))) 3)
-  ;(check-equal? (evaluator-results '(exp (/ 0 100))) 1)
   (check-equal? (evaluator-results '(+ 1 1)) 2)
   (check-equal? (evaluator-results '(+)) 0)
   (check-equal? (evaluator-results '(/ 1 0)) #f) ; Not valid
