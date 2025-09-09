@@ -21,7 +21,6 @@ racket -y "src/main.rkt" report \
         --seed "$SEED" \
         --dump-exprs \
         --platform "no-accelerators" \
-        --threads 4 \
         "$BENCHDIR" "$REPORTDIR"/"orig_$BENCHNAME" > "$REPORTDIR/expr_dump.txt"
 
 # generate accelerator candidates

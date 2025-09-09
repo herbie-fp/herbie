@@ -68,7 +68,7 @@
     (when given-seed
       (set-seed! given-seed))]
    [("--dump-exprs")
-    ("Dump all expressions that herbie sees")
+    "Dump all expressions that herbie sees"
     (*dump-exprs* #t)]
    [("--threads")
     num
