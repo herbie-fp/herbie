@@ -198,7 +198,7 @@
                 (cons 1 `(cbrt ,(car terms)))
                 (for/list ([term (cdr terms)])
                   (cons (/ (car term) 3) (cdr term)))))]
-    [`(pow ,arg 0) `(1 (1 . 1))] ; not sure here
+    [`(pow ,arg 0) `(1 (1 . 1))]
     [`(pow ,arg ,(? (conjoin rational? (negate even-denominator?)) a))
      (define terms (gather-multiplicative-terms arg))
      (define exact-pow

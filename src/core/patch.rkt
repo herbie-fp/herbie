@@ -13,7 +13,8 @@
          "programs.rkt"
          "rules.rkt"
          "rival.rkt"
-         "taylor.rkt")
+         "taylor.rkt"
+         "batch-reduce.rkt")
 
 (provide generate-candidates)
 
@@ -39,7 +40,11 @@
   (define-values (spec-batch spec-brfs*) (batch-copy-only global-batch spec-brfs))
 
   ;; List<List<(cons offset coeffs)>>
-  (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs* vars transforms-to-try))
+  (define reducer (batch-reduce spec-batch))
+  (define adder (λ (x) (batch-add! spec-batch x)))
+  (define exprser (batch-exprs spec-batch))
+  (define copier (batch-copy-only! global-batch spec-batch)) ;; copy to global-batch
+  (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs* reducer vars transforms-to-try))
 
   (define idx 0)
   (reap [sow]
@@ -48,7 +53,8 @@
           (match-define (list name f finv) transform-type)
           (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
           (define taylor-coeffs* (list-ref taylor-coeffs idx))
-          (define genexprs (approximate taylor-coeffs* var #:transform (cons f finv)))
+          (define genexprs
+            (approximate taylor-coeffs* reducer adder exprser var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
                 [spec-brf (in-list spec-brfs)]
                 [repr (in-list reprs)]
@@ -56,7 +62,7 @@
                 [fv (in-list free-vars)]
                 #:when (set-member? fv var)) ; check whether var exists in expr at all
             (for ([i (in-range (*taylor-order-limit*))])
-              (define gen (approx spec-brf (hole (representation-name repr) (genexpr))))
+              (define gen (approx spec-brf (hole (representation-name repr) (copier (genexpr)))))
               (define brf (batch-add! global-batch gen)) ; Munge gen
               (sow (alt brf `(taylor ,name ,var) (list altn)))))
           (set! idx (add1 idx))
