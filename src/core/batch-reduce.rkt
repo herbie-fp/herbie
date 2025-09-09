@@ -182,7 +182,6 @@
 (define (even-denominator? x)
   (even? (denominator x)))
 
-;; (cons num1 (list (cons num2 exp2) (cons num3 exp3))) = num1 * (exp2 ^ num2) * (exp3 ^ num3)
 (define (batch-gather-multiplicative-terms batch eval-application)
   (define (nan)
     `(NAN ((1 . ,(batch-push! batch 1)))))
@@ -230,7 +229,11 @@
                     (list* (cons 1 (batch-add! batch `(cbrt ,(car terms))))
                            (for/list ([term (cdr terms)])
                              (cons (/ (car term) 3) (cdr term))))))])]
-      [`(pow ,arg ,(app deref 0)) `(1 . ())] ; should we do a check for nan?
+      [`(pow ,arg ,(app deref 0))
+       (define terms (recurse arg))
+       (if (equal? (car terms) 'NAN)
+           (nan)
+           `(1 . ()))]
       [`(pow ,arg ,(app deref (? (conjoin rational? (negate even-denominator?)) a)))
        (define terms (recurse arg))
        (define exact-pow
