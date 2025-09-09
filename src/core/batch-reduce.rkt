@@ -164,7 +164,7 @@
 
 (define (batch-gather-additive-terms batch)
   (define/contract (gather-additive-terms brf recurse)
-    (-> batchref? procedure? (listof (list/c (or/c symbol? number?) batchref?)))
+    (-> batchref? procedure? (listof (list/c number? batchref?)))
     (match (deref brf)
       [(? number? n) `((,n ,(batch-push! batch 1)))]
       [(? symbol?) `((1 ,brf))]
@@ -183,42 +183,40 @@
   (even? (denominator x)))
 
 (define (batch-gather-multiplicative-terms batch eval-application)
-  (define (nan)
-    `(NAN ((1 . ,(batch-push! batch 1)))))
+  (define (nan-term)
+    `(+nan.0 ((1 . ,(batch-push! batch 1)))))
   (define/contract (gather-multiplicative-terms brf recurse)
-    (-> batchref?
-        procedure?
-        (cons/c (or/c symbol? number?) (listof (cons/c (or/c symbol? number?) batchref?))))
+    (-> batchref? procedure? (cons/c number? (listof (cons/c number? batchref?))))
     (match (deref brf)
       [(? number? n) `(,n . ())]
-      ['NAN (nan)]
+      [+nan.0 (nan-term)]
       [(? symbol?) `(1 . ((1 . ,brf)))]
       [`(neg ,arg)
        (define terms (recurse arg))
-       (if (eq? (car terms) 'NAN)
-           (nan)
+       (if (eq? (car terms) +nan.0)
+           (nan-term)
            (negate-term terms))]
       [`(* ,args ...)
        (define terms (map recurse args))
-       (if (ormap (curry eq? 'NAN) (map car terms))
-           (nan)
+       (if (ormap (curry eq? +nan.0) (map car terms))
+           (nan-term)
            (cons (apply * (map car terms)) (append-map cdr terms)))]
       [`(/ ,arg)
        (define term (recurse arg))
-       (if (member (car term) '(0 NAN))
-           (nan)
+       (if (member (car term) '(0 +nan.0))
+           (nan-term)
            (cons (/ (car term)) (map negate-term (cdr term))))]
       [`(/ ,arg ,args ...)
        (define num (recurse arg))
        (define dens (map recurse args))
-       (if (or (eq? (car num) 'NAN) (ormap (compose (curryr member '(0 NAN)) car) dens))
-           (nan)
+       (if (or (eq? (car num) +nan.0) (ormap (compose (curryr member '(0 +nan.0)) car) dens))
+           (nan-term)
            (cons (apply / (car num) (map car dens))
                  (append (cdr num) (map negate-term (append-map cdr dens)))))]
       [`(cbrt ,arg)
        (define terms (recurse arg))
        (cond
-         [(equal? (car terms) 'NAN) (nan)]
+         [(equal? (car terms) +nan.0) (nan-term)]
          [else
           (define exact-cbrt (eval-application (batch-add! batch (list 'cbrt (car terms)))))
           (if exact-cbrt
@@ -231,14 +229,14 @@
                              (cons (/ (car term) 3) (cdr term))))))])]
       [`(pow ,arg ,(app deref 0))
        (define terms (recurse arg))
-       (if (equal? (car terms) 'NAN)
-           (nan)
+       (if (equal? (car terms) +nan.0)
+           (nan-term)
            `(1 . ()))]
       [`(pow ,arg ,(app deref (? (conjoin rational? (negate even-denominator?)) a)))
        (define terms (recurse arg))
        (define exact-pow
          (match (car terms)
-           ['NAN 'NAN]
+           [+nan.0 +nan.0]
            [x (eval-application (batch-add! batch (list 'pow x a)))]))
        (if exact-pow
            (cons exact-pow
@@ -265,8 +263,8 @@
         #:key cdr))
 
 (define/contract (combine-mterms terms)
-  (-> (cons/c (or/c symbol? number?) (listof (cons/c number? batchref?)))
-      (cons/c (or/c symbol? number?) (listof (cons/c number? batchref?))))
+  (-> (cons/c number? (listof (cons/c number? batchref?)))
+      (cons/c number? (listof (cons/c number? batchref?))))
   (cons (car terms)
         (let ([h (make-hash)])
           (for ([term (cdr terms)])
@@ -310,7 +308,7 @@
 (define/contract (make-multiplication-node term)
   (-> (listof (or/c number? (cons/c number? batchref?))) batchref?)
   (match (cons (car term) (make-multiplication-subnode (cdr term)))
-    [(cons 'NAN e) (list (batch-push! (global-batch) 'NAN))]
+    [(cons +nan.0 e) (batch-push! (global-batch) '(NAN))]
     [(cons 0 e) (batch-push! (global-batch) 0)]
     [(cons 1 '()) (batch-push! (global-batch) 1)]
     [(cons 1 e) e]
