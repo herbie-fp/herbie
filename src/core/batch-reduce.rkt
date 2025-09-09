@@ -2,8 +2,7 @@
 
 (require "batch.rkt"
          "../utils/common.rkt"
-         "programs.rkt"
-         "reduce.rkt")
+         "programs.rkt")
 
 (provide batch-reduce)
 
@@ -70,26 +69,22 @@
                        reduce-evaluation
                        reduce-inverses))
   ;; Actual code
-  (define/contract (reduce* brf recurse)
+  (define/contract (reduce brf recurse)
     (-> batchref? procedure? batchref?)
     (parameterize ([global-batch batch]
                    [reduce-node reduce-node*])
       (define node (deref brf))
-      (define out
-        (match node
-          [(? number?) brf]
-          [(? symbol?) brf]
-          [`(,op ,args ...)
-           (define args* (map recurse args))
-           (define brf* (batch-add! batch (list* op args*)))
-           (define val (eval-application brf*))
-           (when val ;; convert to batchref if result is not #f
-             (set! val (batch-push! batch val)))
-           (or val ((reduce-node) brf*))]))
-      (unless (equal? (batch-pull out) (reduce (batch-pull brf)))
-        (error "not equal for ~a" (batch-pull brf)))
-      out))
-  (batch-recurse batch reduce*))
+      (match node
+        [(? number?) brf]
+        [(? symbol?) brf]
+        [`(,op ,args ...)
+         (define args* (map recurse args))
+         (define brf* (batch-add! batch (list* op args*)))
+         (define val (eval-application brf*))
+         (when val ;; convert to batchref if result is not #f
+           (set! val (batch-push! batch val)))
+         (or val ((reduce-node) brf*))])))
+  (batch-recurse batch reduce))
 
 ;; Covered by tests
 (define (batch-reduce-evaluation batch)
