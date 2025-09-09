@@ -188,8 +188,8 @@
   (define/contract (gather-multiplicative-terms brf recurse)
     (-> batchref? procedure? (cons/c number? (listof (cons/c number? batchref?))))
     (match (deref brf)
-      [(? number? n) `(,n . ())]
       [+nan.0 (nan-term)]
+      [(? number? n) `(,n . ())]
       [(? symbol?) `(1 . ((1 . ,brf)))]
       [`(neg ,arg)
        (define terms (recurse arg))
@@ -243,7 +243,7 @@
                  (for/list ([term (cdr terms)])
                    (cons (* a (car term)) (cdr term))))
            (list* 1
-                  (cons a (car terms))
+                  (cons a (batch-push! batch (car terms)))
                   (for/list ([term (cdr terms)])
                     (cons (* a (car term)) (cdr term)))))]
       [_ `(1 . ((1 . ,brf)))]))
@@ -407,4 +407,7 @@
                 (reduce-results '(- (* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1)) 1)))
   (check-equal? '(pow (- 1 (/ 1 x)) 2) (reduce-results '(* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1))))
   (check-equal? '(+ (* 2 (/ 1 x)) (/ 1 (pow x 2)))
-                (reduce-results '(+ (* (/ 1 x) (/ 1 x)) (+ (/ 1 x) (/ 1 x))))))
+                (reduce-results '(+ (* (/ 1 x) (/ 1 x)) (+ (/ 1 x) (/ 1 x)))))
+  (check-equal? '(+ (* 2 (/ 1 x)) (/ 1 (pow x 2)))
+                (reduce-results '(+ (* (/ 1 x) (/ 1 x)) (+ (/ 1 x) (/ 1 x)))))
+  (check-equal? '(/ 1 (* (cbrt 2) (cbrt a))) (reduce-results '(pow (+ a a) -1/3))))
