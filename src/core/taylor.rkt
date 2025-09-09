@@ -20,7 +20,7 @@
       (match-define (list name f finv) transform-type)
       (define replacer (batch-replace-expression! batch var (f var)))
       (for/list ([brf (in-list brfs)])
-        (parameterize ([reduce (λ (x) (exprser (reducer (adder x))))])
+        (parameterize ([reduce (compose exprser reducer adder)])
           (taylorer (expander (reducer (replacer brf))))))))
   taylor-coeffs)
 
@@ -38,7 +38,7 @@
 
     (define (next [iter 0])
       (define coeff
-        (parameterize ([reduce (λ (x) (exprser (reducer (adder x))))])
+        (parameterize ([reduce (compose exprser reducer adder)])
           (exprser (reducer (adder (replace-expression (coeffs i) var ((cdr tform) var)))))))
       (set! i (+ i 1))
       (match coeff
