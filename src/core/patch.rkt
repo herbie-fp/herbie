@@ -44,8 +44,7 @@
   (define adder (λ (x) (batch-add! spec-batch x)))
   (define exprser (batch-exprs spec-batch))
   (define copier (batch-copy-only! global-batch spec-batch)) ;; copy to global-batch
-  (define taylor-coeffs
-    (taylor-coefficients spec-batch spec-brfs* reducer adder exprser vars transforms-to-try))
+  (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs* reducer vars transforms-to-try))
 
   (define idx 0)
   (reap [sow]

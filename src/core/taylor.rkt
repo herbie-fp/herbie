@@ -10,7 +10,7 @@
 (provide approximate
          taylor-coefficients)
 
-(define (taylor-coefficients batch brfs reducer adder exprser vars transforms-to-try)
+(define (taylor-coefficients batch brfs reducer vars transforms-to-try)
   (define expander (expand-taylor! batch))
   (define taylor-coeffs
     (for*/list ([var (in-list vars)]
@@ -35,7 +35,7 @@
     (define terms '())
 
     (define (next [iter 0])
-      (define coeff (reduce (replace-expression (coeffs i) var ((cdr tform) var))))
+      (define coeff (exprser (reducer (adder (replace-expression (coeffs i) var ((cdr tform) var))))))
       (set! i (+ i 1))
       (match coeff
         [0
