@@ -15,73 +15,76 @@
 ;; To evaluate recursively - change deref to recurse
 (define (batch-eval-application batch)
   (define exact-value? (conjoin number? exact?))
-  (batch-recurse batch
-                 (λ (brf recurse)
-                   (match (deref brf)
-                     [(? exact-value? val)
-                      val] ;; this part is not naive in rewriting. should be considered for the future
-                     [(list '+ (app deref (? exact-value? as)) ...) (apply + as)]
-                     [(list '- (app deref (? exact-value? as)) ...) (apply - as)]
-                     [(list '* (app deref (? exact-value? as)) ...) (apply * as)]
-                     [(list '/ (app deref (? exact-value? num)) (app deref (? exact-value? den)))
-                      (and (not (zero? den)) (/ num den))]
-                     [(list 'neg (app deref (? exact-value? arg))) (- arg)]
-                     [(list 'pow (app deref (? exact-value? a)) (app deref (? exact-value? b)))
-                      (cond
-                        [(and (zero? b) (not (zero? a))) 1]
-                        [(and (zero? a) (positive? b)) 0]
-                        [(and (not (zero? a)) (integer? b)) (expt a b)]
-                        [(= a -1) (if (even? (numerator b)) 1 -1)]
-                        [(= a 1) 1]
-                        [else #f])]
-                     [(list 'sqrt (app deref (? exact-value? a)))
-                      (define s1 (sqrt (numerator a)))
-                      (define s2 (sqrt (denominator a)))
-                      (and (real? s1) (real? s2) (exact? s1) (exact? s2) (/ s1 s2))]
-                     [(list 'cbrt (app deref (? exact-value? a)))
-                      (define inexact-num (inexact->exact (expt (abs (numerator a)) 1/3)))
-                      (define inexact-den (inexact->exact (expt (abs (denominator a)) 1/3)))
-                      (and (real? inexact-num)
-                           (real? inexact-den)
-                           (= (expt inexact-num 3) (abs (numerator a)))
-                           (= (expt inexact-den 3) (abs (denominator a)))
-                           (* (sgn a) (/ inexact-num inexact-den)))]
-                     [(list 'fabs (app deref (? exact-value? a))) (abs a)]
-                     [(list 'floor (app deref (? exact-value? a))) (floor a)]
-                     [(list 'ceil (app deref (? exact-value? a))) (ceiling a)]
-                     [(list 'round (app deref (? exact-value? a))) (round a)]
-                     [(list 'exp (app deref 0)) 1]
-                     [(list 'log (app deref 1)) 0]
-                     [_ #f]))))
+  (define/contract (eval-application brf recurse)
+    (-> batchref? procedure? (or/c number? false?))
+    (match (deref brf)
+      [(? exact-value? val)
+       val] ;; this part is not naive in rewriting. should be considered for the future
+      [(list '+ (app deref (? exact-value? as)) ...) (apply + as)]
+      [(list '- (app deref (? exact-value? as)) ...) (apply - as)]
+      [(list '* (app deref (? exact-value? as)) ...) (apply * as)]
+      [(list '/ (app deref (? exact-value? num)) (app deref (? exact-value? den)))
+       (and (not (zero? den)) (/ num den))]
+      [(list 'neg (app deref (? exact-value? arg))) (- arg)]
+      [(list 'pow (app deref (? exact-value? a)) (app deref (? exact-value? b)))
+       (cond
+         [(and (zero? b) (not (zero? a))) 1]
+         [(and (zero? a) (positive? b)) 0]
+         [(and (not (zero? a)) (integer? b)) (expt a b)]
+         [(= a -1) (if (even? (numerator b)) 1 -1)]
+         [(= a 1) 1]
+         [else #f])]
+      [(list 'sqrt (app deref (? exact-value? a)))
+       (define s1 (sqrt (numerator a)))
+       (define s2 (sqrt (denominator a)))
+       (and (real? s1) (real? s2) (exact? s1) (exact? s2) (/ s1 s2))]
+      [(list 'cbrt (app deref (? exact-value? a)))
+       (define inexact-num (inexact->exact (expt (abs (numerator a)) 1/3)))
+       (define inexact-den (inexact->exact (expt (abs (denominator a)) 1/3)))
+       (and (real? inexact-num)
+            (real? inexact-den)
+            (= (expt inexact-num 3) (abs (numerator a)))
+            (= (expt inexact-den 3) (abs (denominator a)))
+            (* (sgn a) (/ inexact-num inexact-den)))]
+      [(list 'fabs (app deref (? exact-value? a))) (abs a)]
+      [(list 'floor (app deref (? exact-value? a))) (floor a)]
+      [(list 'ceil (app deref (? exact-value? a))) (ceiling a)]
+      [(list 'round (app deref (? exact-value? a))) (round a)]
+      [(list 'exp (app deref 0)) 1]
+      [(list 'log (app deref 1)) 0]
+      [_ #f]))
+  (batch-recurse batch eval-application))
 
 (define (batch-reduce batch)
+  ;; Dependencies
   (define eval-application (batch-eval-application batch))
   (define gather-additive-terms (batch-gather-additive-terms batch))
   (define gather-multiplicative-terms (batch-gather-multiplicative-terms batch eval-application))
   (define reduce-evaluation (batch-reduce-evaluation batch))
   (define reduce-inverses (batch-reduce-inverses batch))
-
   (define reduce-node*
     (batch-reduce-node batch
                        gather-additive-terms
                        gather-multiplicative-terms
                        reduce-evaluation
                        reduce-inverses))
-  (batch-recurse batch
-                 (λ (brf recurse)
-                   (parameterize ([global-batch batch]
-                                  [reduce-node reduce-node*])
-                     (define node (deref brf))
-                     (match node
-                       [(? number?) brf]
-                       [(? symbol?) brf]
-                       [`(,op ,args ...)
-                        (define args* (map recurse args))
-                        (define brf* (batch-add! batch (list* op args*)))
-                        (define val (eval-application brf*))
-                        (when val ;; convert to batchref if result is not #f
-                          (set! val (batch-push! batch val)))
-                        (or val ((reduce-node) brf*))])))))
+  ;; Actual code
+  (define/contract (reduce brf recurse)
+    (-> batchref? procedure? batchref?)
+    (parameterize ([global-batch batch]
+                   [reduce-node reduce-node*])
+      (define node (deref brf))
+      (match node
+        [(? number?) brf]
+        [(? symbol?) brf]
+        [`(,op ,args ...)
+         (define args* (map recurse args))
+         (define brf* (batch-add! batch (list* op args*)))
+         (define val (eval-application brf*))
+         (when val ;; convert to batchref if result is not #f
+           (set! val (batch-push! batch val)))
+         (or val ((reduce-node) brf*))])))
+  (batch-recurse batch reduce))
 
 ;; Covered by tests
 (define (batch-reduce-evaluation batch)
@@ -139,23 +142,24 @@
                            gather-multiplicative-terms
                            reduce-evaluation
                            reduce-inverses)
-  (batch-recurse batch
-                 (λ (brf recurse)
-                   (define brf* (reduce-evaluation brf))
-                   (match (deref brf*)
-                     [(? number?) brf*]
-                     [(? symbol?) brf*]
-                     [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
-                      (make-addition-node (combine-aterms (gather-additive-terms brf*)))]
-                     [(or `(* ,_ ...)
-                          `(/ ,_ ...)
-                          `(cbrt ,_)
-                          `(pow ,_ ,(app deref (? (conjoin rational? (negate even-denominator?))))))
-                      (make-multiplication-node (combine-mterms (gather-multiplicative-terms brf*)))]
-                     [(list 'exp (app deref (list '* c (app deref (list 'log x)))))
-                      (define rewrite (batch-add! batch `(pow ,x ,c)))
-                      (recurse rewrite)]
-                     [else (reduce-inverses brf*)]))))
+  (define/contract (reduce-node brf recurse)
+    (-> batchref? procedure? batchref?)
+    (define brf* (reduce-evaluation brf))
+    (match (deref brf*)
+      [(? number?) brf*]
+      [(? symbol?) brf*]
+      [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
+       (make-addition-node (combine-aterms (gather-additive-terms brf*)))]
+      [(or `(* ,_ ...)
+           `(/ ,_ ...)
+           `(cbrt ,_)
+           `(pow ,_ ,(app deref (? (conjoin rational? (negate even-denominator?))))))
+       (make-multiplication-node (combine-mterms (gather-multiplicative-terms brf*)))]
+      [(list 'exp (app deref (list '* c (app deref (list 'log x)))))
+       (define rewrite (batch-add! batch `(pow ,x ,c)))
+       (recurse rewrite)]
+      [else (reduce-inverses brf*)]))
+  (batch-recurse batch reduce-node))
 
 (define/contract (negate-term term)
   (-> (or/c (cons/c number? (or/c list? batchref?)) (list/c number? (or/c list? batchref?)))
