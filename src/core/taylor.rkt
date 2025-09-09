@@ -21,12 +21,6 @@
       (match-define (list name f finv) transform-type)
       (define replacer (batch-replace-expression! batch var (f var)))
       (for/list ([brf (in-list brfs)])
-        (unless (equal? (reduce (batch-pull (replacer brf))) (batch-pull (reducer (replacer brf))))
-          (printf "Not equal results for ~a\nRegular reduce: ~a\nBatch reduce: ~a\n\n"
-                  (batch-pull (replacer brf))
-                  (reduce (batch-pull (replacer brf)))
-                  (batch-pull (reducer (replacer brf)))))
-
         (taylorer (expander (reducer (replacer brf)))))))
   taylor-coeffs)
 
