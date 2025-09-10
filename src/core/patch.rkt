@@ -54,7 +54,7 @@
           (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
           (define taylor-coeffs* (list-ref taylor-coeffs idx))
           (define genexprs
-            (approximate taylor-coeffs* reducer adder exprser var #:transform (cons f finv)))
+            (approximate taylor-coeffs* spec-batch reducer var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
                 [spec-brf (in-list spec-brfs)]
                 [repr (in-list reprs)]

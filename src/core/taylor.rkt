@@ -23,9 +23,8 @@
   taylor-coeffs)
 
 (define (approximate taylor-approxs
+                     batch
                      reducer
-                     adder
-                     exprser
                      var
                      #:transform [tform (cons identity identity)]
                      #:iters [iters 5])
@@ -35,16 +34,16 @@
     (define terms '())
 
     (define (next [iter 0])
-      (define coeff (exprser (reducer (adder (replace-expression (coeffs i) var ((cdr tform) var))))))
+      (define coeff (reduce (replace-expression (coeffs i) var ((cdr tform) var))))
       (set! i (+ i 1))
       (match coeff
         [0
          (if (< iter iters)
              (next (+ iter 1))
-             (reducer (adder (make-horner ((cdr tform) var) (reverse terms)))))]
+             (reducer (make-horner batch ((cdr tform) var) (reverse terms))))]
         [_
          (set! terms (cons (cons coeff (- i offset 1)) terms))
-         (reducer (adder (make-horner ((cdr tform) var) (reverse terms))))]))
+         (reducer (make-horner batch ((cdr tform) var) (reverse terms)))]))
     next))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
@@ -99,12 +98,13 @@
   (check-equal? `(+ y (cbrt x)) (test-expand-taylor `(+ y (pow x 1/3))))
   (check-equal? `(+ (cbrt x) y) (test-expand-taylor `(+ (pow x 1/3) y))))
 
-(define (make-horner var terms [start 0])
+(define (make-horner batch var terms [start 0])
   (match terms
-    ['() 0]
-    [(list (cons c n)) `(* ,c ,(make-monomial var (- n start)))]
+    ['() (batch-push! batch 0)]
+    [(list (cons c n)) (batch-add! batch `(* ,c ,(make-monomial var (- n start))))]
     [(list (cons c n) rest ...)
-     `(* ,(make-monomial var (- n start)) (+ ,c ,(make-horner var rest n)))]))
+     (batch-add! batch
+                 `(* ,(make-monomial var (- n start)) (+ ,c ,(make-horner batch var rest n))))]))
 
 (define (make-sum terms)
   (match terms
