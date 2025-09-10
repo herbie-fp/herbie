@@ -124,8 +124,8 @@
     [else
      (define scores (batch-score-alts altns))
      (define best (list-ref altns (index-of scores (argmin identity scores))))
-     (define alt-costs (alt-batch-costs (*global-batch*) repr))
-     (define altns* (sort (set-remove altns best) < #:key (compose alt-costs alt-expr)))
+     (define alt-costs (alt-batch-costs (*global-batch*)))
+     (define altns* (sort (set-remove altns best) < #:key (compose (curryr alt-costs repr) alt-expr)))
      (define simplest (car altns*))
      (define altns** (cdr altns*))
      (define div-size (round (/ (length altns**) (- (*pareto-pick-limit*) 1))))
