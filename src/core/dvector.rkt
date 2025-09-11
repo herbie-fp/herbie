@@ -27,16 +27,16 @@
         (λ (a hc) ; secondary-hash-code
           (+ (hc (dvector-vec a)) (* 7 (+ 1 (dvector-length a)))))))
 
-(define (make-dvector [size 0] [v #f])
+(define (make-dvector [size starting-length] [v #f])
   (define size*
     (cond
-      [(< size starting-length) starting-length]
-      [else
+      [(> size starting-length)
        (let loop ([size* (* starting-length 2)])
          (if (< size size*)
              size*
-             (loop (* size* 2))))]))
-  (dvector (make-vector size* v) size v))
+             (loop (* size* 2))))]
+      [else size]))
+  (dvector (make-vector size* v) 0 v))
 
 (define (create-dvector . args)
   (define dvec (make-dvector))

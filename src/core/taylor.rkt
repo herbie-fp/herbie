@@ -5,7 +5,8 @@
          "../syntax/syntax.rkt"
          "batch.rkt"
          "reduce.rkt"
-         "programs.rkt")
+         "programs.rkt"
+         "dvector.rkt")
 
 (provide approximate
          taylor-coefficients)
@@ -228,14 +229,16 @@
 
 (define (taylor-add . terms)
   (match-define `((,offset . ,serieses) ...) (apply align-series terms))
-  (let ([hash (make-hash)])
-    (cons (car offset)
-          (λ (n)
-            (hash-ref! hash
-                       n
-                       (λ ()
-                         (reduce (make-sum (for/list ([series serieses])
-                                             (series n))))))))))
+  (define cache (make-dvector 10))
+  (cons (car offset)
+        (λ (n)
+          (when (>= n (dvector-length cache))
+            (for ([i (in-range (dvector-length cache) (add1 n))])
+              (dvector-set! cache
+                            i
+                            (reduce (make-sum (for/list ([series serieses])
+                                                (series i)))))))
+          (dvector-ref cache n))))
 
 (define (taylor-negate term)
   (cons (car term) (λ (n) (reduce (list 'neg ((cdr term) n))))))
