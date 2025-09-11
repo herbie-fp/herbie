@@ -115,8 +115,8 @@
 ;; batch-recurse does not iterate over nodes that are not a child of brf
 ;; A lot of parts of Herbie rely on that
 (define (batch-recurse batch f)
-  (define out (make-dvector (batch-length batch))) ;; preallocate vectors
-  (define visited (make-dvector (batch-length batch))) ;; preallocate vectors
+  (define out (make-dvector))
+  (define visited (make-dvector))
 
   (λ (brf . args)
     (match-define (batchref b idx) brf)
