@@ -41,9 +41,11 @@
 
   ;; List<List<(cons offset coeffs)>>
   (define reducer (batch-reduce spec-batch)) ;; reduces over spec-batch
+  (define exprser (batch-exprs spec-batch)) ;; reduces over spec-batch
   (define adder (λ (x) (batch-add! spec-batch x))) ;; adds to spec-batch
   (define copier (batch-copy-only! global-batch spec-batch)) ;; copy to global-batch from spec-batch
-  (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs* reducer vars transforms-to-try))
+  (define taylor-coeffs
+    (taylor-coefficients spec-batch spec-brfs* reducer adder exprser vars transforms-to-try))
 
   (define idx 0)
   (reap [sow]
@@ -52,7 +54,8 @@
           (match-define (list name f finv) transform-type)
           (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
           (define taylor-coeffs* (list-ref taylor-coeffs idx))
-          (define genexprs (approximate taylor-coeffs* reducer adder var #:transform (cons f finv)))
+          (define genexprs
+            (approximate taylor-coeffs* reducer adder exprser var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
                 [spec-brf (in-list spec-brfs)]
                 [repr (in-list reprs)]
