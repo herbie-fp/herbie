@@ -233,25 +233,33 @@
   (cons (car offset)
         (λ (n)
           (when (>= n (dvector-length cache))
-            (for ([i (in-range (dvector-length cache) (add1 n))])
+            (for ([n* (in-range (dvector-length cache) (add1 n))])
               (dvector-set! cache
-                            i
+                            n*
                             (reduce (make-sum (for/list ([series serieses])
-                                                (series i)))))))
+                                                (series n*)))))))
           (dvector-ref cache n))))
 
 (define (taylor-negate term)
-  (cons (car term) (λ (n) (reduce (list 'neg ((cdr term) n))))))
+  (define cache (make-dvector 10))
+  (cons (car term)
+        (λ (n)
+          (when (>= n (dvector-length cache))
+            (for ([n* (in-range (dvector-length cache) (add1 n))])
+              (dvector-set! cache n* (reduce (list 'neg ((cdr term) n*))))))
+          (dvector-ref cache n))))
 
 (define (taylor-mult left right)
+  (define cache (make-dvector 10))
   (cons (+ (car left) (car right))
-        (let ([hash (make-hash)])
-          (lambda (n)
-            (hash-ref! hash
-                       n
-                       (λ ()
-                         (reduce (make-sum (for/list ([i (range (+ n 1))])
-                                             (list '* ((cdr left) i) ((cdr right) (- n i))))))))))))
+        (λ (n)
+          (when (>= n (dvector-length cache))
+            (for ([n* (in-range (dvector-length cache) (add1 n))])
+              (dvector-set! cache
+                            n*
+                            (reduce (make-sum (for/list ([i (range (+ n* 1))])
+                                                (list '* ((cdr left) i) ((cdr right) (- n* i)))))))))
+          (dvector-ref cache n))))
 
 (define (normalize-series series)
   "Fixes up the series to have a non-zero zeroth term,
@@ -270,15 +278,18 @@
    This happens if the inverted series doesn't have a constant term,
    so we extract that case out."
   (match-define (cons offset b) (normalize-series term))
-  (let ([hash (make-hash)])
-    (hash-set! hash 0 (reduce `(/ 1 ,(b 0))))
-    (letrec ([f (λ (n)
-                  (hash-ref! hash
-                             n
-                             (λ ()
-                               (reduce `(neg (+ ,@(for/list ([i (range n)])
-                                                    `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))])
-      (cons (- offset) f))))
+  (define cache (make-dvector 10))
+  (dvector-set! cache 0 (reduce `(/ 1 ,(b 0))))
+  (cons (- offset)
+        (λ (n)
+          (when (>= n (dvector-length cache))
+            (for ([n* (in-range (dvector-length cache) (add1 n))])
+              (dvector-set! cache
+                            n*
+                            (reduce `(neg (+ ,@(for/list ([i (range n*)])
+                                                 `(* ,(dvector-ref cache i)
+                                                     (/ ,(b (- n* i)) ,(b 0))))))))))
+          (dvector-ref cache n))))
 
 (define (taylor-quotient num denom)
   "This gets tricky, because the function might have a pole at 0.
@@ -286,16 +297,20 @@
    so we extract that case out."
   (match-define (cons noff a) (normalize-series num))
   (match-define (cons doff b) (normalize-series denom))
-  (define hash (make-hash))
-  (hash-set! hash 0 (reduce `(/ ,(a 0) ,(b 0))))
-  (define (f n)
-    (hash-ref! hash
-               n
-               (λ ()
-                 (reduce `(- (/ ,(a n) ,(b 0))
-                             (+ ,@(for/list ([i (range n)])
-                                    `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))
-  (cons (- noff doff) f))
+  (define cache (make-dvector 10))
+  (dvector-set! cache 0 (reduce `(/ ,(a 0) ,(b 0))))
+
+  (cons (- noff doff)
+        (λ (n)
+          (when (>= n (dvector-length cache))
+            (for ([n* (in-range (dvector-length cache) (add1 n))])
+              (dvector-set! cache
+                            n*
+                            (reduce `(- (/ ,(a n*) ,(b 0))
+                                        (+ ,@(for/list ([i (range n*)])
+                                               `(* ,(dvector-ref cache i)
+                                                   (/ ,(b (- n i)) ,(b 0))))))))))
+          (dvector-ref cache n))))
 
 (define (modulo-series var n series)
   (match-define (cons offset coeffs) (normalize-series series))
