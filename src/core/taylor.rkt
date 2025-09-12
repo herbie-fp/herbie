@@ -11,16 +11,21 @@
 (provide approximate
          taylor-coefficients
          reducer
-         adder)
+         adder
+         exprser)
 
 (define reducer (make-parameter #f))
 (define adder (make-parameter #f))
+(define exprser (make-parameter #f))
 
 (define (batchref-reduce x)
   ((reducer) x))
 
 (define (expr->batchref x)
   ((adder) x))
+
+(define (batchref->expr x)
+  ((exprser) x))
 
 (define (taylor-coefficients batch brfs vars transforms-to-try)
   (define expander (expand-taylor! batch))
@@ -35,18 +40,35 @@
   taylor-coeffs)
 
 (define (approximate taylor-approxs
+                     batch
                      var
                      #:transform [tform (cons identity identity)]
                      #:iters [iters 5])
+  (define replacer (batch-replace-expression! batch var ((cdr tform) var)))
   (for/list ([ta taylor-approxs])
     (match-define (cons offset coeffs) ta)
     (define i 0)
+    (define genexpr (expr->batchref 0))
+    (define n 0)
     (define terms '())
 
     (define (next [iter 0])
-      (define coeff (reduce (replace-expression (batch-pull (coeffs i)) var ((cdr tform) var))))
+      (define coeff (batchref-reduce (replacer (coeffs i))))
       (set! i (+ i 1))
-      (match coeff
+
+      #;(match (deref coeff)
+          [0
+           (if (< iter iters)
+               (next (+ iter 1))
+               (batchref-reduce genexpr))]
+          [_
+           (define term (cons coeff (- i offset 1)))
+           (define-values (genexpr* n*) (append-horner var term genexpr n))
+           (set! genexpr genexpr*)
+           (set! n n*)
+           (batchref-reduce genexpr*)])
+
+      (match (deref coeff)
         [0
          (if (< iter iters)
              (next (+ iter 1))
@@ -108,12 +130,18 @@
   (check-equal? `(+ y (cbrt x)) (test-expand-taylor `(+ y (pow x 1/3))))
   (check-equal? `(+ (cbrt x) y) (test-expand-taylor `(+ (pow x 1/3) y))))
 
+#;(define (append-horner var term genexpr [last-n 0])
+    (match-define (cons c n) term)
+    (match (deref genexpr)
+      [0 (values (expr->batchref `(* ,c ,(make-monomial var (- n last-n)))) n)]
+      [_ (values (expr->batchref `(* ,(make-monomial var (- n last-n)) (+ ,c ,genexpr))) n)]))
+
 (define (make-horner var terms [start 0])
   (match terms
-    ['() 0]
-    [(list (cons c n)) `(* ,c ,(make-monomial var (- n start)))]
+    ['() (expr->batchref 0)]
+    [(list (cons c n)) (expr->batchref `(* ,c ,(make-monomial var (- n start))))]
     [(list (cons c n) rest ...)
-     `(* ,(make-monomial var (- n start)) (+ ,c ,(make-horner var rest n)))]))
+     (expr->batchref `(* ,(make-monomial var (- n start)) (+ ,c ,(make-horner var rest n))))]))
 
 (define (make-sum terms)
   (match terms

@@ -146,7 +146,7 @@
 
     (when (< pt idx)
       (for ([n (in-range (add1 pt) (add1 idx))])
-        (dvector-set! out n (f (batchref batch n) (curry dvector-ref out))))
+        (dvector-set! out n (f (batchref batch n) (compose (curry dvector-ref out) batchref-idx))))
       (set! pt idx))
     (dvector-ref out idx)))
 
