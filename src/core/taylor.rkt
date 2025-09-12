@@ -252,8 +252,8 @@
               (define res
                 (batchref-reduce (expr->batchref (make-sum (for/list ([series serieses])
                                                              (series n*))))))
-              (dvector-set! cache n* res)))
-          (batch-pull (dvector-ref cache n))))) ;; to remove batch-pull here
+              (dvector-set! cache n* (batch-pull res))))
+          (dvector-ref cache n)))) ;; to remove batch-pull here
 
 (define (taylor-negate term)
   (define cache (make-dvector 10))
@@ -272,8 +272,9 @@
           (when (>= n (dvector-length cache))
             (for ([n* (in-range (dvector-length cache) (add1 n))])
               (define res
-                (batchref-reduce (expr->batchref (for/list ([i (range (+ n* 1))])
-                                                   (list '* ((cdr left) i) ((cdr right) (- n* i)))))))
+                (batchref-reduce
+                 (expr->batchref (make-sum (for/list ([i (range (+ n* 1))])
+                                             (list '* ((cdr left) i) ((cdr right) (- n* i))))))))
               (dvector-set! cache n* (batch-pull res)))) ;; to remove batch-pull
           (dvector-ref cache n))))
 
