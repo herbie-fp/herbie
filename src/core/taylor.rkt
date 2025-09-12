@@ -4,14 +4,17 @@
 (require "../utils/common.rkt"
          "../syntax/syntax.rkt"
          "batch.rkt"
-         "reduce.rkt"
          "programs.rkt"
+         "reduce.rkt"
          "dvector.rkt")
 
 (provide approximate
          taylor-coefficients)
 
-(define (taylor-coefficients batch brfs reducer vars transforms-to-try)
+(define reduce* (make-parameter #f))
+(define add-to-batch (make-parameter #f))
+
+(define (taylor-coefficients batch brfs reducer adder vars transforms-to-try)
   (define expander (expand-taylor! batch))
   (define taylor-coeffs
     (for*/list ([var (in-list vars)]
@@ -20,7 +23,9 @@
       (match-define (list name f finv) transform-type)
       (define replacer (batch-replace-expression! batch var (f var)))
       (for/list ([brf (in-list brfs)])
-        (taylorer (expander (reducer (replacer brf)))))))
+        (parameterize ([reduce* reducer]
+                       [add-to-batch adder])
+          (taylorer (expander (reducer (replacer brf))))))))
   taylor-coeffs)
 
 (define (approximate taylor-approxs
@@ -35,7 +40,10 @@
     (define terms '())
 
     (define (next [iter 0])
-      (define coeff (reduce (replace-expression (coeffs i) var ((cdr tform) var))))
+      (define coeff
+        (parameterize ([reduce* reducer]
+                       [add-to-batch adder])
+          (batch-pull (reducer (adder (replace-expression (coeffs i) var ((cdr tform) var)))))))
       (set! i (+ i 1))
       (match coeff
         [0
@@ -139,73 +147,73 @@
 
 (define (taylor var expr-batch)
   "Return a pair (e, n), such that expr ~= e var^n"
-  (define exprs (batch-exprs expr-batch))
-
-  (batch-recurse expr-batch
-                 (lambda (brf recurse)
-                   (define node (deref brf))
-                   (match node
-                     [(? (curry equal? var)) (taylor-exact 0 1)]
-                     [(? number?) (taylor-exact node)]
-                     [(? symbol?) (taylor-exact node)]
-                     [`(,const) (taylor-exact node)]
-                     [`(+ ,args ...) (apply taylor-add (map recurse args))]
-                     [`(neg ,arg) (taylor-negate (recurse arg))]
-                     [`(* ,left ,right) (taylor-mult (recurse left) (recurse right))]
-                     [`(/ ,num ,den)
-                      #:when (equal? (deref num) 1)
-                      (taylor-invert (recurse den))]
-                     [`(/ ,num ,den) (taylor-quotient (recurse num) (recurse den))]
-                     [`(sqrt ,arg) (taylor-sqrt var (recurse arg))]
-                     [`(cbrt ,arg) (taylor-cbrt var (recurse arg))]
-                     [`(exp ,arg)
-                      (define arg* (normalize-series (recurse arg)))
-                      (if (positive? (car arg*))
-                          (taylor-exact (exprs brf))
-                          (taylor-exp (zero-series arg*)))]
-                     [`(sin ,arg)
-                      (define arg* (normalize-series (recurse arg)))
-                      (cond
-                        [(positive? (car arg*)) (taylor-exact (exprs brf))]
-                        [(= (car arg*) 0)
-                         ; Our taylor-sin function assumes that a0 is 0,
-                         ; because that way it is especially simple. We correct for this here
-                         ; We use the identity sin (x + y) = sin x cos y + cos x sin y
-                         (taylor-add (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
-                                                  (taylor-cos (zero-series arg*)))
-                                     (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
-                                                  (taylor-sin (zero-series arg*))))]
-                        [else (taylor-sin (zero-series arg*))])]
-                     [`(cos ,arg)
-                      (define arg* (normalize-series (recurse arg)))
-                      (cond
-                        [(positive? (car arg*)) (taylor-exact (exprs brf))]
-                        [(= (car arg*) 0)
-                         ; Our taylor-cos function assumes that a0 is 0,
-                         ; because that way it is especially simple. We correct for this here
-                         ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-                         (taylor-add (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
-                                                  (taylor-cos (zero-series arg*)))
-                                     (taylor-negate (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
-                                                                 (taylor-sin (zero-series arg*)))))]
-                        [else (taylor-cos (zero-series arg*))])]
-                     [`(log ,arg) (taylor-log var (recurse arg))]
-                     [`(pow ,base ,power)
-                      #:when (exact-integer? (deref power))
-                      (taylor-pow (normalize-series (recurse base)) (deref power))]
-                     [_ (taylor-exact (exprs brf))]))))
+  (batch-recurse
+   expr-batch
+   (lambda (brf recurse)
+     (define node (deref brf))
+     (match node
+       [(? (curry equal? var)) (taylor-exact ((add-to-batch) 0) ((add-to-batch) 1))]
+       [(? number?) (taylor-exact brf)]
+       [(? symbol?) (taylor-exact brf)]
+       [`(,const) (taylor-exact brf)]
+       [`(+ ,args ...) (apply taylor-add (map recurse args))]
+       [`(neg ,arg) (taylor-negate (recurse arg))]
+       [`(* ,left ,right) (taylor-mult (recurse left) (recurse right))]
+       [`(/ ,num ,den)
+        #:when (equal? (deref num) 1)
+        (taylor-invert (recurse den))]
+       [`(/ ,num ,den) (taylor-quotient (recurse num) (recurse den))]
+       [`(sqrt ,arg) (taylor-sqrt var (recurse arg))]
+       [`(cbrt ,arg) (taylor-cbrt var (recurse arg))]
+       [`(exp ,arg)
+        (define arg* (normalize-series (recurse arg)))
+        (if (positive? (car arg*))
+            (taylor-exact brf)
+            (taylor-exp (zero-series arg*)))]
+       [`(sin ,arg)
+        (define arg* (normalize-series (recurse arg)))
+        (cond
+          [(positive? (car arg*)) (taylor-exact brf)]
+          [(= (car arg*) 0)
+           ; Our taylor-sin function assumes that a0 is 0,
+           ; because that way it is especially simple. We correct for this here
+           ; We use the identity sin (x + y) = sin x cos y + cos x sin y
+           (taylor-add (taylor-mult (taylor-exact ((add-to-batch) `(sin ,((cdr arg*) 0))))
+                                    (taylor-cos (zero-series arg*)))
+                       (taylor-mult (taylor-exact ((add-to-batch) `(cos ,((cdr arg*) 0))))
+                                    (taylor-sin (zero-series arg*))))]
+          [else (taylor-sin (zero-series arg*))])]
+       [`(cos ,arg)
+        (define arg* (normalize-series (recurse arg)))
+        (cond
+          [(positive? (car arg*)) (taylor-exact brf)]
+          [(= (car arg*) 0)
+           ; Our taylor-cos function assumes that a0 is 0,
+           ; because that way it is especially simple. We correct for this here
+           ; We use the identity cos (x + y) = cos x cos y - sin x sin y
+           (taylor-add (taylor-mult (taylor-exact ((add-to-batch) `(cos ,((cdr arg*) 0))))
+                                    (taylor-cos (zero-series arg*)))
+                       (taylor-negate
+                        (taylor-mult (taylor-exact ((add-to-batch) `(sin ,((cdr arg*) 0))))
+                                     (taylor-sin (zero-series arg*)))))]
+          [else (taylor-cos (zero-series arg*))])]
+       [`(log ,arg) (taylor-log var (recurse arg))]
+       [`(pow ,base ,power)
+        #:when (exact-integer? (deref power))
+        (taylor-pow (normalize-series (recurse base)) (deref power))]
+       [_ (taylor-exact brf)]))))
 
 ; A taylor series is represented by a function f : nat -> expr,
 ; representing the coefficients (the 1 / n! terms not included),
 ; and an integer offset to the exponent
 
 (define (taylor-exact . terms)
-  (define items (list->vector (map reduce terms)))
+  (define items (list->vector (map (reduce*) terms)))
   (cons 0
         (λ (n)
-          (if (<= (length terms) n)
-              0
-              (vector-ref items n)))))
+          (batch-pull (if (<= (length terms) n)
+                          ((add-to-batch) 0)
+                          (vector-ref items n))))))
 
 (define (first-nonzero-exp f)
   "Returns n, where (series n) != 0, but (series n) = 0 for all smaller n"
@@ -384,7 +392,7 @@
 (define (taylor-pow coeffs n)
   (match n ;; Russian peasant multiplication
     [(? negative?) (taylor-pow (taylor-invert coeffs) (- n))]
-    [0 (taylor-exact 1)]
+    [0 (taylor-exact ((add-to-batch) 1))]
     [1 coeffs]
     [(? even?)
      (define half (taylor-pow coeffs (/ n 2)))

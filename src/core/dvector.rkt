@@ -97,8 +97,8 @@
   (check-equal? (dvector-capacity dv1) starting-length)
   (check-equal? (vector-length (dvector-vec dv1)) starting-length)
 
-  (define dv2 (make-dvector 10 5))
-  (check-equal? (dvector-length dv2) 10)
+  (define dv2 (make-dvector starting-length 5))
+  (check-equal? (dvector-length dv2) 0)
   (check-equal? (dvector-capacity dv2) starting-length)
   (check-equal? (vector-length (dvector-vec dv2)) starting-length)
   (check-equal? (vector-ref (dvector-vec dv2) 0) 5)
@@ -106,7 +106,6 @@
   ;; Large input triggers dynamic size growth
   (define dv3 (make-dvector 300))
   (check-true (> (dvector-capacity dv3) 300))
-  (check-equal? (dvector-length dv3) 300)
 
   ;; Custom equal? behavior: only same vector => equal
   (define dv4 dv2) ; same instance

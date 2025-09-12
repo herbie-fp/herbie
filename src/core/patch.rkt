@@ -43,7 +43,8 @@
   (define reducer (batch-reduce spec-batch)) ;; reduces over spec-batch
   (define adder (λ (x) (batch-add! spec-batch x))) ;; adds to spec-batch
   (define copier (batch-copy-only! global-batch spec-batch)) ;; copy to global-batch from spec-batch
-  (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs* reducer vars transforms-to-try))
+  (define taylor-coeffs
+    (taylor-coefficients spec-batch spec-brfs* reducer adder vars transforms-to-try))
 
   (define idx 0)
   (reap [sow]
