@@ -9,12 +9,20 @@
          "dvector.rkt")
 
 (provide approximate
-         taylor-coefficients)
+         taylor-coefficients
+         reducer
+         adder)
 
-(define reduce* (make-parameter #f))
-(define add-to-batch (make-parameter #f))
+(define reducer (make-parameter #f))
+(define adder (make-parameter #f))
 
-(define (taylor-coefficients batch brfs reducer adder vars transforms-to-try)
+(define (batchref-reduce x)
+  ((reducer) x))
+
+(define (expr->batchref x)
+  ((adder) x))
+
+(define (taylor-coefficients batch brfs vars transforms-to-try)
   (define expander (expand-taylor! batch))
   (define taylor-coeffs
     (for*/list ([var (in-list vars)]
@@ -23,14 +31,10 @@
       (match-define (list name f finv) transform-type)
       (define replacer (batch-replace-expression! batch var (f var)))
       (for/list ([brf (in-list brfs)])
-        (parameterize ([reduce* reducer]
-                       [add-to-batch adder])
-          (taylorer (expander (reducer (replacer brf))))))))
+        (taylorer (expander (batchref-reduce (replacer brf)))))))
   taylor-coeffs)
 
 (define (approximate taylor-approxs
-                     reducer
-                     adder
                      var
                      #:transform [tform (cons identity identity)]
                      #:iters [iters 5])
@@ -41,18 +45,17 @@
 
     (define (next [iter 0])
       (define coeff
-        (parameterize ([reduce* reducer]
-                       [add-to-batch adder])
-          (batch-pull (reducer (adder (replace-expression (coeffs i) var ((cdr tform) var)))))))
+        (batch-pull (batchref-reduce
+                     (expr->batchref (replace-expression (coeffs i) var ((cdr tform) var))))))
       (set! i (+ i 1))
       (match coeff
         [0
          (if (< iter iters)
              (next (+ iter 1))
-             (reducer (adder (make-horner ((cdr tform) var) (reverse terms)))))]
+             (batchref-reduce (expr->batchref (make-horner ((cdr tform) var) (reverse terms)))))]
         [_
          (set! terms (cons (cons coeff (- i offset 1)) terms))
-         (reducer (adder (make-horner ((cdr tform) var) (reverse terms))))]))
+         (batchref-reduce (expr->batchref (make-horner ((cdr tform) var) (reverse terms))))]))
     next))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
@@ -152,7 +155,7 @@
    (lambda (brf recurse)
      (define node (deref brf))
      (match node
-       [(? (curry equal? var)) (taylor-exact ((add-to-batch) 0) ((add-to-batch) 1))]
+       [(? (curry equal? var)) (taylor-exact (expr->batchref 0) (expr->batchref 1))]
        [(? number?) (taylor-exact brf)]
        [(? symbol?) (taylor-exact brf)]
        [`(,const) (taylor-exact brf)]
@@ -178,9 +181,9 @@
            ; Our taylor-sin function assumes that a0 is 0,
            ; because that way it is especially simple. We correct for this here
            ; We use the identity sin (x + y) = sin x cos y + cos x sin y
-           (taylor-add (taylor-mult (taylor-exact ((add-to-batch) `(sin ,((cdr arg*) 0))))
+           (taylor-add (taylor-mult (taylor-exact (expr->batchref `(sin ,((cdr arg*) 0))))
                                     (taylor-cos (zero-series arg*)))
-                       (taylor-mult (taylor-exact ((add-to-batch) `(cos ,((cdr arg*) 0))))
+                       (taylor-mult (taylor-exact (expr->batchref `(cos ,((cdr arg*) 0))))
                                     (taylor-sin (zero-series arg*))))]
           [else (taylor-sin (zero-series arg*))])]
        [`(cos ,arg)
@@ -191,10 +194,10 @@
            ; Our taylor-cos function assumes that a0 is 0,
            ; because that way it is especially simple. We correct for this here
            ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-           (taylor-add (taylor-mult (taylor-exact ((add-to-batch) `(cos ,((cdr arg*) 0))))
+           (taylor-add (taylor-mult (taylor-exact (expr->batchref `(cos ,((cdr arg*) 0))))
                                     (taylor-cos (zero-series arg*)))
                        (taylor-negate
-                        (taylor-mult (taylor-exact ((add-to-batch) `(sin ,((cdr arg*) 0))))
+                        (taylor-mult (taylor-exact (expr->batchref `(sin ,((cdr arg*) 0))))
                                      (taylor-sin (zero-series arg*)))))]
           [else (taylor-cos (zero-series arg*))])]
        [`(log ,arg) (taylor-log var (recurse arg))]
@@ -208,11 +211,11 @@
 ; and an integer offset to the exponent
 
 (define (taylor-exact . terms)
-  (define items (list->vector (map (reduce*) terms)))
+  (define items (list->vector (map batchref-reduce terms)))
   (cons 0
         (λ (n)
-          (batch-pull (if (<= (length terms) n)
-                          ((add-to-batch) 0)
+          (batch-pull (if (<= (length terms) n) ;; to remove batch-pull here
+                          (expr->batchref 0)
                           (vector-ref items n))))))
 
 (define (first-nonzero-exp f)
@@ -233,8 +236,8 @@
        (cons offset*
              (λ (n)
                (if (negative? (+ n (- offset offset*)))
-                   ((add-to-batch) 0)
-                   ((add-to-batch)
+                   (expr->batchref 0)
+                   (expr->batchref
                     ((cdr series) (+ n (- offset offset*))))))))])) ;; to remove adder here
 
 (define (taylor-add . terms)
@@ -248,8 +251,8 @@
             (for ([n* (in-range (dvector-length cache) (add1 n))])
               (dvector-set! cache
                             n*
-                            ((reduce*) ((add-to-batch) (make-sum (for/list ([series serieses])
-                                                                   (series n*))))))))
+                            (batchref-reduce (expr->batchref (make-sum (for/list ([series serieses])
+                                                                         (series n*))))))))
           (batch-pull (dvector-ref cache n))))) ;; to remove batch-pull here
 
 (define (taylor-negate term)
@@ -396,7 +399,7 @@
 (define (taylor-pow coeffs n)
   (match n ;; Russian peasant multiplication
     [(? negative?) (taylor-pow (taylor-invert coeffs) (- n))]
-    [0 (taylor-exact ((add-to-batch) 1))]
+    [0 (taylor-exact (expr->batchref 1))]
     [1 coeffs]
     [(? even?)
      (define half (taylor-pow coeffs (/ n 2)))
