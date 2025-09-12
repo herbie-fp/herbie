@@ -222,7 +222,8 @@
         (loop (+ n 1))
         n)))
 
-(define (align-series . serieses)
+(define/contract (align-series . serieses)
+  (->* () #:rest (listof (cons/c number? procedure?)) (listof (cons/c number? procedure?)))
   (cond
     [(or (<= (length serieses) 1) (apply = (map car serieses))) serieses]
     [else
@@ -232,10 +233,13 @@
        (cons offset*
              (λ (n)
                (if (negative? (+ n (- offset offset*)))
-                   0
-                   ((cdr series) (+ n (- offset offset*)))))))]))
+                   ((add-to-batch) 0)
+                   ((add-to-batch)
+                    ((cdr series) (+ n (- offset offset*))))))))])) ;; to remove adder here
 
 (define (taylor-add . terms)
+  (-> (listof (cons/c number? procedure?))
+      (cons/c number? (-> number? expr?))) ;; to replace expr with batchref here
   (match-define `((,offset . ,serieses) ...) (apply align-series terms))
   (define cache (make-dvector 10))
   (cons (car offset)
@@ -244,9 +248,9 @@
             (for ([n* (in-range (dvector-length cache) (add1 n))])
               (dvector-set! cache
                             n*
-                            (reduce (make-sum (for/list ([series serieses])
-                                                (series n*)))))))
-          (dvector-ref cache n))))
+                            ((reduce*) ((add-to-batch) (make-sum (for/list ([series serieses])
+                                                                   (series n*))))))))
+          (batch-pull (dvector-ref cache n))))) ;; to remove batch-pull here
 
 (define (taylor-negate term)
   (define cache (make-dvector 10))
