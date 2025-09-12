@@ -44,9 +44,7 @@
     (define terms '())
 
     (define (next [iter 0])
-      (define coeff
-        (batch-pull (batchref-reduce
-                     (expr->batchref (replace-expression (coeffs i) var ((cdr tform) var))))))
+      (define coeff (reduce (replace-expression (batch-pull (coeffs i)) var ((cdr tform) var))))
       (set! i (+ i 1))
       (match coeff
         [0
@@ -214,14 +212,14 @@
   (define items (list->vector (map batchref-reduce terms)))
   (cons 0
         (λ (n)
-          (batch-pull (if (<= (length terms) n) ;; to remove batch-pull here
-                          (expr->batchref 0)
-                          (vector-ref items n))))))
+          (if (<= (length terms) n)
+              (expr->batchref 0)
+              (vector-ref items n)))))
 
 (define (first-nonzero-exp f)
   "Returns n, where (series n) != 0, but (series n) = 0 for all smaller n"
   (let loop ([n 0])
-    (if (and (equal? (f n) 0) (< n 20))
+    (if (and (equal? (deref (f n)) 0) (< n 20))
         (loop (+ n 1))
         n)))
 
@@ -237,12 +235,10 @@
              (λ (n)
                (if (negative? (+ n (- offset offset*)))
                    (expr->batchref 0)
-                   (expr->batchref
-                    ((cdr series) (+ n (- offset offset*))))))))])) ;; to remove adder here
+                   ((cdr series) (+ n (- offset offset*)))))))]))
 
 (define (taylor-add . terms)
-  (-> (listof (cons/c number? procedure?))
-      (cons/c number? (-> number? expr?))) ;; to replace expr with batchref here
+  (-> (listof (cons/c number? procedure?)) (cons/c number? (-> number? batchref?)))
   (match-define `((,offset . ,serieses) ...) (apply align-series terms))
   (define cache (make-dvector 10))
   (cons (car offset)
@@ -252,8 +248,8 @@
               (define res
                 (batchref-reduce (expr->batchref (make-sum (for/list ([series serieses])
                                                              (series n*))))))
-              (dvector-set! cache n* (batch-pull res))))
-          (dvector-ref cache n)))) ;; to remove batch-pull here
+              (dvector-set! cache n* res)))
+          (dvector-ref cache n))))
 
 (define (taylor-negate term)
   (define cache (make-dvector 10))
@@ -262,7 +258,7 @@
           (when (>= n (dvector-length cache))
             (for ([n* (in-range (dvector-length cache) (add1 n))])
               (define res (batchref-reduce (expr->batchref (list 'neg ((cdr term) n*)))))
-              (dvector-set! cache n* (batch-pull res)))) ;; to remove batch-pull
+              (dvector-set! cache n* res)))
           (dvector-ref cache n))))
 
 (define (taylor-mult left right)
@@ -275,7 +271,7 @@
                 (batchref-reduce
                  (expr->batchref (make-sum (for/list ([i (range (+ n* 1))])
                                              (list '* ((cdr left) i) ((cdr right) (- n* i))))))))
-              (dvector-set! cache n* (batch-pull res)))) ;; to remove batch-pull
+              (dvector-set! cache n* res)))
           (dvector-ref cache n))))
 
 (define (normalize-series series)
@@ -287,18 +283,16 @@
 
 (define ((zero-series series) n)
   (if (< n (- (car series)))
-      0
+      (expr->batchref 0)
       ((cdr series) (+ n (car series)))))
 
 (define (taylor-invert term)
   "This gets tricky, because the function might have a pole at 0.
    This happens if the inverted series doesn't have a constant term,
    so we extract that case out."
-  (match-define (cons offset b) (normalize-series term)) ;; to batchify normalize-series later
+  (match-define (cons offset b) (normalize-series term))
   (define cache (make-dvector 10))
-  (dvector-set! cache
-                0
-                (batch-pull (batchref-reduce (expr->batchref `(/ 1 ,(b 0)))))) ;; to remove batch-pull
+  (dvector-set! cache 0 (batchref-reduce (expr->batchref `(/ 1 ,(b 0)))))
   (cons (- offset)
         (λ (n)
           (when (>= n (dvector-length cache))
@@ -307,7 +301,7 @@
                 (batchref-reduce (expr->batchref `(neg (+ ,@(for/list ([i (range n*)])
                                                               `(* ,(dvector-ref cache i)
                                                                   (/ ,(b (- n* i)) ,(b 0)))))))))
-              (dvector-set! cache n* (batch-pull res)))) ;; to remove batch-pull
+              (dvector-set! cache n* res)))
           (dvector-ref cache n))))
 
 (define (taylor-quotient num denom)
@@ -317,10 +311,7 @@
   (match-define (cons noff a) (normalize-series num))
   (match-define (cons doff b) (normalize-series denom))
   (define cache (make-dvector 10))
-  (dvector-set! cache
-                0
-                (batch-pull (batchref-reduce (expr->batchref `(/ ,(a 0)
-                                                                 ,(b 0)))))) ;; to remove batch-pull
+  (dvector-set! cache 0 (batchref-reduce (expr->batchref `(/ ,(a 0) ,(b 0)))))
 
   (cons (- noff doff)
         (λ (n)
@@ -331,36 +322,30 @@
                                                      (+ ,@(for/list ([i (range n*)])
                                                             `(* ,(dvector-ref cache i)
                                                                 (/ ,(b (- n* i)) ,(b 0)))))))))
-              (dvector-set! cache n* (batch-pull res)))) ;; to remove batch-pull
+              (dvector-set! cache n* res)))
           (dvector-ref cache n))))
 
 (define (modulo-series var n series)
   (match-define (cons offset coeffs) (normalize-series series))
   (define offset* (+ offset (modulo (- offset) n)))
   (define (coeffs* i)
-    (batch-pull ;; to remove batch-pull
-     (match i
-       [0
-        (expr->batchref (make-sum (for/list ([j (in-range (modulo offset n))])
-                                    `(* ,(coeffs j) (pow ,var ,(+ j (modulo (- offset) n)))))))]
-       [_
-        #:when (< i n)
-        0]
-       [_ (expr->batchref (coeffs (+ (- i n) (modulo offset n))))]))) ;; to remove expr->batchref
+    (match i
+      [0
+       (expr->batchref (make-sum (for/list ([j (in-range (modulo offset n))])
+                                   `(* ,(coeffs j) (pow ,var ,(+ j (modulo (- offset) n)))))))]
+      [_
+       #:when (< i n)
+       0]
+      [_ (coeffs (+ (- i n) (modulo offset n)))]))
   (cons offset* (if (= offset offset*) coeffs coeffs*)))
 
 (define (taylor-sqrt var num)
   (match-define (cons offset* coeffs*) (modulo-series var 2 num))
   (define cache (make-dvector 10))
-  (dvector-set! cache
-                0
-                (batch-pull (batchref-reduce
-                             (expr->batchref `(sqrt ,(coeffs* 0)))))) ;; to remove batch-pull
+  (dvector-set! cache 0 (batchref-reduce (expr->batchref `(sqrt ,(coeffs* 0)))))
   (dvector-set! cache
                 1
-                (batch-pull (batchref-reduce
-                             (expr->batchref
-                              `(/ ,(coeffs* 1) (* 2 (sqrt ,(coeffs* 0)))))))) ;; to remove batch-pull
+                (batchref-reduce (expr->batchref `(/ ,(coeffs* 1) (* 2 (sqrt ,(coeffs* 0)))))))
 
   (cons (/ offset* 2)
         (λ (n)
@@ -383,24 +368,18 @@
                                             #:break (>= k (- n* k)))
                                    `(* 2 (* ,(dvector-ref cache k) ,(dvector-ref cache (- n* k)))))))
                          (* 2 ,(dvector-ref cache 0)))]))))
-              (dvector-set! cache n* (batch-pull res)))) ;; to remove batch-pull
+              (dvector-set! cache n* res)))
           (dvector-ref cache n))))
 
 (define (taylor-cbrt var num)
   (match-define (cons offset* coeffs*) (modulo-series var 3 num))
   (define cache (make-dvector 10))
-  (dvector-set! cache
-                0
-                (batch-pull (batchref-reduce
-                             (expr->batchref `(cbrt ,(coeffs* 0)))))) ;; to remove batch-pull
+  (dvector-set! cache 0 (batchref-reduce (expr->batchref `(cbrt ,(coeffs* 0)))))
   (dvector-set! cache
                 1
-                (batch-pull (batchref-reduce
-                             (expr->batchref
-                              `(/ ,(coeffs* 1)
-                                  (* 3
-                                     (cbrt (* ,(dvector-ref cache 0)
-                                              ,(dvector-ref cache 0))))))))) ;; to remove batch-pull
+                (batchref-reduce
+                 (expr->batchref
+                  `(/ ,(coeffs* 1) (* 3 (cbrt (* ,(dvector-ref cache 0) ,(dvector-ref cache 0))))))))
 
   (cons (/ offset* 3)
         (λ (n)
@@ -416,7 +395,7 @@
                                                 ,(dvector-ref cache b)
                                                 ,(dvector-ref cache c))))
                                      (* 3 ,(dvector-ref cache 0) ,(dvector-ref cache 0))))))
-              (dvector-set! cache n* (batch-pull res)))) ;; to remove batch-pull
+              (dvector-set! cache n* res)))
           (dvector-ref cache n))))
 
 (define (taylor-pow coeffs n)
@@ -448,10 +427,7 @@
 
 (define (taylor-exp coeffs)
   (define cache (make-dvector 10))
-  (dvector-set! cache
-                0
-                (batch-pull (batchref-reduce
-                             (expr->batchref `(exp ,(coeffs 0)))))) ;; to remove batch-pull
+  (dvector-set! cache 0 (batchref-reduce (expr->batchref `(exp ,(coeffs 0)))))
 
   (cons 0
         (λ (n)
@@ -461,7 +437,7 @@
               (define nums
                 (for/list ([i (in-range 1 (+ n* 1))]
                            [coeff (in-vector coeffs*)]
-                           #:unless (equal? coeff 0)) ;; to do, add deref here
+                           #:unless (equal? (deref coeff) 0))
                   i))
               (define res
                 (batchref-reduce
@@ -470,12 +446,12 @@
                                             `(* ,@(for/list ([(count num) (in-dict p)])
                                                     `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
                                                         ,(factorial count))))))))))
-              (dvector-set! cache n* (batch-pull res)))) ;; to remove batch-pull
+              (dvector-set! cache n* res)))
           (dvector-ref cache n))))
 
 (define (taylor-sin coeffs)
   (define cache (make-dvector 10))
-  (dvector-set! cache 0 (batch-pull (expr->batchref 0))) ;; to remove batch-pull
+  (dvector-set! cache 0 (expr->batchref 0))
 
   (cons 0
         (λ (n)
@@ -485,7 +461,7 @@
               (define nums
                 (for/list ([i (in-range 1 (+ n* 1))]
                            [coeff (in-vector coeffs*)]
-                           #:unless (equal? coeff 0)) ;; to do, add deref here
+                           #:unless (equal? (deref coeff) 0))
                   i))
               (define res
                 (batchref-reduce
@@ -496,12 +472,12 @@
                                                      `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
                                                          ,(factorial count))))
                                              0))))))
-              (dvector-set! cache n* (batch-pull res)))) ;; to remove batch-pull
+              (dvector-set! cache n* res)))
           (dvector-ref cache n))))
 
 (define (taylor-cos coeffs)
   (define cache (make-dvector 10))
-  (dvector-set! cache 0 (batch-pull (expr->batchref 1))) ;; to remove batch-pull
+  (dvector-set! cache 0 (expr->batchref 1))
 
   (cons 0
         (λ (n)
@@ -511,7 +487,7 @@
               (define nums
                 (for/list ([i (in-range 1 (+ n* 1))]
                            [coeff (in-vector coeffs*)]
-                           #:unless (equal? coeff 0)) ;; to add deref
+                           #:unless (equal? (deref coeff) 0))
                   i))
               (define res
                 (batchref-reduce
@@ -522,7 +498,7 @@
                                                      `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
                                                          ,(factorial count))))
                                              0))))))
-              (dvector-set! cache n* (batch-pull res)))) ;; to remove batch-pull
+              (dvector-set! cache n* res)))
           (dvector-ref cache n))))
 
 ;; This is a hyper-specialized symbolic differentiator for log(f(x))
@@ -563,18 +539,14 @@
 
 (define (taylor-log var arg)
   (match-define (cons shift coeffs) (normalize-series arg))
-  (define negate? (and (number? (coeffs 0)) (not (positive? (coeffs 0))))) ; to do, add deref
+  (define negate? (and (number? (deref (coeffs 0))) (not (positive? (deref (coeffs 0))))))
   (define (maybe-negate x)
     (if negate?
         `(neg ,x)
         x))
 
   (define series-cache (make-dvector 10))
-  (dvector-set! series-cache
-                0
-                (batch-pull (batchref-reduce
-                             (expr->batchref
-                              `(log ,(maybe-negate (coeffs 0))))))) ;; to remove batch-pull
+  (dvector-set! series-cache 0 (batchref-reduce (expr->batchref `(log ,(maybe-negate (coeffs 0))))))
 
   (define (series n)
     (when (>= n (dvector-length series-cache))
@@ -592,15 +564,14 @@
                                                         `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
                                              (exp (* ,(- k) ,(series 0)))))))
                                ,(factorial n*)))))
-        (dvector-set! series-cache n* (batch-pull res)))) ;; to remove batch-pull
+        (dvector-set! series-cache n* res)))
     (dvector-ref series-cache n))
 
   (cons 0
         (λ (n)
           (if (and (= n 0) (not (zero? shift)))
-              (batch-pull ;; to remove batch-pull
-               (batchref-reduce (expr->batchref `(+ (* (neg ,shift) (log ,(maybe-negate var)))
-                                                    ,(series 0)))))
+              (batchref-reduce (expr->batchref `(+ (* (neg ,shift) (log ,(maybe-negate var)))
+                                                   ,(series 0))))
               (series n)))))
 
 (module+ test
