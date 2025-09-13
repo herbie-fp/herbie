@@ -111,7 +111,8 @@
 
 (define subexprs (apply append unflattened-subexprs))
 (define filtered-subexprs (filter (lambda (n) (not (or (symbol? n) (literal? n) (approx? n) (has-approx n)))) subexprs))
-(define renamed-subexprs (map rename-vars filtered-subexprs))
+(define filtered-again (filter (lambda (n) (> (length (free-variables n)) 0)) filtered-subexprs)) 
+(define renamed-subexprs (map rename-vars filtered-again))
 
 (define freqs (count-frequencies renamed-subexprs))
 (define pairs (hash->list freqs))
@@ -121,7 +122,7 @@
 ;;; (displayln (format "deduped length ~a" (length deduplicated-pairs)))
 (define triples (map get-error deduplicated-pairs))
 (define filtered-triples (filter (lambda (p) (< 0.1 (last p))) triples))
-(define sorted-triples (sort filtered-triples (lambda (p1 p2) (< (last p1) (last p2)))))
+(define sorted-triples (sort filtered-triples (lambda (p1 p2) (< (second p1) (second p2)))))
 (define first-500 (take sorted-triples (min (length sorted-triples) 500)))
 ;;; (displayln (format "filtered length ~a" (length filtered-triples)))
 (for-each print-fpcore first-500)

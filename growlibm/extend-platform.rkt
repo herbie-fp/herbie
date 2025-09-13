@@ -45,20 +45,22 @@
 (define json (string->jsexpr (first (file->lines filename))))
 (define tests (hash-ref json 'tests))
 (define pairs (for/list ([t tests])
-                (cons (hash-ref t 'spec)
-                      (hash-ref t 'end))))
-(define sorted-pairs (sort pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
-(define spec (with-input-from-string (car (first sorted-pairs)) read))
+                (list (hash-ref t 'name)
+                      (hash-ref t 'link)
+                      (hash-ref t 'end) '())))
+(define sorted-pairs (sort pairs (lambda (p1 p2) (> (third p1) (third p2)))))
+
+(define spec (with-input-from-string (first (first sorted-pairs)) read))
+(define link (second (first sorted-pairs)))
 (define ctx (context (free-variables spec) (get-representation 'binary64) (make-list (length (free-variables spec)) (get-representation 'binary64))))
 ;;; (define operatorImpl (create-operator-impl! (string->symbol (format "!~a!" spec)) ctx spec #:impl (from-rival) #:cost 1000))
 (define (render-var var) (format "[~a <binary64>]" var))
-(define (random-string n #:alphabet [alphabet "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"])
-  (list->string
-   (for/list ([i n])
-     (string-ref alphabet (random (string-length alphabet))))))
+;;; (define (random-string n #:alphabet [alphabet "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"])
+;;;   (list->string
+;;;    (for/list ([i n])
+;;;      (string-ref alphabet (random (string-length alphabet))))))
 
-(define op-name (random-string 8))
-(define operatorStr (format "(define-operation (~a ~a) <binary64> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary64 (~a ~a)) #:cost 1000)"  op-name (string-join (map render-var (free-variables spec))) spec op-name (string-join (map symbol->string (free-variables spec)))))
+(define operatorStr (format "(define-operation (~a ~a) <binary64> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary64 (~a ~a)) #:cost 1000)"  link (string-join (map render-var (free-variables spec))) spec link (string-join (map symbol->string (free-variables spec)))))
 (displayln operatorStr)
 
 ;;; (platform-register-implementation! (*active-platform*) operatorImpl)
