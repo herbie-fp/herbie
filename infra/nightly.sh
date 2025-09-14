@@ -8,8 +8,8 @@ export PATH="$PATH:$HOME/.cargo/bin/"
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
-BENCHDIR="bench/graphics/pbrt.fpcore"
-BENCHNAME="pbrt"
+BENCHDIR="bench/"
+BENCHNAME="full"
 REPORTDIR="reports"
 NUMITERS=5
 
@@ -37,28 +37,29 @@ for ((i = 0; i < $NUMITERS; i++)) do
     racket -y "growlibm/extend-platform.rkt"  "$REPORTDIR"/"iter$i/results.json" >> "src/platforms/grow.rkt"
 done
 
-# print all operators from the platform
 # racket -y growlibm/print-platform-ops.rkt > "$REPORTDIR/platform_ops.txt"
 
+# print all operators from the platform
 cat "src/platforms/grow.rkt" > "$REPORTDIR/grow_platform.txt"
-# finally run herbie again with expanded platform
+
+# run herbie again with expanded platform
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
         --platform "grow" \
         --threads 4 \
         "$BENCHDIR" "$REPORTDIR"/"final_$BENCHNAME"
 
-racket -y "src/main.rkt" report \
-        --seed "$SEED" \
-        --platform "no-accelerators" \
-        --threads 4 \
-        "bench/" "$REPORTDIR"/"full_bench_no_accelerators"
+# racket -y "src/main.rkt" report \
+#         --seed "$SEED" \
+#         --platform "no-accelerators" \
+#         --threads 4 \
+#         "bench/" "$REPORTDIR"/"full_bench_no_accelerators"
 
-racket -y "src/main.rkt" report \
-        --seed "$SEED" \
-        --platform "grow" \
-        --threads 4 \
-        "bench/" "$REPORTDIR"/"full_bench_grow"
+# racket -y "src/main.rkt" report \
+#         --seed "$SEED" \
+#         --platform "grow" \
+#         --threads 4 \
+#         "bench/" "$REPORTDIR"/"full_bench_grow"
 
 # dirs=""
 # for bench in "$BENCHDIR"/*; do
