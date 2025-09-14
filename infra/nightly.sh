@@ -40,6 +40,7 @@ done
 # print all operators from the platform
 # racket -y growlibm/print-platform-ops.rkt > "$REPORTDIR/platform_ops.txt"
 
+cat "src/platforms/grow.rkt" > "$REPORTDIR/grow_platform.txt"
 # finally run herbie again with expanded platform
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
@@ -47,7 +48,18 @@ racket -y "src/main.rkt" report \
         --threads 4 \
         "$BENCHDIR" "$REPORTDIR"/"final_$BENCHNAME"
 
-cat "src/platforms/grow.rkt" > "$REPORTDIR/grow_platform"
+racket -y "src/main.rkt" report \
+        --seed "$SEED" \
+        --platform "no-accelerators" \
+        --threads 4 \
+        "bench/" "$REPORTDIR"/"full_bench_no_accelerators"
+
+racket -y "src/main.rkt" report \
+        --seed "$SEED" \
+        --platform "grow" \
+        --threads 4 \
+        "bench/" "$REPORTDIR"/"full_bench_grow"
+
 # dirs=""
 # for bench in "$BENCHDIR"/*; do
 #   name=$(basename "$bench" .fpcore)
