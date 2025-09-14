@@ -50,9 +50,11 @@
                       (hash-ref t 'end) '())))
 (define sorted-pairs (sort pairs (lambda (p1 p2) (> (third p1) (third p2)))))
 
-(define spec (with-input-from-string (first (first sorted-pairs)) read))
+(define fpcore (with-input-from-string (first (first sorted-pairs)) read))
 (define link (second (first sorted-pairs)))
-(define ctx (context (free-variables spec) (get-representation 'binary64) (make-list (length (free-variables spec)) (get-representation 'binary64))))
+(define ctx (context (free-variables fpcore) (get-representation 'binary64) (make-list (length (free-variables fpcore)) (get-representation 'binary64))))
+(define prog (fpcore->prog fpcore ctx))
+(define spec (prog->spec prog))
 ;;; (define operatorImpl (create-operator-impl! (string->symbol (format "!~a!" spec)) ctx spec #:impl (from-rival) #:cost 1000))
 (define (render-var var) (format "[~a <binary64>]" var))
 ;;; (define (random-string n #:alphabet [alphabet "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"])
