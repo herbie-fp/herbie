@@ -11,7 +11,7 @@ SEED=$(date "+%Y%j")
 BENCHDIR="bench/graphics/pbrt.fpcore"
 BENCHNAME="pbrt"
 REPORTDIR="reports"
-NUMITERS=10
+NUMITERS=5
 
 mkdir -p "$REPORTDIR"
 rm -rf "reports"/* || echo "nothing to delete"
