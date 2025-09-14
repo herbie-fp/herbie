@@ -120,16 +120,18 @@
 ;;; (displayln (format "og length ~a" (length pairs)))
 (define deduplicated-freqs (deduplicate pairs))
 (define deduplicated-pairs (hash->list deduplicated-freqs))
-(define sorted-pairs (sort deduplicated-pairs (lambda (p1 p2) (< (second p1) (second p2)))))
-(define first-500 (take sorted-pairs (min (length sorted-pairs) 500)))
+(define sorted-pairs (sort deduplicated-pairs (lambda (p1 p2) (< (cdr p1) (cdr p2)))))
+(define first-1000 (take sorted-pairs (min (length sorted-pairs) 1000)))
 
 ;;; (displayln (format "deduped length ~a" (length deduplicated-pairs)))
-(define triples (map get-error first-500))
-;;; (define filtered-triples (filter (lambda (p) (< 0.1 (last p))) triples))
+(define triples (map get-error first-1000))
+(define filtered-triples (filter (lambda (p) (< 0.1 (last p))) triples))
 ;;; (define sorted-triples (sort filtered-triples (lambda (p1 p2) (< (second p1) (second p2)))))
 ;;; (define first-500 (take sorted-triples (min (length sorted-triples) 500)))
 ;;; (displayln (format "filtered length ~a" (length filtered-triples)))
-(for-each print-fpcore triples)
+(define first-500 (take filtered-triples (min (length filtered-triples) 500)))
+
+(for-each print-fpcore first-500)
 
 ;;; (print-lines sorted-triples)
 ;;; (define cost-proc (platform-cost-proc (*active-platform*)))
