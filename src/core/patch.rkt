@@ -41,8 +41,8 @@
   (define copier (batch-copy-only! global-batch spec-batch)) ;; copy to global-batch from spec-batch
 
   (reap [sow]
-        (parameterize ([reducer (batch-reduce spec-batch)] ;; reduces over spec-batch
-                       [adder (λ (x) (batch-add! spec-batch x))]) ;; adds to spec-batch
+        (parameterize ([reduce (batch-reduce spec-batch)] ;; reduces over spec-batch
+                       [add (λ (x) (batch-add! spec-batch x))]) ;; adds to spec-batch
 
           ;; List<List<(cons offset coeffs)>>
           (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs* vars transforms-to-try))

@@ -210,18 +210,6 @@
              #:when child)
     (batchref batch i)))
 
-;; Function returns indices of children nodes within a batch for given roots,
-;;   where a child node is a child of a root + meets a condition - (condition node)
-#;(define (batch-reachable2 batch brfs)
-    (define f
-      (batch-map batch
-                 (λ (child-reach node)
-                   (define children-brfs
-                     (append* (reap [sow] (expr-recurse node (compose sow child-reach)))))
-                   (cons (batch-push! batch node) children-brfs))))
-    (println (map f brfs))
-    (sort (remove-duplicates (append* (map f brfs)) #:key batchref-idx) < #:key batchref-idx))
-
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-exprs batch)
   (batch-recurse batch (lambda (brf recurse) (expr-recurse (deref brf) recurse))))
