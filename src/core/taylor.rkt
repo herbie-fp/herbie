@@ -9,8 +9,8 @@
 
 (provide approximate
          taylor-coefficients
-         reducer
-         adder)
+         reduce
+         add)
 
 (define reduce (make-parameter #f))
 (define add (make-parameter #f))
