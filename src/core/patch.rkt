@@ -61,6 +61,9 @@
                   [altn (in-list altns)]
                   [fv (in-list free-vars)]
                   #:when (set-member? fv var)) ; check whether var exists in expr at all
+              (define gen0 (approx spec-brf (hole (representation-name repr) 0)))
+              (define brf0 (batch-add! global-batch gen0))
+              (sow (alt brf0 `(taylor ,name ,var) (list altn)))
               (for ([i (in-range (*taylor-order-limit*))])
                 (define gen (approx spec-brf (hole (representation-name repr) (copier (genexpr)))))
                 (define brf (batch-add! global-batch gen)) ; Munge gen
