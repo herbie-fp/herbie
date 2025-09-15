@@ -38,17 +38,13 @@
   (define spec-brfs (batch-to-spec! global-batch brfs)) ; These specs will go into (approx spec impl)
   (define free-vars (map (batch-free-vars global-batch) spec-brfs))
   (define-values (spec-batch spec-brfs*) (batch-copy-only global-batch spec-brfs))
-
-  ;; List<List<(cons offset coeffs)>>
-  (define reducer* (batch-reduce spec-batch)) ;; reduces over spec-batch
-  (define adder* (λ (x) (batch-add! spec-batch x))) ;; adds to spec-batch
-  (define exprser* (batch-exprs spec-batch)) ;; adds to spec-batch
   (define copier (batch-copy-only! global-batch spec-batch)) ;; copy to global-batch from spec-batch
 
   (reap [sow]
-        (parameterize ([reducer reducer*]
-                       [adder adder*]
-                       [exprser exprser*])
+        (parameterize ([reducer (batch-reduce spec-batch)] ;; reduces over spec-batch
+                       [adder (λ (x) (batch-add! spec-batch x))]) ;; adds to spec-batch
+
+          ;; List<List<(cons offset coeffs)>>
           (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs* vars transforms-to-try))
           (define idx 0)
 

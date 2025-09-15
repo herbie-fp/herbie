@@ -11,21 +11,16 @@
 (provide approximate
          taylor-coefficients
          reducer
-         adder
-         exprser)
+         adder)
 
 (define reducer (make-parameter #f))
 (define adder (make-parameter #f))
-(define exprser (make-parameter #f))
 
 (define (batchref-reduce x)
   ((reducer) x))
 
 (define (expr->batchref x)
   ((adder) x))
-
-(define (batchref->expr x)
-  ((exprser) x))
 
 (define (taylor-coefficients batch brfs vars transforms-to-try)
   (define expander (expand-taylor! batch))
@@ -254,12 +249,11 @@
   (define cache (make-dvector 10))
   (cons (car offset)
         (λ (n)
-          (when (>= n (dvector-length cache))
-            (for ([n* (in-range (dvector-length cache) (add1 n))])
-              (define res
-                (batchref-reduce (expr->batchref (make-sum (for/list ([series serieses])
-                                                             (series n*))))))
-              (dvector-set! cache n* res)))
+          (unless (and (> (dvector-capacity cache) n) (dvector-ref cache n))
+            (define res
+              (batchref-reduce (expr->batchref (make-sum (for/list ([series serieses])
+                                                           (series n))))))
+            (dvector-set! cache n res))
           (dvector-ref cache n))))
 
 (define/contract (taylor-negate term)
@@ -267,10 +261,9 @@
   (define cache (make-dvector 10))
   (cons (car term)
         (λ (n)
-          (when (>= n (dvector-length cache))
-            (for ([n* (in-range (dvector-length cache) (add1 n))])
-              (define res (batchref-reduce (expr->batchref (list 'neg ((cdr term) n*)))))
-              (dvector-set! cache n* res)))
+          (unless (and (> (dvector-capacity cache) n) (dvector-ref cache n))
+            (define res (batchref-reduce (expr->batchref (list 'neg ((cdr term) n)))))
+            (dvector-set! cache n res))
           (dvector-ref cache n))))
 
 (define/contract (taylor-mult left right)
@@ -278,13 +271,12 @@
   (define cache (make-dvector 10))
   (cons (+ (car left) (car right))
         (λ (n)
-          (when (>= n (dvector-length cache))
-            (for ([n* (in-range (dvector-length cache) (add1 n))])
-              (define res
-                (batchref-reduce
-                 (expr->batchref (make-sum (for/list ([i (range (+ n* 1))])
-                                             (list '* ((cdr left) i) ((cdr right) (- n* i))))))))
-              (dvector-set! cache n* res)))
+          (unless (and (> (dvector-capacity cache) n) (dvector-ref cache n))
+            (define res
+              (batchref-reduce
+               (expr->batchref (make-sum (for/list ([i (range (+ n 1))])
+                                           (list '* ((cdr left) i) ((cdr right) (- n i))))))))
+            (dvector-set! cache n res))
           (dvector-ref cache n))))
 
 (define/contract (normalize-series series)
@@ -346,15 +338,20 @@
   (-> symbol? number? term? term?)
   (match-define (cons offset coeffs) (normalize-series series))
   (define offset* (+ offset (modulo (- offset) n)))
+  (define cache (make-dvector 2)) ;; never called mor than twice
   (define (coeffs* i)
-    (match i
-      [0
-       (expr->batchref (make-sum (for/list ([j (in-range (modulo offset n))])
-                                   `(* ,(coeffs j) (pow ,var ,(+ j (modulo (- offset) n)))))))]
-      [_
-       #:when (< i n)
-       (expr->batchref 0)]
-      [_ (coeffs (+ (- i n) (modulo offset n)))]))
+    (unless (and (> (dvector-capacity cache) i) (dvector-ref cache i))
+      (define res
+        (match i
+          [0
+           (expr->batchref (make-sum (for/list ([j (in-range (modulo offset n))])
+                                       `(* ,(coeffs j) (pow ,var ,(+ j (modulo (- offset) n)))))))]
+          [_
+           #:when (< i n)
+           (expr->batchref 0)]
+          [_ (coeffs (+ (- i n) (modulo offset n)))]))
+      (dvector-set! cache i res))
+    (dvector-ref cache i))
   (cons offset* (if (= offset offset*) coeffs coeffs*)))
 
 (define/contract (taylor-sqrt var num)
@@ -453,22 +450,21 @@
 
   (cons 0
         (λ (n)
-          (when (>= n (dvector-length cache))
-            (for ([n* (in-range (dvector-length cache) (add1 n))])
-              (define coeffs* (list->vector (map coeffs (range 1 (+ n* 1)))))
-              (define nums
-                (for/list ([i (in-range 1 (+ n* 1))]
-                           [coeff (in-vector coeffs*)]
-                           #:unless (equal? (deref coeff) 0))
-                  i))
-              (define res
-                (batchref-reduce
-                 (expr->batchref `(* (exp ,(coeffs 0))
-                                     (+ ,@(for/list ([p (all-partitions n* (sort nums >))])
-                                            `(* ,@(for/list ([(count num) (in-dict p)])
-                                                    `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                                        ,(factorial count))))))))))
-              (dvector-set! cache n* res)))
+          (unless (and (> (dvector-capacity cache) n) (dvector-ref cache n))
+            (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
+            (define nums
+              (for/list ([i (in-range 1 (+ n 1))]
+                         [coeff (in-vector coeffs*)]
+                         #:unless (equal? (deref coeff) 0))
+                i))
+            (define res
+              (batchref-reduce
+               (expr->batchref `(* (exp ,(coeffs 0))
+                                   (+ ,@(for/list ([p (all-partitions n (sort nums >))])
+                                          `(* ,@(for/list ([(count num) (in-dict p)])
+                                                  `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                                      ,(factorial count))))))))))
+            (dvector-set! cache n res))
           (dvector-ref cache n))))
 
 (define/contract (taylor-sin coeffs)
@@ -478,24 +474,23 @@
 
   (cons 0
         (λ (n)
-          (when (>= n (dvector-length cache))
-            (for ([n* (in-range (dvector-length cache) (add1 n))])
-              (define coeffs* (list->vector (map coeffs (range 1 (+ n* 1)))))
-              (define nums
-                (for/list ([i (in-range 1 (+ n* 1))]
-                           [coeff (in-vector coeffs*)]
-                           #:unless (equal? (deref coeff) 0))
-                  i))
-              (define res
-                (batchref-reduce
-                 (expr->batchref `(+ ,@(for/list ([p (all-partitions n* (sort nums >))])
-                                         (if (= (modulo (apply + (map car p)) 2) 1)
-                                             `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
-                                                 ,@(for/list ([(count num) (in-dict p)])
-                                                     `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                                         ,(factorial count))))
-                                             0))))))
-              (dvector-set! cache n* res)))
+          (unless (and (> (dvector-capacity cache) n) (dvector-ref cache n))
+            (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
+            (define nums
+              (for/list ([i (in-range 1 (+ n 1))]
+                         [coeff (in-vector coeffs*)]
+                         #:unless (equal? (deref coeff) 0))
+                i))
+            (define res
+              (batchref-reduce
+               (expr->batchref `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
+                                       (if (= (modulo (apply + (map car p)) 2) 1)
+                                           `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
+                                               ,@(for/list ([(count num) (in-dict p)])
+                                                   `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                                       ,(factorial count))))
+                                           0))))))
+            (dvector-set! cache n res))
           (dvector-ref cache n))))
 
 (define/contract (taylor-cos coeffs)
@@ -505,29 +500,26 @@
 
   (cons 0
         (λ (n)
-          (when (>= n (dvector-length cache))
-            (for ([n* (in-range (dvector-length cache) (add1 n))])
-              (define coeffs* (list->vector (map coeffs (range 1 (+ n* 1)))))
-              (define nums
-                (for/list ([i (in-range 1 (+ n* 1))]
-                           [coeff (in-vector coeffs*)]
-                           #:unless (equal? (deref coeff) 0))
-                  i))
-              (define res
-                (batchref-reduce
-                 (expr->batchref `(+ ,@(for/list ([p (all-partitions n* (sort nums >))])
-                                         (if (= (modulo (apply + (map car p)) 2) 0)
-                                             `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
-                                                 ,@(for/list ([(count num) (in-dict p)])
-                                                     `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                                         ,(factorial count))))
-                                             0))))))
-              (dvector-set! cache n* res)))
+          (unless (and (> (dvector-capacity cache) n) (dvector-ref cache n))
+            (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
+            (define nums
+              (for/list ([i (in-range 1 (+ n 1))]
+                         [coeff (in-vector coeffs*)]
+                         #:unless (equal? (deref coeff) 0))
+                i))
+            (define res
+              (batchref-reduce
+               (expr->batchref `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
+                                       (if (= (modulo (apply + (map car p)) 2) 0)
+                                           `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
+                                               ,@(for/list ([(count num) (in-dict p)])
+                                                   `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                                       ,(factorial count))))
+                                           0))))))
+            (dvector-set! cache n res))
           (dvector-ref cache n))))
 
 ;; This is a hyper-specialized symbolic differentiator for log(f(x))
-
-(define initial-logtable '((1 -1 1)))
 
 (define (list-setinc l i)
   (let loop ([i i]
@@ -570,26 +562,25 @@
         `(neg ,x)
         x))
 
-  (define series-cache (make-dvector 10))
+  (define series-cache (make-dvector 10 #f))
   (dvector-set! series-cache 0 (batchref-reduce (expr->batchref `(log ,(maybe-negate (coeffs 0))))))
 
   (define (series n)
-    (when (>= n (dvector-length series-cache))
-      (for ([n* (in-range (dvector-length series-cache) (add1 n))])
-        (define tmpl (logcompute n*))
-        (define res
-          (batchref-reduce
-           (expr->batchref `(/ (+ ,@(for/list ([term tmpl])
-                                      (match-define `(,coeff ,k ,ps ...) term)
-                                      `(* ,coeff
-                                          (/ (* ,@(for/list ([i (in-naturals 1)]
-                                                             [p ps])
-                                                    (if (= p 0)
-                                                        1
-                                                        `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
-                                             (exp (* ,(- k) ,(series 0)))))))
-                               ,(factorial n*)))))
-        (dvector-set! series-cache n* res)))
+    (unless (and (> (dvector-capacity series-cache) n) (dvector-ref series-cache n))
+      (define tmpl (logcompute n))
+      (define res
+        (batchref-reduce
+         (expr->batchref `(/ (+ ,@(for/list ([term tmpl])
+                                    (match-define `(,coeff ,k ,ps ...) term)
+                                    `(* ,coeff
+                                        (/ (* ,@(for/list ([i (in-naturals 1)]
+                                                           [p ps])
+                                                  (if (= p 0)
+                                                      1
+                                                      `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
+                                           (exp (* ,(- k) ,(series 0)))))))
+                             ,(factorial n)))))
+      (dvector-set! series-cache n res))
     (dvector-ref series-cache n))
 
   (cons 0
