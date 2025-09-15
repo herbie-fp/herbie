@@ -9,9 +9,8 @@ export PATH="$PATH:$HOME/.cargo/bin/"
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
 BENCHDIR="bench/"
-BENCHNAME="full"
 REPORTDIR="reports"
-NUMITERS=5
+NUMITERS=10
 
 mkdir -p "$REPORTDIR"
 rm -rf "reports"/* || echo "nothing to delete"
@@ -21,7 +20,7 @@ racket -y "src/main.rkt" report \
         --seed "$SEED" \
         --dump-exprs \
         --platform "no-accelerators" \
-        "$BENCHDIR" "$REPORTDIR"/"orig_$BENCHNAME" > "$REPORTDIR/expr_dump.txt"
+        "$BENCHDIR" "$REPORTDIR"/"start" > "$REPORTDIR/expr_dump.txt"
 
 # generate accelerator candidates
 racket -y growlibm/generate-candidates.rkt "$REPORTDIR/expr_dump.txt" > "$REPORTDIR/candidates.fpcore"
@@ -40,14 +39,18 @@ done
 # racket -y growlibm/print-platform-ops.rkt > "$REPORTDIR/platform_ops.txt"
 
 # print all operators from the platform
-cat "src/platforms/grow.rkt" > "$REPORTDIR/grow_platform.txt"
 
 # run herbie again with expanded platform
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
         --platform "grow" \
         --threads 4 \
-        "$BENCHDIR" "$REPORTDIR"/"final_$BENCHNAME"
+        "$BENCHDIR" "$REPORTDIR"/"end"
+
+cat "src/platforms/grow.rkt" > "$REPORTDIR/grow_platform.txt"
+
+# generate the html report page
+python3 growlibm/generate-html.py
 
 # racket -y "src/main.rkt" report \
 #         --seed "$SEED" \
