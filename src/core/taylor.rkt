@@ -48,34 +48,19 @@
   (for/list ([ta taylor-approxs])
     (match-define (cons offset coeffs) ta)
     (define i 0)
-    (define genexpr (expr->batchref 0))
-    (define n 0)
     (define terms '())
 
     (define (next [iter 0])
       (define coeff (batchref-reduce (replacer (coeffs i))))
       (set! i (+ i 1))
-
-      #;(match (deref coeff)
-          [0
-           (if (< iter iters)
-               (next (+ iter 1))
-               (batchref-reduce genexpr))]
-          [_
-           (define term (cons coeff (- i offset 1)))
-           (define-values (genexpr* n*) (append-horner var term genexpr n))
-           (set! genexpr genexpr*)
-           (set! n n*)
-           (batchref-reduce genexpr*)])
-
       (match (deref coeff)
         [0
          (if (< iter iters)
              (next (+ iter 1))
-             (batchref-reduce (expr->batchref (make-horner ((cdr tform) var) (reverse terms)))))]
+             (batchref-reduce (make-horner ((cdr tform) var) (reverse terms))))]
         [_
          (set! terms (cons (cons coeff (- i offset 1)) terms))
-         (batchref-reduce (expr->batchref (make-horner ((cdr tform) var) (reverse terms))))]))
+         (batchref-reduce (make-horner ((cdr tform) var) (reverse terms)))]))
     next))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
@@ -129,12 +114,6 @@
   (check-equal? `(+ 100 (cbrt (* x y))) (test-expand-taylor `(+ 100 (pow (* x y) 1/3))))
   (check-equal? `(+ y (cbrt x)) (test-expand-taylor `(+ y (pow x 1/3))))
   (check-equal? `(+ (cbrt x) y) (test-expand-taylor `(+ (pow x 1/3) y))))
-
-#;(define (append-horner var term genexpr [last-n 0])
-    (match-define (cons c n) term)
-    (match (deref genexpr)
-      [0 (values (expr->batchref `(* ,c ,(make-monomial var (- n last-n)))) n)]
-      [_ (values (expr->batchref `(* ,(make-monomial var (- n last-n)) (+ ,c ,genexpr))) n)]))
 
 (define (make-horner var terms [start 0])
   (match terms
