@@ -5,7 +5,6 @@
          "../syntax/syntax.rkt"
          "batch.rkt"
          "programs.rkt"
-         "reduce.rkt"
          "dvector.rkt")
 
 (provide approximate
@@ -301,6 +300,7 @@
   (match-define (cons offset b) (normalize-series term))
   (define cache (make-dvector 10))
   (dvector-set! cache 0 (batchref-reduce (expr->batchref `(/ 1 ,(b 0)))))
+
   (cons (- offset)
         (λ (n)
           (when (>= n (dvector-length cache))
@@ -593,17 +593,22 @@
 (module+ test
   (require rackunit)
   (define-values (batch brfs) (progs->batch (list '(pow x 1.0))))
-  (define brfs* (map (expand-taylor! batch) brfs))
-  (define brf (car brfs*))
-  (check-pred exact-integer? (car ((taylor 'x batch) brf))))
-
-(module+ test
-  (define (coeffs expr #:n [n 7])
-    (define-values (batch brfs) (progs->batch (list expr)))
+  (parameterize ([reducer (batch-reduce batch)]
+                 [adder (λ (x) (batch-add! batch x))])
     (define brfs* (map (expand-taylor! batch) brfs))
     (define brf (car brfs*))
-    (match-define fn (zero-series ((taylor 'x batch) brf)))
-    (build-list n fn))
+    (check-pred exact-integer? (car ((taylor 'x batch) brf)))))
+
+(module+ test
+  (require "batch-reduce.rkt")
+  (define (coeffs expr #:n [n 7])
+    (define-values (batch brfs) (progs->batch (list expr)))
+    (parameterize ([reducer (batch-reduce batch)]
+                   [adder (λ (x) (batch-add! batch x))])
+      (define brfs* (map (expand-taylor! batch) brfs))
+      (define brf (car brfs*))
+      (match-define fn (zero-series ((taylor 'x batch) brf)))
+      (map batch-pull (build-list n fn))))
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
