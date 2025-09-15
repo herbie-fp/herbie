@@ -188,7 +188,7 @@
 
 (define (batch-gather-multiplicative-terms batch eval-application)
   (define (nan-term)
-    `(+nan.0 ((1 . ,(batch-push! batch 1)))))
+    `(+nan.0 . ((1 . ,(batch-push! batch 1)))))
   (define (gather-multiplicative-terms brf recurse)
     ;(-> batchref? procedure? (cons/c number? (listof (cons/c number? batchref?))))
     (match (deref brf)
@@ -246,10 +246,10 @@
            (cons exact-pow
                  (for/list ([term (cdr terms)])
                    (cons (* a (car term)) (cdr term))))
-           (list* 1
-                  (cons a (batch-push! batch (car terms)))
-                  (for/list ([term (cdr terms)])
-                    (cons (* a (car term)) (cdr term)))))]
+           (cons 1
+                 (list* (cons a (batch-push! batch (car terms)))
+                        (for/list ([term (cdr terms)])
+                          (cons (* a (car term)) (cdr term))))))]
       [_ `(1 . ((1 . ,brf)))]))
   (batch-recurse batch gather-multiplicative-terms))
 
