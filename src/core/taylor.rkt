@@ -211,8 +211,8 @@
 ; representing the coefficients (the 1 / n! terms not included),
 ; and an integer offset to the exponent
 
-(define/contract (taylor-exact . terms)
-  (->* () #:rest (listof batchref?) term?)
+(define (taylor-exact . terms)
+  ;(->* () #:rest (listof batchref?) term?)
   (define items (list->vector (map batchref-reduce terms)))
   (cons 0
         (λ (n)
@@ -220,16 +220,16 @@
               (expr->batchref 0)
               (vector-ref items n)))))
 
-(define/contract (first-nonzero-exp f)
-  (-> (-> number? batchref?) number?)
+(define (first-nonzero-exp f)
+  ;(-> (-> number? batchref?) number?)
   "Returns n, where (series n) != 0, but (series n) = 0 for all smaller n"
   (let loop ([n 0])
     (if (and (equal? (deref (f n)) 0) (< n 20))
         (loop (+ n 1))
         n)))
 
-(define/contract (align-series . serieses)
-  (->* () #:rest (listof term?) (listof term?))
+(define (align-series . serieses)
+  ;(->* () #:rest (listof term?) (listof term?))
   (cond
     [(or (<= (length serieses) 1) (apply = (map car serieses))) serieses]
     [else
@@ -242,8 +242,8 @@
                    (expr->batchref 0)
                    ((cdr series) (+ n (- offset offset*)))))))]))
 
-(define/contract (taylor-add . terms)
-  (->* () #:rest (listof term?) term?)
+(define (taylor-add . terms)
+  ;(->* () #:rest (listof term?) term?)
   (match-define `((,offset . ,serieses) ...) (apply align-series terms))
   (define cache (make-dvector 10))
   (cons (car offset)
@@ -255,8 +255,8 @@
             (dvector-set! cache n res))
           (dvector-ref cache n))))
 
-(define/contract (taylor-negate term)
-  (-> term? term?)
+(define (taylor-negate term)
+  ;(-> term? term?)
   (define cache (make-dvector 10))
   (cons (car term)
         (λ (n)
@@ -265,8 +265,8 @@
             (dvector-set! cache n res))
           (dvector-ref cache n))))
 
-(define/contract (taylor-mult left right)
-  (-> term? term? term?)
+(define (taylor-mult left right)
+  ;(-> term? term? term?)
   (define cache (make-dvector 10))
   (cons (+ (car left) (car right))
         (λ (n)
@@ -278,22 +278,22 @@
             (dvector-set! cache n res))
           (dvector-ref cache n))))
 
-(define/contract (normalize-series series)
-  (-> term? term?)
+(define (normalize-series series)
+  ;(-> term? term?)
   "Fixes up the series to have a non-zero zeroth term,
    allowing a possibly negative offset"
   (match-define (cons offset coeffs) series)
   (define slack (first-nonzero-exp coeffs))
   (cons (- offset slack) (compose coeffs (curry + slack))))
 
-(define/contract ((zero-series series) n)
-  (-> (cons/c number? (-> number? batchref?)) (-> number? batchref?))
+(define ((zero-series series) n)
+  ;(-> (cons/c number? (-> number? batchref?)) (-> number? batchref?))
   (if (< n (- (car series)))
       (expr->batchref 0)
       ((cdr series) (+ n (car series)))))
 
-(define/contract (taylor-invert term)
-  (-> term? term?)
+(define (taylor-invert term)
+  ;(-> term? term?)
   "This gets tricky, because the function might have a pole at 0.
    This happens if the inverted series doesn't have a constant term,
    so we extract that case out."
@@ -312,8 +312,8 @@
               (dvector-set! cache n* res)))
           (dvector-ref cache n))))
 
-(define/contract (taylor-quotient num denom)
-  (-> term? term? term?)
+(define (taylor-quotient num denom)
+  ;(-> term? term? term?)
   "This gets tricky, because the function might have a pole at 0.
    This happens if the inverted series doesn't have a constant term,
    so we extract that case out."
@@ -334,8 +334,8 @@
               (dvector-set! cache n* res)))
           (dvector-ref cache n))))
 
-(define/contract (modulo-series var n series)
-  (-> symbol? number? term? term?)
+(define (modulo-series var n series)
+  ;(-> symbol? number? term? term?)
   (match-define (cons offset coeffs) (normalize-series series))
   (define offset* (+ offset (modulo (- offset) n)))
   (define cache (make-dvector 2)) ;; never called mor than twice
@@ -354,8 +354,8 @@
     (dvector-ref cache i))
   (cons offset* (if (= offset offset*) coeffs coeffs*)))
 
-(define/contract (taylor-sqrt var num)
-  (-> symbol? term? term?)
+(define (taylor-sqrt var num)
+  ;(-> symbol? term? term?)
   (match-define (cons offset* coeffs*) (modulo-series var 2 num))
   (define cache (make-dvector 10))
   (dvector-set! cache 0 (batchref-reduce (expr->batchref `(sqrt ,(coeffs* 0)))))
@@ -387,8 +387,8 @@
               (dvector-set! cache n* res)))
           (dvector-ref cache n))))
 
-(define/contract (taylor-cbrt var num)
-  (-> symbol? term? term?)
+(define (taylor-cbrt var num)
+  ;(-> symbol? term? term?)
   (match-define (cons offset* coeffs*) (modulo-series var 3 num))
   (define cache (make-dvector 10))
   (dvector-set! cache 0 (batchref-reduce (expr->batchref `(cbrt ,(coeffs* 0)))))
@@ -415,8 +415,8 @@
               (dvector-set! cache n* res)))
           (dvector-ref cache n))))
 
-(define/contract (taylor-pow coeffs n)
-  (-> term? number? term?)
+(define (taylor-pow coeffs n)
+  ;(-> term? number? term?)
   (match n ;; Russian peasant multiplication
     [(? negative?) (taylor-pow (taylor-invert coeffs) (- n))]
     [0 (taylor-exact (expr->batchref 1))]
@@ -443,8 +443,8 @@
                  (for ([pt (all-partitions (- n (* k i)) options*)])
                    (sow (cons head pt))))))]))
 
-(define/contract (taylor-exp coeffs)
-  (-> (-> number? batchref?) term?)
+(define (taylor-exp coeffs)
+  ;(-> (-> number? batchref?) term?)
   (define cache (make-dvector 10))
   (dvector-set! cache 0 (batchref-reduce (expr->batchref `(exp ,(coeffs 0)))))
 
@@ -467,8 +467,8 @@
             (dvector-set! cache n res))
           (dvector-ref cache n))))
 
-(define/contract (taylor-sin coeffs)
-  (-> (-> number? batchref?) term?)
+(define (taylor-sin coeffs)
+  ;(-> (-> number? batchref?) term?)
   (define cache (make-dvector 10))
   (dvector-set! cache 0 (expr->batchref 0))
 
@@ -493,8 +493,8 @@
             (dvector-set! cache n res))
           (dvector-ref cache n))))
 
-(define/contract (taylor-cos coeffs)
-  (-> (-> number? batchref?) term?)
+(define (taylor-cos coeffs)
+  ;(-> (-> number? batchref?) term?)
   (define cache (make-dvector 10))
   (dvector-set! cache 0 (expr->batchref 1))
 
@@ -553,8 +553,8 @@
 (define (logcompute i)
   (hash-ref! (log-cache) i (λ () (logstep (logcompute (- i 1))))))
 
-(define/contract (taylor-log var arg)
-  (-> symbol? term? term?)
+(define (taylor-log var arg)
+  ;(-> symbol? term? term?)
   (match-define (cons shift coeffs) (normalize-series arg))
   (define negate? (and (number? (deref (coeffs 0))) (not (positive? (deref (coeffs 0))))))
   (define (maybe-negate x)
