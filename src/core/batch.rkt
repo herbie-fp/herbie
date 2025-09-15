@@ -82,7 +82,7 @@
                (batchref b idx))))
 
 (define (batch-add! b expr)
-  (define cache (batch-cache b))
+  ;(define cache (batch-cache b))
   (define (munge prog)
     (match prog
       [(batchref b* idx*)
@@ -90,7 +90,8 @@
          (error 'batch-add! "Batchref belongs to a different batch"))
        idx*]
       [_
-       (hash-ref! cache prog (lambda () (batchref-idx (batch-push! b (expr-recurse prog munge)))))]))
+       (batchref-idx (batch-push! b (expr-recurse prog munge)))
+       #;(hash-ref! cache prog (lambda () (batchref-idx (batch-push! b (expr-recurse prog munge)))))]))
   (batchref b (munge expr)))
 
 (define (batch-copy b)
