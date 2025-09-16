@@ -10,7 +10,7 @@
          dvector-copy
          create-dvector)
 
-(define starting-length 128)
+(define starting-capacity 128)
 
 (struct dvector ([vec #:mutable] [length #:mutable] [filling-value #:mutable])
   #:methods gen:custom-write
@@ -27,15 +27,17 @@
         (λ (a hc) ; secondary-hash-code
           (+ (hc (dvector-vec a)) (* 7 (+ 1 (dvector-length a)))))))
 
-(define (make-dvector [size starting-length] [v #f])
+(define (make-dvector [size starting-capacity] [v #f])
   (define size*
     (cond
-      [(> size starting-length)
-       (let loop ([size* (* starting-length 2)])
+      [(> size starting-capacity)
+       (let loop ([size* (* starting-capacity 2)])
          (if (< size size*)
              size*
              (loop (* size* 2))))]
-      [else size]))
+      [(zero? size)
+       starting-capacity] ;; zero capacity is not allowed as it is going to break dvector-extend!
+      [else size])) ;; if user has a specific capacity in mind - do not go beyond that
   (dvector (make-vector size* v) 0 v))
 
 (define (create-dvector . args)
@@ -94,13 +96,13 @@
 
   (define dv1 (make-dvector)) ; default
   (check-equal? (dvector-length dv1) 0)
-  (check-equal? (dvector-capacity dv1) starting-length)
-  (check-equal? (vector-length (dvector-vec dv1)) starting-length)
+  (check-equal? (dvector-capacity dv1) starting-capacity)
+  (check-equal? (vector-length (dvector-vec dv1)) starting-capacity)
 
-  (define dv2 (make-dvector starting-length 5))
+  (define dv2 (make-dvector starting-capacity 5))
   (check-equal? (dvector-length dv2) 0)
-  (check-equal? (dvector-capacity dv2) starting-length)
-  (check-equal? (vector-length (dvector-vec dv2)) starting-length)
+  (check-equal? (dvector-capacity dv2) starting-capacity)
+  (check-equal? (vector-length (dvector-vec dv2)) starting-capacity)
   (check-equal? (vector-ref (dvector-vec dv2) 0) 5)
 
   ;; Large input triggers dynamic size growth

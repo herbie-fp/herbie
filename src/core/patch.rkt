@@ -44,7 +44,15 @@
   (reap [sow]
         (parameterize ([reduce reducer] ;; reduces over spec-batch
                        [add (λ (x) (batch-add! spec-batch x))]) ;; adds to spec-batch
-          (define cache (make-hash)) ;; check duplicates among generated expansions
+          (define cache (make-hash)) ;; this thing assumes that reprs are going to be equal...
+          ;; Zero expansion
+          (define genexpr0 (batch-add! global-batch 0))
+          (hash-set! cache (batchref-idx genexpr0) #t)
+          (define gen0 (approx (car spec-brfs) (hole (representation-name (car reprs)) genexpr0)))
+          (define brf0 (batch-add! global-batch gen0))
+          (sow (alt brf0 `(taylor zero undef-var) (list (car altns))))
+
+          ;; Taylor expansions
           ;; List<List<(cons offset coeffs)>>
           (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs* vars transforms-to-try))
           (define idx 0)
@@ -54,16 +62,12 @@
             (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
             (define taylor-coeffs* (list-ref taylor-coeffs idx))
             (define genexprs (approximate taylor-coeffs* spec-batch var #:transform (cons f finv)))
-
             (for ([genexpr (in-list genexprs)]
                   [spec-brf (in-list spec-brfs)]
                   [repr (in-list reprs)]
                   [altn (in-list altns)]
                   [fv (in-list free-vars)]
                   #:when (set-member? fv var)) ;; check whether var exists in expr at all
-              (define gen0 (approx spec-brf (hole (representation-name repr) 0)))
-              (define brf0 (batch-add! global-batch gen0))
-              (sow (alt brf0 `(taylor ,name ,var) (list altn)))
               (for ([i (in-range (*taylor-order-limit*))])
                 (define genexpr-brf (genexpr))
                 ;; fast deduplication before adding an expansion to the global-batch
@@ -72,16 +76,19 @@
                   ;; adding a new expansion to the global batch
                   (define gen
                     (approx spec-brf (hole (representation-name repr) (copier genexpr-brf))))
-                  (define brf (batch-add! global-batch gen)) ; Munge gen
+                  (define brf (batch-add! global-batch gen))
                   (sow (alt brf `(taylor ,name ,var) (list altn))))))
             (set! idx (add1 idx))
             (timeline-stop!)))))
 
 (define (run-taylor altns global-batch spec-batch reducer)
   (timeline-event! 'series)
+  (define (key x)
+    (approx-impl (deref (alt-expr x))))
 
-  (define approxs (taylor-alts altns global-batch spec-batch reducer))
-  (define approxs* (run-lowering approxs global-batch))
+  (define approxs (taylor-alts altns global-batch spec-batch reducer)) ;; no duplicates are expected
+  (define approxs*
+    (remove-duplicates (run-lowering approxs global-batch) #:key key)) ;; duplicates can occur
 
   (define exprs (batch-exprs global-batch))
   (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
