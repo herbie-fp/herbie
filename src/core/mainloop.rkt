@@ -51,7 +51,7 @@
   (*pcontext* pcontext*)
   (*start-prog* initial)
 
-  (parameterize* ([*global-batch* (batch-empty)])
+  (parameterize ([*global-batch* (batch-empty)])
     (define global-spec-batch (batch-empty))
     (define spec-reducer (batch-reduce global-spec-batch))
 
