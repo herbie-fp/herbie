@@ -120,7 +120,7 @@
 ;;; (displayln (format "og length ~a" (length pairs)))
 (define deduplicated-freqs (deduplicate pairs))
 (define deduplicated-pairs (hash->list deduplicated-freqs))
-(define sorted-pairs (sort deduplicated-pairs (lambda (p1 p2) (< (cdr p1) (cdr p2)))))
+(define sorted-pairs (sort deduplicated-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
 (define first-1000 (take sorted-pairs (min (length sorted-pairs) 1000)))
 
 ;;; (displayln (format "deduped length ~a" (length deduplicated-pairs)))

@@ -83,7 +83,7 @@ html_template = f"""
 <body>
     <div class="container">
         <h1>GrowLibm Report</h1>
-        <p><a href="/grow_platform.txt">Grow Platform</a></p>
+        <p><a href="grow_platform.txt">Grow Platform</a></p>
 
         <div class="summary">
             <h2>Overall Summary</h2>
@@ -119,4 +119,4 @@ html_template = f"""
 with open(OUTPUT_FILE, 'w') as f:
     f.write(html_template)
 
-print(f"Successfully generated simplified '{OUTPUT_FILE}' with {NUM_ITERATIONS} iteration links!")
+print(f"Successfully generated index.html")
