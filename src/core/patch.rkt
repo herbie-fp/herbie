@@ -13,8 +13,7 @@
          "programs.rkt"
          "rules.rkt"
          "rival.rkt"
-         "taylor.rkt"
-         "batch-reduce.rkt")
+         "taylor.rkt")
 
 (provide generate-candidates)
 
@@ -30,18 +29,20 @@
                               #;(exp ,exp-x ,log-x)
                               #;(log ,log-x ,exp-x))))
 
-(define (taylor-alts altns global-batch)
+(define (taylor-alts altns global-batch spec-batch reducer)
   (define vars (context-vars (*context*)))
   (define brfs (map alt-expr altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
   ;; Specs
   (define spec-brfs (batch-to-spec! global-batch brfs)) ; These specs will go into (approx spec impl)
   (define free-vars (map (batch-free-vars global-batch) spec-brfs))
-  (define-values (spec-batch spec-brfs*) (batch-copy-only global-batch spec-brfs))
-  (define copier (batch-copy-only! global-batch spec-batch)) ;; copy to global-batch from spec-batch
+  (define spec-brfs*
+    (map (batch-copy-only! spec-batch global-batch)
+         spec-brfs)) ;; copy spec-brfs from global-batch to spec-batch
+  (define copier (batch-copy-only! global-batch spec-batch)) ;; copy from spec-batch to global-batch
 
   (reap [sow]
-        (parameterize ([reduce (batch-reduce spec-batch)] ;; reduces over spec-batch
+        (parameterize ([reduce reducer] ;; reduces over spec-batch
                        [add (λ (x) (batch-add! spec-batch x))]) ;; adds to spec-batch
 
           ;; List<List<(cons offset coeffs)>>
@@ -71,12 +72,12 @@
             (set! idx (add1 idx))
             (timeline-stop!)))))
 
-(define (run-taylor altns global-batch)
+(define (run-taylor altns global-batch spec-batch reducer)
   (timeline-event! 'series)
   (define (key x)
     (approx-impl (deref (alt-expr x))))
 
-  (define approxs (remove-duplicates (taylor-alts altns global-batch) #:key key))
+  (define approxs (remove-duplicates (taylor-alts altns global-batch spec-batch reducer) #:key key))
   (define approxs* (run-lowering approxs global-batch))
 
   (define exprs (batch-exprs global-batch))
@@ -192,7 +193,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (generate-candidates batch brfs)
+(define (generate-candidates batch brfs spec-batch reducer)
   ; Starting alternatives
   (define start-altns
     (for/list ([brf brfs])
@@ -206,7 +207,7 @@
   ; Series expand
   (define approximations
     (if (flag-set? 'generate 'taylor)
-        (run-taylor start-altns batch)
+        (run-taylor start-altns batch spec-batch reducer)
         '()))
 
   ; Recursive rewrite
