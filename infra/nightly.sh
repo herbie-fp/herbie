@@ -10,7 +10,7 @@ export PATH="$PATH:$HOME/.cargo/bin/"
 SEED=$(date "+%Y%j")
 BENCHDIR="bench/"
 REPORTDIR="reports"
-NUMITERS=5
+NUMITERS=8
 
 mkdir -p "$REPORTDIR"
 rm -rf "reports"/* || echo "nothing to delete"
@@ -39,10 +39,6 @@ for ((i = 0; i < $NUMITERS; i++)) do
     racket -y "growlibm/extend-platform.rkt"  "$REPORTDIR"/"iter$i/results.json" >> "src/platforms/grow.rkt"
 done
 
-# racket -y growlibm/print-platform-ops.rkt > "$REPORTDIR/platform_ops.txt"
-
-# print all operators from the platform
-
 # run herbie again with expanded platform
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
@@ -51,36 +47,8 @@ racket -y "src/main.rkt" report \
         --disable "generate:evaluate" \
         "$BENCHDIR" "$REPORTDIR"/"end"
 
+# print the new platform
 cat "src/platforms/grow.rkt" > "$REPORTDIR/grow_platform.txt"
 
 # generate the html report page
 python3 growlibm/generate-html.py
-
-# racket -y "src/main.rkt" report \
-#         --seed "$SEED" \
-#         --platform "no-accelerators" \
-#         --threads 4 \
-#         "bench/" "$REPORTDIR"/"full_bench_no_accelerators"
-
-# racket -y "src/main.rkt" report \
-#         --seed "$SEED" \
-#         --platform "grow" \
-#         --threads 4 \
-#         "bench/" "$REPORTDIR"/"full_bench_grow"
-
-# dirs=""
-# for bench in "$BENCHDIR"/*; do
-#   name=$(basename "$bench" .fpcore)
-#   rm -rf "$REPORTDIR"/"$name"
-
-#   racket -y "src/main.rkt" report \
-#          --seed "$SEED" \
-#          "$@" \
-#          "$bench" "$REPORTDIR"/"$name"
-  
-#   dirs="$dirs $name";
-# done
-
-# merge reports
-# racket -y infra/merge.rkt "$REPORTDIR" $dirs
-
