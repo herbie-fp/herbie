@@ -44,10 +44,8 @@
   (reap [sow]
         (parameterize ([reduce reducer] ;; reduces over spec-batch
                        [add (λ (x) (batch-add! spec-batch x))]) ;; adds to spec-batch
-          (define cache (make-hash)) ;; this thing assumes that reprs are going to be equal...
           ;; Zero expansion
           (define genexpr0 (batch-add! global-batch 0))
-          (hash-set! cache (batchref-idx genexpr0) #t)
           (define gen0 (approx (car spec-brfs) (hole (representation-name (car reprs)) genexpr0)))
           (define brf0 (batch-add! global-batch gen0))
           (sow (alt brf0 `(taylor zero undef-var) (list (car altns))))
@@ -69,15 +67,10 @@
                   [fv (in-list free-vars)]
                   #:when (set-member? fv var)) ;; check whether var exists in expr at all
               (for ([i (in-range (*taylor-order-limit*))])
-                (define genexpr-brf (genexpr))
-                ;; fast deduplication before adding an expansion to the global-batch
-                (unless (hash-has-key? cache (batchref-idx genexpr-brf))
-                  (hash-set! cache (batchref-idx genexpr-brf) #t)
-                  ;; adding a new expansion to the global batch
-                  (define gen
-                    (approx spec-brf (hole (representation-name repr) (copier genexpr-brf))))
-                  (define brf (batch-add! global-batch gen))
-                  (sow (alt brf `(taylor ,name ,var) (list altn))))))
+                ;; adding a new expansion to the global batch
+                (define gen (approx spec-brf (hole (representation-name repr) (copier (genexpr)))))
+                (define brf (batch-add! global-batch gen))
+                (sow (alt brf `(taylor ,name ,var) (list altn)))))
             (set! idx (add1 idx))
             (timeline-stop!)))))
 
