@@ -37,14 +37,14 @@
          deref) ; Batchref -> Expr
 
 ;; Batches store these recursive structures, flattened
-(struct batch ([nodes #:mutable] [index #:mutable] [cache #:mutable]))
+(struct batch ([nodes #:mutable] [index #:mutable]))
 
 (struct batchref (batch idx) #:transparent)
 
 ;; --------------------------------- CORE BATCH FUNCTION ------------------------------------
 
 (define (batch-empty)
-  (batch (make-dvector) (make-hash) (make-hasheq)))
+  (batch (make-dvector) (make-hash)))
 
 (define (in-batch batch [start 0] [end #f] [step 1])
   (in-dvector (batch-nodes batch) start end step))
@@ -82,19 +82,17 @@
                (batchref b idx))))
 
 (define (batch-add! b expr)
-  (define cache (batch-cache b))
   (define (munge prog)
     (match prog
       [(batchref b* idx*)
        (unless (equal? b b*)
          (error 'batch-add! "Batchref belongs to a different batch"))
        idx*]
-      [_
-       (hash-ref! cache prog (lambda () (batchref-idx (batch-push! b (expr-recurse prog munge)))))]))
+      [_ (batchref-idx (batch-push! b (expr-recurse prog munge)))]))
   (batchref b (munge expr)))
 
 (define (batch-copy b)
-  (batch (dvector-copy (batch-nodes b)) (hash-copy (batch-index b)) (hash-copy (batch-cache b))))
+  (batch (dvector-copy (batch-nodes b)) (hash-copy (batch-index b))))
 
 (define (deref x)
   (match-define (batchref b idx) x)
@@ -115,8 +113,8 @@
 ;; batch-recurse does not iterate over nodes that are not a child of brf
 ;; A lot of parts of Herbie rely on that
 (define (batch-recurse batch f)
-  (define out (make-dvector (batch-length batch))) ;; preallocate vectors
-  (define visited (make-dvector (batch-length batch))) ;; preallocate vectors
+  (define out (make-dvector (batch-length batch)))
+  (define visited (make-dvector (batch-length batch) #f))
 
   (λ (brf . args)
     (match-define (batchref b idx) brf)
@@ -145,7 +143,7 @@
 
     (when (< pt idx)
       (for ([n (in-range (add1 pt) (add1 idx))])
-        (dvector-set! out n (f (batchref batch n) (curry dvector-ref out))))
+        (dvector-set! out n (f (batchref batch n) (compose (curry dvector-ref out) batchref-idx))))
       (set! pt idx))
     (dvector-ref out idx)))
 
@@ -211,18 +209,6 @@
              #:when child)
     (batchref batch i)))
 
-;; Function returns indices of children nodes within a batch for given roots,
-;;   where a child node is a child of a root + meets a condition - (condition node)
-#;(define (batch-reachable2 batch brfs)
-    (define f
-      (batch-map batch
-                 (λ (child-reach node)
-                   (define children-brfs
-                     (append* (reap [sow] (expr-recurse node (compose sow child-reach)))))
-                   (cons (batch-push! batch node) children-brfs))))
-    (println (map f brfs))
-    (sort (remove-duplicates (append* (map f brfs)) #:key batchref-idx) < #:key batchref-idx))
-
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-exprs batch)
   (batch-recurse batch (lambda (brf recurse) (expr-recurse (deref brf) recurse))))
@@ -282,7 +268,7 @@
 (module+ test
   (require rackunit)
   (define (zombie-test #:nodes nodes #:roots roots)
-    (define in-batch (batch nodes (make-hash) (make-hasheq)))
+    (define in-batch (batch nodes (make-hash)))
     (define brfs (map (curry batchref in-batch) roots))
     (define-values (out-batch brfs*) (batch-copy-only in-batch brfs))
     (check-equal? (batch->progs out-batch brfs*) (batch->progs in-batch brfs))
