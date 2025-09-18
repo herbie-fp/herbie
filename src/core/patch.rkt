@@ -79,9 +79,8 @@
   (define (key x)
     (approx-impl (deref (alt-expr x))))
 
-  (define approxs (taylor-alts altns global-batch spec-batch reducer)) ;; no duplicates are expected
-  (define approxs*
-    (remove-duplicates (run-lowering approxs global-batch) #:key key)) ;; duplicates can occur
+  (define approxs (remove-duplicates (taylor-alts altns global-batch spec-batch reducer) #:key key))
+  (define approxs* (remove-duplicates (run-lowering approxs global-batch) #:key key))
 
   (define exprs (batch-exprs global-batch))
   (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
