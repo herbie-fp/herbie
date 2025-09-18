@@ -4,8 +4,8 @@
 (require "../utils/common.rkt"
          "../syntax/syntax.rkt"
          "batch.rkt"
-         "programs.rkt"
-         "dvector.rkt")
+         "dvector.rkt"
+         "programs.rkt")
 
 (provide approximate
          taylor-coefficients
