@@ -114,7 +114,7 @@
 ;; A lot of parts of Herbie rely on that
 (define (batch-recurse batch f)
   (define out (make-dvector (batch-length batch)))
-  (define visited (make-dvector (batch-length batch)))
+  (define visited (make-dvector (batch-length batch) #f))
 
   (λ (brf . args)
     (match-define (batchref b idx) brf)
