@@ -15,7 +15,6 @@
 (define (batch-eval-application batch)
   (define exact-value? (conjoin number? exact?))
   (define (eval-application brf recurse)
-    ;(-> batchref? procedure? (or/c number? false?))
     (match (deref brf)
       [(? exact-value? val)
        val] ;; this part is not naive in rewriting. should be considered for the future
@@ -95,12 +94,11 @@
                  [`(/ ,arg) `((1 ,brf))]
                  [`(/ ,arg ,args ...)
                   (for/list ([term (recurse arg)])
-                    (list (car term) ((reduce-node) (batch-add! batch (list* '/ (cadr term) args)))))]
+                    (list (car term) (reduce-node (batch-add! batch (list* '/ (cadr term) args)))))]
                  [else `((1 ,brf))])))])
 
     ;; Actual code
     (define (reduce brf recurse)
-      ;(-> batchref? procedure? batchref?)
       (parameterize ([global-batch batch])
         (define node (deref brf))
         (match node
@@ -167,8 +165,6 @@
                     [_ node]))))
 
 (define (negate-term term)
-  #;(-> (or/c (cons/c number? (or/c list? batchref?)) (list/c number? (or/c list? batchref?)))
-        (or/c (cons/c number? (or/c list? batchref?)) (list/c number? (or/c list? batchref?))))
   (cons (- (car term)) (cdr term)))
 
 (define (even-denominator? x)
@@ -178,7 +174,6 @@
   (define (nan-term)
     `(+nan.0 ((1 . ,(batch-push! batch 1)))))
   (define (gather-multiplicative-terms brf recurse)
-    ;(-> batchref? procedure? (cons/c number? (listof (cons/c number? batchref?))))
     (match (deref brf)
       [+nan.0 (nan-term)]
       [(? number? n) `(,n . ())]
@@ -242,7 +237,6 @@
   (batch-recurse batch gather-multiplicative-terms))
 
 (define (combine-aterms terms)
-  ;(-> (listof (list/c number? batchref?)) (listof (cons/c number? batchref?)))
   (define h (make-hash))
   (for ([term terms])
     (define sum (hash-ref! h (cadr term) 0))
@@ -255,8 +249,6 @@
         #:key cdr))
 
 (define (combine-mterms terms)
-  #;(-> (cons/c number? (listof (cons/c number? batchref?)))
-        (cons/c number? (listof (cons/c number? batchref?))))
   (cons (car terms)
         (let ([h (make-hash)])
           (for ([term (cdr terms)])
@@ -270,7 +262,6 @@
                 #:key cdr))))
 
 (define (aterm->expr term)
-  ;(-> (cons/c number? batchref?) batchref?)
   (match term
     [`(1 . ,x) x]
     [`(,x . ,(app deref 1)) (batch-push! (global-batch) x)]
@@ -278,7 +269,6 @@
     [`(,coeff . ,x) (batch-add! (global-batch) `(* ,coeff ,x))]))
 
 (define (make-addition-node terms)
-  ;(-> (listof (cons/c number? batchref?)) batchref?)
   (define-values (pos neg) (partition (λ (x) (and (real? (car x)) (positive? (car x)))) terms))
   (cond
     [(and (null? pos) (null? neg)) (batch-push! (global-batch) 0)]
@@ -290,7 +280,6 @@
 
 ;; TODO : Use (- x y) when it is simpler
 (define (make-addition-node* terms)
-  ;(-> (listof (cons/c number? batchref?)) batchref?)
   (match terms
     ['() (batch-push! (global-batch) 0)]
     [`(,term) (aterm->expr term)]
@@ -298,7 +287,6 @@
      (batch-add! (global-batch) `(+ ,(aterm->expr term) ,(make-addition-node terms)))]))
 
 (define (make-multiplication-node term)
-  ;(-> (listof (or/c number? (cons/c number? batchref?))) batchref?)
   (match (cons (car term) (make-multiplication-subnode (cdr term)))
     [(cons +nan.0 e) (batch-push! (global-batch) '(NAN))]
     [(cons 0 e) (batch-push! (global-batch) 0)]
@@ -310,12 +298,10 @@
     [(cons a e) (batch-add! (global-batch) `(* ,a ,e))]))
 
 (define (make-multiplication-subnode terms)
-  ;(-> (listof (cons/c number? batchref?)) batchref?)
   (make-multiplication-subsubsubnode
    (list (cons 1 (mterm->expr (cons 1 (make-multiplication-subsubnode terms)))))))
 
 (define (make-multiplication-subsubnode terms)
-  ;(-> (listof (cons/c number? batchref?)) batchref?)
   (define-values (pos neg) (partition (compose positive? car) terms))
   (cond
     [(and (null? pos) (null? neg)) (batch-push! (global-batch) 1)]
@@ -328,7 +314,6 @@
                      ,(make-multiplication-subsubsubnode (map negate-term neg))))]))
 
 (define (make-multiplication-subsubsubnode terms)
-  ;(-> (listof (cons/c number? batchref?)) batchref?)
   (match terms
     ['() (batch-push! (global-batch) 1)]
     [`(,term) (mterm->expr term)]
@@ -337,7 +322,6 @@
                  `(* ,(mterm->expr term) ,(make-multiplication-subsubsubnode terms)))]))
 
 (define (mterm->expr term)
-  ;(-> (cons/c number? batchref?) batchref?)
   (match term
     [(cons 1 x) x]
     [(cons -1 x) (batch-add! (global-batch) `(/ 1 ,x))]
