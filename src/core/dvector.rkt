@@ -12,7 +12,7 @@
 
 (define starting-length 128)
 
-(struct dvector ([vec #:mutable] [length #:mutable] [filling-value #:mutable])
+(struct dvector ([vec #:mutable] [length #:mutable] filling-value)
   #:methods gen:custom-write
   [(define (write-proc dvec port mode)
      (define elems

@@ -127,15 +127,14 @@
                [args args])
       (define idx (batchref-idx brf))
       (cond
-        [(and (> (dvector-capacity visited) idx) (eq? #t (dvector-ref visited idx)))
-         (dvector-ref out idx)]
+        [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx)) (dvector-ref out idx)]
         [else
          (define res (apply f brf (λ (brf . args) (loop brf args)) args))
          (dvector-set! out idx res)
          (dvector-set! visited idx #t)
          res]))))
 
-;; Same as batch-recurse if we do not have any args
+;; Same as batch-recurse but without using additional arguments inside a recurse function
 (define (batch-iterate batch f)
   (define out (make-dvector))
   (define pt -1)

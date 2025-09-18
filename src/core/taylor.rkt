@@ -4,7 +4,7 @@
 (require "../utils/common.rkt"
          "../syntax/syntax.rkt"
          "batch.rkt"
-         "reduce.rkt"
+         "dvector.rkt"
          "programs.rkt")
 
 (provide approximate
