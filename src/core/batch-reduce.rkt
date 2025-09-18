@@ -7,7 +7,6 @@
 (provide batch-reduce)
 
 (define global-batch (make-parameter #f))
-(define reduce-node (make-parameter #f))
 
 ;; Covered by tests
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
@@ -58,33 +57,63 @@
 (define (batch-reduce batch)
   ;; Dependencies
   (define eval-application (batch-eval-application batch))
-  (define gather-additive-terms (batch-gather-additive-terms batch))
   (define gather-multiplicative-terms (batch-gather-multiplicative-terms batch eval-application))
   (define reduce-evaluation (batch-reduce-evaluation batch))
   (define reduce-inverses (batch-reduce-inverses batch))
-  (define reduce-node*
-    (batch-reduce-node batch
-                       gather-additive-terms
-                       gather-multiplicative-terms
-                       reduce-evaluation
-                       reduce-inverses))
-  ;; Actual code
-  (define (reduce brf recurse)
-    ;(-> batchref? procedure? batchref?)
-    (parameterize ([global-batch batch]
-                   [reduce-node reduce-node*])
-      (define node (deref brf))
-      (match node
-        [(? number?) brf]
-        [(? symbol?) brf]
-        [`(,op ,args ...)
-         (define args* (map recurse args))
-         (define brf* (batch-add! batch (list* op args*)))
-         (define val (eval-application brf*))
-         (when val ;; convert to batchref if result is not #f
-           (set! val (batch-push! batch val)))
-         (or val ((reduce-node) brf*))])))
-  (batch-recurse batch reduce))
+
+  (letrec ([reduce-node
+            (batch-recurse
+             batch
+             (lambda (brf recurse)
+               (define brf* (reduce-evaluation brf))
+               (match (deref brf*)
+                 [(? number?) brf*]
+                 [(? symbol?) brf*]
+                 [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
+                  (make-addition-node (combine-aterms (gather-additive-terms brf*)))]
+                 [(or `(* ,_ ...)
+                      `(/ ,_ ...)
+                      `(cbrt ,_)
+                      `(pow ,_ ,(app deref (? (conjoin rational? (negate even-denominator?))))))
+                  (make-multiplication-node (combine-mterms (gather-multiplicative-terms brf*)))]
+                 [(list 'exp (app deref (list '* c (app deref (list 'log x)))))
+                  (define rewrite (batch-add! batch `(pow ,x ,c)))
+                  (recurse rewrite)]
+                 [else (reduce-inverses brf*)])))]
+           [gather-additive-terms
+            (batch-recurse
+             batch
+             (lambda (brf recurse)
+               (match (deref brf)
+                 [(? number? n) `((,n ,(batch-push! batch 1)))]
+                 [(? symbol?) `((1 ,brf))]
+                 [`(+ ,args ...) (append-map recurse args)]
+                 [`(neg ,arg) (map negate-term (recurse arg))]
+                 [`(- ,arg ,args ...)
+                  (append (recurse arg) (map negate-term (append-map recurse args)))]
+                 ; Prevent fall-through to the next case
+                 [`(/ ,arg) `((1 ,brf))]
+                 [`(/ ,arg ,args ...)
+                  (for/list ([term (recurse arg)])
+                    (list (car term) ((reduce-node) (batch-add! batch (list* '/ (cadr term) args)))))]
+                 [else `((1 ,brf))])))])
+
+    ;; Actual code
+    (define (reduce brf recurse)
+      ;(-> batchref? procedure? batchref?)
+      (parameterize ([global-batch batch])
+        (define node (deref brf))
+        (match node
+          [(? number?) brf]
+          [(? symbol?) brf]
+          [`(,op ,args ...)
+           (define args* (map recurse args))
+           (define brf* (batch-add! batch (list* op args*)))
+           (define val (eval-application brf*))
+           (when val ;; convert to batchref if result is not #f
+             (set! val (batch-push! batch val)))
+           (or val (reduce-node brf*))])))
+    (batch-recurse batch reduce)))
 
 ;; Covered by tests
 (define (batch-reduce-evaluation batch)
@@ -137,58 +166,17 @@
                     [(list 'pow (app deref (list 'cbrt x)) (app deref 3)) x]
                     [_ node]))))
 
-(define (batch-reduce-node batch
-                           gather-additive-terms
-                           gather-multiplicative-terms
-                           reduce-evaluation
-                           reduce-inverses)
-  (define (reduce-node brf recurse)
-    ;(-> batchref? procedure? batchref?)
-    (define brf* (reduce-evaluation brf))
-    (match (deref brf*)
-      [(? number?) brf*]
-      [(? symbol?) brf*]
-      [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
-       (make-addition-node (combine-aterms (gather-additive-terms brf*)))]
-      [(or `(* ,_ ...)
-           `(/ ,_ ...)
-           `(cbrt ,_)
-           `(pow ,_ ,(app deref (? (conjoin rational? (negate even-denominator?))))))
-       (make-multiplication-node (combine-mterms (gather-multiplicative-terms brf*)))]
-      [(list 'exp (app deref (list '* c (app deref (list 'log x)))))
-       (define rewrite (batch-add! batch `(pow ,x ,c)))
-       (recurse rewrite)]
-      [else (reduce-inverses brf*)]))
-  (batch-recurse batch reduce-node))
-
 (define (negate-term term)
   #;(-> (or/c (cons/c number? (or/c list? batchref?)) (list/c number? (or/c list? batchref?)))
         (or/c (cons/c number? (or/c list? batchref?)) (list/c number? (or/c list? batchref?))))
   (cons (- (car term)) (cdr term)))
-
-(define (batch-gather-additive-terms batch)
-  (define (gather-additive-terms brf recurse)
-    ;(-> batchref? procedure? (listof (list/c number? batchref?)))
-    (match (deref brf)
-      [(? number? n) `((,n ,(batch-push! batch 1)))]
-      [(? symbol?) `((1 ,brf))]
-      [`(+ ,args ...) (append-map recurse args)]
-      [`(neg ,arg) (map negate-term (recurse arg))]
-      [`(- ,arg ,args ...) (append (recurse arg) (map negate-term (append-map recurse args)))]
-      ; Prevent fall-through to the next case
-      [`(/ ,arg) `((1 ,brf))]
-      [`(/ ,arg ,args ...)
-       (for/list ([term (recurse arg)])
-         (list (car term) ((reduce-node) (batch-add! batch (list* '/ (cadr term) args)))))]
-      [else `((1 ,brf))]))
-  (batch-recurse batch gather-additive-terms))
 
 (define (even-denominator? x)
   (even? (denominator x)))
 
 (define (batch-gather-multiplicative-terms batch eval-application)
   (define (nan-term)
-    `(+nan.0 . ((1 . ,(batch-push! batch 1)))))
+    `(+nan.0 ((1 . ,(batch-push! batch 1)))))
   (define (gather-multiplicative-terms brf recurse)
     ;(-> batchref? procedure? (cons/c number? (listof (cons/c number? batchref?))))
     (match (deref brf)
@@ -246,10 +234,10 @@
            (cons exact-pow
                  (for/list ([term (cdr terms)])
                    (cons (* a (car term)) (cdr term))))
-           (cons 1
-                 (list* (cons a (batch-push! batch (car terms)))
-                        (for/list ([term (cdr terms)])
-                          (cons (* a (car term)) (cdr term))))))]
+           (list* 1
+                  (cons a (batch-push! batch (car terms)))
+                  (for/list ([term (cdr terms)])
+                    (cons (* a (car term)) (cdr term)))))]
       [_ `(1 . ((1 . ,brf)))]))
   (batch-recurse batch gather-multiplicative-terms))
 
