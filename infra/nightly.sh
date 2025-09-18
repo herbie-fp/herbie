@@ -10,7 +10,7 @@ export PATH="$PATH:$HOME/.cargo/bin/"
 SEED=$(date "+%Y%j")
 BENCHDIR="bench/"
 REPORTDIR="reports"
-NUMITERS=8
+NUMITERS=10
 
 mkdir -p "$REPORTDIR"
 rm -rf "reports"/* || echo "nothing to delete"
