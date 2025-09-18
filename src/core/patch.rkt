@@ -174,9 +174,7 @@
           (for ([batchrefs (in-list batchrefss)]
                 [altn (in-list altns)])
             (for ([batchref* (in-list batchrefs)])
-              (if (flag-set? 'generate 'proofs)
-                (sow (alt batchref* (list 'rr runner #f) (list altn)))
-                (sow (alt batchref* (list 'rr #f #f) (list altn))))))))
+              (sow (alt batchref* (list 'rr runner #f) (list altn)))))))
 
   (define exprs (batch-exprs global-batch))
   (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))

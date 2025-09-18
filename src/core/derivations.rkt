@@ -22,7 +22,7 @@
      (define proof
        (and (not (flag-set? 'generate 'egglog)) (egraph-prove runner start-expr end-expr)))
      (define proof* (canonicalize-proof (alt-expr altn) proof loc))
-     (alt expr `(rr ,loc ,runner ,proof*) (list prev))]
+     (alt expr `(rr ,loc #f ,proof*) (list prev))]
 
     ; everything else
     [_ altn]))
