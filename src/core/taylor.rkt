@@ -5,8 +5,7 @@
          "../syntax/syntax.rkt"
          "batch.rkt"
          "dvector.rkt"
-         "programs.rkt"
-         "reduce.rkt")
+         "programs.rkt")
 
 (provide approximate
          taylor-coefficients
