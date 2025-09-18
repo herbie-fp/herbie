@@ -13,7 +13,8 @@
          "points.rkt"
          "preprocess.rkt"
          "programs.rkt"
-         "regimes.rkt")
+         "regimes.rkt"
+         "batch-reduce.rkt")
 
 (provide run-improve!
          sort-alts)
@@ -34,6 +35,7 @@
 (define *start-prog* (make-parameter #f))
 (define *pcontext* (make-parameter #f))
 (define *preprocessing* (make-parameter '()))
+
 (define *global-batch* (make-parameter #f))
 
 ;; These high-level functions give the high-level workflow of Herbie:
@@ -48,21 +50,25 @@
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
   (*start-prog* initial)
-  (*global-batch* (batch-empty))
-  (*preprocessing* preprocessing)
-  (define initial-brf (batch-add! (*global-batch*) initial))
-  (define start-alt (alt initial-brf 'start '()))
-  (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
 
-  (for ([iteration (in-range (*num-iterations*))]
-        #:break (atab-completed? (^table^)))
-    (run-iteration!))
-  (define alternatives (extract!))
-  (timeline-event! 'preprocess)
-  (for/list ([altn alternatives])
-    (define expr (alt-expr altn))
-    (define expr* (compile-useful-preprocessing expr context pcontext (*preprocessing*)))
-    (alt expr* 'add-preprocessing (list altn))))
+  (parameterize ([*global-batch* (batch-empty)])
+    (define global-spec-batch (batch-empty))
+    (define spec-reducer (batch-reduce global-spec-batch))
+
+    (*preprocessing* preprocessing)
+    (define initial-brf (batch-add! (*global-batch*) initial))
+    (define start-alt (alt initial-brf 'start '()))
+    (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
+
+    (for ([iteration (in-range (*num-iterations*))]
+          #:break (atab-completed? (^table^)))
+      (run-iteration! global-spec-batch spec-reducer))
+    (define alternatives (extract!))
+    (timeline-event! 'preprocess)
+    (for/list ([altn alternatives])
+      (define expr (alt-expr altn))
+      (define expr* (compile-useful-preprocessing expr context pcontext (*preprocessing*)))
+      (alt expr* 'add-preprocessing (list altn)))))
 
 (define (extract!)
   (timeline-push-alts! '())
@@ -124,8 +130,8 @@
     [else
      (define scores (batch-score-alts altns))
      (define best (list-ref altns (index-of scores (argmin identity scores))))
-     (define alt-costs (alt-batch-costs (*global-batch*) repr))
-     (define altns* (sort (set-remove altns best) < #:key (compose alt-costs alt-expr)))
+     (define alt-costs (alt-batch-costs (*global-batch*)))
+     (define altns* (sort (set-remove altns best) < #:key (compose (curryr alt-costs repr) alt-expr)))
      (define simplest (car altns*))
      (define altns** (cdr altns*))
      (define div-size (round (/ (length altns**) (- (*pareto-pick-limit*) 1))))
@@ -234,14 +240,14 @@
   (^patched^ #f)
   (void))
 
-(define (run-iteration!)
+(define (run-iteration! global-spec-batch spec-reducer)
   (unless (^next-alts^)
     (choose-alts!))
 
   (define brfs (map alt-expr (^next-alts^)))
   (define brfs* (batch-reachable (*global-batch*) brfs #:condition node-is-impl?))
 
-  (reconstruct! (generate-candidates (*global-batch*) brfs*))
+  (reconstruct! (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer))
   (finalize-iter!)
   (void))
 
