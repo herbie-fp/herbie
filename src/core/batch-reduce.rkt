@@ -9,20 +9,19 @@
 (define global-batch (make-parameter #f))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
-;; To evaluate recursively - change deref to recurse
 (define (batch-eval-application batch)
   (define exact-value? (conjoin number? exact?))
   (define (eval-application brf recurse)
     (match (deref brf)
       [(? exact-value? val)
        val] ;; this part is not naive in rewriting. should be considered for the future
-      [(list '+ (app deref (? exact-value? as)) ...) (apply + as)]
-      [(list '- (app deref (? exact-value? as)) ...) (apply - as)]
-      [(list '* (app deref (? exact-value? as)) ...) (apply * as)]
-      [(list '/ (app deref (? exact-value? num)) (app deref (? exact-value? den)))
+      [(list '+ (app recurse (? exact-value? as)) ...) (apply + as)]
+      [(list '- (app recurse (? exact-value? as)) ...) (apply - as)]
+      [(list '* (app recurse (? exact-value? as)) ...) (apply * as)]
+      [(list '/ (app recurse (? exact-value? num)) (app recurse (? exact-value? den)))
        (and (not (zero? den)) (/ num den))]
-      [(list 'neg (app deref (? exact-value? arg))) (- arg)]
-      [(list 'pow (app deref (? exact-value? a)) (app deref (? exact-value? b)))
+      [(list 'neg (app recurse (? exact-value? arg))) (- arg)]
+      [(list 'pow (app recurse (? exact-value? a)) (app recurse (? exact-value? b)))
        (cond
          [(and (zero? b) (not (zero? a))) 1]
          [(and (zero? a) (positive? b)) 0]
@@ -30,11 +29,11 @@
          [(= a -1) (if (even? (numerator b)) 1 -1)]
          [(= a 1) 1]
          [else #f])]
-      [(list 'sqrt (app deref (? exact-value? a)))
+      [(list 'sqrt (app recurse (? exact-value? a)))
        (define s1 (sqrt (numerator a)))
        (define s2 (sqrt (denominator a)))
        (and (real? s1) (real? s2) (exact? s1) (exact? s2) (/ s1 s2))]
-      [(list 'cbrt (app deref (? exact-value? a)))
+      [(list 'cbrt (app recurse (? exact-value? a)))
        (define inexact-num (inexact->exact (expt (abs (numerator a)) 1/3)))
        (define inexact-den (inexact->exact (expt (abs (denominator a)) 1/3)))
        (and (real? inexact-num)
@@ -42,12 +41,12 @@
             (= (expt inexact-num 3) (abs (numerator a)))
             (= (expt inexact-den 3) (abs (denominator a)))
             (* (sgn a) (/ inexact-num inexact-den)))]
-      [(list 'fabs (app deref (? exact-value? a))) (abs a)]
-      [(list 'floor (app deref (? exact-value? a))) (floor a)]
-      [(list 'ceil (app deref (? exact-value? a))) (ceiling a)]
-      [(list 'round (app deref (? exact-value? a))) (round a)]
-      [(list 'exp (app deref 0)) 1]
-      [(list 'log (app deref 1)) 0]
+      [(list 'fabs (app recurse (? exact-value? a))) (abs a)]
+      [(list 'floor (app recurse (? exact-value? a))) (floor a)]
+      [(list 'ceil (app recurse (? exact-value? a))) (ceiling a)]
+      [(list 'round (app recurse (? exact-value? a))) (round a)]
+      [(list 'exp (app recurse 0)) 1]
+      [(list 'log (app recurse 1)) 0]
       [_ #f]))
   (batch-recurse batch eval-application))
 
