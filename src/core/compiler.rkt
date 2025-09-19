@@ -59,8 +59,10 @@
          [(? symbol? n)
           (define idx (index-of vars n))
           (batch-push! out (list (λ () (vector-ref args idx))))]
-         [(literal value (app get-representation repr)) (batch-push! out (list (const (real->repr value repr))))]
-         [(list op args ...) (batch-push! out (cons (impl-info op 'fl) (map (compose batchref-idx recurse) args)))]))))
+         [(literal value (app get-representation repr))
+          (batch-push! out (list (const (real->repr value repr))))]
+         [(list op args ...)
+          (batch-push! out (cons (impl-info op 'fl) (map (compose batchref-idx recurse) args)))]))))
   (values out (map f brfs)))
 
 ;; Compiles a program of operator implementations into a procedure
@@ -77,7 +79,8 @@
   (define vars (context-vars ctx))
   (define args (make-vector (length vars)))
   (define-values (batch* brfs*) (batch-for-compiler batch brfs vars args))
-  (define instructions (dvector->vector (batch-nodes batch*))) ;; would be nice to make an API function out of it
+  (define instructions
+    (dvector->vector (batch-nodes batch*))) ;; would be nice to make an API function out of it
   (define rootvec (list->vector (map batchref-idx brfs*)))
 
   (timeline-push! 'compiler (batch-tree-size batch* brfs*) (batch-length batch*))

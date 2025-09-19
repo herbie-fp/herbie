@@ -125,13 +125,11 @@
                [args args])
       (define idx (batchref-idx brf))
       (cond
-        #;(unless (equal? args (dvector-ref visited idx))
-            (error 'batch-recurse "Cache got violated"))
         [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx)) (dvector-ref out idx)]
         [else
          (define res (apply f brf (λ (brf . args) (loop brf args)) args))
          (dvector-set! out idx res)
-         (dvector-set! visited idx #t #;args)
+         (dvector-set! visited idx #t)
          res]))))
 
 ;; Same as batch-recurse but without using additional arguments inside a recurse function
