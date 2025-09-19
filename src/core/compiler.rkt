@@ -5,8 +5,7 @@
          "../syntax/platform.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
-         "batch.rkt"
-         "dvector.rkt")
+         "batch.rkt")
 
 (provide compile-progs
          compile-batch
@@ -80,8 +79,7 @@
   (define vars (context-vars ctx))
   (define args (make-vector (length vars)))
   (define-values (batch* brfs*) (batch-for-compiler batch brfs vars args))
-  (define instructions
-    (dvector->vector (batch-nodes batch*))) ;; would be nice to make an API function out of it
+  (define instructions (batch-get-nodes batch*))
   (define rootvec (list->vector (map batchref-idx brfs*)))
 
   (timeline-push! 'compiler (batch-tree-size batch* brfs*) (batch-length batch*))

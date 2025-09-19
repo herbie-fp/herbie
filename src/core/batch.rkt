@@ -27,6 +27,7 @@
          batch-exprs
          batch-recurse
          batch-iterate
+         batch-get-nodes
 
          (struct-out batchref)
          batchref<?
@@ -48,6 +49,9 @@
 
 (define (in-batch batch [start 0] [end #f] [step 1])
   (in-dvector (batch-nodes batch) start end step))
+
+(define (batch-get-nodes b)
+  (dvector->vector (batch-nodes b)))
 
 (define (batchref<? brf1 brf2)
   (< (batchref-idx brf1) (batchref-idx brf2)))
