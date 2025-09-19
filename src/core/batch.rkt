@@ -27,6 +27,7 @@
          batch-exprs
          batch-recurse
          batch-iterate
+         batch-get-nodes
 
          (struct-out batchref)
          batchref<?
@@ -48,6 +49,9 @@
 
 (define (in-batch batch [start 0] [end #f] [step 1])
   (in-dvector (batch-nodes batch) start end step))
+
+(define (batch-get-nodes b)
+  (dvector->vector (batch-nodes b)))
 
 (define (batchref<? brf1 brf2)
   (< (batchref-idx brf1) (batchref-idx brf2)))
@@ -110,26 +114,33 @@
 (define (batch->progs b brfs)
   (map (batch-exprs b) brfs))
 
-;; batch-recurse does not iterate over nodes that are not a child of brf
+;; batch-recurse iterates only over its children
 ;; A lot of parts of Herbie rely on that
+;; batch-recurse panics if user provides different arguments for the same calls
+;; TODO: what if user provides the same object but it is changed inside? "equal?" may not distinguish it
 (define (batch-recurse batch f)
   (define out (make-dvector (batch-length batch)))
   (define visited (make-dvector (batch-length batch) #f))
-
   (λ (brf . args)
     (match-define (batchref b idx) brf)
     (unless (eq? b batch)
       (error 'batch-recurse "Batchref belongs to a different batch"))
-
     (let loop ([brf (batchref batch idx)]
                [args args])
       (define idx (batchref-idx brf))
       (cond
-        [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx)) (dvector-ref out idx)]
+        [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx))
+         (unless (equal? args (dvector-ref visited idx))
+           (error 'batch-recurse
+                  "Cache violation for ~a, cached with ~a, provided with ~a"
+                  brf
+                  (dvector-ref visited idx)
+                  args))
+         (dvector-ref out idx)]
         [else
          (define res (apply f brf (λ (brf . args) (loop brf args)) args))
          (dvector-set! out idx res)
-         (dvector-set! visited idx #t)
+         (dvector-set! visited idx args)
          res]))))
 
 ;; Same as batch-recurse but without using additional arguments inside a recurse function
