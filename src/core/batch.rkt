@@ -129,11 +129,17 @@
                [args args])
       (define idx (batchref-idx brf))
       (cond
-        [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx)) (dvector-ref out idx)]
+        [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx))
+         (when (or (and (null? args) (not (equal? #t (dvector-ref visited idx))))
+                   (and (not (null? args)) (not (equal? args (dvector-ref visited idx)))))
+           (error 'batch-recurse "Cache violation with a different argument (~a) for ~a" args brf))
+         (dvector-ref out idx)]
         [else
          (define res (apply f brf (λ (brf . args) (loop brf args)) args))
          (dvector-set! out idx res)
-         (dvector-set! visited idx #t)
+         (if (null? args) ;; updating cache
+             (dvector-set! visited idx #t)
+             (dvector-set! visited idx args))
          res]))))
 
 ;; Same as batch-recurse but without using additional arguments inside a recurse function
