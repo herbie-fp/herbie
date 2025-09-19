@@ -114,8 +114,10 @@
 (define (batch->progs b brfs)
   (map (batch-exprs b) brfs))
 
-;; batch-recurse does not iterate over nodes that are not a child of brf
+;; batch-recurse iterates only over its children
 ;; A lot of parts of Herbie rely on that
+;; batch-recurse panics if user provides different arguments for the same calls
+;; TODO: what if user provides the same object but it is changed inside? "equal?" may not distinguish it
 (define (batch-recurse batch f)
   (define out (make-dvector (batch-length batch)))
   (define visited (make-dvector (batch-length batch) #f))
@@ -129,11 +131,19 @@
                [args args])
       (define idx (batchref-idx brf))
       (cond
-        [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx)) (dvector-ref out idx)]
+        [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx))
+         (unless (equal? args (dvector-ref visited idx))
+           (error
+            'batch-recurse
+            "Cache violation with a different argument ~a for ~a that is cached with argument ~a"
+            args
+            brf
+            (dvector-ref visited idx)))
+         (dvector-ref out idx)]
         [else
          (define res (apply f brf (λ (brf . args) (loop brf args)) args))
          (dvector-set! out idx res)
-         (dvector-set! visited idx #t)
+         (dvector-set! visited idx args)
          res]))))
 
 ;; Same as batch-recurse but without using additional arguments inside a recurse function
