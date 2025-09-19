@@ -57,22 +57,13 @@
 (define spec (prog->spec prog))
 ;;; (define operatorImpl (create-operator-impl! (string->symbol (format "!~a!" spec)) ctx spec #:impl (from-rival) #:cost 1000))
 (define (render-var var) (format "[~a <binary64>]" var))
-;;; (define (random-string n #:alphabet [alphabet "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"])
-;;;   (list->string
-;;;    (for/list ([i n])
-;;;      (string-ref alphabet (random (string-length alphabet))))))
+;;; (define cost-proc (platform-cost-proc (*active-platform*)))
+;;; (displayln (cost-proc expr (get-representation 'binary64)))
 
-(define operatorStr (format "(define-operation (~a ~a) <binary64> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary64 (~a ~a)) #:cost 1000)"  link (string-join (map render-var (free-variables spec))) spec link (string-join (map symbol->string (free-variables spec)))))
+(define operatorStr (format "(define-operation (~a ~a) <binary64> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary64 (~a ~a)) #:cost 0)"
+                            link
+                            (string-join (map render-var (free-variables spec)))
+                            spec
+                            link
+                            (string-join (map symbol->string (free-variables spec)))))
 (displayln operatorStr)
-
-;;; (platform-register-implementation! (*active-platform*) operatorImpl)
-
-;;; (define ops (platform-implementations (*active-platform*)))
-;;; (for-each
-;;;  (lambda (pair)
-;;;    (printf "~a: ~a\n" (car pair) (cdr pair)))
-;;;  (hash->list ops))
-
-;;; (define-operation (hypot.f64 [x <binary64>] [y <binary64>]) <binary64>
-;;;    #:spec (sqrt (+ (* x x) (* y y))) #:impl (from-rival)
-;;;    #:cost 0)
