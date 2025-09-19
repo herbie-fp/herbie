@@ -6,8 +6,7 @@
          "../utils/float.rkt"
          "../utils/timeline.rkt"
          "batch.rkt"
-         "dvector.rkt"
-         "programs.rkt")
+         "dvector.rkt")
 
 (provide compile-progs
          compile-batch
@@ -47,7 +46,9 @@
     [(list op a b c) (op (vector-ref regs a) (vector-ref regs b) (vector-ref regs c))]
     [(list op args ...) (apply op (map (curry vector-ref regs) args))]))
 
-; This functions needs to preserve vars
+;; This function:
+;;   1) copies only nodes associated with provided brfs - so, gets rid of useless nodes
+;;   2) rewrites these nodes as fl-instructions
 (define (batch-for-compiler batch brfs vars args)
   (define out (batch-empty))
   (define f
