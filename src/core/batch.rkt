@@ -26,7 +26,6 @@
          batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-exprs
          batch-recurse
-         batch-greedy-recurse
          batch-iterate
          batch-get-nodes
 
@@ -122,60 +121,26 @@
 (define (batch-recurse batch f)
   (define out (make-dvector (batch-length batch)))
   (define visited (make-dvector (batch-length batch) #f))
-
   (λ (brf . args)
     (match-define (batchref b idx) brf)
     (unless (eq? b batch)
       (error 'batch-recurse "Batchref belongs to a different batch"))
-
     (let loop ([brf (batchref batch idx)]
                [args args])
       (define idx (batchref-idx brf))
       (cond
         [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx))
-         (when (or (and (null? args)
-                        (not (equal? #t (dvector-ref visited idx)))) ;; fast-check for null-arguments
-                   (and (not (null? args))
-                        (not (equal? args
-                                     (dvector-ref visited idx))))) ;; check for non-null arguments
-           (error 'batch-recurse "Cache violation with a different argument ~a for ~a" args brf))
+         (unless (equal? args (dvector-ref visited idx))
+           (error 'batch-recurse
+                  "Cache violation for ~a, cached with ~a, provided with ~a"
+                  brf
+                  (dvector-ref visited idx)
+                  args))
          (dvector-ref out idx)]
         [else
          (define res (apply f brf (λ (brf . args) (loop brf args)) args))
          (dvector-set! out idx res)
-         (if (null? args) ;; updating cache
-             (dvector-set! visited idx #t) ;; fast-caching
-             (dvector-set! visited idx args))
-         res]))))
-
-(define (batch-greedy-recurse batch f)
-  (define out (make-dvector (batch-length batch)))
-  (define visited (make-dvector (batch-length batch) #f))
-
-  (λ (brf . args)
-    (match-define (batchref b idx) brf)
-    (unless (eq? b batch)
-      (error 'batch-recurse "Batchref belongs to a different batch"))
-
-    (let loop ([brf (batchref batch idx)]
-               [args args])
-      (define idx (batchref-idx brf))
-      (cond
-        [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx))
-         (when (or (and (null? args)
-                        (not (equal? #t (dvector-ref visited idx)))) ;; fast-check for null-arguments
-                   (and (not (null? args))
-                        (not (equal? args
-                                     (dvector-ref visited idx))))) ;; check for non-null arguments
-           (dvector-set! visited idx #f) ;; recalculate in case of a cache-miss
-           (loop brf args))
-         (dvector-ref out idx)]
-        [else
-         (define res (apply f brf (λ (brf . args) (loop brf args)) args))
-         (dvector-set! out idx res)
-         (if (null? args) ;; updating cache
-             (dvector-set! visited idx #t) ;; fast-caching
-             (dvector-set! visited idx args))
+         (dvector-set! visited idx args)
          res]))))
 
 ;; Same as batch-recurse but without using additional arguments inside a recurse function
