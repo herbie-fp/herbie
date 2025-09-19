@@ -36,41 +36,6 @@
          batchref=?
          deref) ; Batchref -> Expr
 
-(struct lru-cache (table order capacity) #:mutable)
-
-;; make a cache with max capacity
-(define (make-lru-cache capacity)
-  (lru-cache (make-hasheq) '() capacity))
-
-;; get value (returns #f if not found)
-(define (lru-ref! cache key to-set)
-  (define tbl (lru-cache-table cache))
-  (cond
-    [(hash-has-key? tbl key)
-     ;; move key to front of order
-     (set-lru-cache-order! cache (cons key (remove key (lru-cache-order cache))))
-     (hash-ref tbl key)]
-    [else
-     (lru-set! cache key (to-set))
-     (hash-ref tbl key)]))
-
-;; insert value (evict oldest if capacity exceeded)
-(define (lru-set! cache key val)
-  (define tbl (lru-cache-table cache))
-  (define ord (lru-cache-order cache))
-  (define cap (lru-cache-capacity cache))
-
-  (hash-set! tbl key val)
-
-  ;; update order
-  (set-lru-cache-order! cache (cons key (remove key ord)))
-
-  ;; evict if too big
-  (when (> (length (lru-cache-order cache)) cap)
-    (define last-key (last (lru-cache-order cache)))
-    (hash-remove! tbl last-key)
-    (set-lru-cache-order! cache (drop-right (lru-cache-order cache) 1))))
-
 ;; Batches store these recursive structures, flattened
 (struct batch (nodes index cache))
 
@@ -79,7 +44,7 @@
 ;; --------------------------------- CORE BATCH FUNCTION ------------------------------------
 
 (define (batch-empty)
-  (batch (make-dvector) (make-hash) (make-lru-cache 256)))
+  (batch (make-dvector) (make-hash) (make-weak-hasheq)))
 
 (define (in-batch batch [start 0] [end #f] [step 1])
   (in-dvector (batch-nodes batch) start end step))
@@ -124,11 +89,11 @@
        (unless (equal? b b*)
          (error 'batch-add! "Batchref belongs to a different batch"))
        idx*]
-      [_ (lru-ref! cache prog (λ () (batchref-idx (batch-push! b (expr-recurse prog munge)))))]))
+      [_ (hash-ref! cache prog (λ () (batchref-idx (batch-push! b (expr-recurse prog munge)))))]))
   (batchref b (munge expr)))
 
 (define (batch-copy b)
-  (batch (dvector-copy (batch-nodes b)) (hash-copy (batch-index b)) (make-lru-cache 1024)))
+  (batch (dvector-copy (batch-nodes b)) (hash-copy (batch-index b)) (make-weak-hasheq)))
 
 (define (deref x)
   (match-define (batchref b idx) x)
