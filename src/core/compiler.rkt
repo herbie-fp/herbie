@@ -21,7 +21,7 @@
 ;; where <index> refers to a previous virtual register.
 ;; Must also provide the input variables for the program(s)
 ;; as well as the indices of the roots to extract.
-(define (make-progs-interpreter vars ivec rootvec args)
+(define (make-progs-interpreter ivec rootvec args)
   (define rootlen (vector-length rootvec))
   (define vregs (make-vector (vector-length ivec)))
   (define (compiled-prog args*)
@@ -49,17 +49,19 @@
 
 ; This functions needs to preserve vars
 (define (batch-for-compiler batch brfs vars args)
-  (batch-apply
-   batch
-   brfs
-   (λ (node)
-     (match node
-       [(? symbol?)
-        (define idx (index-of vars node))
-        (list (λ () (vector-ref args idx)))]
-       [(approx _ impl) impl]
-       [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
-       [(list op args ...) (cons (impl-info op 'fl) args)]))))
+  (define out (batch-empty))
+  (define f
+    (batch-recurse
+     batch
+     (λ (brf recurse)
+       (match (deref brf)
+         [(approx _ impl) (recurse impl)] ;; do not push, it is already a batchref
+         [(? symbol? n)
+          (define idx (index-of vars n))
+          (batch-push! out (list (λ () (vector-ref args idx))))]
+         [(literal value (app get-representation repr)) (batch-push! out (list (const (real->repr value repr))))]
+         [(list op args ...) (batch-push! out (cons (impl-info op 'fl) (map (compose batchref-idx recurse) args)))]))))
+  (values out (map f brfs)))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values
@@ -73,17 +75,14 @@
 
 (define (compile-batch batch brfs ctx)
   (define vars (context-vars ctx))
-  (define num-vars (length vars))
-
-  ; Here we need to keep vars even though no roots refer to the vars
-  (define args (make-vector num-vars))
+  (define args (make-vector (length vars)))
   (define-values (batch* brfs*) (batch-for-compiler batch brfs vars args))
-  (timeline-push! 'compiler (batch-tree-size batch* brfs*) (batch-length batch*))
-
-  (define instructions (dvector->vector (batch-nodes batch*)))
+  (define instructions (dvector->vector (batch-nodes batch*))) ;; would be nice to make an API function out of it
   (define rootvec (list->vector (map batchref-idx brfs*)))
 
-  (make-progs-interpreter vars instructions rootvec args))
+  (timeline-push! 'compiler (batch-tree-size batch* brfs*) (batch-length batch*))
+
+  (make-progs-interpreter instructions rootvec args))
 
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
