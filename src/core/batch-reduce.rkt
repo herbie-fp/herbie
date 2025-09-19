@@ -111,53 +111,55 @@
     (batch-recurse batch reduce)))
 
 (define (batch-reduce-evaluation batch)
-  (batch-apply!
-   batch
-   (λ (node)
-     (match node
-       [(list 'sin (app deref 0)) 0]
-       [(list 'cos (app deref 0)) 1]
-       [(list 'sin (app deref (list 'PI))) 0]
-       [(list 'cos (app deref (list 'PI))) -1]
-       [(list 'exp (app deref 1)) '(E)]
-       [(list 'tan (app deref 0)) 0]
-       [(list 'sinh (app deref 0)) 0]
-       [(list 'log (app deref (list 'E))) 1]
-       [(list 'exp (app deref 0)) 1]
-       [(list 'tan (app deref (list 'PI))) 0]
-       [(list 'cosh (app deref 0)) 1]
-       [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 6)))) '(/ (sqrt 3) 2)]
-       [(list 'tan (app deref (list '/ (app deref '(PI)) (app deref 3)))) '(sqrt 3)]
-       [(list 'tan (app deref (list '/ (app deref '(PI)) (app deref 4)))) 1]
-       [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 2)))) 0]
-       [(list 'tan (app deref (list '/ (app deref '(PI)) (app deref 6)))) '(/ 1 (sqrt 3))]
-       [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 3)))) '(/ (sqrt 3) 2)]
-       [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 6)))) 1/2]
-       [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 4)))) '(/ (sqrt 2) 2)]
-       [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 2)))) 1]
-       [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 3)))) 1/2]
-       [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 4)))) '(/ (sqrt 2) 2)]
-       [_ node]))))
+  (λ (brf)
+    (match (deref brf)
+      [(list 'sin (app deref 0)) (batch-push! batch 0)]
+      [(list 'cos (app deref 0)) (batch-push! batch 1)]
+      [(list 'sin (app deref (list 'PI))) (batch-push! batch 0)]
+      [(list 'cos (app deref (list 'PI))) (batch-push! batch -1)]
+      [(list 'exp (app deref 1)) (batch-add! batch '(E))]
+      [(list 'tan (app deref 0)) (batch-push! batch 0)]
+      [(list 'sinh (app deref 0)) (batch-push! batch 0)]
+      [(list 'log (app deref (list 'E))) (batch-push! batch 1)]
+      [(list 'exp (app deref 0)) (batch-push! batch 1)]
+      [(list 'tan (app deref (list 'PI))) (batch-push! batch 0)]
+      [(list 'cosh (app deref 0)) (batch-push! batch 1)]
+      [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 6))))
+       (batch-add! batch '(/ (sqrt 3) 2))]
+      [(list 'tan (app deref (list '/ (app deref '(PI)) (app deref 3)))) (batch-add! batch '(sqrt 3))]
+      [(list 'tan (app deref (list '/ (app deref '(PI)) (app deref 4)))) (batch-push! batch 1)]
+      [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 2)))) (batch-push! batch 0)]
+      [(list 'tan (app deref (list '/ (app deref '(PI)) (app deref 6))))
+       (batch-add! batch '(/ 1 (sqrt 3)))]
+      [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 3))))
+       (batch-add! batch '(/ (sqrt 3) 2))]
+      [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 6)))) (batch-push! batch 1/2)]
+      [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 4))))
+       (batch-add! batch '(/ (sqrt 2) 2))]
+      [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 2)))) (batch-push! batch 1)]
+      [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 3)))) (batch-push! batch 1/2)]
+      [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 4))))
+       (batch-add! batch '(/ (sqrt 2) 2))]
+      [_ brf])))
 
-(define (batch-reduce-inverses batch)
-  (batch-apply! batch
-                (λ (node)
-                  (match node
-                    [(list 'tanh (app deref (list 'atanh x))) x]
-                    [(list 'cosh (app deref (list 'acosh x))) x]
-                    [(list 'sinh (app deref (list 'asinh x))) x]
-                    [(list 'acos (app deref (list 'cos x))) x]
-                    [(list 'asin (app deref (list 'sin x))) x]
-                    [(list 'atan (app deref (list 'tan x))) x]
-                    [(list 'tan (app deref (list 'atan x))) x]
-                    [(list 'cos (app deref (list 'acos x))) x]
-                    [(list 'sin (app deref (list 'asin x))) x]
-                    [(list 'pow x (app deref 1)) x]
-                    [(list 'log (app deref (list 'exp x))) x]
-                    [(list 'exp (app deref (list 'log x))) x]
-                    [(list 'cbrt (app deref (list 'pow x (app deref 3)))) x]
-                    [(list 'pow (app deref (list 'cbrt x)) (app deref 3)) x]
-                    [_ node]))))
+(define (batch-reduce-inverses brf)
+  (λ (brf)
+    (match (deref brf)
+      [(list 'tanh (app deref (list 'atanh x))) x]
+      [(list 'cosh (app deref (list 'acosh x))) x]
+      [(list 'sinh (app deref (list 'asinh x))) x]
+      [(list 'acos (app deref (list 'cos x))) x]
+      [(list 'asin (app deref (list 'sin x))) x]
+      [(list 'atan (app deref (list 'tan x))) x]
+      [(list 'tan (app deref (list 'atan x))) x]
+      [(list 'cos (app deref (list 'acos x))) x]
+      [(list 'sin (app deref (list 'asin x))) x]
+      [(list 'pow x (app deref 1)) x]
+      [(list 'log (app deref (list 'exp x))) x]
+      [(list 'exp (app deref (list 'log x))) x]
+      [(list 'cbrt (app deref (list 'pow x (app deref 3)))) x]
+      [(list 'pow (app deref (list 'cbrt x)) (app deref 3)) x]
+      [_ brf])))
 
 (define (negate-term term)
   (cons (- (car term)) (cdr term)))
