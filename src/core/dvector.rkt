@@ -8,7 +8,8 @@
          dvector-length
          dvector-capacity
          dvector-copy
-         create-dvector)
+         create-dvector
+         dvector->vector)
 
 (define starting-capacity 128)
 
@@ -26,6 +27,9 @@
           (+ (hc (dvector-vec a)) (dvector-length a)))
         (λ (a hc) ; secondary-hash-code
           (+ (hc (dvector-vec a)) (* 7 (+ 1 (dvector-length a)))))))
+
+(define (dvector->vector dvec)
+  (vector-copy (dvector-vec dvec) 0 (dvector-length dvec)))
 
 (define (make-dvector [size starting-capacity] [v #f])
   (define size*

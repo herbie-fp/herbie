@@ -5,7 +5,9 @@
          "../syntax/platform.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
-         "batch.rkt")
+         "batch.rkt"
+         "dvector.rkt"
+         "programs.rkt")
 
 (provide compile-progs
          compile-batch
@@ -19,15 +21,13 @@
 ;; where <index> refers to a previous virtual register.
 ;; Must also provide the input variables for the program(s)
 ;; as well as the indices of the roots to extract.
-(define (make-progs-interpreter vars ivec rootvec)
+(define (make-progs-interpreter vars ivec rootvec args)
   (define rootlen (vector-length rootvec))
-  (define iveclen (vector-length ivec))
-  (define varc (length vars))
-  (define vregs (make-vector (+ varc iveclen)))
-  (define (compiled-prog args)
-    (vector-copy! vregs 0 args)
+  (define vregs (make-vector (vector-length ivec)))
+  (define (compiled-prog args*)
+    (vector-copy! args 0 args*)
     (for ([instr (in-vector ivec)]
-          [n (in-naturals varc)])
+          [n (in-naturals)])
       (vector-set! vregs n (apply-instruction instr vregs)))
     (for/vector #:length rootlen
                 ([root (in-vector rootvec)])
@@ -48,17 +48,18 @@
     [(list op args ...) (apply op (map (curry vector-ref regs) args))]))
 
 ; This functions needs to preserve vars
-(define (batch-for-compiler batch brfs vars)
-  (define-values (batch* brfs*)
-    (batch-apply batch
-                 brfs
-                 (lambda (node)
-                   (match node
-                     [(approx spec impl) impl]
-                     [node node]))))
-  (define-values (batch** _) (progs->batch vars))
-  (define brfs** (map (batch-copy-only! batch** batch*) brfs*))
-  (values batch** brfs**))
+(define (batch-for-compiler batch brfs vars args)
+  (batch-apply
+   batch
+   brfs
+   (λ (node)
+     (match node
+       [(? symbol?)
+        (define idx (index-of vars node))
+        (list (λ () (vector-ref args idx)))]
+       [(approx _ impl) impl]
+       [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
+       [(list op args ...) (cons (impl-info op 'fl) args)]))))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values
@@ -75,18 +76,14 @@
   (define num-vars (length vars))
 
   ; Here we need to keep vars even though no roots refer to the vars
-  (define-values (batch* brfs*) (batch-for-compiler batch brfs vars))
+  (define args (make-vector num-vars))
+  (define-values (batch* brfs*) (batch-for-compiler batch brfs vars args))
   (timeline-push! 'compiler (batch-tree-size batch* brfs*) (batch-length batch*))
 
-  (define instructions
-    (for/vector #:length (- (batch-length batch*) num-vars)
-                ([node (in-batch batch* num-vars)])
-      (match node
-        [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
-        [(list op args ...) (cons (impl-info op 'fl) args)])))
+  (define instructions (dvector->vector (batch-nodes batch*)))
   (define rootvec (list->vector (map batchref-idx brfs*)))
 
-  (make-progs-interpreter vars instructions rootvec))
+  (make-progs-interpreter vars instructions rootvec args))
 
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
