@@ -97,7 +97,8 @@
     [(set-member? (all-pages result-hash) page)
      ;; Write page contents to disk
      (when (*demo-output*)
-       (write-results-to-disk result-hash path))
+       (write-results-to-disk result-hash path)
+       (job-forget job-id))
      (response 200
                #"OK"
                (current-seconds)
