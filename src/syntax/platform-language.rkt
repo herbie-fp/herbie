@@ -301,5 +301,5 @@
 (define (if-impl c t f)
   (if c t f))
 
-(define (if-cost base)
-  (lambda (c t f) (+ base c (max t f))))
+(define ((if-cost base) c t f)
+  (+ base c (max t f)))
