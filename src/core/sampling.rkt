@@ -128,45 +128,47 @@
   (define reprs (real-compiler-reprs compiler))
 
   (real-compiler-clear! compiler) ; Clear profiling vector
-  (define-values (points exactss)
-    (let loop ([sampled 0]
-               [skipped 0]
-               [points '()]
-               [exactss '()])
-      (define-values (pt hint) (sampler))
-      (define-values (status exs) (real-apply compiler pt hint))
-      (case status
-        [(exit)
-         (warn 'ground-truth
-               "could not determine a ground truth"
-               #:url "faq.html#ground-truth"
-               #:extra (vector->list (vector-map (curry format "~a = ~a") vars pt)))]
-        [(valid)
-         (for ([ex (in-list exs)]
-               [repr (in-vector reprs)])
-           ; The `bool` representation does not produce bigfloats
-           (define maybe-bf ((representation-repr->bf repr) ex))
-           (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
-             (set! status 'infinite)))])
 
-      (hash-update! outcomes status add1 0)
+  (define points (make-vector (*num-points*)))
+  (define exactss (make-vector (*num-points*)))
 
-      (define is-bad?
-        (for/or ([input (in-vector pt)]
-                 [repr (in-vector var-reprs)])
-          ((representation-special-value? repr) input)))
+  (let loop ([sampled 0]
+             [skipped 0])
+    (define-values (pt hint) (sampler))
+    (define-values (status exs) (real-apply compiler pt hint))
+    (case status
+      [(exit)
+       (warn 'ground-truth
+             "could not determine a ground truth"
+             #:url "faq.html#ground-truth"
+             #:extra (vector->list (vector-map (curry format "~a = ~a") vars pt)))]
+      [(valid)
+       (for ([ex (in-list exs)]
+             [repr (in-vector reprs)])
+         ; The `bool` representation does not produce bigfloats
+         (define maybe-bf ((representation-repr->bf repr) ex))
+         (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
+           (set! status 'infinite)))])
 
-      (cond
-        [(and (list? exs) (not is-bad?))
-         (if (>= (+ 1 sampled) (*num-points*))
-             (values (cons pt points) (cons exs exactss))
-             (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
-        [else
-         (when (>= skipped (*max-skipped-points*))
-           (raise-herbie-sampling-error "Cannot sample enough valid points."
-                                        #:url "faq.html#sample-valid-points"))
-         (loop sampled (+ 1 skipped) points exactss)])))
-  (values (cons points (flip-lists exactss)) outcomes))
+    (hash-update! outcomes status add1 0)
+
+    (define is-bad?
+      (for/or ([input (in-vector pt)]
+               [repr (in-vector var-reprs)])
+        ((representation-special-value? repr) input)))
+    (cond
+      [(and (list? exs) (not is-bad?))
+       (define idx (- (*num-points*) 1 sampled))
+       (vector-set! points idx pt)
+       (vector-set! exactss idx exs)
+       (when (< (+ 1 sampled) (*num-points*))
+         (loop (+ 1 sampled) 0))]
+      [else
+       (when (>= skipped (*max-skipped-points*))
+         (raise-herbie-sampling-error "Cannot sample enough valid points."
+                                      #:url "faq.html#sample-valid-points"))
+       (loop sampled (+ 1 skipped))]))
+  (values (cons (vector->list points) (flip-lists (vector->list exactss))) outcomes))
 
 (define (combine-tables t1 t2)
   (define t2-total (apply + (hash-values t2)))
