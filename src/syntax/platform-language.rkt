@@ -43,11 +43,10 @@
       (match expr
         [(? number?) 'real]
         [(? symbol?)
-         (cond
-           [(assq expr env)
-            =>
-            cdr]
-           [else (bad! "unbound variable `~a`" expr)])]
+         #:when (assq expr env)
+         =>
+         cdr]
+        [(? symbol?) (bad! "unbound variable `~a`" expr)]
         [`(if ,cond ,ift ,iff)
          (define cond-ty (type-of cond))
          (unless (equal? cond-ty 'bool)
