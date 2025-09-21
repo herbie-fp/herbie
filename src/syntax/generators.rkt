@@ -54,10 +54,8 @@
 (define-generator ((from-ffi lib name) spec ctx)
   (let ([itypes (context-var-reprs ctx)]
         [otype (context-repr ctx)])
-    (define fl (make-ffi lib name itypes otype))
-    (unless fl
-      (error 'ffi-generator "Could not find FFI implementation of `~a ~a ~a`" otype name itypes))
-    fl))
+    (or (make-ffi lib name itypes otype)
+        (error 'ffi-generator "Could not find FFI implementation of `~a ~a ~a`" otype name itypes))))
 
 (define libm-lib (ffi-lib #f))
 (define (from-libm name)
