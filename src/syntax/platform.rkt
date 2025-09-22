@@ -258,7 +258,7 @@
 
   (printf "Representations:\n")
   (define reprs-data
-    (for/list ([(_ repr) (in-hash reprs)]
+    (for/list ([repr (in-hash-values reprs)]
                [n (in-naturals)])
       (match-define (representation name type _ _ _ _ total-bits _) repr)
       (define cost (hash-ref repr-costs name))
@@ -267,7 +267,7 @@
 
   (printf "\nImplementations\n")
   (define impls-data
-    (for/list ([(_ impl) (in-hash impls)]
+    (for/list ([impl (in-hash-values impls)]
                [n (in-naturals)])
       (define name (operator-impl-name impl))
       (define itype (map representation-name (context-var-reprs (operator-impl-ctx impl))))
