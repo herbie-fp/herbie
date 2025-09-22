@@ -44,8 +44,7 @@
         [(? number?) 'real]
         [(? symbol?)
          #:when (assq expr env)
-         =>
-         cdr]
+         (cdr (assq expr env))]
         [(? symbol?) (bad! "unbound variable `~a`" expr)]
         [`(if ,cond ,ift ,iff)
          (define cond-ty (type-of cond))
