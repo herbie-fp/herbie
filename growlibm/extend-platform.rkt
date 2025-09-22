@@ -1,6 +1,5 @@
 #lang racket
 (require json)
-(require racket/random)
 (require
   "../src/api/sandbox.rkt"
   "../src/syntax/types.rkt"
@@ -42,13 +41,24 @@
 
 (define filename (vector-ref (current-command-line-arguments) 0))
 
+(define count-list (call-with-input-file "reports/counts.rkt" read))
+
 (define json (string->jsexpr (first (file->lines filename))))
 (define tests (hash-ref json 'tests))
 (define pairs (for/list ([t tests])
-                (list (hash-ref t 'name)
+                (list (hash-ref t 'input)
                       (hash-ref t 'link)
-                      (hash-ref t 'end) '())))
-(define sorted-pairs (sort pairs (lambda (p1 p2) (> (third p1) (third p2)))))
+                      (hash-ref t 'end)
+                      (hash-ref t 'input) '())))
+
+;;; (displayln count-list)
+;;; (displayln (second (first pairs)))
+;;; (displayln (first ))
+;;; (displayln (fourth (first pairs)))
+;;; (displayln count-list)
+;;; (displayln (assoc (with-input-from-string (fourth (first pairs)) read) count-list))
+(define sorted-pairs (sort pairs (lambda (p1 p2) (> (* (third p1) (cdr (assoc (with-input-from-string (fourth p1) read) count-list)))
+                                                    (* (third p1) (cdr (assoc (with-input-from-string (fourth p2) read) count-list)))))))
 
 (define fpcore (with-input-from-string (first (first sorted-pairs)) read))
 (define link (second (first sorted-pairs)))
@@ -60,7 +70,7 @@
 ;;; (define cost-proc (platform-cost-proc (*active-platform*)))
 ;;; (displayln (cost-proc expr (get-representation 'binary64)))
 
-(define operatorStr (format "(define-operation (~a ~a) <binary64> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary64 (~a ~a)) #:cost 0)"
+(define operatorStr (format "(define-operation (~a ~a) <binary64> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary64 (~a ~a)) #:cost 1000)"
                             link
                             (string-join (map render-var (free-variables spec)))
                             spec

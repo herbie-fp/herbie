@@ -88,22 +88,38 @@
 
 (define (has-approx expr)
   (define str (format "~v" expr))
-  (or (string-contains? str "approx") (string-contains? str "=") (string-contains? str ">") (string-contains? str "<"))
+  (or (string-contains? str "approx")
+      (string-contains? str "=")
+      (string-contains? str ">")
+      (string-contains? str "<"))
   )
 
-(define (get-error pair)
-  (define expr (car pair))
-  (define count (cdr pair))
-  (define ctx (context (free-variables expr) (get-representation 'binary64) (make-list (length (free-variables expr)) (get-representation 'binary64))))
-  (define spec (prog->spec expr))
-  (list expr count (get-spec-error expr spec ctx))
-  )
-
-(define (print-fpcore pair)
-  (define expr (first pair))
+(define (get-error expr)
   (define vars (free-variables expr))
-  (define ctx (context (free-variables expr) (get-representation 'binary64) (make-list (length (free-variables expr)) (get-representation 'binary64))))
+  (define ctx (context vars
+                       (get-representation 'binary64)
+                       (make-list (length vars)
+                                  (get-representation 'binary64))))
+  (define spec (prog->spec expr))
+  (get-spec-error expr spec ctx)
+  )
+
+(define (print-fpcore expr)
+  (define vars (free-variables expr))
+  (define ctx (context (free-variables expr)
+                       (get-representation 'binary64)
+                       (make-list (length vars)
+                                  (get-representation 'binary64))))
   (displayln (format "(FPCore ~a ~a)" vars (prog->fpcore expr ctx))))
+
+(define (to-count-print p)
+  (define expr (car p))
+  (define count (cdr p))
+  (define ctx (context (free-variables expr)
+                       (get-representation 'binary64)
+                       (make-list (length (free-variables expr))
+                                  (get-representation 'binary64))))
+  (cons (prog->fpcore expr ctx) count))
 
 (define filename (vector-ref (current-command-line-arguments) 0))
 
@@ -112,7 +128,7 @@
 
 (define subexprs (apply append unflattened-subexprs))
 (define filtered-subexprs (filter (lambda (n) (not (or (symbol? n) (literal? n) (approx? n) (has-approx n)))) subexprs))
-(define filtered-again (filter (lambda (n) (> (length (free-variables n)) 0)) filtered-subexprs)) 
+(define filtered-again (filter (lambda (n) (> (length (free-variables n)) 0)) filtered-subexprs))
 (define renamed-subexprs (map rename-vars filtered-again))
 
 (define freqs (count-frequencies renamed-subexprs))
@@ -124,14 +140,19 @@
 (define first-1000 (take sorted-pairs (min (length sorted-pairs) 1000)))
 
 ;;; (displayln (format "deduped length ~a" (length deduplicated-pairs)))
-(define triples (map get-error first-1000))
-(define filtered-triples (filter (lambda (p) (< 0.1 (last p))) triples))
+(define filtered (filter (lambda (p) (< 0 (get-error (car p)))) first-1000))
+
 ;;; (define sorted-triples (sort filtered-triples (lambda (p1 p2) (< (second p1) (second p2)))))
 ;;; (define first-500 (take sorted-triples (min (length sorted-triples) 500)))
 ;;; (displayln (format "filtered length ~a" (length filtered-triples)))
-(define first-500 (take filtered-triples (min (length filtered-triples) 500)))
+(define first-500 (take filtered (min (length filtered) 500)))
+(for-each (lambda (p) (print-fpcore (car p))) first-500)
 
-(for-each print-fpcore first-500)
+(define counts-to-print (map to-count-print first-500))
+(define counts-file "reports/counts.rkt")
+(with-output-to-file counts-file
+  (lambda ()
+    (display counts-to-print)))
 
 ;;; (print-lines sorted-triples)
 ;;; (define cost-proc (platform-cost-proc (*active-platform*)))
