@@ -9,7 +9,8 @@
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
          "searchreals.rkt"
-         "rival.rkt")
+         "rival.rkt"
+         "fast-eval.rkt")
 
 (provide batch-prepare-points
          sample-points)
@@ -135,7 +136,12 @@
   (let loop ([sampled 0]
              [skipped 0])
     (define-values (pt hint) (sampler))
-    (define-values (status exs) (real-apply compiler pt hint))
+    (define-values (status exs)
+      (let-values ([(status-fast exs-fast) (fast-real-apply compiler pt)])
+        (cond
+          [(eq? status-fast 'valid) (values status-fast exs-fast)]
+          [(eq? status-fast 'invalid) (values status-fast #f)]
+          [else (real-apply compiler pt hint)])))
     (case status
       [(exit)
        (warn 'ground-truth
