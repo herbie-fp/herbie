@@ -325,12 +325,13 @@
                                (td (pre ,expr)))))))))
 
 (define (render-phase-times times)
+  (define hist-id (make-id))
   `((dt "Calls")
     (dd (p ,(~r (length times) #:group-sep " ") " calls:")
-        (canvas ([id ,(format "calls-~a" (make-id))]
+        (canvas ([id ,(format "calls-~a" hist-id)]
                  [title
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script ,(format "histogram('calls-~a', " (make-id)) ,(jsexpr->string (map first times)) ")")
+        (script ,(format "histogram('calls-~a', " hist-id) ,(jsexpr->string (map first times)) ")")
         (table ((class "times"))
                ,@(for/list ([rec (in-list (sort times > #:key first))]
                             [_ (in-range 5)])
@@ -338,12 +339,13 @@
                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
 
 (define (render-phase-series times)
+  (define hist-id (make-id))
   `((dt "Calls")
     (dd (p ,(~a (length times)) " calls:")
-        (canvas ([id ,(format "calls-~a" (make-id))]
+        (canvas ([id ,(format "calls-~a" hist-id)]
                  [title
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script ,(format "histogram('calls-~a', " (make-id)) ,(jsexpr->string (map first times)) ")")
+        (script ,(format "histogram('calls-~a', " hist-id) ,(jsexpr->string (map first times)) ")")
         (table ((class "times"))
                (thead (tr (th "Time") (th "Variable") (th "Point")))
                ,@(for/list ([rec (in-list (sort times > #:key first))]
