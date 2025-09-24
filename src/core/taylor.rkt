@@ -264,25 +264,27 @@
   ;(->* () #:rest (listof term?) term?)
   (match-define `((,offset . ,serieses) ...) (apply align-series terms))
   (define cache (make-dvector 10))
-  (make-cached-series n
-                      (car offset)
-                      cache
-                      (make-sum (for/list ([series serieses])
-                                  (series n)))))
+  (make-cached-series/extend n
+                             (car offset)
+                             cache
+                             n*
+                             (make-sum (for/list ([series serieses])
+                                         (series n*)))))
 
 (define (taylor-negate term)
   ;(-> term? term?)
   (define cache (make-dvector 10))
-  (make-cached-series n (car term) cache (list 'neg ((cdr term) n))))
+  (make-cached-series/extend n (car term) cache n* (list 'neg ((cdr term) n*))))
 
 (define (taylor-mult left right)
   ;(-> term? term? term?)
   (define cache (make-dvector 10))
-  (make-cached-series n
-                      (+ (car left) (car right))
-                      cache
-                      (make-sum (for/list ([i (range (+ n 1))])
-                                  (list '* ((cdr left) i) ((cdr right) (- n i)))))))
+  (make-cached-series/extend n
+                             (+ (car left) (car right))
+                             cache
+                             n*
+                             (make-sum (for/list ([i (range (+ n* 1))])
+                                         (list '* ((cdr left) i) ((cdr right) (- n* i)))))))
 
 (define (normalize-series series)
   ;(-> term? term?)
@@ -434,61 +436,64 @@
   (define cache (make-dvector 10))
   (dvector-set! cache 0 (reducer (adder `(exp ,(coeffs 0)))))
 
-  (make-cached-series n
-                      0
-                      cache
-                      (let* ([coeffs* (list->vector (map coeffs (range 1 (+ n 1))))]
-                             [nums (for/list ([i (in-range 1 (+ n 1))]
-                                              [coeff (in-vector coeffs*)]
-                                              #:unless (equal? (deref coeff) 0))
-                                     i)])
-                        `(* (exp ,(coeffs 0))
-                            (+ ,@(for/list ([p (all-partitions n (sort nums >))])
-                                   `(* ,@(for/list ([(count num) (in-dict p)])
-                                           `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                               ,(factorial count))))))))))
+  (make-cached-series/extend n
+                             0
+                             cache
+                             n*
+                             (let* ([coeffs* (list->vector (map coeffs (range 1 (+ n* 1))))]
+                                    [nums (for/list ([i (in-range 1 (+ n* 1))]
+                                                     [coeff (in-vector coeffs*)]
+                                                     #:unless (equal? (deref coeff) 0))
+                                            i)])
+                               `(* (exp ,(coeffs 0))
+                                   (+ ,@(for/list ([p (all-partitions n* (sort nums >))])
+                                          `(* ,@(for/list ([(count num) (in-dict p)])
+                                                  `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                                      ,(factorial count))))))))))
 
 (define (taylor-sin coeffs)
   ;(-> (-> number? batchref?) term?)
   (define cache (make-dvector 10))
   (dvector-set! cache 0 (adder 0))
 
-  (make-cached-series n
-                      0
-                      cache
-                      (let* ([coeffs* (list->vector (map coeffs (range 1 (+ n 1))))]
-                             [nums (for/list ([i (in-range 1 (+ n 1))]
-                                              [coeff (in-vector coeffs*)]
-                                              #:unless (equal? (deref coeff) 0))
-                                     i)])
-                        `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
-                                (if (= (modulo (apply + (map car p)) 2) 1)
-                                    `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
-                                        ,@(for/list ([(count num) (in-dict p)])
-                                            `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                                ,(factorial count))))
-                                    0))))))
+  (make-cached-series/extend n
+                             0
+                             cache
+                             n*
+                             (let* ([coeffs* (list->vector (map coeffs (range 1 (+ n* 1))))]
+                                    [nums (for/list ([i (in-range 1 (+ n* 1))]
+                                                     [coeff (in-vector coeffs*)]
+                                                     #:unless (equal? (deref coeff) 0))
+                                            i)])
+                               `(+ ,@(for/list ([p (all-partitions n* (sort nums >))])
+                                       (if (= (modulo (apply + (map car p)) 2) 1)
+                                           `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
+                                               ,@(for/list ([(count num) (in-dict p)])
+                                                   `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                                       ,(factorial count))))
+                                           0))))))
 
 (define (taylor-cos coeffs)
   ;(-> (-> number? batchref?) term?)
   (define cache (make-dvector 10))
   (dvector-set! cache 0 (adder 1))
 
-  (make-cached-series n
-                      0
-                      cache
-                      (let* ([coeffs* (list->vector (map coeffs (range 1 (+ n 1))))]
-                             [nums (for/list ([i (in-range 1 (+ n 1))]
-                                              [coeff (in-vector coeffs*)]
-                                              #:unless (equal? (deref coeff) 0))
-                                     i)])
-                        `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
-                                (if (= (modulo (apply + (map car p)) 2) 0)
-                                    `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
-                                        ,@(for/list ([(count num) (in-dict p)])
-                                            `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                                ,(factorial count))))
-                                    0))))))
+  (make-cached-series/extend n
+                             0
+                             cache
+                             n*
+                             (let* ([coeffs* (list->vector (map coeffs (range 1 (+ n* 1))))]
+                                    [nums (for/list ([i (in-range 1 (+ n* 1))]
+                                                     [coeff (in-vector coeffs*)]
+                                                     #:unless (equal? (deref coeff) 0))
+                                            i)])
+                               `(+ ,@(for/list ([p (all-partitions n* (sort nums >))])
+                                       (if (= (modulo (apply + (map car p)) 2) 0)
+                                           `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
+                                               ,@(for/list ([(count num) (in-dict p)])
+                                                   `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                                       ,(factorial count))))
+                                           0))))))
 
 ;; This is a hyper-specialized symbolic differentiator for log(f(x))
 
