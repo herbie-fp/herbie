@@ -215,7 +215,7 @@
   (match x
     [(literal -inf.0 _) '(- INFINITY)]
     [(literal +inf.0 _) 'INFINITY]
-    [(literal v (or 'binary64 'binary32)) (exact->inexact v)]
+    ;;; [(literal v (or 'binary64 'binary32)) (exact->inexact v)]
     [(literal v _) v]))
 
 ;; Step 1.

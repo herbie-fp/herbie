@@ -45,11 +45,11 @@
 
 (define json (string->jsexpr (first (file->lines filename))))
 (define tests (hash-ref json 'tests))
-(define pairs (for/list ([t tests])
-                (list (hash-ref t 'input)
-                      (hash-ref t 'link)
-                      (hash-ref t 'end)
-                      (hash-ref t 'input) '())))
+;;; (define pairs (for/list ([t tests])
+;;;                 (list (hash-ref t 'input)
+;;;                       (hash-ref t 'link)
+;;;                       (hash-ref t 'end)
+;;;                       (hash-ref t 'input) '())))
 (define scored-pairs
   (for/list ([t tests])
     (define input-str (hash-ref t 'input))
@@ -76,7 +76,11 @@
 
 (define fpcore (with-input-from-string (first (first sorted-pairs)) read))
 (define link (second (first sorted-pairs)))
-(define ctx (context (free-variables fpcore) (get-representation 'binary64) (make-list (length (free-variables fpcore)) (get-representation 'binary64))))
+(define ctx (context (free-variables fpcore) 
+                     (get-representation 'binary64) 
+                     (make-list (length (free-variables fpcore)) 
+                                (get-representation 'binary64))))
+
 (define prog (fpcore->prog fpcore ctx))
 (define spec (prog->spec prog))
 ;;; (define operatorImpl (create-operator-impl! (string->symbol (format "!~a!" spec)) ctx spec #:impl (from-rival) #:cost 1000))
