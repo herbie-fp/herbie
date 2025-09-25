@@ -33,31 +33,9 @@
 
 
 
-(define (get-simplified-expr ctx expr)
+(define (best-exprs exprs ctxs)
   (define rules (*rules*))
-;;;   (displayln ctx)
-  ;;; (displayln expr)
-  ;;;   (*context* ctx)
-
-  ; egg schedule (3-phases for mathematical rewrites and implementation selection)
-  (define schedule
-    (list `(lift . ((iteration . 1) (scheduler . simple)))
-          `(,rules . ((node . ,(*node-limit*))))
-          `(lower . ((iteration . 1) (scheduler . simple)))))
-
-  ; run egg
-  (define batch (progs->batch (list expr)))
-
-  (define runner (make-egraph batch (list (context-repr ctx)) schedule ctx))
-  ; batchrefss is a (listof (listof batchref))
-  (define batchrefss (egraph-best runner batch))
-  (debatchref (first (first batchrefss))))
-
-  (define (get-simplified-exprs ctx exprs)
-  (define rules (*rules*))
-;;;   (displayln ctx)
-  ;;; (displayln expr)
-  ;;;   (*context* ctx)
+  ;;;   (*context* (first ctxs))
 
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
@@ -68,41 +46,21 @@
   ; run egg
   (define batch (progs->batch exprs))
 
-  (define runner (make-egraph batch (list (context-repr ctx)) schedule ctx))
+  (define runner (make-egraph batch (map context-repr ctxs) schedule (second ctxs)))
   ; batchrefss is a (listof (listof batchref))
   (define batchrefss (egraph-best runner batch))
   batchrefss)
 
-(define (check-equal ctx expr1 expr2 expr3)
-  (define rules (*rules*))
-  ;;;   (displayln ctx)
-  ;;; (displayln expr)
-  ;;;   (*context* ctx)
+(define expr1 '(*.f64 z0 z0))
+(define expr2 '(/.f64 z0 z1))
+(define (get-ctx expr)
+(define free-vars (free-variables expr))
+  (context
+   free-vars
+   (get-representation 'binary64)
+   (make-list (length free-vars)
+              (get-representation 'binary64))))
 
-  ; egg schedule (3-phases for mathematical rewrites and implementation selection)
-  (define schedule
-    (list `(lift . ((iteration . 1) (scheduler . simple)))
-          `(,rules . ((node . ,(*node-limit*))))
-          `(lower . ((iteration . 1) (scheduler . simple)))))
-
-  ; run egg
-  (define batch (progs->batch (list expr1 expr2)))
-
-  (define runner (make-egraph batch (list (context-repr ctx)) schedule ctx))
-  ; batchrefss is a (listof (listof batchref))
-  (define equal (egraph-equal? runner expr1 expr2))
-  equal)
-
-(define expr '(sin (* z0 PI)))
-(define expr2 '(sin (* PI z0)))
-(define expr3 '(+ z0 PI))
-(define ctx (context
-             (free-variables expr)
-             (get-representation 'binary64)
-             (make-list (length (free-variables expr))
-                        (get-representation 'binary64))))
-
-;;; (displayln (get-simplified-expr ctx expr))
-;;; (displayln (get-simplified-expr ctx expr2))
-(displayln  (debatchref (first (first (get-simplified-exprs ctx (list expr expr2 expr3))))))
-;;; (displayln  (check-equal ctx expr expr2 expr3))
+(define exprs (list expr1 expr2))
+(define ctxs (map get-ctx exprs))
+(best-exprs exprs ctxs)

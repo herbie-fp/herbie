@@ -65,4 +65,3 @@ html_content = f"""
 with open(OUTPUT_FILE, 'w') as f:
     f.write(html_content)
 
-print(f"Successfully generated index.html")

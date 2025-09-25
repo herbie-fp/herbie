@@ -10,7 +10,7 @@ export PATH="$PATH:$HOME/.cargo/bin/"
 SEED=$(date "+%Y%j")
 BENCHDIR="bench/"
 REPORTDIR="reports"
-NUMITERS=10
+NUMITERS=5
 
 mkdir -p "$REPORTDIR"
 rm -rf "reports"/* || echo "nothing to delete"
@@ -24,7 +24,7 @@ racket -y "src/main.rkt" report \
         "$BENCHDIR" "$REPORTDIR"/"start" > "$REPORTDIR/expr_dump.txt"
 
 # generate accelerator candidates
-racket -y growlibm/generate-candidates.rkt "$REPORTDIR/expr_dump.txt" > "$REPORTDIR/candidates.fpcore"
+racket -y growlibm/generate-candidates.rkt "$REPORTDIR"
 
 # extend platform loop
 for ((i = 0; i < $NUMITERS; i++)) do
@@ -34,9 +34,9 @@ for ((i = 0; i < $NUMITERS; i++)) do
             --threads 4 \
             --disable "generate:taylor" \
             --disable "generate:evaluate" \
-            "$REPORTDIR/candidates.fpcore" "$REPORTDIR"/"iter$i" 
+            "$REPORTDIR/candidates.txt" "$REPORTDIR"/"iter$i" 
 
-    racket -y "growlibm/extend-platform.rkt"  "$REPORTDIR"/"iter$i/results.json" >> "src/platforms/grow.rkt"
+    racket -y "growlibm/extend-platform.rkt"  "$REPORTDIR"/"iter$i/results.json" 
 done
 
 # run herbie again with expanded platform
