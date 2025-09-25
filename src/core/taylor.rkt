@@ -425,6 +425,7 @@
   (make-series n
                0
                cache
+               n*
                (if (zero? n)
                    `(exp ,(coeffs 0))
                    (let* ([coeffs* (list->vector (map coeffs (range 1 (+ n 1))))]
@@ -444,14 +445,15 @@
   (make-series n
                0
                cache
-               (if (zero? n)
+               n*
+               (if (zero? n*)
                    0
-                   (let* ([coeffs* (list->vector (map coeffs (range 1 (+ n 1))))]
-                          [nums (for/list ([i (in-range 1 (+ n 1))]
+                   (let* ([coeffs* (list->vector (map coeffs (range 1 (+ n* 1))))]
+                          [nums (for/list ([i (in-range 1 (+ n* 1))]
                                            [coeff (in-vector coeffs*)]
                                            #:unless (equal? (deref coeff) 0))
                                   i)])
-                     `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
+                     `(+ ,@(for/list ([p (all-partitions n* (sort nums >))])
                              (if (= (modulo (apply + (map car p)) 2) 1)
                                  `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
                                      ,@(for/list ([(count num) (in-dict p)])
@@ -465,14 +467,15 @@
   (make-series n
                0
                cache
-               (if (zero? n)
+               n*
+               (if (zero? n*)
                    1
-                   (let* ([coeffs* (list->vector (map coeffs (range 1 (+ n 1))))]
-                          [nums (for/list ([i (in-range 1 (+ n 1))]
+                   (let* ([coeffs* (list->vector (map coeffs (range 1 (+ n* 1))))]
+                          [nums (for/list ([i (in-range 1 (+ n* 1))]
                                            [coeff (in-vector coeffs*)]
                                            #:unless (equal? (deref coeff) 0))
                                   i)])
-                     `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
+                     `(+ ,@(for/list ([p (all-partitions n* (sort nums >))])
                              (if (= (modulo (apply + (map car p)) 2) 0)
                                  `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
                                      ,@(for/list ([(count num) (in-dict p)])
