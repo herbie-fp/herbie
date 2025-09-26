@@ -158,7 +158,7 @@
        [(? number?) (taylor-exact brf)]
        [(? symbol?) (taylor-exact brf)]
        [`(,const) (taylor-exact brf)]
-       [`(+ ,args ...) (apply taylor-add (map recurse args))]
+       [`(+ ,left ,right) (taylor-add (recurse left) (recurse right))]
        [`(neg ,arg) (taylor-negate (recurse arg))]
        [`(* ,left ,right) (taylor-mult (recurse left) (recurse right))]
        [`(/ ,num ,den)
@@ -169,33 +169,36 @@
        [`(cbrt ,arg) (taylor-cbrt var (recurse arg))]
        [`(exp ,arg)
         (define arg* (normalize-series (recurse arg)))
-        (if (positive? (car arg*))
+        (match-define (cons arg-offset _) arg*)
+        (if (positive? arg-offset)
             (taylor-exact brf)
             (taylor-exp (zero-series arg*)))]
        [`(sin ,arg)
         (define arg* (normalize-series (recurse arg)))
+        (match-define (cons arg-offset arg-coeffs) arg*)
         (cond
-          [(positive? (car arg*)) (taylor-exact brf)]
-          [(= (car arg*) 0)
+          [(positive? arg-offset) (taylor-exact brf)]
+          [(= arg-offset 0)
            ; Our taylor-sin function assumes that a0 is 0,
            ; because that way it is especially simple. We correct for this here
            ; We use the identity sin (x + y) = sin x cos y + cos x sin y
-           (taylor-add (taylor-mult (taylor-exact (adder `(sin ,((cdr arg*) 0))))
+           (taylor-add (taylor-mult (taylor-exact (adder `(sin ,(arg-coeffs 0))))
                                     (taylor-cos (zero-series arg*)))
-                       (taylor-mult (taylor-exact (adder `(cos ,((cdr arg*) 0))))
+                       (taylor-mult (taylor-exact (adder `(cos ,(arg-coeffs 0))))
                                     (taylor-sin (zero-series arg*))))]
           [else (taylor-sin (zero-series arg*))])]
        [`(cos ,arg)
         (define arg* (normalize-series (recurse arg)))
+        (match-define (cons arg-offset arg-coeffs) arg*)
         (cond
-          [(positive? (car arg*)) (taylor-exact brf)]
-          [(= (car arg*) 0)
+          [(positive? arg-offset) (taylor-exact brf)]
+          [(= arg-offset 0)
            ; Our taylor-cos function assumes that a0 is 0,
            ; because that way it is especially simple. We correct for this here
            ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-           (taylor-add (taylor-mult (taylor-exact (adder `(cos ,((cdr arg*) 0))))
+           (taylor-add (taylor-mult (taylor-exact (adder `(cos ,(arg-coeffs 0))))
                                     (taylor-cos (zero-series arg*)))
-                       (taylor-negate (taylor-mult (taylor-exact (adder `(sin ,((cdr arg*) 0))))
+                       (taylor-negate (taylor-mult (taylor-exact (adder `(sin ,(arg-coeffs 0))))
                                                    (taylor-sin (zero-series arg*)))))]
           [else (taylor-cos (zero-series arg*))])]
        [`(log ,arg) (taylor-log var (recurse arg))]
@@ -227,19 +230,19 @@
         (loop (+ n 1))
         n)))
 
-(define (align-series . serieses)
-  ;(->* () #:rest (listof term?) (listof term?))
-  (cond
-    [(or (<= (length serieses) 1) (apply = (map car serieses))) serieses]
-    [else
-     (define offset* (car (argmax car serieses)))
-     (for/list ([series serieses])
-       (define offset (car series))
-       (cons offset*
-             (λ (n)
-               (if (negative? (+ n (- offset offset*)))
-                   (adder 0)
-                   ((cdr series) (+ n (- offset offset*)))))))]))
+(define (align-series left right)
+  ;(-> term? term? (values number? (-> number? batchref?) (-> number? batchref?)))
+  (match-define (cons left-offset left-coeffs) left)
+  (match-define (cons right-offset right-coeffs) right)
+  (define target-offset (max left-offset right-offset))
+  (define (shift offset coeffs)
+    (define shift-offset (- offset target-offset))
+    (λ (n)
+      (define index (+ n shift-offset))
+      (if (negative? index)
+          (adder 0)
+          (coeffs index))))
+  (values target-offset (shift left-offset left-coeffs) (shift right-offset right-coeffs)))
 
 (define-syntax-rule (make-series n offset cache n* body ...)
   (cons offset
@@ -251,31 +254,29 @@
                 (dvector-set! cache n* value))))
           (dvector-ref cache n))))
 
-(define (taylor-add . terms)
-  ;(->* () #:rest (listof term?) term?)
-  (match-define `((,offset . ,serieses) ...) (apply align-series terms))
+(define (taylor-add left right)
+  ;(-> term? term? term?)
+  (define-values (offset left-coeffs right-coeffs) (align-series left right))
   (define cache (make-dvector 10))
-  (make-series n
-               (car offset)
-               cache
-               n*
-               (make-sum (for/list ([series serieses])
-                           (series n*)))))
+  (make-series n offset cache n* `(+ ,(left-coeffs n*) ,(right-coeffs n*))))
 
 (define (taylor-negate term)
   ;(-> term? term?)
+  (match-define (cons offset coeffs) term)
   (define cache (make-dvector 10))
-  (make-series n (car term) cache n* (list 'neg ((cdr term) n*))))
+  (make-series n offset cache n* (list 'neg (coeffs n*))))
 
 (define (taylor-mult left right)
   ;(-> term? term? term?)
+  (match-define (cons left-offset left-coeffs) left)
+  (match-define (cons right-offset right-coeffs) right)
   (define cache (make-dvector 10))
   (make-series n
-               (+ (car left) (car right))
+               (+ left-offset right-offset)
                cache
                n*
                (make-sum (for/list ([i (range (+ n* 1))])
-                           (list '* ((cdr left) i) ((cdr right) (- n* i)))))))
+                           (list '* (left-coeffs i) (right-coeffs (- n* i)))))))
 
 (define (normalize-series series)
   ;(-> term? term?)
@@ -287,9 +288,10 @@
 
 (define ((zero-series series) n)
   ;(-> (cons/c number? (-> number? batchref?)) (-> number? batchref?))
-  (if (< n (- (car series)))
+  (match-define (cons offset coeffs) series)
+  (if (< n (- offset))
       (adder 0)
-      ((cdr series) (+ n (car series)))))
+      (coeffs (+ n offset))))
 
 (define (taylor-invert term)
   ;(-> term? term?)
