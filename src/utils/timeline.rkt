@@ -186,7 +186,7 @@
 
 (define-timeline memory [live +] [alloc +])
 (define-timeline method [method])
-(define-timeline mixsample [time +] [function false] [precision false])
+(define-timeline mixsample [time +] [function false] [precision false] [memory +])
 (define-timeline times [time +] [input false])
 (define-timeline series [time +] [var false] [transform false])
 (define-timeline compiler [before +] [after +])

@@ -1,0 +1,6 @@
+body { max-width: 50em; margin: 2em auto; }
+
+table, figure { margin: 2em 0; width: 100%; table-layout: fixed; }
+tr.right th { text-align: right; }
+th:first-child { text-align: left; }
+td { text-align: right; }

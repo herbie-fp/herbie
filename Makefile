@@ -13,10 +13,12 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Uninstalled old egg-herbie" || :
+	raco pkg remove --force --no-docs rival && echo "Uninstalled old rival" || :
 
 update:
+	raco pkg install --skip-installed --no-docs --auto --name rival ./rival
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/
-	raco pkg update --auto rival
+	raco pkg update --auto --name rival ./rival
 	raco pkg update --name herbie --deps search-auto src/
 
 egg-herbie:

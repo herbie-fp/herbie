@@ -16,6 +16,12 @@
          "../utils/timeline.rkt"
          "../syntax/types.rkt")
 
+(define execution-memory-accessor
+  (dynamic-require 'rival 'execution-memory (lambda () (lambda (_) 0))))
+
+(define (execution-memory-bytes execution)
+  (execution-memory-accessor execution))
+
 (provide (struct-out real-compiler)
          (contract-out
           [make-real-compiler
@@ -128,7 +134,11 @@
     (define name (symbol->string (execution-name execution)))
     (define precision
       (- (execution-precision execution) (remainder (execution-precision execution) prec-threshold)))
-    (timeline-push!/unsafe 'mixsample (execution-time execution) name precision))
+    (timeline-push!/unsafe 'mixsample
+                           (execution-time execution)
+                           name
+                           precision
+                           (execution-memory execution)))
   (timeline-push!/unsafe 'outcomes
                          (- (current-inexact-milliseconds) start)
                          (rival-profile machine 'iterations)
