@@ -16,7 +16,7 @@ clean:
 
 update:
 # 	raco pkg install --skip-installed --no-docs --auto --name rival 'https://github.com/herbie-fp/rival/archive/refs/heads/memory-profile.zip'
-	raco pkg install --skip-installed --no-docs --auto --name rival 'https://github.com/herbie-fp/rival/archive/refs/heads/direct-rounding-mode.zip'
+	raco pkg install --skip-installed --no-docs --auto --type git --name rival 'git+https://github.com/herbie-fp/rival.git#direct-rounding-mode'
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/
 	raco pkg update --name herbie --deps search-auto src/
 
