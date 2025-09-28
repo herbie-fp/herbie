@@ -343,9 +343,9 @@
   (define reachable (reachable-indices ivec expr))
   (define id->name (make-hash))
   (for ([expr (in-vector ivec)]
-        [idx (in-naturals)])
-    (when (and expr (set-member? reachable idx))
-      (hash-set! id->name idx (gensym))))
+        [idx (in-naturals)]
+        #:when (and expr (set-member? reachable idx)))
+    (hash-set! id->name idx (gensym)))
 
   (for/fold ([body (remove-indices id->name expr)]) ([idx (in-list (sort (hash-keys id->name) >))])
     (define var (hash-ref id->name idx))
