@@ -1,5 +1,4 @@
 .PHONY: help install egg-herbie nightly index start-server deploy
-
 help:
 	@echo "Type 'make install' to install Herbie"
 	@echo "Then type 'racket -l herbie web' to run it."
@@ -13,10 +12,12 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Uninstalled old egg-herbie" || :
+	raco pkg remove --force --no-docs rival && echo "Uninstalled old rival" || :
 
 update:
+# 	raco pkg install --skip-installed --no-docs --auto --name rival 'https://github.com/herbie-fp/rival/archive/refs/heads/memory-profile.zip'
+	raco pkg install --skip-installed --no-docs --auto --name rival 'https://github.com/herbie-fp/rival/archive/refs/heads/direct-rounding-mode.zip'
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/
-	raco pkg update --auto rival
 	raco pkg update --name herbie --deps search-auto src/
 
 egg-herbie:
