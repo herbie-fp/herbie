@@ -158,7 +158,7 @@
        [(? number?) (taylor-exact brf)]
        [(? symbol?) (taylor-exact brf)]
        [`(,const) (taylor-exact brf)]
-       [`(+ ,args ...) (apply taylor-add (map recurse args))]
+       [`(+ ,arg1 ,arg2) (taylor-add (recurse arg1) (recurse arg2))]
        [`(neg ,arg) (taylor-negate (recurse arg))]
        [`(* ,left ,right) (taylor-mult (recurse left) (recurse right))]
        [`(/ ,num ,den)
@@ -228,20 +228,6 @@
         (loop (+ n 1))
         n)))
 
-(define (align-series . serieses)
-  ;(->* () #:rest (listof term?) (listof term?))
-  (cond
-    [(or (<= (length serieses) 1) (apply = (map car serieses))) serieses]
-    [else
-     (define offset* (car (argmax car serieses)))
-     (for/list ([series serieses])
-       (define offset (car series))
-       (cons offset*
-             (λ (n)
-               (if (negative? (+ n (- offset offset*)))
-                   (adder 0)
-                   ((cdr series) (+ n (- offset offset*)))))))]))
-
 (define (make-series offset builder)
   (define cache (make-dvector 10))
   (define fetch (curry dvector-ref cache))
@@ -253,13 +239,23 @@
     (dvector-ref cache n))
   (cons offset lookup))
 
-(define (taylor-add . terms)
-  ;(->* () #:rest (listof term?) term?)
-  (match-define `((,offset . ,serieses) ...) (apply align-series terms))
-  (make-series (car offset)
-               (λ (f n)
-                 (make-sum (for/list ([series serieses])
-                             (series n))))))
+(define (taylor-add left right)
+  ;(-> term? term? term?)
+  (match-define (cons left-offset left-series) left)
+  (match-define (cons right-offset right-series) right)
+  (define target-offset (max left-offset right-offset))
+  (define (align offset series)
+    (define shift (- offset target-offset))
+    (cond
+      [(zero? shift) series]
+      [else
+       (λ (n)
+         (if (negative? (+ n shift))
+             (adder 0)
+             (series (+ n shift))))]))
+  (define left* (align left-offset left-series))
+  (define right* (align right-offset right-series))
+  (make-series target-offset (λ (f n) (make-sum (list (left* n) (right* n))))))
 
 (define (taylor-negate term)
   ;(-> term? term?)
