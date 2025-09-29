@@ -8,7 +8,8 @@
          "types.rkt"
          "syntax.rkt"
          "../utils/float.rkt"
-         "generators.rkt")
+         "generators.rkt"
+         "../core/batch.rkt")
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
@@ -34,6 +35,7 @@
          impl-exists?
          impl-info
          prog->spec
+         batch-to-spec!
          get-fpcore-impl
          (struct-out $platform)
          ;; Platform API
@@ -98,6 +100,26 @@
      (define spec (impl-info impl 'spec))
      (define env (map cons vars (map prog->spec args)))
      (pattern-substitute spec env)]))
+
+(define (batch-to-spec! batch brfs)
+  (define lower
+    (batch-recurse batch
+                   (lambda (brf recurse)
+                     (define node (deref brf))
+                     (match node
+                       [(? literal?) (batch-push! batch (literal-value node))]
+                       [(? number?) brf]
+                       [(? symbol?) brf]
+                       [(hole _ spec) (recurse spec)]
+                       [(approx spec _) (recurse spec)]
+                       [(list (? impl-exists? impl) args ...)
+                        (define vars (impl-info impl 'vars))
+                        (define spec (impl-info impl 'spec))
+                        (define env (map cons vars (map recurse args)))
+                        (batch-add! batch (pattern-substitute spec env))]
+                       [(list op args ...)
+                        (batch-push! batch (cons op (map (compose batchref-idx recurse) args)))]))))
+  (map lower brfs))
 
 ;; Expression predicates ;;
 
@@ -236,7 +258,7 @@
 
   (printf "Representations:\n")
   (define reprs-data
-    (for/list ([(_ repr) (in-hash reprs)]
+    (for/list ([repr (in-hash-values reprs)]
                [n (in-naturals)])
       (match-define (representation name type _ _ _ _ total-bits _) repr)
       (define cost (hash-ref repr-costs name))
@@ -245,7 +267,7 @@
 
   (printf "\nImplementations\n")
   (define impls-data
-    (for/list ([(_ impl) (in-hash impls)]
+    (for/list ([impl (in-hash-values impls)]
                [n (in-naturals)])
       (define name (operator-impl-name impl))
       (define itype (map representation-name (context-var-reprs (operator-impl-ctx impl))))

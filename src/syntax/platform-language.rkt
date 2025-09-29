@@ -46,11 +46,9 @@
       (match expr
         [(? number?) 'real]
         [(? symbol?)
-         (cond
-           [(assq expr env)
-            =>
-            cdr]
-           [else (bad! "unbound variable `~a`" expr)])]
+         #:when (assq expr env)
+         (cdr (assq expr env))]
+        [(? symbol?) (bad! "unbound variable `~a`" expr)]
         [`(if ,cond ,ift ,iff)
          (define cond-ty (type-of cond))
          (unless (equal? cond-ty 'bool)
@@ -250,7 +248,7 @@
 (define (validate-platform! platform)
   (when (empty? (platform-implementations platform))
     (raise-herbie-error "Platform contains no operations"))
-  (for ([(name impl) (in-hash (platform-implementations platform))])
+  (for ([impl (in-hash-values (platform-implementations platform))])
     (define ctx (operator-impl-ctx impl))
     (for ([repr (in-list (cons (context-repr ctx) (context-var-reprs ctx)))])
       (unless (equal? (hash-ref (platform-representations platform) (representation-name repr) #f)
@@ -305,5 +303,5 @@
 (define (if-impl c t f)
   (if c t f))
 
-(define (if-cost base)
-  (lambda (c t f) (+ base c (max t f))))
+(define ((if-cost base) c t f)
+  (+ base c (max t f)))

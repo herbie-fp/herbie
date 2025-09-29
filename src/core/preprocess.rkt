@@ -70,10 +70,11 @@
   ;; make egg runner
   (define rules (*sound-rules*))
 
-  (define batch (progs->batch (cons spec (map cdr identities))))
+  (define-values (batch brfs) (progs->batch (cons spec (map cdr identities))))
   (define runner
     (make-egraph batch
-                 (make-list (vector-length (batch-roots batch)) (context-repr ctx))
+                 brfs
+                 (make-list (length brfs) (context-repr ctx))
                  `((,rules . ((node . ,(*node-limit*)))))
                  ctx))
 

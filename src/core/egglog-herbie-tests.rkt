@@ -315,7 +315,7 @@
            "../syntax/load-platform.rkt")
   (activate-platform! "c")
 
-  (define batch
+  (define-values (batch brfs)
     (progs->batch (list '(-.f64 (sin.f64 (+.f64 x eps)) (sin.f64 x))
                         '(sin.f64 (+.f64 x eps))
                         '(+.f64 x eps)
@@ -323,7 +323,7 @@
                         'eps
                         '(sin.f64 x))))
 
-  (define batch2
+  (define-values (batch2 brfs2)
     (progs->batch
      (list
       '(-.f64 (sin.f64 (+.f64 x #s(literal 1 binary64))) (sin.f64 x))
@@ -366,7 +366,7 @@
 
   (define ctx (context '(x eps) <binary64> (make-list 2 <binary64>)))
 
-  (define reprs (make-list (vector-length (batch-roots batch)) (context-repr ctx)))
+  (define reprs (make-list (length brfs) (context-repr ctx)))
 
   (define rules (*rules*))
   (define schedule
@@ -375,4 +375,4 @@
       (lower . ((iteration . 1) (scheduler . simple)))))
 
   (when (find-executable-path "egglog")
-    (run-egglog-multi-extractor (egglog-runner batch reprs schedule ctx) batch)))
+    (run-egglog-multi-extractor (egglog-runner batch brfs reprs schedule ctx) batch)))

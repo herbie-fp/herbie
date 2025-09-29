@@ -1,10 +1,12 @@
 #lang racket
 
-(require "../syntax/platform.rkt")
+(require "../syntax/platform.rkt"
+         "../core/batch.rkt")
 (provide (struct-out alt)
          make-alt
          alt-cost
-         alt-map)
+         alt-map
+         unbatchify-alts)
 
 ;; Alts are an expression plus a derivation for it.
 
@@ -19,3 +21,15 @@
 
 (define (alt-map f altn)
   (f (struct-copy alt altn [prevs (map (curry alt-map f) (alt-prevs altn))])))
+
+;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
+(define (unbatchify-alts batch altns)
+  (define exprs (batch-exprs batch))
+  (define (unmunge altn)
+    (define expr (alt-expr altn))
+    (match expr
+      [(? batchref? brf)
+       (define expr* (exprs brf))
+       (struct-copy alt altn [expr expr*])]
+      [_ altn]))
+  (map (curry alt-map unmunge) altns))

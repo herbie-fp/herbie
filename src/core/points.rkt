@@ -13,7 +13,9 @@
          split-pcontext
          pcontext-length
          errors
+         batchref-errors
          batch-errors
+         exprs-errors
          errors-score)
 
 ;; pcontexts are Herbie's standard data structure for storing
@@ -59,19 +61,27 @@
   (apply average (map ulps->bits e)))
 
 (define (errors expr pcontext ctx)
-  (first (batch-errors (list expr) pcontext ctx)))
+  (first (exprs-errors (list expr) pcontext ctx)))
 
-(define (batch-errors exprs pcontext ctx)
+(define (batchref-errors brf pcontext ctx)
+  (first (batch-errors (batchref-batch brf) (list brf) pcontext ctx)))
+
+(define (exprs-errors exprs pcontext ctx)
   (define fn (compile-progs exprs ctx))
+  (define num-exprs (length exprs))
+  (generate-errors fn pcontext ctx num-exprs))
+
+(define (batch-errors batch brfs pcontext ctx)
+  (define fn (compile-batch batch brfs ctx))
+  (define num-exprs (length brfs))
+  (generate-errors fn pcontext ctx num-exprs))
+
+(define (generate-errors fn pcontext ctx num-exprs)
   (define repr (context-repr ctx))
   (define special? (representation-special-value? repr))
   (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
 
   ;; This generates the errors array in reverse because that's how lists work
-  (define num-exprs
-    (if (batch? exprs)
-        (vector-length (batch-roots exprs))
-        (length exprs)))
   (define num-points (pcontext-length pcontext))
   (for/fold ([result (make-list num-exprs '())])
             ([point (in-vector (pcontext-points pcontext) (- num-points 1) -1 -1)]
