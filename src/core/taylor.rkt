@@ -213,11 +213,12 @@
 (define (taylor-exact . terms)
   ;(->* () #:rest (listof batchref?) term?)
   (define items (list->vector (map reducer terms)))
-  (cons 0
-        (λ (n)
-          (if (<= (length terms) n)
-              (adder 0)
-              (vector-ref items n)))))
+  (define len (vector-length items))
+  (make-series 0
+               (λ (f n)
+                 (if (< n len)
+                     (deref (vector-ref items n))
+                     0))))
 
 (define (first-nonzero-exp f)
   ;(-> (-> number? batchref?) number?)
@@ -497,31 +498,31 @@
         `(neg ,x)
         x))
 
-  (define series-cache (make-dvector 10 #f))
-  (dvector-set! series-cache 0 (reducer (adder `(log ,(maybe-negate (coeffs 0))))))
+  (define base
+    (make-series 0
+                 (λ (f n)
+                   (if (zero? n)
+                       `(log ,(maybe-negate (coeffs 0)))
+                       (let ([tmpl (logcompute n)])
+                         `(/ (+ ,@(for/list ([term tmpl])
+                                    (match-define `(,coeff ,k ,ps ...) term)
+                                    `(* ,coeff
+                                        (/ (* ,@(for/list ([i (in-naturals 1)]
+                                                           [p ps])
+                                                  (if (= p 0)
+                                                      1
+                                                      `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
+                                           (exp (* ,(- k) ,(f 0)))))))
+                             ,(factorial n)))))))
 
-  (define (series n)
-    (unless (and (> (dvector-capacity series-cache) n) (dvector-ref series-cache n))
-      (define tmpl (logcompute n))
-      (define res
-        (reducer (adder `(/ (+ ,@(for/list ([term tmpl])
-                                   (match-define `(,coeff ,k ,ps ...) term)
-                                   `(* ,coeff
-                                       (/ (* ,@(for/list ([i (in-naturals 1)]
-                                                          [p ps])
-                                                 (if (= p 0)
-                                                     1
-                                                     `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
-                                          (exp (* ,(- k) ,(series 0)))))))
-                            ,(factorial n)))))
-      (dvector-set! series-cache n res))
-    (dvector-ref series-cache n))
-
-  (cons 0
-        (λ (n)
-          (if (and (= n 0) (not (zero? shift)))
-              (reducer (adder `(+ (* (neg ,shift) (log ,(maybe-negate var))) ,(series 0))))
-              (series n)))))
+  (if (zero? shift)
+      base
+      (taylor-add base
+                  (make-series 0
+                               (λ (f n)
+                                 (if (zero? n)
+                                     `(* (neg ,shift) (log ,(maybe-negate var)))
+                                     0))))))
 
 (module+ test
   (require rackunit)
