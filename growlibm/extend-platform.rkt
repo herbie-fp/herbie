@@ -75,3 +75,5 @@
   (lambda ()
    (displayln operatorStr))
   #:exists 'append)
+
+(displayln (format "adding accelerator ~a, with spec: ~a" link spec))
