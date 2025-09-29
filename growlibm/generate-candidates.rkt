@@ -140,7 +140,7 @@
 
 (define filtered (filter (lambda (p) (< 0.1 (get-error (car p)))) first-1000))
 ;;; (define filtered first-1000)
-(define first-500 (take filtered (min (length filtered) 250)))
+(define first-500 (take filtered (min (length filtered) 100)))
 (define fpcores-out (map to-fpcore-str first-500))
 (define counts-out (map to-count-print first-500))
 
