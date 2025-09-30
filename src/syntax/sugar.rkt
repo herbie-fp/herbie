@@ -99,7 +99,8 @@
       [`(- ,a) `(neg ,(loop a env))]
       [`(/ ,a) `(/ 1 ,(loop a env))]
       ; expand arithmetic associativity
-      [`(,(and (or '+ '- '* '/ 'and 'or) op) ,as ..2 ,b) (list op (loop `(,op ,@as) env) (loop b env))]
+      [`(,(and (or '+ '- '* '/ 'and 'or) op) ,as ..2 ,b)
+       (list op (loop `(,op ,@as) env) (loop b env))]
       ; expand comparison associativity
       [`(,(and (or '< '<= '> '>= '=) op) ,as ...)
        (define as* (map (curryr loop env) as))
