@@ -45,7 +45,7 @@
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
     (list `(lift . ((iteration . 1) (scheduler . simple)))
-          `(,rules . ((node . ,(250000))))
+          `(,rules . ((node . ,100000)))
           `(lower . ((iteration . 1) (scheduler . simple)))))
 
   ; run egg
