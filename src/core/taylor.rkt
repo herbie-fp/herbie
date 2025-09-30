@@ -510,7 +510,9 @@
 
 (define (taylor-log var arg)
   ;(-> symbol? term? term?)
-  (match-define (cons shift coeffs) (normalize-series arg))
+  (define normalized (normalize-series arg))
+  (define shift (series-offset normalized))
+  (define coeffs (series-function normalized))
   (define negate? (and (number? (deref (coeffs 0))) (not (positive? (deref (coeffs 0))))))
   (define (maybe-negate x)
     (if negate?
@@ -560,7 +562,7 @@
                    [add (λ (x) (batch-add! batch x))])
       (define brfs* (map (expand-taylor! batch) brfs))
       (define brf (car brfs*))
-      (match-define fn (zero-series ((taylor 'x batch) brf)))
+      (define fn (zero-series ((taylor 'x batch) brf)))
       (map batch-pull (build-list n fn))))
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
