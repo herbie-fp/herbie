@@ -40,18 +40,19 @@
 
 (define (best-exprs exprs ctxs)
   (define rules (*rules*))
-    (*context* (max-ctx ctxs))
+  (*context* (max-ctx ctxs))
 
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
     (list `(lift . ((iteration . 1) (scheduler . simple)))
-          `(,rules . ((node . ,(*node-limit*))))
+          `(,rules . ((node . ,(250000))))
           `(lower . ((iteration . 1) (scheduler . simple)))))
 
   ; run egg
-  (define batch (progs->batch exprs))
+  (define-values (batch brfs)
+    (progs->batch exprs))
 
-  (define runner (make-egraph batch (map context-repr ctxs) schedule (max-ctx ctxs)))
+  (define runner (make-egraph batch brfs (map context-repr ctxs) schedule (max-ctx ctxs)))
   ; batchrefss is a (listof (listof batchref))
   (define batchrefss (egraph-best runner batch))
   batchrefss)
@@ -89,7 +90,8 @@
   (define best (best-exprs exprs ctxs))
   (for ([b best]
         [c counts])
-    (hash-update! ht (debatchref (first b)) (lambda (n) (+ n c)) 0))
+    (hash-update! ht (batch-pull (first b)) (lambda (n) (+ n c)) 0))
+
   ht)
 
 (define (has-approx expr)
@@ -117,10 +119,12 @@
 (define unflattened-subexprs  (map all-subexpressions lines))
 
 (define subexprs (apply append unflattened-subexprs))
-(define filtered-subexprs (filter (lambda (n) (not (or (symbol? n) (literal? n) (approx? n) (has-approx n)))) subexprs))
-(define filtered-again (filter (lambda (n) (> (length (free-variables n)) 0)) filtered-subexprs))
-(define renamed-subexprs (map rename-vars filtered-again))
+(define filtered-subexprs (filter (lambda (n) 
+                                    (not (or (symbol? n) (literal? n) (approx? n) (has-approx n)))) subexprs))
+(define filtered-again (filter (lambda (n) 
+                                 (> (length (free-variables n)) 0)) filtered-subexprs))
 
+(define renamed-subexprs (map rename-vars filtered-again))
 (define pairs (hash->list (count-frequencies renamed-subexprs)))
 
 (with-output-to-file (string-append report-dir "/report_info.csv")
