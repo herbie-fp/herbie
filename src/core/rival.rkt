@@ -94,6 +94,12 @@
                  machine
                  dump-file))
 
+(define (bigfloat->readable-string x)
+  (define xreal (bigfloat->real x))
+  (if (= xreal (real->double-flonum xreal))
+      (format "#i~a" (real->double-flonum xreal))
+      (number->string xreal)))
+
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
   (match-define (real-compiler _ vars var-reprs _ _ machine dump-file) compiler)
@@ -104,9 +110,9 @@
                  [repr (in-vector var-reprs)])
       ((representation-repr->bf repr) val)))
   (when dump-file
-    (define args (map bigfloat->rational (vector->list pt*)))
+    (define args (map bigfloat->readable-string (vector->list pt*)))
     ;; convert to rational, because Rival reads as exact
-    (pretty-print `(eval f ,@args) dump-file 1))
+    (fprintf dump-file "(eval f ~a)" (string-join args " ")))
   (define-values (status value)
     (with-handlers ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
                     [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
