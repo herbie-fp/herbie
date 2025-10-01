@@ -15,9 +15,11 @@ clean:
 	raco pkg remove --force --no-docs rival && echo "Uninstalled old rival" || :
 
 update:
-# 	raco pkg install --skip-installed --no-docs --auto --name rival 'https://github.com/herbie-fp/rival/archive/refs/heads/memory-profile.zip'
 	raco pkg install --skip-installed --no-docs --auto --type git --name rival 'git+https://github.com/herbie-fp/rival.git#direct-rounding-mode'
+# 	raco pkg install --skip-installed --no-docs --auto --name rival '/Users/aditya/Desktop/rival'
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/
+	raco pkg update --name rival 'git+https://github.com/herbie-fp/rival.git#direct-rounding-mode'
+# 	raco pkg update --name rival '/Users/aditya/Desktop/rival'
 	raco pkg update --name herbie --deps search-auto src/
 
 egg-herbie:
