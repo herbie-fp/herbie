@@ -122,7 +122,8 @@
 (define filtered-subexprs (filter (lambda (n) 
                                     (not (or (symbol? n) (literal? n) (approx? n) (has-approx n)))) subexprs))
 (define filtered-again (filter (lambda (n) 
-                                 (> (length (free-variables n)) 0)) filtered-subexprs))
+                                 (and (> (length (free-variables n)) 0)
+                                      (< (length (free-variables n)) 4))) filtered-subexprs))
 
 (define renamed-subexprs (map rename-vars filtered-again))
 (define pairs (hash->list (count-frequencies renamed-subexprs)))
@@ -144,7 +145,7 @@
 
 (define filtered (filter (lambda (p) (< 0.1 (get-error (car p)))) first-1000))
 ;;; (define filtered first-1000)
-(define first-500 (take filtered (min (length filtered) 100)))
+(define first-500 (take filtered (min (length filtered) 500)))
 (define fpcores-out (map to-fpcore-str first-500))
 (define counts-out (map to-count-print first-500))
 
