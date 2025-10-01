@@ -25,10 +25,11 @@
 
 ; ----------------------- RIVAL GENERATOR ---------------------------
 
-(define/reset caches '()
-  (lambda ()
-    (for ([cache (caches)])
-      (hash-clear! cache))))
+(define/reset caches
+              '()
+              (lambda ()
+                (for ([cache (caches)])
+                  (hash-clear! cache))))
 
 (define-generator ((from-rival) spec ctx)
   (define compiler (make-real-compiler (list spec) (list ctx)))
@@ -36,7 +37,8 @@
   (define cache (make-hash))
   (caches (cons cache (caches)))
   (lambda pt
-    (hash-ref! cache pt
+    (hash-ref! cache
+               pt
                (lambda ()
                  (define-values (_ exs) (real-apply compiler (list->vector pt)))
                  (if exs
