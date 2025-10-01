@@ -247,10 +247,10 @@
     (raise-herbie-error "Platform contains no operations"))
   (for ([impl (in-hash-values (platform-implementations platform))])
     (define ctx (operator-impl-ctx impl))
-    (for ([repr (in-list (cons (context-repr ctx) (context-var-reprs ctx)))])
-      (unless (equal? (hash-ref (platform-representations platform) (representation-name repr) #f)
-                      repr)
-        (raise-herbie-error "Representation ~a not defined" (representation-name repr))))))
+    (for ([repr (in-list (cons (context-repr ctx) (context-var-reprs ctx)))]
+          #:unless
+          (equal? (hash-ref (platform-representations platform) (representation-name repr) #f) repr))
+      (raise-herbie-error "Representation ~a not defined" (representation-name repr)))))
 
 (define-syntax (platform-register-implementations! stx)
   (syntax-case stx ()

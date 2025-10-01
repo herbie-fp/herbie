@@ -28,9 +28,9 @@
      (define-values (pre-dot post-dot e*)
        (match (string-split mantissa "." #:trim? #f)
          [(list pre)
-          (if (= (string-length pre) 1)
-              (values pre "0" e)
-              (values (substring pre 0 1) (substring pre 1) (- (string-length pre) 1)))]
+          #:when (= (string-length pre) 1)
+          (values pre "0" e)]
+         [(list pre) (values (substring pre 0 1) (substring pre 1) (- (string-length pre) 1))]
          [(list "0" s)
           (let loop ([idx 0]
                      [e e])

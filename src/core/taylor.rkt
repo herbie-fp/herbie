@@ -158,7 +158,7 @@
        [(? number?) (taylor-exact brf)]
        [(? symbol?) (taylor-exact brf)]
        [`(,const) (taylor-exact brf)]
-       [`(+ ,args ...) (apply taylor-add (map recurse args))]
+       [`(+ ,arg1 ,arg2) (taylor-add (recurse arg1) (recurse arg2))]
        [`(neg ,arg) (taylor-negate (recurse arg))]
        [`(* ,left ,right) (taylor-mult (recurse left) (recurse right))]
        [`(/ ,num ,den)
@@ -213,11 +213,12 @@
 (define (taylor-exact . terms)
   ;(->* () #:rest (listof batchref?) term?)
   (define items (list->vector (map reducer terms)))
-  (cons 0
-        (λ (n)
-          (if (<= (length terms) n)
-              (adder 0)
-              (vector-ref items n)))))
+  (define len (vector-length items))
+  (make-series 0
+               (λ (f n)
+                 (if (< n len)
+                     (deref (vector-ref items n))
+                     0))))
 
 (define (first-nonzero-exp f)
   ;(-> (-> number? batchref?) number?)
@@ -226,20 +227,6 @@
     (if (and (equal? (deref (f n)) 0) (< n 20))
         (loop (+ n 1))
         n)))
-
-(define (align-series . serieses)
-  ;(->* () #:rest (listof term?) (listof term?))
-  (cond
-    [(or (<= (length serieses) 1) (apply = (map car serieses))) serieses]
-    [else
-     (define offset* (car (argmax car serieses)))
-     (for/list ([series serieses])
-       (define offset (car series))
-       (cons offset*
-             (λ (n)
-               (if (negative? (+ n (- offset offset*)))
-                   (adder 0)
-                   ((cdr series) (+ n (- offset offset*)))))))]))
 
 (define (make-series offset builder)
   (define cache (make-dvector 10))
@@ -252,13 +239,23 @@
     (dvector-ref cache n))
   (cons offset lookup))
 
-(define (taylor-add . terms)
-  ;(->* () #:rest (listof term?) term?)
-  (match-define `((,offset . ,serieses) ...) (apply align-series terms))
-  (make-series (car offset)
-               (λ (f n)
-                 (make-sum (for/list ([series serieses])
-                             (series n))))))
+(define (taylor-add left right)
+  ;(-> term? term? term?)
+  (match-define (cons left-offset left-series) left)
+  (match-define (cons right-offset right-series) right)
+  (define target-offset (max left-offset right-offset))
+  (define (align offset series)
+    (define shift (- offset target-offset))
+    (cond
+      [(zero? shift) series]
+      [else
+       (λ (n)
+         (if (negative? (+ n shift))
+             (adder 0)
+             (series (+ n shift))))]))
+  (define left* (align left-offset left-series))
+  (define right* (align right-offset right-series))
+  (make-series target-offset (λ (f n) (make-sum (list (left* n) (right* n))))))
 
 (define (taylor-negate term)
   ;(-> term? term?)
@@ -497,31 +494,31 @@
         `(neg ,x)
         x))
 
-  (define series-cache (make-dvector 10 #f))
-  (dvector-set! series-cache 0 (reducer (adder `(log ,(maybe-negate (coeffs 0))))))
+  (define base
+    (make-series 0
+                 (λ (f n)
+                   (if (zero? n)
+                       `(log ,(maybe-negate (coeffs 0)))
+                       (let ([tmpl (logcompute n)])
+                         `(/ (+ ,@(for/list ([term tmpl])
+                                    (match-define `(,coeff ,k ,ps ...) term)
+                                    `(* ,coeff
+                                        (/ (* ,@(for/list ([i (in-naturals 1)]
+                                                           [p ps])
+                                                  (if (= p 0)
+                                                      1
+                                                      `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
+                                           (exp (* ,(- k) ,(f 0)))))))
+                             ,(factorial n)))))))
 
-  (define (series n)
-    (unless (and (> (dvector-capacity series-cache) n) (dvector-ref series-cache n))
-      (define tmpl (logcompute n))
-      (define res
-        (reducer (adder `(/ (+ ,@(for/list ([term tmpl])
-                                   (match-define `(,coeff ,k ,ps ...) term)
-                                   `(* ,coeff
-                                       (/ (* ,@(for/list ([i (in-naturals 1)]
-                                                          [p ps])
-                                                 (if (= p 0)
-                                                     1
-                                                     `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
-                                          (exp (* ,(- k) ,(series 0)))))))
-                            ,(factorial n)))))
-      (dvector-set! series-cache n res))
-    (dvector-ref series-cache n))
-
-  (cons 0
-        (λ (n)
-          (if (and (= n 0) (not (zero? shift)))
-              (reducer (adder `(+ (* (neg ,shift) (log ,(maybe-negate var))) ,(series 0))))
-              (series n)))))
+  (if (zero? shift)
+      base
+      (taylor-add base
+                  (make-series 0
+                               (λ (f n)
+                                 (if (zero? n)
+                                     `(* (neg ,shift) (log ,(maybe-negate var)))
+                                     0))))))
 
 (module+ test
   (require rackunit)
