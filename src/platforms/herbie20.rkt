@@ -192,6 +192,10 @@
   #:spec (+ (* x y) z) #:impl (from-libm 'fma)
   #:fpcore (! :precision binary64 (fma x y z)) #:cost 256)
 
+(define-operation (add5 [z0 <binary64>] [z1 <binary64>] [z2 <binary64>] [z3 <binary64>] [z4 <binary64>]) <binary64> 
+  #:spec (+ (+ (+ (+ z0 z1) z2) z3) z4) #:impl (from-rival) 
+  #:fpcore (! :precision binary64 (add5 z0)) #:cost 200)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; CASTS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-operation (binary64->binary32 [x <binary64>]) <binary32>
