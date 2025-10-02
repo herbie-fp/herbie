@@ -96,7 +96,7 @@
 
 (define (bigfloat->readable-string x)
   (define real (bigfloat->real x)) ; Exact rational unless inf/nan
-  (define float (real->double-flonum xreal))
+  (define float (real->double-flonum real))
   (if (= real float)
       (format "#i~a" float) ; The #i explicitly means nearest float
       (number->string real))) ; Backup is print as rational
