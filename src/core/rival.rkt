@@ -142,7 +142,7 @@
   (timeline-push!/unsafe 'outcomes
                          (- (current-inexact-milliseconds) start)
                          (rival-profile machine 'iterations)
-                         (~a status)
+                         (symbol->string status)
                          1)
   (values status value))
 
