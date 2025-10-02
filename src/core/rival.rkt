@@ -95,10 +95,11 @@
                  dump-file))
 
 (define (bigfloat->readable-string x)
-  (define xreal (bigfloat->real x))
-  (if (= xreal (real->double-flonum xreal))
-      (format "#i~a" (real->double-flonum xreal))
-      (number->string xreal)))
+  (define real (bigfloat->real x)) ; Exact rational unless inf/nan
+  (define float (real->double-flonum xreal))
+  (if (= real float)
+      (format "#i~a" float) ; The #i explicitly means nearest float
+      (number->string real))) ; Backup is print as rational
 
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
