@@ -112,7 +112,6 @@
       ((representation-repr->bf repr) val)))
   (when dump-file
     (define args (map bigfloat->readable-string (vector->list pt*)))
-    ;; convert to rational, because Rival reads as exact
     (fprintf dump-file "(eval f ~a)\n" (string-join args " ")))
   (define-values (status value)
     (with-handlers ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
