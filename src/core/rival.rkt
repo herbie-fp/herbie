@@ -94,6 +94,13 @@
                  machine
                  dump-file))
 
+(define (bigfloat->readable-string x)
+  (define real (bigfloat->real x)) ; Exact rational unless inf/nan
+  (define float (real->double-flonum real))
+  (if (= real float)
+      (format "#i~a" float) ; The #i explicitly means nearest float
+      (number->string real))) ; Backup is print as rational
+
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
   (match-define (real-compiler _ vars var-reprs _ _ machine dump-file) compiler)
@@ -104,9 +111,8 @@
                  [repr (in-vector var-reprs)])
       ((representation-repr->bf repr) val)))
   (when dump-file
-    (define args (map bigfloat->rational (vector->list pt*)))
-    ;; convert to rational, because Rival reads as exact
-    (pretty-print `(eval f ,@args) dump-file 1))
+    (define args (map bigfloat->readable-string (vector->list pt*)))
+    (fprintf dump-file "(eval f ~a)\n" (string-join args " ")))
   (define-values (status value)
     (with-handlers ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
                     [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
@@ -136,7 +142,7 @@
   (timeline-push!/unsafe 'outcomes
                          (- (current-inexact-milliseconds) start)
                          (rival-profile machine 'iterations)
-                         (~a status)
+                         (symbol->string status)
                          1)
   (values status value))
 
