@@ -162,6 +162,8 @@
 
 (define (render-phase-mixed-sampling mixsample)
   (define total-time (apply + (map first mixsample)))
+  (define (format-memory-bytes bytes)
+    (format "~a MiB" (~r (/ bytes (expt 2 20)) #:precision '(= 1))))
   `((dt "Precisions")
     (dd (details
          (summary "Click to see histograms. Total time spent on operations: "
@@ -173,14 +175,19 @@
                         (define op (second (car rec)))
                         (define precisions (map third rec))
                         (define times (map first rec))
+                        (define memories (map fourth rec))
+
                         (define time-per-op (round (apply + times)))
+                        (define memory-per-op (apply + memories))
 
                         (list `(details (summary (code ,op)
                                                  ": "
                                                  ,(format-time time-per-op)
                                                  " ("
                                                  ,(format-percent time-per-op total-time)
-                                                 " of total)")
+                                                 " of total, "
+                                                 ,(format-memory-bytes memory-per-op)
+                                                 ")")
                                         (canvas ([id ,(format "calls-~a" n)]
                                                  [title
                                                   "Histogram of precisions of the used operation"]))
