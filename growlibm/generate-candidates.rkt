@@ -45,7 +45,7 @@
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
     (list `(lift . ((iteration . 1) (scheduler . simple)))
-          `(,rules . ((node . ,250000)))
+          `(,rules . ((node . ,100000)))
           `(lower . ((iteration . 1) (scheduler . simple)))))
 
   ; run egg
@@ -119,11 +119,13 @@
 (define unflattened-subexprs  (map all-subexpressions lines))
 
 (define subexprs (apply append unflattened-subexprs))
-(define filtered-subexprs (filter (lambda (n) 
+(define filtered-subexprs (filter (lambda (n)
                                     (not (or (symbol? n) (literal? n) (approx? n) (has-approx n)))) subexprs))
-(define filtered-again (filter (lambda (n) 
-                                 (and (> (length (free-variables n)) 0)
-                                      (< (length (free-variables n)) 4))) filtered-subexprs))
+;;; (define filtered-again (filter (lambda (n)
+;;;                                  (and (> (length (free-variables n)) 0)
+;;;                                       (< (length (free-variables n)) 4))) filtered-subexprs))
+(define filtered-again (filter (lambda (n)
+                                 (> (length (free-variables n)) 0)) filtered-subexprs))
 
 (define renamed-subexprs (map rename-vars filtered-again))
 (define pairs (hash->list (count-frequencies renamed-subexprs)))
