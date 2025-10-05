@@ -47,7 +47,7 @@
                         (displayln (format "~a not found" input-str))
                         0)))
     (define score (if (number? end-val)
-                    (* end-val count)
+                      (* (* end-val end-val) count)
                     0))
     (list input-str link end-val score)))
 
