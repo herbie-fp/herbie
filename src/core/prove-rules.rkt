@@ -76,7 +76,7 @@
     [`(== (+ ,(? number? a) ,b) ,c) `(== (+ ,b ,a) ,c)] ; canonicalize
     [`(== (- ,(? number? a) ,b) ,c) `(== (neg (- ,b ,a)) ,c)] ; canonicalize
     [`(<= ,a ,b) `(or (< ,a ,b) (== ,a ,b))] ; canonicalize
-
+  
     [`(== (cbrt ,a) 0) `(== ,a 0)]
     [`(== (sqrt ,a) 0) `(== ,a 0)]
     [`(== (neg ,a) 0) `(== ,a 0)]
@@ -84,19 +84,19 @@
     [`(== (* ,a ,b) 0) `(or (== ,a 0) (== ,b 0))]
     [`(== (/ ,a ,b) 0) `(== ,a 0)]
     [`(== (pow ,a ,b) 0) `(and (== ,a 0) (> ,b 0))]
-
+  
     [`(== (fabs ,a) 1) `(or (== ,a 1) (== ,a -1))]
     [`(== (+ ,x 1) 0) `(== ,x -1)]
     [`(== (- ,a 1) 0) `(== ,a 1)]
     [`(== (* ,a ,a) 1) `(== (fabs ,a) 1)]
-
+  
     [`(< (* ,a ,a) 0) '(FALSE)]
     [`(< (sqrt ,a) 0) '(FALSE)]
     [`(,(or '< '==) (cosh ,a) ,(? (conjoin number? (curryr < 1)))) '(FALSE)]
     [`(,(or '< '==) (exp ,a) ,(? (conjoin number? (curryr <= 0)))) '(FALSE)]
     [`(,(or '< '==) (* ,a ,a) ,(? (conjoin number? (curryr < 0)))) '(FALSE)]
     [`(,(or '< '==) (fabs ,a) ,(? (conjoin number? (curryr < 0)))) '(FALSE)]
-
+  
     [`(< (/ 1 ,a) 0) `(< ,a 0)]
     [`(> (/ 1 ,a) 0) `(> ,a 0)]
     [`(< (/ -1 ,a) 0) `(> ,a 0)]
@@ -109,32 +109,31 @@
     [`(< (- ,a 1) ,(? number? b)) `(< ,a ,(+ b 1))]
     [`(< (- 1 ,x) 0) `(< 1 ,x)]
     [`(< (cbrt ,a) 0) `(< ,a 0)]
-
+  
     [`(< (* ,a ,a) 1) `(< (fabs ,a) 1)]
     [`(< 1 (* ,a ,a)) `(< 1 (fabs ,a))]
-
+  
     [`(== (+ ,x (sqrt (+ (* ,x ,x) 1))) 0) '(FALSE)]
     [`(== (+ ,x (sqrt (- (* ,x ,x) 1))) 0) '(FALSE)]
     [`(< (+ ,x (sqrt (+ (* ,x ,x) 1))) 0) '(FALSE)]
     [`(< (+ ,x (sqrt (- (* ,x ,x) 1))) 0) `(<= x -1)]
-
+  
     [`(< 1 (fabs (,(or 'cos 'sin) x))) '(FALSE)]
-
+  
     [`(== (/ (+ 1 ,x) (- 1 ,x)) 0) `(== ,x -1)]
     [`(< (/ (+ 1 ,x) (- 1 ,x)) 0) `(< 1 (fabs x))]
-
+  
     [`(== (+ (cos ,a) (cos ,b)) 0) `(or (== (cos (/ (+ ,a ,b) 2)) 0) (== (cos (/ (- ,a ,b) 2)) 0))]
     [`(== (cos (* 2 ,a)) 0) `(or (== (tan ,a) 1) (== (tan ,a) -1))]
     [`(== (tan ,a) 0) `(== (sin ,a) 0)]
-
+  
     [`(even-denominator? (neg ,b)) `(even-denominator? ,b)]
     [`(even-denominator? (+ ,b 1)) `(even-denominator? ,b)]
     [`(even-denominator? (/ ,b 3)) `(even-denominator? ,b)]
     [`(even-denominator? ,(? rational? a))
-     (if (even? (denominator a))
-         '(TRUE)
-         '(FALSE))]
-
+     #:when (even? (denominator a))
+     '(TRUE)]
+    [`(even-denominator? ,(? rational? a)) '(FALSE)]
     [`(and ,sub ...)
      (define subs (map (compose simplify-conditions list) sub))
      (define conjunctions (apply cartesian-product subs))
