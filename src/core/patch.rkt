@@ -96,10 +96,11 @@
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
 
   (define runner
-    (if (flag-set? 'generate 'egglog)
-        (let-values ([(batch* brfs*) (batch-copy-only global-batch brfs)])
-          (make-egglog-runner batch* brfs* reprs schedule (*context*)))
-        (make-egraph global-batch brfs reprs schedule (*context*))))
+    (cond
+      [(flag-set? 'generate 'egglog)
+       (define-values (batch* brfs*) (batch-copy-only global-batch brfs))
+       (make-egglog-runner batch* brfs* reprs schedule (*context*))]
+      [else (make-egraph global-batch brfs reprs schedule (*context*))]))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
@@ -168,10 +169,11 @@
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
 
   (define runner
-    (if (flag-set? 'generate 'egglog)
-        (let-values ([(batch* brfs*) (batch-copy-only global-batch brfs)])
-          (make-egglog-runner batch* brfs* reprs schedule (*context*)))
-        (make-egraph global-batch brfs reprs schedule (*context*))))
+    (cond
+      [(flag-set? 'generate 'egglog)
+       (define-values (batch* brfs*) (batch-copy-only global-batch brfs))
+       (make-egglog-runner batch* brfs* reprs schedule (*context*))]
+      [else (make-egraph global-batch brfs reprs schedule (*context*))]))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
