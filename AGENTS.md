@@ -9,6 +9,21 @@
 - You can also run the unit tests with `raco test <file>`, when unit
   tests exist. Often they don't.
 
+# Profiling
+
+- Herbie generates a profile by default; run the `report` command
+  above and look at `tmp/<benchmark>/profile.json`.
+- You can also run with `--enable dump:trace` to output
+  `dump-trace.json` in chrome://tracing format
+- Additionally `--enable dump:rival` outputs all Rival commands it
+  executes, which can be useful for debugging Rival &
+  arbitrary-precision code.
+
+# Documentation
+
+- Documentation lives in `www/doc/2.3/` and is HTML-formatted. Update
+  it if you change any user-visible options.
+
 # PRs
 
 - PR descriptions should be 1-3 paragraphs in length. Describe the
