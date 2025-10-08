@@ -139,71 +139,63 @@
   (define-values (cost* aggregate*) (check-cost! name cost))
   (operator-impl name ctx spec (fpcore-parameterize (or fpcore spec)) fl-proc* cost* aggregate*))
 
+;; Generic keyword parser for syntax (at compile-time)
+(begin-for-syntax
+  (define (parse-keyword-fields stx fields-stx allowed-keywords)
+    (define macro-name (syntax-e (car (syntax-e stx))))
+    (define (oops! why [sub-stx #f])
+      (raise-syntax-error macro-name why stx sub-stx))
+
+    (define result-hash (make-hasheq))
+
+    (let loop ([fields fields-stx])
+      (syntax-case fields ()
+        [() result-hash]
+        [(kw val rest ...)
+         (keyword? (syntax-e #'kw))
+         (let ([kw-sym (string->symbol (keyword->string (syntax-e #'kw)))])
+           (unless (member kw-sym allowed-keywords)
+             (oops! (format "unknown keyword ~a" (syntax-e #'kw)) #'kw))
+           (when (hash-has-key? result-hash kw-sym)
+             (oops! (format "multiple ~a clauses" (syntax-e #'kw)) #'kw))
+           (hash-set! result-hash kw-sym #'val)
+           (loop #'(rest ...)))]
+        [(kw)
+         (keyword? (syntax-e #'kw))
+         (oops! (format "expected value after keyword ~a" (syntax-e #'kw)) #'kw)]
+        [_ (oops! "bad syntax" fields)]))))
+
 (define-syntax (make-operator-impl stx)
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'make-operator-impl why stx sub-stx))
   (syntax-case stx (:)
-    [(_ (id [var : repr] ...) rtype fields ...)
+    [(_ (id [var : repr] ...) rtype . fields)
      (let ([id #'id]
-           [vars (syntax->list #'(var ...))]
-           [fields #'(fields ...)])
+           [vars (syntax->list #'(var ...))])
        (unless (identifier? id)
          (oops! "expected identifier" id))
        (for ([var (in-list vars)]
              #:unless (identifier? var))
          (oops! "expected identifier" var))
-       (define spec #f)
-       (define core #f)
-       (define fl-expr #f)
-       (define op-cost #f)
 
-       (let loop ([fields fields])
-         (syntax-case fields ()
-           [()
-            (unless spec
-              (oops! "missing `#:spec` keyword"))
-            (with-syntax ([id id]
-                          [spec spec]
-                          [core core]
-                          [fl-expr fl-expr]
-                          [op-cost op-cost])
-              #'(create-operator-impl! 'id
-                                       (context '(var ...) rtype (list repr ...))
-                                       'spec
-                                       #:impl fl-expr
-                                       #:fpcore 'core
-                                       #:cost op-cost))]
-           [(#:spec expr rest ...)
-            (cond
-              [spec (oops! "multiple #:spec clauses" stx)]
-              [else
-               (set! spec #'expr)
-               (loop #'(rest ...))])]
-           [(#:spec) (oops! "expected value after keyword `#:spec`" stx)]
-           [(#:fpcore expr rest ...)
-            (cond
-              [core (oops! "multiple #:fpcore clauses" stx)]
-              [else
-               (set! core #'expr)
-               (loop #'(rest ...))])]
-           [(#:fpcore) (oops! "expected value after keyword `#:fpcore`" stx)]
-           [(#:impl expr rest ...)
-            (cond
-              [fl-expr (oops! "multiple #:fl clauses" stx)]
-              [else
-               (set! fl-expr #'expr)
-               (loop #'(rest ...))])]
-           [(#:impl) (oops! "expected value after keyword `#:fl`" stx)]
-           [(#:cost cost rest ...)
-            (cond
-              [op-cost (oops! "multiple #:cost clauses" stx)]
-              [else
-               (set! op-cost #'cost)
-               (loop #'(rest ...))])]
-           [(#:cost) (oops! "expected value after keyword `#:cost`" stx)]
+       (define keywords (parse-keyword-fields stx #'fields '(spec fpcore impl cost)))
 
-           ; bad
-           [_ (oops! "bad syntax" fields)])))]
+       (unless (hash-has-key? keywords 'spec)
+         (oops! "missing `#:spec` keyword"))
+
+       ;; Build argument list for create-operator-impl!
+       ;; Quote spec and fpcore, leave impl and cost unquoted
+       (with-syntax ([name (datum->syntax stx (syntax->datum id))]
+                     [spec-val (hash-ref keywords 'spec)]
+                     [fpcore-val (hash-ref keywords 'fpcore #f)]
+                     [impl-val (hash-ref keywords 'impl #f)]
+                     [cost-val (hash-ref keywords 'cost #f)])
+         #'(create-operator-impl! 'name
+                                  (context '(var ...) rtype (list repr ...))
+                                  'spec-val
+                                  #:impl impl-val
+                                  #:fpcore 'fpcore-val
+                                  #:cost cost-val)))]
     [_ (oops! "bad syntax")]))
 
 ;; Platform registration functions moved from platform.rkt
