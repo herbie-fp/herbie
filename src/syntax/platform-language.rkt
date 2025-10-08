@@ -107,8 +107,7 @@
   (define fl-proc*
     (match fl-proc
       [(? generator?) ((generator-gen fl-proc) spec ctx)]
-      [(? procedure?) fl-proc]
-      [#f (error 'define-operation "fl-proc is not provided for `~a` implementation" name)]))
+      [(? procedure?) fl-proc]))
   (unless (procedure-arity-includes? fl-proc* (length (context-vars ctx)) #t)
     (error 'define-operation
            "Procedure `~a` accepts ~a arguments, but ~a is provided"
@@ -121,30 +120,32 @@
   (match cost
     [(? number?) (values cost +)]
     [(? procedure?) (values 0 cost)]
-    [#f (error 'define-operation "Missing cost for ~a" name)]
     [_ (error 'define-operation "Invalid cost for ~a: ~a" name cost)]))
 
 (define/contract (create-operator-impl! name
                                         ctx
-                                        spec
-                                        #:impl [fl-proc #f]
-                                        #:fpcore [fpcore #f]
-                                        #:cost [cost #f])
-  (->* (symbol? context? any/c)
-       (#:impl (or/c procedure? generator? #f) #:fpcore any/c #:cost (or/c #f real? procedure?))
-       operator-impl?)
+                                        #:spec spec
+                                        #:impl fl-proc
+                                        #:fpcore fpcore
+                                        #:cost cost)
+  (-> symbol?
+      context?
+      #:spec any/c
+      #:impl (or/c procedure? generator?)
+      #:fpcore any/c
+      #:cost (or/c real? procedure?)
+      operator-impl?)
   (check-spec! name ctx spec)
-  (check-fpcore! name (or fpcore spec))
+  (check-fpcore! name fpcore)
   (define fl-proc* (check-fl-proc! name ctx fl-proc spec))
   (define-values (cost* aggregate*) (check-cost! name cost))
-  (operator-impl name ctx spec (fpcore-parameterize (or fpcore spec)) fl-proc* cost* aggregate*))
+  (operator-impl name ctx spec (fpcore-parameterize fpcore) fl-proc* cost* aggregate*))
 
 ;; Generic keyword parser for syntax (at compile-time)
 (begin-for-syntax
-  (define (parse-keyword-fields stx fields-stx allowed-keywords)
-    (define macro-name (syntax-e (car (syntax-e stx))))
+  (define (parse-keyword-fields stx fields-stx allowed-keywords op-name)
     (define (oops! why [sub-stx #f])
-      (raise-syntax-error macro-name why stx sub-stx))
+      (raise-syntax-error op-name why stx sub-stx))
 
     (define result-hash (make-hasheq))
 
@@ -170,29 +171,33 @@
     (raise-syntax-error 'make-operator-impl why stx sub-stx))
   (syntax-case stx (:)
     [(_ (id [var : repr] ...) rtype . fields)
-     (let ([id #'id]
+     (let ([op-name #'id]
            [vars (syntax->list #'(var ...))])
-       (unless (identifier? id)
-         (oops! "expected identifier" id))
+       (unless (identifier? op-name)
+         (oops! "expected identifier" op-name))
        (for ([var (in-list vars)]
              #:unless (identifier? var))
          (oops! "expected identifier" var))
 
-       (define keywords (parse-keyword-fields stx #'fields '(spec fpcore impl cost)))
+       (define keywords (parse-keyword-fields stx #'fields '(spec fpcore impl cost) op-name))
 
        (unless (hash-has-key? keywords 'spec)
-         (oops! "missing `#:spec` keyword"))
+         (raise-syntax-error op-name "missing `#:spec` keyword" stx))
+       (unless (hash-has-key? keywords 'impl)
+         (raise-syntax-error op-name "missing `#:impl` keyword" stx))
+       (unless (hash-has-key? keywords 'cost)
+         (raise-syntax-error op-name "missing `#:cost` keyword" stx))
 
        ;; Build argument list for create-operator-impl!
        ;; Quote spec and fpcore, leave impl and cost unquoted
-       (with-syntax ([name (datum->syntax stx (syntax->datum id))]
-                     [spec-val (hash-ref keywords 'spec)]
-                     [fpcore-val (hash-ref keywords 'fpcore #f)]
-                     [impl-val (hash-ref keywords 'impl #f)]
-                     [cost-val (hash-ref keywords 'cost #f)])
-         #'(create-operator-impl! 'name
+       ;; Default fpcore to spec if not provided
+       (with-syntax ([spec-val (hash-ref keywords 'spec)]
+                     [fpcore-val (hash-ref keywords 'fpcore (hash-ref keywords 'spec))]
+                     [impl-val (hash-ref keywords 'impl)]
+                     [cost-val (hash-ref keywords 'cost)])
+         #'(create-operator-impl! 'id
                                   (context '(var ...) rtype (list repr ...))
-                                  'spec-val
+                                  #:spec 'spec-val
                                   #:impl impl-val
                                   #:fpcore 'fpcore-val
                                   #:cost cost-val)))]
