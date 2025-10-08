@@ -84,6 +84,46 @@
       [(list arg ...) (map loop arg)]
       [_ ctx])))
 
+(define (check-fpcore! name fpcore)
+  (match (fpcore-parameterize fpcore)
+    [`(! ,props ... (,op ,args ...))
+     (unless (even? (length props))
+       (error 'define-operation "~a: unmatched property in ~a" name fpcore))
+     (unless (symbol? op)
+       (error 'define-operation "~a: expected symbol `~a`" name op))
+     (for ([arg (in-list args)]
+           #:unless (or (symbol? arg) (number? arg)))
+       (error 'define-operation "~a: expected terminal `~a`" name arg))]
+    [`(,op ,args ...)
+     (unless (symbol? op)
+       (error 'define-operation "~a: expected symbol `~a`" name op))
+     (for ([arg (in-list args)]
+           #:unless (or (symbol? arg) (number? arg)))
+       (error 'define-operation "~a: expected terminal `~a`" name arg))]
+    [(? symbol?) (void)]
+    [_ (error 'define-operation "Invalid fpcore for ~a: ~a" name fpcore)]))
+
+(define (check-fl-proc! name ctx fl-proc spec)
+  (define fl-proc*
+    (match fl-proc
+      [(? generator?) ((generator-gen fl-proc) spec ctx)]
+      [(? procedure?) fl-proc]
+      [#f (error 'define-operation "fl-proc is not provided for `~a` implementation" name)]))
+  (unless (procedure-arity-includes? fl-proc* (length (context-vars ctx)) #t)
+    (error 'define-operation
+           "Procedure `~a` accepts ~a arguments, but ~a is provided"
+           name
+           (procedure-arity fl-proc*)
+           (length (context-vars ctx))))
+  fl-proc*)
+
+(define (check-cost! name cost)
+  (match cost
+    [(? number?) (values cost +)]
+    [(? procedure?) (values 0 cost)]
+    [#f (error 'define-operation "Missing cost for ~a" name)]
+    [_ (error 'define-operation "Invalid cost for ~a: ~a" name cost)]))
+
 (define/contract (create-operator-impl! name
                                         ctx
                                         spec
@@ -93,48 +133,10 @@
   (->* (symbol? context? any/c)
        (#:impl (or/c procedure? generator? #f) #:fpcore any/c #:cost (or/c #f real? procedure?))
        operator-impl?)
-  ;; check specification
   (check-spec! name ctx spec)
-  ;; synthesize operator (if the spec contains exactly one operator)
-  (define op
-    (match spec
-      [(list op (or (? number?) (? symbol?)) ...) op]
-      [_ #f]))
-  ;; check FPCore translation
-  (match (fpcore-parameterize (or fpcore spec))
-    [`(! ,props ... (,op ,args ...))
-     (unless (even? (length props))
-       (error 'create-operator-impl! "~a: umatched property in ~a" name fpcore))
-     (unless (symbol? op)
-       (error 'create-operator-impl! "~a: expected symbol `~a`" name op))
-     (for ([arg (in-list args)]
-           #:unless (or (symbol? arg) (number? arg)))
-       (error 'create-operator-impl! "~a: expected terminal `~a`" name arg))]
-    [`(,op ,args ...)
-     (unless (symbol? op)
-       (error 'create-operator-impl! "~a: expected symbol `~a`" name op))
-     (for ([arg (in-list args)]
-           #:unless (or (symbol? arg) (number? arg)))
-       (error 'create-operator-impl! "~a: expected terminal `~a`" name arg))]
-    [(? symbol?) (void)]
-    [_ (error 'create-operator-impl! "Invalid fpcore for ~a: ~a" name fpcore)])
-  ;; check or synthesize floating-point operation
-  (define fl-proc*
-    (match fl-proc
-      [(? generator?) ((generator-gen fl-proc) spec ctx)]
-      [(? procedure?) fl-proc]
-      [#f (error 'create-operator-impl! "fl-proc is not provided for `~a` implementation" name)]))
-  (unless (procedure-arity-includes? fl-proc* (length (context-vars ctx)) #t)
-    (error 'arity-check
-           "Procedure `~a` accepts ~a arguments, but ~a is provided"
-           name
-           (procedure-arity fl-proc*)
-           (length (context-vars ctx))))
-  (define-values (cost* aggregate*)
-    (cond
-      [(number? cost) (values cost +)]
-      [(procedure? cost) (values 0 cost)]
-      [else (values cost +)]))
+  (check-fpcore! name (or fpcore spec))
+  (define fl-proc* (check-fl-proc! name ctx fl-proc spec))
+  (define-values (cost* aggregate*) (check-cost! name cost))
   (operator-impl name ctx spec (fpcore-parameterize (or fpcore spec)) fl-proc* cost* aggregate*))
 
 (define-syntax (make-operator-impl stx)
