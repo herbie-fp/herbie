@@ -84,124 +84,123 @@
       [(list arg ...) (map loop arg)]
       [_ ctx])))
 
-(define/contract (create-operator-impl! name
-                                        ctx
-                                        spec
-                                        #:impl [fl-proc #f]
-                                        #:fpcore [fpcore #f]
-                                        #:cost [cost #f])
-  (->* (symbol? context? any/c)
-       (#:impl (or/c procedure? generator? #f) #:fpcore any/c #:cost (or/c #f real? procedure?))
-       operator-impl?)
-  ;; check specification
-  (check-spec! name ctx spec)
-  ;; synthesize operator (if the spec contains exactly one operator)
-  (define op
-    (match spec
-      [(list op (or (? number?) (? symbol?)) ...) op]
-      [_ #f]))
-  ;; check FPCore translation
-  (match (fpcore-parameterize (or fpcore spec))
+(define (check-fpcore! name fpcore)
+  (match (fpcore-parameterize fpcore)
     [`(! ,props ... (,op ,args ...))
      (unless (even? (length props))
-       (error 'create-operator-impl! "~a: umatched property in ~a" name fpcore))
+       (error 'define-operation "~a: unmatched property in ~a" name fpcore))
      (unless (symbol? op)
-       (error 'create-operator-impl! "~a: expected symbol `~a`" name op))
+       (error 'define-operation "~a: expected symbol `~a`" name op))
      (for ([arg (in-list args)]
            #:unless (or (symbol? arg) (number? arg)))
-       (error 'create-operator-impl! "~a: expected terminal `~a`" name arg))]
+       (error 'define-operation "~a: expected terminal `~a`" name arg))]
     [`(,op ,args ...)
      (unless (symbol? op)
-       (error 'create-operator-impl! "~a: expected symbol `~a`" name op))
+       (error 'define-operation "~a: expected symbol `~a`" name op))
      (for ([arg (in-list args)]
            #:unless (or (symbol? arg) (number? arg)))
-       (error 'create-operator-impl! "~a: expected terminal `~a`" name arg))]
+       (error 'define-operation "~a: expected terminal `~a`" name arg))]
     [(? symbol?) (void)]
-    [_ (error 'create-operator-impl! "Invalid fpcore for ~a: ~a" name fpcore)])
-  ;; check or synthesize floating-point operation
+    [_ (error 'define-operation "Invalid fpcore for ~a: ~a" name fpcore)]))
+
+(define (check-fl-proc! name ctx fl-proc spec)
   (define fl-proc*
     (match fl-proc
       [(? generator?) ((generator-gen fl-proc) spec ctx)]
-      [(? procedure?) fl-proc]
-      [#f (error 'create-operator-impl! "fl-proc is not provided for `~a` implementation" name)]))
+      [(? procedure?) fl-proc]))
   (unless (procedure-arity-includes? fl-proc* (length (context-vars ctx)) #t)
-    (error 'arity-check
+    (error 'define-operation
            "Procedure `~a` accepts ~a arguments, but ~a is provided"
            name
            (procedure-arity fl-proc*)
            (length (context-vars ctx))))
-  (define-values (cost* aggregate*)
-    (cond
-      [(number? cost) (values cost +)]
-      [(procedure? cost) (values 0 cost)]
-      [else (values cost +)]))
-  (operator-impl name ctx spec (fpcore-parameterize (or fpcore spec)) fl-proc* cost* aggregate*))
+  fl-proc*)
+
+(define (check-cost! name cost)
+  (match cost
+    [(? number?) (values cost +)]
+    [(? procedure?) (values 0 cost)]
+    [_ (error 'define-operation "Invalid cost for ~a: ~a" name cost)]))
+
+(define/contract (create-operator-impl! name
+                                        ctx
+                                        #:spec spec
+                                        #:impl fl-proc
+                                        #:fpcore fpcore
+                                        #:cost cost)
+  (-> symbol?
+      context?
+      #:spec any/c
+      #:impl (or/c procedure? generator?)
+      #:fpcore any/c
+      #:cost (or/c real? procedure?)
+      operator-impl?)
+  (check-spec! name ctx spec)
+  (check-fpcore! name fpcore)
+  (define fl-proc* (check-fl-proc! name ctx fl-proc spec))
+  (define-values (cost* aggregate*) (check-cost! name cost))
+  (operator-impl name ctx spec (fpcore-parameterize fpcore) fl-proc* cost* aggregate*))
+
+;; Generic keyword parser for syntax (at compile-time)
+(begin-for-syntax
+  (define (parse-keyword-fields stx fields-stx allowed-keywords op-name)
+    (define (oops! why [sub-stx #f])
+      (raise-syntax-error op-name why stx sub-stx))
+
+    (define result-hash (make-hasheq))
+
+    (let loop ([fields fields-stx])
+      (syntax-case fields ()
+        [() result-hash]
+        [(kw val rest ...)
+         (keyword? (syntax-e #'kw))
+         (let ([kw-sym (string->symbol (keyword->string (syntax-e #'kw)))])
+           (unless (member kw-sym allowed-keywords)
+             (oops! (format "unknown keyword ~a" (syntax-e #'kw)) #'kw))
+           (when (hash-has-key? result-hash kw-sym)
+             (oops! (format "multiple ~a clauses" (syntax-e #'kw)) #'kw))
+           (hash-set! result-hash kw-sym #'val)
+           (loop #'(rest ...)))]
+        [(kw)
+         (keyword? (syntax-e #'kw))
+         (oops! (format "expected value after keyword ~a" (syntax-e #'kw)) #'kw)]
+        [_ (oops! "bad syntax" fields)]))))
 
 (define-syntax (make-operator-impl stx)
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'make-operator-impl why stx sub-stx))
   (syntax-case stx (:)
-    [(_ (id [var : repr] ...) rtype fields ...)
-     (let ([id #'id]
-           [vars (syntax->list #'(var ...))]
-           [fields #'(fields ...)])
-       (unless (identifier? id)
-         (oops! "expected identifier" id))
+    [(_ (id [var : repr] ...) rtype . fields)
+     (let ([op-name #'id]
+           [vars (syntax->list #'(var ...))])
+       (unless (identifier? op-name)
+         (oops! "expected identifier" op-name))
        (for ([var (in-list vars)]
              #:unless (identifier? var))
          (oops! "expected identifier" var))
-       (define spec #f)
-       (define core #f)
-       (define fl-expr #f)
-       (define op-cost #f)
 
-       (let loop ([fields fields])
-         (syntax-case fields ()
-           [()
-            (unless spec
-              (oops! "missing `#:spec` keyword"))
-            (with-syntax ([id id]
-                          [spec spec]
-                          [core core]
-                          [fl-expr fl-expr]
-                          [op-cost op-cost])
-              #'(create-operator-impl! 'id
-                                       (context '(var ...) rtype (list repr ...))
-                                       'spec
-                                       #:impl fl-expr
-                                       #:fpcore 'core
-                                       #:cost op-cost))]
-           [(#:spec expr rest ...)
-            (cond
-              [spec (oops! "multiple #:spec clauses" stx)]
-              [else
-               (set! spec #'expr)
-               (loop #'(rest ...))])]
-           [(#:spec) (oops! "expected value after keyword `#:spec`" stx)]
-           [(#:fpcore expr rest ...)
-            (cond
-              [core (oops! "multiple #:fpcore clauses" stx)]
-              [else
-               (set! core #'expr)
-               (loop #'(rest ...))])]
-           [(#:fpcore) (oops! "expected value after keyword `#:fpcore`" stx)]
-           [(#:impl expr rest ...)
-            (cond
-              [fl-expr (oops! "multiple #:fl clauses" stx)]
-              [else
-               (set! fl-expr #'expr)
-               (loop #'(rest ...))])]
-           [(#:impl) (oops! "expected value after keyword `#:fl`" stx)]
-           [(#:cost cost rest ...)
-            (cond
-              [op-cost (oops! "multiple #:cost clauses" stx)]
-              [else
-               (set! op-cost #'cost)
-               (loop #'(rest ...))])]
-           [(#:cost) (oops! "expected value after keyword `#:cost`" stx)]
+       (define keywords (parse-keyword-fields stx #'fields '(spec fpcore impl cost) op-name))
 
-           ; bad
-           [_ (oops! "bad syntax" fields)])))]
+       (unless (hash-has-key? keywords 'spec)
+         (raise-syntax-error op-name "missing `#:spec` keyword" stx))
+       (unless (hash-has-key? keywords 'impl)
+         (raise-syntax-error op-name "missing `#:impl` keyword" stx))
+       (unless (hash-has-key? keywords 'cost)
+         (raise-syntax-error op-name "missing `#:cost` keyword" stx))
+
+       ;; Build argument list for create-operator-impl!
+       ;; Quote spec and fpcore, leave impl and cost unquoted
+       ;; Default fpcore to spec if not provided
+       (with-syntax ([spec-val (hash-ref keywords 'spec)]
+                     [fpcore-val (hash-ref keywords 'fpcore (hash-ref keywords 'spec))]
+                     [impl-val (hash-ref keywords 'impl)]
+                     [cost-val (hash-ref keywords 'cost)])
+         #'(create-operator-impl! 'id
+                                  (context '(var ...) rtype (list repr ...))
+                                  #:spec 'spec-val
+                                  #:impl impl-val
+                                  #:fpcore 'fpcore-val
+                                  #:cost cost-val)))]
     [_ (oops! "bad syntax")]))
 
 ;; Platform registration functions moved from platform.rkt
