@@ -1109,7 +1109,11 @@
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
-  (and (rational? frac) (let ([denom (denominator frac)]) (and (> denom 1) (odd? denom)))))
+  (cond
+    [(rational? frac)
+     (define denom (denominator frac))
+     (and (> denom 1) (odd? denom))]
+    [else #f]))
 
 ;; Decompose an e-node representing an impl of `(pow b e)`.
 ;; Returns either `#f` or the `(cons b e)`
