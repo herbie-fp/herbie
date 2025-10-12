@@ -26,6 +26,7 @@ racket -y "src/main.rkt" report \
 # generate accelerator candidates
 racket -y growlibm/generate-candidates.rkt "$REPORTDIR"
 
+racket -y growlibm/to-json.rkt 
 # extend platform loop
 for ((i = 0; i < $NUMITERS; i++)) do
     racket -y "src/main.rkt" report \
