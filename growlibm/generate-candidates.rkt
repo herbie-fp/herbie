@@ -143,9 +143,9 @@
   #:exists 'append)
 
 (define sorted-pairs (sort deduplicated-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
-(define first-1000 (take sorted-pairs (min (length sorted-pairs) 1000)))
+(define first-2000 (take sorted-pairs (min (length sorted-pairs) 2000)))
 
-(define filtered (filter (lambda (p) (< 0.1 (get-error (car p)))) first-1000))
+(define filtered (filter (lambda (p) (< 0.1 (get-error (car p)))) first-2000))
 ;;; (define filtered first-1000)
 (define first-500 (take filtered (min (length filtered) 500)))
 (define fpcores-out (map to-fpcore-str first-500))
