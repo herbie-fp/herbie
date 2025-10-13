@@ -76,4 +76,9 @@
    (displayln operatorStr))
   #:exists 'append)
 
+(with-output-to-file "reports/report_info.csv"
+  (lambda ()
+    (displayln (format "~a, ~a" link spec)))
+  #:exists 'append)
+
 (displayln (format "adding accelerator ~a, with spec: ~a" link spec))
