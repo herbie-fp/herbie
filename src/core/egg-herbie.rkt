@@ -666,10 +666,11 @@
         (vector-set! id->eclass id (cons enode* (vector-ref id->eclass id)))
         (match enode*
           [(list _ ids ...)
-           (if (null? ids)
-               (vector-set! id->leaf? id #t)
-               (for ([child-id (in-list ids)])
-                 (vector-set! id->parents child-id (cons id (vector-ref id->parents child-id)))))]
+           #:when (null? ids)
+           (vector-set! id->leaf? id #t)]
+          [(list _ ids ...)
+           (for ([child-id (in-list ids)])
+             (vector-set! id->parents child-id (cons id (vector-ref id->parents child-id))))]
           [(? symbol?) (vector-set! id->leaf? id #t)]
           [(? number?) (vector-set! id->leaf? id #t)]))))
 
@@ -1108,7 +1109,11 @@
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
-  (and (rational? frac) (let ([denom (denominator frac)]) (and (> denom 1) (odd? denom)))))
+  (cond
+    [(rational? frac)
+     (define denom (denominator frac))
+     (and (> denom 1) (odd? denom))]
+    [else #f]))
 
 ;; Decompose an e-node representing an impl of `(pow b e)`.
 ;; Returns either `#f` or the `(cons b e)`
