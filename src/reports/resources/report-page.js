@@ -609,7 +609,7 @@ function buildRow(test, other) {
             Element("td", {}, [test.name]),
             Element("td", {}, [startAccuracy]),
             Element("td", {}, [resultAccuracy]),
-            Element("td", {}, [String(getScore(test))]),
+            Element("td", {}, [String(Math.floor(getScore(test)))]),
             Element("td", {}, [targetAccuracy]),
             Element("td", {}, [formatTime(test.time)]),
             Element("td", {}, [
@@ -690,7 +690,7 @@ function buildRow(test, other) {
             Element("td", { title: testTitle }, [test.name]),
             tdStartAccuracy,
             tdResultAccuracy,
-            Element("td", {}, [String(getScore(test))]),
+            Element("td", {}, [String(Math.floor(getScore(test)))]),
             tdTargetAccuracy,
             tdTime,
             Element("td", {}, [
