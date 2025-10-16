@@ -130,14 +130,14 @@
 (define renamed-subexprs (map rename-vars filtered-again))
 (define pairs (hash->list (count-frequencies renamed-subexprs)))
 
-(with-output-to-file (string-append report-dir "/report_info.csv")
+(with-output-to-file (string-append report-dir "/report_info.txt")
   (lambda ()
     (printf "og length, ~a\n"(length pairs)))
   #:exists 'replace)
 
 (define deduplicated-pairs (hash->list (deduplicate pairs)))
 
-(with-output-to-file (string-append report-dir "/report_info.csv")
+(with-output-to-file (string-append report-dir "/report_info.txt")
   (lambda ()
     (printf "deduped length, ~a\n"(length deduplicated-pairs)))
   #:exists 'append)

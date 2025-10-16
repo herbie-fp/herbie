@@ -8,7 +8,7 @@ export PATH="$PATH:$HOME/.cargo/bin/"
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
-BENCHDIR="bench/"
+BENCHDIR="bench/graphics/pbrt.fpcore"
 REPORTDIR="reports"
 NUMITERS=10
 
@@ -21,11 +21,12 @@ racket -y "src/main.rkt" report \
         --dump-exprs \
         --platform "no-accelerators" \
         --disable "generate:evaluate" \
-        "$BENCHDIR" "$REPORTDIR"/"start" > "$REPORTDIR/expr_dump.txt"
+        "$BENCHDIR" \
+        "$REPORTDIR/start" > "$REPORTDIR/expr_dump.txt"
 
 # generate accelerator candidates
 racket -y growlibm/generate-candidates.rkt "$REPORTDIR"
-
+ 
 racket -y growlibm/to-json.rkt 
 # extend platform loop
 for ((i = 0; i < $NUMITERS; i++)) do
@@ -35,9 +36,10 @@ for ((i = 0; i < $NUMITERS; i++)) do
             --threads 4 \
             --disable "generate:taylor" \
             --disable "generate:evaluate" \
-            "$REPORTDIR/candidates.txt" "$REPORTDIR"/"iter$i" 
+            "$REPORTDIR/candidates.txt" \
+            "$REPORTDIR/iter$i" 
 
-    racket -y "growlibm/extend-platform.rkt"  "$REPORTDIR"/"iter$i/results.json" 
+    racket -y "growlibm/extend-platform.rkt"  "$REPORTDIR/iter$i/results.json" 
 done
 
 # run herbie again with expanded platform
@@ -46,10 +48,14 @@ racket -y "src/main.rkt" report \
         --platform "grow" \
         --threads 4 \
         --disable "generate:evaluate" \
-        "$BENCHDIR" "$REPORTDIR"/"end"
+        "$BENCHDIR" \
+        "$REPORTDIR/end"
 
 # print the new platform
 cat "src/platforms/grow.rkt" > "$REPORTDIR/grow_platform.txt"
+
+chmod +x growlibm/count_accelerators.sh
+growlibm/count_accelerators.sh "$REPORTDIR/report_info.txt" "$REPORTDIR/end/results.json"
 
 # generate the html report page
 python3 growlibm/generate-html.py

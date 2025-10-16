@@ -1,6 +1,5 @@
 import json
 
-# --- 1. Configuration ---
 START_REPORT_PATH = 'reports/start/results.json'
 END_REPORT_PATH = 'reports/end/results.json'
 START_FOLDER = 'start'
@@ -46,7 +45,7 @@ html_content = f"""
     <h1>GrowLibm Report</h1>
     <p><a href="grow_platform.txt">Grow Platform</a></p>
     <p><a href="candidates.txt">Candidates</a></p>
-    <p><a href="report_info.csv">More Info</a></p>
+    <p><a href="report_info.txt">More Info</a></p>
     
     <h2>Overall Summary</h2>
     <p><strong>Start:</strong> {start_accuracy_str} - <a href="{START_FOLDER}/">Folder</a></p>

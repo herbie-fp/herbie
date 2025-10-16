@@ -76,7 +76,7 @@
    (displayln operatorStr))
   #:exists 'append)
 
-(with-output-to-file "reports/report_info.csv"
+(with-output-to-file "reports/report_info.txt"
   (lambda ()
     (displayln (format "~a, ~a" link spec)))
   #:exists 'append)
