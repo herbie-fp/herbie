@@ -199,3 +199,7 @@
 
 (define-operation (binary32->binary64 [x <binary32>]) <binary64>
   #:spec x #:fpcore (! :precision binary64 (cast x)) #:impl identity #:cost 64)
+
+(define-operation (81-cosz0PI190 [z0 <binary64>]) <binary64>
+  #:spec (cos (* (* z0 (PI)) -1/180)) #:impl (from-rival)
+  #:fpcore (! :precision binary64 (81-cosz0PI190 z0)) #:cost 1000)
