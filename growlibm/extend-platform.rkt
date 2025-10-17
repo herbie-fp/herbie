@@ -63,7 +63,7 @@
 (define prog (fpcore->prog fpcore ctx))
 (define spec (prog->spec prog))
 (define (render-var-f64 var) (format "[~a <binary64>]" var))
-(define (render-var-f32 var) (format "[~a <binary64>]" var))
+(define (render-var-f32 var) (format "[~a <binary32>]" var))
 
 (define operator-strf64 (format "(define-operation (~a.f64 ~a) <binary64> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary64 (~a ~a)) #:cost 1000)"
                             link
