@@ -330,23 +330,24 @@
   (define offset (series-offset normalized))
   (define coeffs (series-function normalized))
   (define offset* (+ offset (modulo (- offset) n)))
-  (if (= offset offset*)
-      normalized
-      (let ([cache (make-dvector 2)]) ;; never called more than twice
-        (define (coeffs* i)
-          (unless (and (> (dvector-capacity cache) i) (dvector-ref cache i))
-            (define res
-              (match i
-                [0
-                 (adder (make-sum (for/list ([j (in-range (modulo offset n))])
-                                    `(* ,(coeffs j) (pow ,var ,(+ j (modulo (- offset) n)))))))]
-                [_
-                 #:when (< i n)
-                 (adder 0)]
-                [_ (coeffs (+ (- i n) (modulo offset n)))]))
-            (dvector-set! cache i res))
-          (dvector-ref cache i))
-        (make-series offset* (λ (f i) (deref (coeffs* i)))))))
+  (cond
+    [(= offset offset*) normalized]
+    [else
+     (define cache (make-dvector 2)) ;; never called more than twice
+     (define (coeffs* i)
+       (unless (and (> (dvector-capacity cache) i) (dvector-ref cache i))
+         (define res
+           (match i
+             [0
+              (adder (make-sum (for/list ([j (in-range (modulo offset n))])
+                                 `(* ,(coeffs j) (pow ,var ,(+ j (modulo (- offset) n)))))))]
+             [_
+              #:when (< i n)
+              (adder 0)]
+             [_ (coeffs (+ (- i n) (modulo offset n)))]))
+         (dvector-set! cache i res))
+       (dvector-ref cache i))
+     (make-series offset* (λ (f i) (deref (coeffs* i))))]))
 
 (define (taylor-sqrt var num)
   ;(-> symbol? term? term?)
@@ -422,56 +423,62 @@
   ;(-> (-> number? batchref?) term?)
   (make-series 0
                (λ (f n)
-                 (if (zero? n)
-                     `(exp ,(coeffs 0))
-                     (let* ([coeffs* (list->vector (map coeffs (range 1 (+ n 1))))]
-                            [nums (for/list ([i (in-range 1 (+ n 1))]
-                                             [coeff (in-vector coeffs*)]
-                                             #:unless (equal? (deref coeff) 0))
-                                    i)])
-                       `(* (exp ,(coeffs 0))
-                           (+ ,@(for/list ([p (all-partitions n (sort nums >))])
-                                  `(* ,@(for/list ([(count num) (in-dict p)])
-                                          `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                              ,(factorial count))))))))))))
+                 (cond
+                   [(zero? n) `(exp ,(coeffs 0))]
+                   [else
+                    (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
+                    (define nums
+                      (for/list ([i (in-range 1 (+ n 1))]
+                                 [coeff (in-vector coeffs*)]
+                                 #:unless (equal? (deref coeff) 0))
+                        i))
+                    `(* (exp ,(coeffs 0))
+                        (+ ,@(for/list ([p (all-partitions n (sort nums >))])
+                               `(* ,@(for/list ([(count num) (in-dict p)])
+                                       `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                           ,(factorial count)))))))]))))
 
 (define (taylor-sin coeffs)
   ;(-> (-> number? batchref?) term?)
   (make-series 0
                (λ (f n)
-                 (if (zero? n)
-                     0
-                     (let* ([coeffs* (list->vector (map coeffs (range 1 (+ n 1))))]
-                            [nums (for/list ([i (in-range 1 (+ n 1))]
-                                             [coeff (in-vector coeffs*)]
-                                             #:unless (equal? (deref coeff) 0))
-                                    i)])
-                       `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
-                               (if (= (modulo (apply + (map car p)) 2) 1)
-                                   `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
-                                       ,@(for/list ([(count num) (in-dict p)])
-                                           `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                               ,(factorial count))))
-                                   0))))))))
+                 (cond
+                   [(zero? n) 0]
+                   [else
+                    (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
+                    (define nums
+                      (for/list ([i (in-range 1 (+ n 1))]
+                                 [coeff (in-vector coeffs*)]
+                                 #:unless (equal? (deref coeff) 0))
+                        i))
+                    `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
+                            (if (= (modulo (apply + (map car p)) 2) 1)
+                                `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
+                                    ,@(for/list ([(count num) (in-dict p)])
+                                        `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                            ,(factorial count))))
+                                0)))]))))
 
 (define (taylor-cos coeffs)
   ;(-> (-> number? batchref?) term?)
   (make-series 0
                (λ (f n)
-                 (if (zero? n)
-                     1
-                     (let* ([coeffs* (list->vector (map coeffs (range 1 (+ n 1))))]
-                            [nums (for/list ([i (in-range 1 (+ n 1))]
-                                             [coeff (in-vector coeffs*)]
-                                             #:unless (equal? (deref coeff) 0))
-                                    i)])
-                       `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
-                               (if (= (modulo (apply + (map car p)) 2) 0)
-                                   `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
-                                       ,@(for/list ([(count num) (in-dict p)])
-                                           `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                               ,(factorial count))))
-                                   0))))))))
+                 (cond
+                   [(zero? n) 1]
+                   [else
+                    (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
+                    (define nums
+                      (for/list ([i (in-range 1 (+ n 1))]
+                                 [coeff (in-vector coeffs*)]
+                                 #:unless (equal? (deref coeff) 0))
+                        i))
+                    `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
+                            (if (= (modulo (apply + (map car p)) 2) 0)
+                                `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
+                                    ,@(for/list ([(count num) (in-dict p)])
+                                        `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                            ,(factorial count))))
+                                0)))]))))
 
 ;; This is a hyper-specialized symbolic differentiator for log(f(x))
 
@@ -521,19 +528,20 @@
   (define base
     (make-series 0
                  (λ (f n)
-                   (if (zero? n)
-                       `(log ,(maybe-negate (coeffs 0)))
-                       (let ([tmpl (logcompute n)])
-                         `(/ (+ ,@(for/list ([term tmpl])
-                                    (match-define `(,coeff ,k ,ps ...) term)
-                                    `(* ,coeff
-                                        (/ (* ,@(for/list ([i (in-naturals 1)]
-                                                           [p ps])
-                                                  (if (= p 0)
-                                                      1
-                                                      `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
-                                           (exp (* ,(- k) ,(f 0)))))))
-                             ,(factorial n)))))))
+                   (cond
+                     [(zero? n) `(log ,(maybe-negate (coeffs 0)))]
+                     [else
+                      (define tmpl (logcompute n))
+                      `(/ (+ ,@(for/list ([term tmpl])
+                                 (match-define `(,coeff ,k ,ps ...) term)
+                                 `(* ,coeff
+                                     (/ (* ,@(for/list ([i (in-naturals 1)]
+                                                        [p ps])
+                                               (if (= p 0)
+                                                   1
+                                                   `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
+                                        (exp (* ,(- k) ,(f 0)))))))
+                          ,(factorial n))]))))
 
   (if (zero? shift)
       base
