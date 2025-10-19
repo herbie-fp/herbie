@@ -23,15 +23,13 @@
 
 (define (taylor-coefficients batch brfs vars transforms-to-try)
   (define expander (expand-taylor! batch))
-  (define taylor-coeffs
-    (for*/list ([var (in-list vars)]
-                #:do [(define taylorer (taylor var batch))]
-                [transform-type transforms-to-try])
-      (match-define (list name f finv) transform-type)
-      (define replacer (batch-replace-expression! batch var (f var)))
-      (for/list ([brf (in-list brfs)])
-        (taylorer (expander (reducer (replacer brf)))))))
-  taylor-coeffs)
+  (for*/list ([var (in-list vars)]
+              #:do [(define taylorer (taylor var batch))]
+              [transform-type transforms-to-try])
+    (match-define (list name f finv) transform-type)
+    (define replacer (batch-replace-expression! batch var (f var)))
+    (for/list ([brf (in-list brfs)])
+      (taylorer (expander (reducer (replacer brf)))))))
 
 (define (approximate taylor-approxs
                      batch
