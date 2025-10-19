@@ -167,7 +167,7 @@
   (define (gather-multiplicative-terms brf recurse)
     (match (deref brf)
       [+nan.0 (nan-term)]
-      [(? number? n) `(,n . ())]
+      [(? number? n) (list n)]
       [(? symbol?) `(1 . ((1 . ,brf)))]
       [`(neg ,arg)
        (define terms (recurse arg))
