@@ -241,8 +241,8 @@
       (dvector-set! cache i value)))
   (dvector-ref cache n))
 
-(define (series-function s)
-  (λ (n) (series-ref s n)))
+(define ((series-function s) n)
+  (series-ref s n))
 
 (define (taylor-add left right)
   ;(-> term? term? term?)
