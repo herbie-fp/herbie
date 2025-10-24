@@ -1,6 +1,6 @@
 (FPCore (dt r)
         :name "Kalman filter per K"
-        :pre (and (< 0 dt) (< r 0))
+        :pre (and (> dt 0) (> r 0))
         ; initializing matrices
         (let ([p00 25.0]
               [p01 0.0]
@@ -69,7 +69,7 @@
                       
 (FPCore (x0 x1 x2 dt r sensor)
         :name "Kalman filter per x"
-        :pre (and (< 0 dt) (< r 0) (< 0 sensor))
+        :pre (and (> dt 0) (> r 0) (> sensor 0))
         ; initializing matrices
         (let ([p00 25.0]
               [p01 0.0]
@@ -147,7 +147,7 @@
                         
 (FPCore (dt r)
         :name "Kalman filter per P"
-        :pre (and (< 0 dt) (< r 0))
+        :pre (and (> dt 0) (> r 0))
         ; initializing matrices
         (let ([p00 25.0]
               [p01 0.0]
