@@ -53,8 +53,13 @@
 
 (define sorted-pairs (sort scored-pairs > #:key fourth))
 
-(define fpcore (with-input-from-string (first (first sorted-pairs)) read))
-(define link (second (first sorted-pairs)))
+(when (null? sorted-pairs)
+  (displayln "No accelerators discovered in this iteration.")
+  (exit 0))
+
+(define chosen-pair (first sorted-pairs))
+(define fpcore (with-input-from-string (first chosen-pair) read))
+(define link (second chosen-pair))
 (define ctx (context (free-variables fpcore) 
                      (get-representation 'binary64) 
                      (make-list (length (free-variables fpcore)) 
@@ -86,9 +91,24 @@
    (displayln operator-strf32))
   #:exists 'append)
 
-(with-output-to-file "reports/report_info.txt"
-  (lambda ()
-    (displayln (format "~a, ~a" link spec)))
-  #:exists 'append)
+(define accelerators-path "reports/accelerators.json")
+
+(define new-entry (hash 'name link 'spec (format "~a" spec)))
+
+(define updated-accelerators
+  (let ([previous
+         (if (file-exists? accelerators-path)
+             (let ([data (call-with-input-file accelerators-path read-json)])
+               (cond
+                 [(vector? data) (vector->list data)]
+                 [(list? data) data]
+                 [else '()]))
+             '())])
+    (append previous (list new-entry))))
+
+(call-with-output-file accelerators-path
+  (lambda (out)
+    (write-json updated-accelerators out))
+  #:exists 'truncate)
 
 (displayln (format "adding accelerator ~a, with spec: ~a" link spec))

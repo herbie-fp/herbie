@@ -130,23 +130,13 @@
 (define renamed-subexprs (map rename-vars filtered-again))
 (define pairs (hash->list (count-frequencies renamed-subexprs)))
 
-(with-output-to-file (string-append report-dir "/report_info.txt")
-  (lambda ()
-    (printf "og length, ~a\n"(length pairs)))
-  #:exists 'replace)
-
 (define deduplicated-pairs (hash->list (deduplicate pairs)))
-
-(with-output-to-file (string-append report-dir "/report_info.txt")
-  (lambda ()
-    (printf "deduped length, ~a\n"(length deduplicated-pairs)))
-  #:exists 'append)
 
 (define sorted-pairs (sort deduplicated-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
 (define first-2000 (take sorted-pairs (min (length sorted-pairs) 2000)))
 
-(define filtered (filter (lambda (p) (< 0.1 (get-error (car p)))) first-2000))
-;;; (define filtered first-1000)
+;;; (define filtered (filter (lambda (p) (< 0.1 (get-error (car p)))) first-2000))
+(define filtered first-2000)
 (define first-500 (take filtered (min (length filtered) 500)))
 (define fpcores-out (map to-fpcore-str first-500))
 (define counts-out (map to-count-print first-500))
