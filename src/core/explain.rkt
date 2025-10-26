@@ -532,7 +532,7 @@
 
   (define explanations-table
     (for/list ([(key val) (in-dict expls->points)]
-               #:unless (zero? (length val)))
+               #:unless (empty? val))
       (define subexpr (car key))
       (define expl (cdr key))
       (define err-count (length val))
