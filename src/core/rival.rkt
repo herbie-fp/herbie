@@ -32,12 +32,14 @@
                 (listof any/c))]))
 
 (define (unified-contexts? ctxs)
-  (and ((non-empty-listof context?) ctxs)
-       (let ([ctx0 (car ctxs)])
-         (for/and ([ctx (in-list (cdr ctxs))])
-           (and (equal? (context-vars ctx0) (context-vars ctx))
-                (for/and ([var (in-list (context-vars ctx0))])
-                  (equal? (context-lookup ctx0 var) (context-lookup ctx var))))))))
+  (cond
+    [((non-empty-listof context?) ctxs)
+     (define ctx0 (car ctxs))
+     (for/and ([ctx (in-list (cdr ctxs))])
+       (and (equal? (context-vars ctx0) (context-vars ctx))
+            (for/and ([var (in-list (context-vars ctx0))])
+              (equal? (context-lookup ctx0 var) (context-lookup ctx var)))))]
+    [else #f]))
 
 (define (expr-size expr)
   (if (list? expr)
