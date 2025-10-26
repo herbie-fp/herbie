@@ -584,7 +584,7 @@
 
   (define points->expl (make-hash))
 
-  (for* ([(_ points) (in-dict expls->points)]
+  (for* ([points (in-dict-values expls->points)]
          [pt (in-list points)])
     (hash-update! points->expl pt add1 0))
 
