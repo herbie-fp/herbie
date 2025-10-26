@@ -153,7 +153,8 @@
 
          (cond
            [(> (- x.eps y.eps) 100) (silence y-ex)]
-           [(> (- y.eps x.eps) 100) (silence x-ex)])
+           [(> (- y.eps x.eps) 100) (silence x-ex)]
+           [else (void)])
 
          (cond
            ; Condition number hallucination
@@ -198,7 +199,8 @@
 
          (cond
            [(> (- x.eps y.eps) 100) (silence y-ex)]
-           [(> (- y.eps x.eps) 100) (silence x-ex)])
+           [(> (- y.eps x.eps) 100) (silence x-ex)]
+           [else (void)])
 
          (cond
            ; Condition number hallucination:
