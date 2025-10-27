@@ -617,7 +617,7 @@
     (cond
       [(hash-has-key? vars x)
        (if spec?
-           (string->symbol (format "?~a" (hash-ref vars x)))
+           (string->symbol (format "?s~a" (hash-ref vars x)))
            (string->symbol (format "?t~a" (hash-ref vars x))))]
       [else (vector-ref mappings x)]))
 
@@ -726,7 +726,7 @@
   ; ; Var-spec-bindings
   (for ([var (in-list (context-vars ctx))])
     ; Get the binding names for the program
-    (define binding-name (string->symbol (format "?~a" var)))
+    (define binding-name (string->symbol (format "?s~a" var)))
     (define constructor-name (string->symbol (format "const~a" constructor-num)))
     (hash-set! binding->constructor binding-name constructor-name)
 
@@ -802,7 +802,7 @@
       (define curr-binding-name
         (if (hash-has-key? vars root)
             (if (spec? brf)
-                (string->symbol (format "?~a" (hash-ref vars root)))
+                (string->symbol (format "?s~a" (hash-ref vars root)))
                 (string->symbol (format "?t~a" (hash-ref vars root))))
             (string->symbol (format "?r~a" root))))
 
