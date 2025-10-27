@@ -8,7 +8,7 @@ export PATH="$PATH:$HOME/.cargo/bin/"
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
-BENCHDIR="bench/"
+BENCHDIR="bench/growlibm-helmholtz.fpcore"
 REPORTDIR="reports"
 NUMITERS=10
 
