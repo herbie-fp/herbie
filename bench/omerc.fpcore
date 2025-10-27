@@ -1,0 +1,110 @@
+; Hard benchmarks extracted from growlibm/omerc.cpp Oblique Mercator setup, focusing on tight domain guards and coupled trig/hyperbolic transforms.
+
+(FPCore (S V singam cosgam T)
+  :name "omerc-hard-u-mix"
+  :pre (and (> (fabs T) 1e-12)
+            (< (fabs singam) 1)
+            (< (fabs cosgam) 1)
+            (< (fabs V) 1))
+  (/ (- (* S singam) (* V cosgam)) T))
+
+(FPCore (U ArB)
+  :name "omerc-hard-log-ratio"
+  :pre (and (< (fabs U) 0.999999)
+            (> ArB 0))
+  (* 0.5
+     (* ArB
+        (log (/ (- 1 U)
+                 (+ 1 U))))))
+
+(FPCore (ArB S V singam cosgam temp)
+  :name "omerc-hard-atan2-rot"
+  :pre (and (>= (fabs temp) 1e-7)
+            (< (fabs singam) 1)
+            (< (fabs cosgam) 1)
+            (< (fabs V) 1))
+  (* ArB
+     (atan2 (+ (* S cosgam)
+                (* V singam))
+            temp)))
+
+(FPCore (Qp)
+  :name "omerc-hard-sinh-sp"
+  :pre (> Qp 0)
+  (* 0.5
+     (- Qp
+        (/ 1 Qp))))
+
+(FPCore (Qp)
+  :name "omerc-hard-cosh-tp"
+  :pre (> Qp 0)
+  (* 0.5
+     (+ Qp
+        (/ 1 Qp))))
+
+(FPCore (Vp Sp singam cosgam Tp)
+  :name "omerc-hard-up-frac"
+  :pre (and (> (fabs Tp) 1e-12)
+            (< (fabs singam) 1)
+            (< (fabs cosgam) 1)
+            (< (fabs Vp) 1))
+  (/ (+ (* Vp cosgam)
+        (* Sp singam))
+     Tp))
+
+(FPCore (Esc Up)
+  :name "omerc-hard-phi-scale"
+  :pre (and (> Esc 0)
+            (< (fabs Up) 0.999999))
+  (/ Esc
+     (sqrt (/ (+ 1 Up)
+              (- 1 Up)))))
+
+(FPCore (rB Sp Vp singam cosgam BrAu)
+  :name "omerc-hard-lambda-atan2"
+  :pre (and (< (fabs singam) 1)
+            (< (fabs cosgam) 1)
+            (< (fabs Vp) 1))
+  (* -1
+     (* rB
+        (atan2 (- (* Sp cosgam)
+                   (* Vp singam))
+                (cos BrAu)))))
+
+(FPCore (B lamDiff denom)
+  :name "omerc-hard-gamma0-atan"
+  :pre (and (> (fabs denom) 1e-12)
+            (< (fabs lamDiff) 10))
+  (atan (/ (* 2 (sin (* B lamDiff)))
+          denom)))
+
+(FPCore (lamc F gamma0 B)
+  :name "omerc-hard-lam0-shift"
+  :pre (and (> (fabs B) 1e-12)
+            (> (fabs F) 1e-12)
+            (< (fabs (* (* 0.5 (- F (/ 1 F)))
+                        (tan gamma0)))
+               0.999999))
+  (let ((asinArg (* (* 0.5 (- F (/ 1 F)))
+                    (tan gamma0))))
+    (- lamc
+       (/ (asin asinArg)
+          B))))
+
+(FPCore (ArB D alpha_c)
+  :name "omerc-hard-u0-atan"
+  :pre (and (> ArB 0)
+            (>= (- (* D D) 1) 0)
+            (> (fabs (cos alpha_c)) 1e-12))
+  (fabs (* ArB
+           (atan (/ (sqrt (- (* D D) 1))
+                    (cos alpha_c))))))
+
+(FPCore (ArB gamma0 fortpi)
+  :name "omerc-hard-v-pole"
+  :pre (and (> ArB 0)
+            (< (fabs gamma0) 3)
+            (> (tan (- fortpi (* 0.5 gamma0))) 0))
+  (* ArB
+     (log (tan (- fortpi
+                   (* 0.5 gamma0))))))
