@@ -3,11 +3,11 @@ import html
 
 START_REPORT_PATH = 'reports/start/results.json'
 END_REPORT_PATH = 'reports/end/results.json'
+ACCELERATORS_PATH = 'reports/accelerators.json'
+OUTPUT_FILE = 'reports/index.html'
 START_FOLDER = 'start'
 END_FOLDER = 'end'
-OUTPUT_FILE = 'reports/index.html'
 NUM_ITERATIONS = 10 
-ACCELERATORS_PATH = 'reports/accelerators.json'
 
 def calculate_end_accuracy(data):
     total_end = 0
@@ -37,10 +37,7 @@ def load_accelerators(path):
         return list(data)
     return []
 
-
 def format_accelerator_rows(accelerators, counts):
-    if not accelerators:
-        return '<tr><td colspan="3">No accelerators recorded.</td></tr>'
     rows = []
     for acc in accelerators:
         name = html.escape(str(acc.get("name", "")))
@@ -59,10 +56,8 @@ def read_text(path):
     with open(path, 'r') as f:
         return f.read()
 
-report_paths = [END_REPORT_PATH] + [f"reports/iter{i}/results.json" for i in range(NUM_ITERATIONS)]
-report_texts = [read_text(p) for p in report_paths]
 counts = {
-    acc_name: sum(text.count(acc_name) for text in report_texts)
+    acc_name: read_text(END_REPORT_PATH).count(acc_name)
     for acc_name in [str(acc.get("name", "")) for acc in accelerators]
     if acc_name
 }
