@@ -15,7 +15,7 @@
          "rival.rkt"
          "taylor.rkt")
 
-(provide generate-candidates)
+(provide generate-candidates get-starting-expr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -195,6 +195,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define (get-starting-expr altn)
+  (match (alt-prevs altn)
+    [(list) (alt-expr altn)]
+    [(list prev) (get-starting-expr prev)]))
+
 (define (generate-candidates batch brfs spec-batch reducer)
   ; Starting alternatives
   (define start-altns
@@ -218,4 +223,5 @@
         (run-rr start-altns batch)
         '()))
 
-  (remove-duplicates (append evaluations rewritten approximations) #:key alt-expr))
+  (remove-duplicates (append evaluations rewritten approximations) 
+                     #:key (λ (altn) (cons (alt-expr altn) (get-starting-expr altn)))))
