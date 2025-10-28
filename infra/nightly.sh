@@ -8,7 +8,7 @@ export PATH="$PATH:$HOME/.cargo/bin/"
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
-BENCHDIR="bench/growlibm-falloff_hard.fpcore"
+BENCHDIR="bench/tutorial.fpcore"
 REPORTDIR="reports"
 NUMITERS=10
 
@@ -55,4 +55,4 @@ racket -y "src/main.rkt" report \
 cat "src/platforms/grow.rkt" > "$REPORTDIR/grow_platform.txt"
 
 # generate the html report page
-python3 growlibm/generate-html.py
+python3 growlibm/generate-html.py $NUMITERS $REPORTDIR

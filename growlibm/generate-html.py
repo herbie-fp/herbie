@@ -1,13 +1,13 @@
-import json
-import html
+import json, html, sys
 
-START_REPORT_PATH = 'reports/start/results.json'
-END_REPORT_PATH = 'reports/end/results.json'
-ACCELERATORS_PATH = 'reports/accelerators.json'
-OUTPUT_FILE = 'reports/index.html'
-START_FOLDER = 'start'
-END_FOLDER = 'end'
-NUM_ITERATIONS = 10 
+NUM_ITERATIONS = int(sys.argv[1])
+REPORTS_PATH = sys.argv[2]
+START_REPORT_PATH = REPORTS_PATH + "/start/results.json"
+END_REPORT_PATH = REPORTS_PATH + "/end/results.json"
+ACCELERATORS_PATH = REPORTS_PATH + "/accelerators.json"
+OUTPUT_PATH = REPORTS_PATH + "/index.html"
+START_FOLDER = "start"
+END_FOLDER = "end"
 
 def calculate_end_accuracy(data):
     total_end = 0
@@ -107,5 +107,5 @@ html_content = f"""
 </html>
 """
 
-with open(OUTPUT_FILE, 'w') as f:
+with open(OUTPUT_PATH, 'w') as f:
     f.write(html_content)
