@@ -15,7 +15,8 @@
          "rival.rkt"
          "taylor.rkt")
 
-(provide generate-candidates get-starting-expr)
+(provide generate-candidates
+         get-starting-expr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -223,5 +224,5 @@
         (run-rr start-altns batch)
         '()))
 
-  (remove-duplicates (append evaluations rewritten approximations) 
+  (remove-duplicates (append evaluations rewritten approximations)
                      #:key (λ (altn) (cons (alt-expr altn) (get-starting-expr altn)))))
