@@ -2,30 +2,58 @@
 
 (require
   "../src/api/sandbox.rkt"
-  "../src/syntax/types.rkt"
   "../src/core/points.rkt"
   "../src/core/rules.rkt"
   "../src/config.rkt"
   "../src/core/batch.rkt"
   "../src/core/egg-herbie.rkt"
-  "../src/syntax/read.rkt"
   "../src/syntax/load-platform.rkt"
-  "../src/syntax/types.rkt"
   "../src/core/points.rkt"
   "../src/core/rules.rkt"
   "../src/config.rkt"
   "../src/core/batch.rkt"
   "../src/core/egg-herbie.rkt"
-  "../src/syntax/read.rkt"
   "../src/syntax/load-platform.rkt"
-  "../src/syntax/platform.rkt"
   "../src/syntax/sugar.rkt"
   "../src/core/programs.rkt"
   "../src/syntax/syntax.rkt"
-  "../src/reports/common.rkt"
   "../src/syntax/platform-language.rkt")
 
 (activate-platform! "no-accelerators")
+
+(define (strip-approx expr)
+  (match expr
+    [(? approx?) (strip-approx (approx-impl expr))]
+    [(? hole?) (strip-approx (hole-spec expr))]
+    [`(if ,c ,t ,f) `(if ,(strip-approx c)
+                         ,(strip-approx t)
+                         ,(strip-approx f))]
+    [(list op args ...) (cons op (map strip-approx args))]
+    [_ expr]))
+
+(define (comparison-symbol? sym)
+  (define name (symbol->string sym))
+  (or (string-contains? name "=")
+      (string-contains? name "<")
+      (string-contains? name ">")))
+
+(define (contains-comparison? expr)
+  (match expr
+    [(? symbol?) #f]
+    [(? number?) #f]
+    [(? literal?) #f]
+    [`(if ,c ,t ,f) (or (contains-comparison? c)
+                        (contains-comparison? t)
+                        (contains-comparison? f))]
+    [(list (? symbol? op) args ...)
+     (or (comparison-symbol? op)
+         (ormap contains-comparison? args))]
+    [(list args ...)
+     (ormap contains-comparison? args)]
+    [_ #f]))
+
+(define (sanitize expr)
+  (strip-approx expr))
 
 (define (get-error expr)
   (with-handlers ([exn? (lambda (exn) 0)])
@@ -94,13 +122,6 @@
 
   ht)
 
-(define (has-approx expr)
-  (define str (format "~v" expr))
-  (or (string-contains? str "approx")
-      (string-contains? str "=")
-      (string-contains? str ">")
-      (string-contains? str "<")))
-
 (define (to-fpcore-str pair)
   (define expr (car pair))
   (define vars (free-variables expr))
@@ -118,14 +139,17 @@
 (define lines (file->list (string-append report-dir "/expr_dump.txt")))
 (define unflattened-subexprs  (map all-subexpressions lines))
 
-(define subexprs (apply append unflattened-subexprs))
-(define filtered-subexprs (filter (lambda (n)
-                                    (not (or (symbol? n) (literal? n) (approx? n) (has-approx n)))) subexprs))
+(define subexprs (map sanitize (apply append unflattened-subexprs)))
+(define filtered-subexprs
+  (filter (lambda (n)
+            (not (or (symbol? n)
+                     (literal? n)
+                     (number? n)
+                     (contains-comparison? n))))
+          subexprs))
 (define filtered-again (filter (lambda (n)
                                  (and (> (length (free-variables n)) 0)
                                       (< (length (free-variables n)) 4))) filtered-subexprs))
-;;; (define filtered-again (filter (lambda (n)
-;;;                                  (> (length (free-variables n)) 0)) filtered-subexprs))
 
 (define renamed-subexprs (map rename-vars filtered-again))
 (define pairs (hash->list (count-frequencies renamed-subexprs)))
@@ -135,8 +159,8 @@
 (define sorted-pairs (sort deduplicated-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
 (define first-2000 (take sorted-pairs (min (length sorted-pairs) 2000)))
 
-;;; (define filtered (filter (lambda (p) (< 0.1 (get-error (car p)))) first-2000))
-(define filtered first-2000)
+(define filtered (filter (lambda (p) (< 0.1 (get-error (car p)))) first-2000))
+;;; (define filtered first-2000)
 (define first-500 (take filtered (min (length filtered) 500)))
 (define fpcores-out (map to-fpcore-str first-500))
 (define counts-out (map to-count-print first-500))
@@ -151,21 +175,6 @@
     (for-each displayln fpcores-out))
   #:exists 'replace)
 
-;;; ;;; (print-lines sorted-triples)
-;;; ;;; (define cost-proc (platform-cost-proc (*active-platform*)))
-;;; ;;; (define quads (map (lambda (p1) (append p1 (list (cost-proc (first p1) (get-representation 'binary64))))) sorted-triples))
-;;; ;;; (print-lines quads)
-
-;;; ;;; (define expr '(-.f64 #s(literal 1 binary64) (sqrt.f64 z0)))
-;;; ;;; (define spec (prog->spec expr))
-;;; ;;; (define ctx (context (free-variables expr) (get-representation 'binary64) (make-list (length (free-variables expr)) (get-representation 'binary64))))
-;;; ;;; (define error (get-spec-error expr spec ctx))
-;;; ;;; (displayln error)
-
-;;; (module+ test
-;;;   (require rackunit)
-;;;   (check-equal? (rename-vars '(+ x y)) '(+ z0 z1)))
-
-
-;;; (define expr '(+ x0 x0))
-;;;   (displayln (best-exprs (list (get-ctx expr)) (list expr)))
+(module+ test
+  (require rackunit)
+  (check-equal? (rename-vars '(+ x y)) '(+ z0 z1)))
