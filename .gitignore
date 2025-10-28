@@ -26,3 +26,5 @@ herbie-compiled/
 
 # Python
 .env/
+
+.vscode/
