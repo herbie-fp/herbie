@@ -6,9 +6,7 @@
          "../syntax/syntax.rkt")
 
 (provide *rules*
-         *sound-rules*
          (struct-out rule)
-         add-unsound
          add-sound-with-wildcard)
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
@@ -23,19 +21,8 @@
 (define (rule-enabled? rule)
   (ormap (curry flag-set? 'rules) (rule-tags rule)))
 
-(define (rule-sound? rule)
-  (set-member? (rule-tags rule) 'sound))
-
 (define (*rules*)
   (filter rule-enabled? *all-rules*))
-
-(define (*sound-rules*)
-  (filter (conjoin rule-enabled? rule-sound?) *all-rules*))
-
-(define (add-unsound expr)
-  (match expr
-    [(list op args ...) (cons (sym-append "unsound-" op) (map add-unsound args))]
-    [_ expr]))
 
 (define (add-sound expr)
   (match expr
@@ -44,12 +31,8 @@
     [(list op args ...) (cons op (map add-sound expr))]
     [_ expr]))
 
-(define-syntax define-rule
-  (syntax-rules ()
-    [(define-rule rname group input output)
-     (set! *all-rules* (cons (rule 'rname 'input 'output '(group sound)) *all-rules*))]
-    [(define-rule rname group input output #:unsound)
-     (set! *all-rules* (cons (rule 'rname 'input (add-unsound 'output) '(group)) *all-rules*))]))
+(define-syntax-rule (define-rule rname group input output)
+  (set! *all-rules* (cons (rule 'rname 'input 'output '(group)) *all-rules*)))
 
 (define-syntax-rule (define-rules group
                       [rname input output flags ...] ...)

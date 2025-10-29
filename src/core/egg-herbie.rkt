@@ -288,10 +288,6 @@
       [(list 'Rewrite=> rule expr) (list 'Rewrite=> (get-canon-rule-name rule rule) (loop expr type))]
       [(list 'Rewrite<= rule expr) (list 'Rewrite<= (get-canon-rule-name rule rule) (loop expr type))]
       [(list op args ...)
-       #:when (string-prefix? (symbol->string op) "unsound")
-       (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
-       (cons op* (map loop args (map (const 'real) args)))]
-      [(list op args ...)
        #:when (string-prefix? (symbol->string op) "sound-")
        (define op* (string->symbol (substring (symbol->string (car expr)) (string-length "sound-"))))
        (define args* (drop-right args 1))
@@ -538,7 +534,6 @@
         (define name (sym-append 'lower- impl))
         (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
         (list (rule name spec-expr impl-expr '(lowering))
-              (rule (sym-append 'lower-unsound- impl) (add-unsound spec-expr) impl-expr '(lowering))
               (rule (sym-append 'lower-sound- impl) (add-sound spec-expr) impl-expr '(lowering))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -582,7 +577,6 @@
     [(cons f _) ; application
      (cond
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
-       [(string-prefix? (symbol->string f) "unsound-") (list 'real)]
        [(string-prefix? (symbol->string f) "sound-") (list 'real)]
        [else
         (filter values
@@ -600,9 +594,6 @@
         (define spec (u32vector-ref ids 0))
         (define impl (u32vector-ref ids 1))
         (list '$approx (lookup spec (representation-type type)) (lookup impl type))]
-       [(string-contains? (~a f) "unsound")
-        (define op (string->symbol (string-replace (symbol->string f) "unsound-" "")))
-        (list* op (map (λ (x) (lookup (u32vector-ref ids x) 'real)) (range (u32vector-length ids))))]
        [(string-prefix? (~a f) "sound-")
         (define op (string->symbol (substring (symbol->string f) (string-length "sound-"))))
         (list* op

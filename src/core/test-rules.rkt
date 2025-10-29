@@ -22,12 +22,8 @@
   (define vars (set-union (free-variables p1) (free-variables p2)))
   (context vars double-repr (map (const double-repr) vars)))
 
-(define (drop-unsound expr)
+(define (drop-sound expr)
   (match expr
-    [(list op args ...)
-     #:when (string-contains? (~a op) "unsound")
-     (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
-     (cons op* (map drop-unsound args))]
     [(list op args ... extra)
      #:when (string-contains? (~a op) "sound")
      (define op* (string->symbol (substring (symbol->string (car expr)) (string-length "sound-"))))
