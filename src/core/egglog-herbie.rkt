@@ -93,7 +93,7 @@
   (egglog-runner batch brfs reprs schedule ctx))
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
-(define (run-egglog-multi-extractor runner output-batch) ; multi expression extraction
+(define (run-egglog-multi-extractor runner output-batch [label #f]) ; multi expression extraction
   (define insert-batch (egglog-runner-batch runner))
   (define insert-brfs (egglog-runner-brfs runner))
   (define curr-program (make-egglog-program))
@@ -107,8 +107,9 @@
          (make-directory dump-dir))
        (define name
          (for/first ([i (in-naturals)]
-                     #:unless (file-exists? (build-path dump-dir (format "~a.egg" i))))
-           (build-path dump-dir (format "~a.egg" i))))
+                     #:unless
+                     (file-exists? (build-path dump-dir (format "~a~a.egg" (if label label "") i))))
+           (build-path dump-dir (format "~a~a.egg" (if label label "") i))))
 
        (open-output-file name #:exists 'replace)]
 
