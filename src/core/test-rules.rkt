@@ -27,8 +27,8 @@
     [(list op args ... extra)
      #:when (string-contains? (~a op) "sound")
      (define op* (string->symbol (substring (symbol->string (car expr)) (string-length "sound-"))))
-     (cons op* (map drop-unsound args))]
-    [(list op args ...) (cons op (map drop-unsound args))]
+     (cons op* (map drop-sound args))]
+    [(list op args ...) (cons op (map drop-sound args))]
     [_ expr]))
 
 (define (check-rule test-rule)
@@ -38,7 +38,7 @@
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
                    [*max-find-range-depth* 0])
-      (sample-points '(TRUE) (list p1 (drop-unsound p2)) (list ctx ctx))))
+      (sample-points '(TRUE) (list p1 (drop-sound p2)) (list ctx ctx))))
 
   (for ([pt (in-list pts)]
         [v1 (in-list exs1)]
