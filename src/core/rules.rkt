@@ -37,10 +37,11 @@
     [(list op args ...) (cons (sym-append "unsound-" op) (map add-unsound args))]
     [_ expr]))
 
-(define (add-sound-with-wildcard expr)
+(define (add-sound expr)
   (match expr
-    [(list op args ...)
-     (cons (sym-append "sound-" op) (append (map add-sound-with-wildcard args) (list '_)))]
+    [(list (and (or '/ 'pow 'log) op) args ...)
+     `(,(sym-append "sound-" op) ,@(map add-sound args) ,(gensym))]
+    [(list op args ...) (cons op (map add-sound expr))]
     [_ expr]))
 
 (define-syntax define-rule

@@ -539,10 +539,7 @@
         (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
         (list (rule name spec-expr impl-expr '(lowering))
               (rule (sym-append 'lower-unsound- impl) (add-unsound spec-expr) impl-expr '(lowering))
-              (rule (sym-append 'lower-sound- impl)
-                    (add-sound-with-wildcard spec-expr)
-                    impl-expr
-                    '(lowering))))))))
+              (rule (sym-append 'lower-sound- impl) (add-sound spec-expr) impl-expr '(lowering))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
