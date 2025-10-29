@@ -40,8 +40,7 @@
 (define (add-sound-with-wildcard expr)
   (match expr
     [(list op args ...)
-     (cons (sym-append "sound-" op)
-           (append (map add-sound-with-wildcard args) (list '_)))]
+     (cons (sym-append "sound-" op) (append (map add-sound-with-wildcard args) (list '_)))]
     [_ expr]))
 
 (define-syntax define-rule

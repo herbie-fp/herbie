@@ -529,21 +529,20 @@
 ;; Synthesizes lowering rules for a given platform.
 (define (platform-lowering-rules [pform (*active-platform*)])
   (define impls (platform-impls pform))
-  (append* (for/list ([impl (in-list impls)])
-             (hash-ref! (*lowering-rules*)
-                        (cons impl pform)
-                        (lambda ()
-                          (define name (sym-append 'lower- impl))
-                          (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                          (list (rule name spec-expr impl-expr '(lowering))
-                                (rule (sym-append 'lower-unsound- impl)
-                                      (add-unsound spec-expr)
-                                      impl-expr
-                                      '(lowering))
-                                (rule (sym-append 'lower-sound- impl)
-                                      (add-sound-with-wildcard spec-expr)
-                                      impl-expr
-                                      '(lowering))))))))
+  (append*
+   (for/list ([impl (in-list impls)])
+     (hash-ref!
+      (*lowering-rules*)
+      (cons impl pform)
+      (lambda ()
+        (define name (sym-append 'lower- impl))
+        (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+        (list (rule name spec-expr impl-expr '(lowering))
+              (rule (sym-append 'lower-unsound- impl) (add-unsound spec-expr) impl-expr '(lowering))
+              (rule (sym-append 'lower-sound- impl)
+                    (add-sound-with-wildcard spec-expr)
+                    impl-expr
+                    '(lowering))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
