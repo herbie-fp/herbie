@@ -108,22 +108,23 @@
 
   (define reprs (batch-reprs batch ctx))
   (define add-to-egraph
-    (batch-map batch
-               (λ (get-remapping node)
-                 (match node
-                   [(literal v _) (insert-node! v)]
-                   [(? number?) (insert-node! node)]
-                   [(? symbol?) (insert-node! (var->egg-var node ctx))]
-                   [(hole prec spec) (get-remapping spec)] ; "hole" terms currently disappear
-                   [(approx spec impl)
-                    (hash-ref! id->spec ; Save original (spec, type) for extraction
-                               (get-remapping spec)
-                               (lambda ()
-                                 (define spec* (normalize-spec (batch-pull (batchref batch spec))))
-                                 (define type (representation-type (reprs (batchref batch impl))))
-                                 (cons spec* type)))
-                    (insert-node! (list '$approx (get-remapping spec) (get-remapping impl)))]
-                   [(list op (app get-remapping args) ...) (insert-node! (cons op args))]))))
+    (batch-recurse batch
+                   (λ (brf recurse)
+                     (define node (deref brf))
+                     (match node
+                       [(literal v _) (insert-node! v)]
+                       [(? number?) (insert-node! node)]
+                       [(? symbol?) (insert-node! (var->egg-var node ctx))]
+                       [(hole prec spec) (recurse spec)] ; "hole" terms currently disappear
+                       [(approx spec impl)
+                        (hash-ref! id->spec ; Save original (spec, type) for extraction
+                                   (recurse spec)
+                                   (lambda ()
+                                     (define spec* (normalize-spec (batch-pull spec)))
+                                     (define type (representation-type (reprs impl)))
+                                     (cons spec* type)))
+                        (insert-node! (list '$approx (recurse spec) (recurse impl)))]
+                       [(list op (app recurse args) ...) (insert-node! (cons op args))]))))
 
   (for/list ([brf (in-list brfs)])
     (define brf-id (add-to-egraph brf)) ; remapping of brf
@@ -678,10 +679,11 @@
         (vector-set! id->eclass id (cons enode* (vector-ref id->eclass id)))
         (match enode*
           [(list _ ids ...)
-           (if (null? ids)
-               (vector-set! id->leaf? id #t)
-               (for ([child-id (in-list ids)])
-                 (vector-set! id->parents child-id (cons id (vector-ref id->parents child-id)))))]
+           #:when (null? ids)
+           (vector-set! id->leaf? id #t)]
+          [(list _ ids ...)
+           (for ([child-id (in-list ids)])
+             (vector-set! id->parents child-id (cons id (vector-ref id->parents child-id))))]
           [(? symbol?) (vector-set! id->leaf? id #t)]
           [(? number?) (vector-set! id->leaf? id #t)]))))
 
@@ -1120,7 +1122,11 @@
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
-  (and (rational? frac) (let ([denom (denominator frac)]) (and (> denom 1) (odd? denom)))))
+  (cond
+    [(rational? frac)
+     (define denom (denominator frac))
+     (and (> denom 1) (odd? denom))]
+    [else #f]))
 
 ;; Decompose an e-node representing an impl of `(pow b e)`.
 ;; Returns either `#f` or the `(cons b e)`

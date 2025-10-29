@@ -162,6 +162,8 @@
 
 (define (render-phase-mixed-sampling mixsample)
   (define total-time (apply + (map first mixsample)))
+  (define (format-memory-bytes bytes)
+    (format "~a MiB" (~r (/ bytes (expt 2 20)) #:precision '(= 1))))
   `((dt "Precisions")
     (dd (details
          (summary "Click to see histograms. Total time spent on operations: "
@@ -173,14 +175,19 @@
                         (define op (second (car rec)))
                         (define precisions (map third rec))
                         (define times (map first rec))
+                        (define memories (map fourth rec))
+
                         (define time-per-op (round (apply + times)))
+                        (define memory-per-op (apply + memories))
 
                         (list `(details (summary (code ,op)
                                                  ": "
                                                  ,(format-time time-per-op)
                                                  " ("
                                                  ,(format-percent time-per-op total-time)
-                                                 " of total)")
+                                                 " of total, "
+                                                 ,(format-memory-bytes memory-per-op)
+                                                 ")")
                                         (canvas ([id ,(format "calls-~a" n)]
                                                  [title
                                                   "Histogram of precisions of the used operation"]))
@@ -325,12 +332,13 @@
                                (td (pre ,expr)))))))))
 
 (define (render-phase-times times)
+  (define hist-id (make-id))
   `((dt "Calls")
     (dd (p ,(~r (length times) #:group-sep " ") " calls:")
-        (canvas ([id ,(format "calls-~a" (make-id))]
+        (canvas ([id ,(format "calls-~a" hist-id)]
                  [title
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script ,(format "histogram('calls-~a', " (make-id)) ,(jsexpr->string (map first times)) ")")
+        (script ,(format "histogram('calls-~a', " hist-id) ,(jsexpr->string (map first times)) ")")
         (table ((class "times"))
                ,@(for/list ([rec (in-list (sort times > #:key first))]
                             [_ (in-range 5)])
@@ -338,12 +346,13 @@
                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
 
 (define (render-phase-series times)
+  (define hist-id (make-id))
   `((dt "Calls")
     (dd (p ,(~a (length times)) " calls:")
-        (canvas ([id ,(format "calls-~a" (make-id))]
+        (canvas ([id ,(format "calls-~a" hist-id)]
                  [title
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script ,(format "histogram('calls-~a', " (make-id)) ,(jsexpr->string (map first times)) ")")
+        (script ,(format "histogram('calls-~a', " hist-id) ,(jsexpr->string (map first times)) ")")
         (table ((class "times"))
                (thead (tr (th "Time") (th "Variable") (th "Point")))
                ,@(for/list ([rec (in-list (sort times > #:key first))]

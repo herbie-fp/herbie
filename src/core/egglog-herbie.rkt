@@ -616,7 +616,7 @@
     (cond
       [(hash-has-key? vars x)
        (if spec?
-           (string->symbol (format "?~a" (hash-ref vars x)))
+           (string->symbol (format "?s~a" (hash-ref vars x)))
            (string->symbol (format "?t~a" (hash-ref vars x))))]
       [else (vector-ref mappings x)]))
 
@@ -636,9 +636,10 @@
 
   ;; Batchref -> Boolean
   (define spec?
-    (batch-map
+    (batch-recurse
      batch
-     (lambda (get-spec node)
+     (lambda (brf recurse)
+       (define node (deref brf))
        (match node
          [(? literal?) #f] ;; If literal, not a spec
          [(? number?) #t] ;; If number, it's a spec
@@ -647,7 +648,7 @@
          [(hole _ _) #f] ;; If hole, not a spec
          [(approx _ _) #f] ;; If approx, not a spec
          [`(if ,cond ,ift ,iff)
-          (get-spec cond)] ;; If the condition or any branch is a spec, then this is a spec
+          (recurse cond)] ;; If the condition or any branch is a spec, then this is a spec
          [(list appl args ...)
           (if (hash-has-key? (id->e1) appl)
               #t ;; appl with op -> Is a spec
@@ -724,7 +725,7 @@
   ; ; Var-spec-bindings
   (for ([var (in-list (context-vars ctx))])
     ; Get the binding names for the program
-    (define binding-name (string->symbol (format "?~a" var)))
+    (define binding-name (string->symbol (format "?s~a" var)))
     (define constructor-name (string->symbol (format "const~a" constructor-num)))
     (hash-set! binding->constructor binding-name constructor-name)
 
@@ -800,7 +801,7 @@
       (define curr-binding-name
         (if (hash-has-key? vars root)
             (if (spec? brf)
-                (string->symbol (format "?~a" (hash-ref vars root)))
+                (string->symbol (format "?s~a" (hash-ref vars root)))
                 (string->symbol (format "?t~a" (hash-ref vars root))))
             (string->symbol (format "?r~a" root))))
 

@@ -103,21 +103,22 @@
 
 (define (batch-to-spec! batch brfs)
   (define lower
-    (batch-map batch
-               (lambda (child-spec node)
-                 (match node
-                   [(? literal?) (batch-push! batch (literal-value node))]
-                   [(? number?) (batch-push! batch node)]
-                   [(? symbol?) (batch-push! batch node)]
-                   [(hole _ spec) (child-spec spec)]
-                   [(approx spec _) (child-spec spec)]
-                   [(list (? impl-exists? impl) args ...)
-                    (define vars (impl-info impl 'vars))
-                    (define spec (impl-info impl 'spec))
-                    (define env (map cons vars (map child-spec args)))
-                    (batch-add! batch (pattern-substitute spec env))]
-                   [(list op args ...)
-                    (batch-push! batch (cons op (map (compose batchref-idx child-spec) args)))]))))
+    (batch-recurse batch
+                   (lambda (brf recurse)
+                     (define node (deref brf))
+                     (match node
+                       [(? literal?) (batch-push! batch (literal-value node))]
+                       [(? number?) brf]
+                       [(? symbol?) brf]
+                       [(hole _ spec) (recurse spec)]
+                       [(approx spec _) (recurse spec)]
+                       [(list (? impl-exists? impl) args ...)
+                        (define vars (impl-info impl 'vars))
+                        (define spec (impl-info impl 'spec))
+                        (define env (map cons vars (map recurse args)))
+                        (batch-add! batch (pattern-substitute spec env))]
+                       [(list op args ...)
+                        (batch-push! batch (cons op (map (compose batchref-idx recurse) args)))]))))
   (map lower brfs))
 
 ;; Expression predicates ;;
@@ -257,7 +258,7 @@
 
   (printf "Representations:\n")
   (define reprs-data
-    (for/list ([(_ repr) (in-hash reprs)]
+    (for/list ([repr (in-hash-values reprs)]
                [n (in-naturals)])
       (match-define (representation name type _ _ _ _ total-bits _) repr)
       (define cost (hash-ref repr-costs name))
@@ -266,7 +267,7 @@
 
   (printf "\nImplementations\n")
   (define impls-data
-    (for/list ([(_ impl) (in-hash impls)]
+    (for/list ([impl (in-hash-values impls)]
                [n (in-naturals)])
       (define name (operator-impl-name impl))
       (define itype (map representation-name (context-var-reprs (operator-impl-ctx impl))))

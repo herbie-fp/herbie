@@ -153,7 +153,8 @@
 
          (cond
            [(> (- x.eps y.eps) 100) (silence y-ex)]
-           [(> (- y.eps x.eps) 100) (silence x-ex)])
+           [(> (- y.eps x.eps) 100) (silence x-ex)]
+           [else (void)])
 
          (cond
            ; Condition number hallucination
@@ -198,7 +199,8 @@
 
          (cond
            [(> (- x.eps y.eps) 100) (silence y-ex)]
-           [(> (- y.eps x.eps) 100) (silence x-ex)])
+           [(> (- y.eps x.eps) 100) (silence x-ex)]
+           [else (void)])
 
          (cond
            ; Condition number hallucination:
@@ -530,7 +532,7 @@
 
   (define explanations-table
     (for/list ([(key val) (in-dict expls->points)]
-               #:unless (zero? (length val)))
+               #:unless (empty? val))
       (define subexpr (car key))
       (define expl (cdr key))
       (define err-count (length val))
@@ -582,7 +584,7 @@
 
   (define points->expl (make-hash))
 
-  (for* ([(_ points) (in-dict expls->points)]
+  (for* ([points (in-dict-values expls->points)]
          [pt (in-list points)])
     (hash-update! points->expl pt add1 0))
 

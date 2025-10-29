@@ -409,7 +409,10 @@
   operation's specification. Compilation is usually <em>much</em>
   slower than with a native floating-point implementation, but for
   unusual operations that are difficult to implement otherwise, it can
-  still allow compilation to proceed.</p>
+  still allow compilation to proceed. There is an
+  optional <code>#:cache?</code> argument to <code>from-rival</code>,
+  on by default. The cache makes Herbie much faster but uses a lot of
+  memory.</p>
 
   <p>Note that <code>from-rival</code> implementations are always
   "correctly-rounded", meaning as accurate as possible. Most targets

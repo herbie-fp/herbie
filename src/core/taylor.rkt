@@ -4,46 +4,55 @@
 (require "../utils/common.rkt"
          "../syntax/syntax.rkt"
          "batch.rkt"
-         "programs.rkt"
-         "reduce.rkt")
+         "dvector.rkt"
+         "programs.rkt")
 
 (provide approximate
-         taylor-coefficients)
+         taylor-coefficients
+         reduce
+         add)
+
+(define reduce (make-parameter #f))
+(define add (make-parameter #f))
+
+(define (reducer x)
+  ((reduce) x))
+
+(define (adder x)
+  ((add) x))
 
 (define (taylor-coefficients batch brfs vars transforms-to-try)
-  (define expand (expand-taylor! batch))
-  (define exprs (batch-exprs batch))
-  (define munge (λ (x) (batch-add! batch x)))
-  (define taylor-coeffs
-    (for*/list ([var (in-list vars)]
-                #:do [(define taylor* (taylor var batch))]
-                [transform-type transforms-to-try])
-      (match-define (list name f finv) transform-type)
-      (define replace (batch-replace-expression! batch var (f var)))
-      (for/list ([brf (in-list brfs)])
-        (taylor* (expand (munge (reduce (exprs (replace brf)))))))))
-  taylor-coeffs)
+  (define expander (expand-taylor! batch))
+  (for*/list ([var (in-list vars)]
+              #:do [(define taylorer (taylor var batch))]
+              [transform-type transforms-to-try])
+    (match-define (list name f finv) transform-type)
+    (define replacer (batch-replace-expression! batch var (f var)))
+    (for/list ([brf (in-list brfs)])
+      (taylorer (expander (reducer (replacer brf)))))))
 
 (define (approximate taylor-approxs
+                     batch
                      var
                      #:transform [tform (cons identity identity)]
                      #:iters [iters 5])
+  (define replacer (batch-replace-expression! batch var ((cdr tform) var)))
   (for/list ([ta taylor-approxs])
-    (match-define (cons offset coeffs) ta)
+    (define offset (series-offset ta))
     (define i 0)
     (define terms '())
 
     (define (next [iter 0])
-      (define coeff (reduce (replace-expression (coeffs i) var ((cdr tform) var))))
+      (define coeff (reducer (replacer (series-ref ta i))))
       (set! i (+ i 1))
-      (match coeff
+      (match (deref coeff)
         [0
          (if (< iter iters)
              (next (+ iter 1))
-             (reduce (make-horner ((cdr tform) var) (reverse terms))))]
+             (reducer (make-horner ((cdr tform) var) (reverse terms))))]
         [_
          (set! terms (cons (cons coeff (- i offset 1)) terms))
-         (reduce (make-horner ((cdr tform) var) (reverse terms)))]))
+         (reducer (make-horner ((cdr tform) var) (reverse terms)))]))
     next))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
@@ -100,10 +109,10 @@
 
 (define (make-horner var terms [start 0])
   (match terms
-    ['() 0]
-    [(list (cons c n)) `(* ,c ,(make-monomial var (- n start)))]
+    ['() (adder 0)]
+    [(list (cons c n)) (adder `(* ,c ,(make-monomial var (- n start))))]
     [(list (cons c n) rest ...)
-     `(* ,(make-monomial var (- n start)) (+ ,c ,(make-horner var rest n)))]))
+     (adder `(* ,(make-monomial var (- n start)) (+ ,c ,(make-horner var rest n))))]))
 
 (define (make-sum terms)
   (match terms
@@ -138,224 +147,255 @@
 
 (define (taylor var expr-batch)
   "Return a pair (e, n), such that expr ~= e var^n"
-  (define exprs (batch-exprs expr-batch))
-  (define (batch-recover-expr node)
-    (exprs (batch-push! expr-batch node)))
-
-  (batch-map
+  (batch-recurse
    expr-batch
-   (lambda (get-taylor-approx node)
+   (lambda (brf recurse)
+     (define node (deref brf))
      (match node
-       [(? (curry equal? var)) (taylor-exact 0 1)]
-       [(? number?) (taylor-exact node)]
-       [(? symbol?) (taylor-exact node)]
-       [`(,const) (taylor-exact node)]
-       [`(+ ,args ...) (apply taylor-add (map get-taylor-approx args))]
-       [`(neg ,arg) (taylor-negate (get-taylor-approx arg))]
-       [`(* ,left ,right) (taylor-mult (get-taylor-approx left) (get-taylor-approx right))]
+       [(? (curry equal? var)) (taylor-exact (adder 0) (adder 1))]
+       [(? number?) (taylor-exact brf)]
+       [(? symbol?) (taylor-exact brf)]
+       [`(,const) (taylor-exact brf)]
+       [`(+ ,arg1 ,arg2) (taylor-add (recurse arg1) (recurse arg2))]
+       [`(neg ,arg) (taylor-negate (recurse arg))]
+       [`(* ,left ,right) (taylor-mult (recurse left) (recurse right))]
        [`(/ ,num ,den)
-        #:when (equal? (batch-ref expr-batch num) 1)
-        (taylor-invert (get-taylor-approx den))]
-       [`(/ ,num ,den) (taylor-quotient (get-taylor-approx num) (get-taylor-approx den))]
-       [`(sqrt ,arg) (taylor-sqrt var (get-taylor-approx arg))]
-       [`(cbrt ,arg) (taylor-cbrt var (get-taylor-approx arg))]
+        #:when (equal? (deref num) 1)
+        (taylor-invert (recurse den))]
+       [`(/ ,num ,den) (taylor-quotient (recurse num) (recurse den))]
+       [`(sqrt ,arg) (taylor-sqrt var (recurse arg))]
+       [`(cbrt ,arg) (taylor-cbrt var (recurse arg))]
        [`(exp ,arg)
-        (define arg* (normalize-series (get-taylor-approx arg)))
-        (if (positive? (car arg*))
-            (taylor-exact (batch-recover-expr node))
+        (define arg* (normalize-series (recurse arg)))
+        (if (positive? (series-offset arg*))
+            (taylor-exact brf)
             (taylor-exp (zero-series arg*)))]
        [`(sin ,arg)
-        (define arg* (normalize-series (get-taylor-approx arg)))
+        (define arg* (normalize-series (recurse arg)))
         (cond
-          [(positive? (car arg*)) (taylor-exact (batch-recover-expr node))]
-          [(= (car arg*) 0)
+          [(positive? (series-offset arg*)) (taylor-exact brf)]
+          [(= (series-offset arg*) 0)
            ; Our taylor-sin function assumes that a0 is 0,
            ; because that way it is especially simple. We correct for this here
            ; We use the identity sin (x + y) = sin x cos y + cos x sin y
-           (taylor-add
-            (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0))) (taylor-cos (zero-series arg*)))
-            (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0))) (taylor-sin (zero-series arg*))))]
+           (taylor-add (taylor-mult (taylor-exact (adder `(sin ,(series-ref arg* 0))))
+                                    (taylor-cos (zero-series arg*)))
+                       (taylor-mult (taylor-exact (adder `(cos ,(series-ref arg* 0))))
+                                    (taylor-sin (zero-series arg*))))]
           [else (taylor-sin (zero-series arg*))])]
        [`(cos ,arg)
-        (define arg* (normalize-series (get-taylor-approx arg)))
+        (define arg* (normalize-series (recurse arg)))
         (cond
-          [(positive? (car arg*)) (taylor-exact (batch-recover-expr node))]
-          [(= (car arg*) 0)
+          [(positive? (series-offset arg*)) (taylor-exact brf)]
+          [(= (series-offset arg*) 0)
            ; Our taylor-cos function assumes that a0 is 0,
            ; because that way it is especially simple. We correct for this here
            ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-           (taylor-add (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
+           (taylor-add (taylor-mult (taylor-exact (adder `(cos ,(series-ref arg* 0))))
                                     (taylor-cos (zero-series arg*)))
-                       (taylor-negate (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
+                       (taylor-negate (taylor-mult (taylor-exact (adder `(sin ,(series-ref arg* 0))))
                                                    (taylor-sin (zero-series arg*)))))]
           [else (taylor-cos (zero-series arg*))])]
-       [`(log ,arg) (taylor-log var (get-taylor-approx arg))]
+       [`(log ,arg) (taylor-log var (recurse arg))]
        [`(pow ,base ,power)
-        #:when (exact-integer? (batch-ref expr-batch power))
-        (taylor-pow (normalize-series (get-taylor-approx base)) (batch-ref expr-batch power))]
-       [_ (taylor-exact (batch-recover-expr node))]))))
+        #:when (exact-integer? (deref power))
+        (taylor-pow (normalize-series (recurse base)) (deref power))]
+       [_ (taylor-exact brf)]))))
 
-; A taylor series is represented by a function f : nat -> expr,
-; representing the coefficients (the 1 / n! terms not included),
-; and an integer offset to the exponent
+; A taylor series is represented by a struct containing a coefficient builder,
+; a cache of computed coefficients, and an integer offset to the exponent
+
+; (define term? series?)
+
+(struct series (offset f cache) #:transparent)
 
 (define (taylor-exact . terms)
-  (define items (list->vector (map reduce terms)))
-  (cons 0
-        (λ (n)
-          (if (<= (length terms) n)
-              0
-              (vector-ref items n)))))
+  ;(->* () #:rest (listof batchref?) term?)
+  (define items (list->vector (map reducer terms)))
+  (define len (vector-length items))
+  (make-series 0
+               (λ (f n)
+                 (if (< n len)
+                     (deref (vector-ref items n))
+                     0))))
 
 (define (first-nonzero-exp f)
+  ;(-> (-> number? batchref?) number?)
   "Returns n, where (series n) != 0, but (series n) = 0 for all smaller n"
   (let loop ([n 0])
-    (if (and (equal? (f n) 0) (< n 20))
+    (if (and (equal? (deref (f n)) 0) (< n 20))
         (loop (+ n 1))
         n)))
 
-(define (align-series . serieses)
-  (cond
-    [(or (<= (length serieses) 1) (apply = (map car serieses))) serieses]
-    [else
-     (define offset* (car (argmax car serieses)))
-     (for/list ([series serieses])
-       (define offset (car series))
-       (cons offset*
-             (λ (n)
-               (if (negative? (+ n (- offset offset*)))
-                   0
-                   ((cdr series) (+ n (- offset offset*)))))))]))
+(define (make-series offset builder)
+  (series offset builder (make-dvector 10)))
 
-(define (taylor-add . terms)
-  (match-define `((,offset . ,serieses) ...) (apply align-series terms))
-  (let ([hash (make-hash)])
-    (cons (car offset)
-          (λ (n)
-            (hash-ref! hash
-                       n
-                       (λ ()
-                         (reduce (make-sum (for/list ([series serieses])
-                                             (series n))))))))))
+(define (series-ref s n)
+  (define cache (series-cache s))
+  (define builder (series-f s))
+  (define (fetch i)
+    (dvector-ref cache i))
+  (when (>= n (dvector-length cache))
+    (for ([i (in-range (dvector-length cache) (add1 n))])
+      (define value (reducer (adder (builder fetch i))))
+      (dvector-set! cache i value)))
+  (dvector-ref cache n))
+
+(define ((series-function s) n)
+  (series-ref s n))
+
+(define (taylor-add left right)
+  ;(-> term? term? term?)
+  (define left-offset (series-offset left))
+  (define right-offset (series-offset right))
+  (define target-offset (max left-offset right-offset))
+  (define (align offset series)
+    (define shift (- offset target-offset))
+    (cond
+      [(zero? shift) (series-function series)]
+      [else
+       (λ (n)
+         (if (negative? (+ n shift))
+             (adder 0)
+             (series-ref series (+ n shift))))]))
+  (define left* (align left-offset left))
+  (define right* (align right-offset right))
+  (make-series target-offset (λ (f n) (make-sum (list (left* n) (right* n))))))
 
 (define (taylor-negate term)
-  (cons (car term) (λ (n) (reduce (list 'neg ((cdr term) n))))))
+  ;(-> term? term?)
+  (make-series (series-offset term) (λ (f n) (list 'neg (series-ref term n)))))
 
 (define (taylor-mult left right)
-  (cons (+ (car left) (car right))
-        (let ([hash (make-hash)])
-          (lambda (n)
-            (hash-ref! hash
-                       n
-                       (λ ()
-                         (reduce (make-sum (for/list ([i (range (+ n 1))])
-                                             (list '* ((cdr left) i) ((cdr right) (- n i))))))))))))
+  ;(-> term? term? term?)
+  (make-series (+ (series-offset left) (series-offset right))
+               (λ (f n)
+                 (make-sum (for/list ([i (range (+ n 1))])
+                             (list '* (series-ref left i) (series-ref right (- n i))))))))
 
-(define (normalize-series series)
+(define (normalize-series s)
+  ;(-> term? term?)
   "Fixes up the series to have a non-zero zeroth term,
    allowing a possibly negative offset"
-  (match-define (cons offset coeffs) series)
+  (define offset (series-offset s))
+  (define coeffs (series-function s))
   (define slack (first-nonzero-exp coeffs))
-  (cons (- offset slack) (compose coeffs (curry + slack))))
+  (if (zero? slack)
+      s
+      (make-series (- offset slack) (λ (f n) (deref (series-ref s (+ n slack)))))))
 
-(define ((zero-series series) n)
-  (if (< n (- (car series)))
-      0
-      ((cdr series) (+ n (car series)))))
+(define ((zero-series s) n)
+  ;(-> series? (-> number? batchref?))
+  (if (< n (- (series-offset s)))
+      (adder 0)
+      (series-ref s (+ n (series-offset s)))))
 
 (define (taylor-invert term)
+  ;(-> term? term?)
   "This gets tricky, because the function might have a pole at 0.
    This happens if the inverted series doesn't have a constant term,
    so we extract that case out."
-  (match-define (cons offset b) (normalize-series term))
-  (let ([hash (make-hash)])
-    (hash-set! hash 0 (reduce `(/ 1 ,(b 0))))
-    (letrec ([f (λ (n)
-                  (hash-ref! hash
-                             n
-                             (λ ()
-                               (reduce `(neg (+ ,@(for/list ([i (range n)])
-                                                    `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))])
-      (cons (- offset) f))))
+  (define normalized (normalize-series term))
+  (define offset (series-offset normalized))
+  (define b (series-function normalized))
+  (make-series (- offset)
+               (λ (f n)
+                 (if (zero? n)
+                     `(/ 1 ,(b 0))
+                     `(neg (+ ,@(for/list ([i (range n)])
+                                  `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))
 
 (define (taylor-quotient num denom)
+  ;(-> term? term? term?)
   "This gets tricky, because the function might have a pole at 0.
    This happens if the inverted series doesn't have a constant term,
    so we extract that case out."
-  (match-define (cons noff a) (normalize-series num))
-  (match-define (cons doff b) (normalize-series denom))
-  (define hash (make-hash))
-  (hash-set! hash 0 (reduce `(/ ,(a 0) ,(b 0))))
-  (define (f n)
-    (hash-ref! hash
-               n
-               (λ ()
-                 (reduce `(- (/ ,(a n) ,(b 0))
-                             (+ ,@(for/list ([i (range n)])
-                                    `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))
-  (cons (- noff doff) f))
+  (define normalized-num (normalize-series num))
+  (define normalized-denom (normalize-series denom))
+  (define noff (series-offset normalized-num))
+  (define doff (series-offset normalized-denom))
+  (define a (series-function normalized-num))
+  (define b (series-function normalized-denom))
+  (make-series (- noff doff)
+               (λ (f n)
+                 (if (zero? n)
+                     `(/ ,(a 0) ,(b 0))
+                     `(- (/ ,(a n) ,(b 0))
+                         (+ ,@(for/list ([i (range n)])
+                                `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))
 
 (define (modulo-series var n series)
-  (match-define (cons offset coeffs) (normalize-series series))
+  ;(-> symbol? number? term? term?)
+  (define normalized (normalize-series series))
+  (define offset (series-offset normalized))
+  (define coeffs (series-function normalized))
   (define offset* (+ offset (modulo (- offset) n)))
-  (define (coeffs* i)
-    (match i
-      [0
-       (make-sum (for/list ([j (in-range (modulo offset n))])
-                   `(* ,(coeffs j) (pow ,var ,(+ j (modulo (- offset) n))))))]
-      [_
-       #:when (< i n)
-       0]
-      [_ (coeffs (+ (- i n) (modulo offset n)))]))
-  (cons offset* (if (= offset offset*) coeffs coeffs*)))
+  (cond
+    [(= offset offset*) normalized]
+    [else
+     (define cache (make-dvector 2)) ;; never called more than twice
+     (define (coeffs* i)
+       (unless (and (> (dvector-capacity cache) i) (dvector-ref cache i))
+         (define res
+           (match i
+             [0
+              (adder (make-sum (for/list ([j (in-range (modulo offset n))])
+                                 `(* ,(coeffs j) (pow ,var ,(+ j (modulo (- offset) n)))))))]
+             [_
+              #:when (< i n)
+              (adder 0)]
+             [_ (coeffs (+ (- i n) (modulo offset n)))]))
+         (dvector-set! cache i res))
+       (dvector-ref cache i))
+     (make-series offset* (λ (f i) (deref (coeffs* i))))]))
 
 (define (taylor-sqrt var num)
-  (match-define (cons offset* coeffs*) (modulo-series var 2 num))
-  (let* ([hash (make-hash)])
-    (hash-set! hash 0 (reduce `(sqrt ,(coeffs* 0))))
-    (hash-set! hash 1 (reduce `(/ ,(coeffs* 1) (* 2 (sqrt ,(coeffs* 0))))))
-    (letrec ([f (λ (n)
-                  (hash-ref! hash
-                             n
-                             (λ ()
-                               (reduce (cond
-                                         [(even? n)
-                                          `(/ (- ,(coeffs* n)
-                                                 (pow ,(f (/ n 2)) 2)
-                                                 (+ ,@(for/list ([k (in-naturals 1)]
-                                                                 #:break (>= k (- n k)))
-                                                        `(* 2 (* ,(f k) ,(f (- n k)))))))
-                                              (* 2 ,(f 0)))]
-                                         [(odd? n)
-                                          `(/ (- ,(coeffs* n)
-                                                 (+ ,@(for/list ([k (in-naturals 1)]
-                                                                 #:break (>= k (- n k)))
-                                                        `(* 2 (* ,(f k) ,(f (- n k)))))))
-                                              (* 2 ,(f 0)))])))))])
-      (cons (/ offset* 2) f))))
+  ;(-> symbol? term? term?)
+  (define normalized (modulo-series var 2 num))
+  (define offset* (series-offset normalized))
+  (define coeffs* (series-function normalized))
+  (make-series (/ offset* 2)
+               (λ (f n)
+                 (cond
+                   [(zero? n) `(sqrt ,(coeffs* 0))]
+                   [(= n 1) `(/ ,(coeffs* 1) (* 2 (sqrt ,(coeffs* 0))))]
+                   [(even? n)
+                    `(/ (- ,(coeffs* n)
+                           (pow ,(f (/ n 2)) 2)
+                           (+ ,@(for/list ([k (in-naturals 1)]
+                                           #:break (>= k (- n k)))
+                                  `(* 2 (* ,(f k) ,(f (- n k)))))))
+                        (* 2 ,(f 0)))]
+                   [(odd? n)
+                    `(/ (- ,(coeffs* n)
+                           (+ ,@(for/list ([k (in-naturals 1)]
+                                           #:break (>= k (- n k)))
+                                  `(* 2 (* ,(f k) ,(f (- n k)))))))
+                        (* 2 ,(f 0)))]))))
 
 (define (taylor-cbrt var num)
-  (match-define (cons offset* coeffs*) (modulo-series var 3 num))
-  (let* ([f0 (reduce `(cbrt ,(coeffs* 0)))]
-         [hash (make-hash)])
-    (hash-set! hash 0 f0)
-    (hash-set! hash 1 (reduce `(/ ,(coeffs* 1) (* 3 (cbrt (* ,f0 ,f0))))))
-    (letrec ([f (λ (n)
-                  (hash-ref! hash
-                             n
-                             (λ ()
-                               (reduce `(/ (- ,(coeffs* n)
-                                              ,@(for*/list ([terms (n-sum-to 3 n)]
-                                                            #:unless (set-member? terms n))
-                                                  (match-define (list a b c) terms)
-                                                  `(* ,(f a) ,(f b) ,(f c))))
-                                           (* 3 ,f0 ,f0))))))])
-      (cons (/ offset* 3) f))))
+  ;(-> symbol? term? term?)
+  (define normalized (modulo-series var 3 num))
+  (define offset* (series-offset normalized))
+  (define coeffs* (series-function normalized))
+  (make-series (/ offset* 3)
+               (λ (f n)
+                 (cond
+                   [(zero? n) `(cbrt ,(coeffs* 0))]
+                   [(= n 1) `(/ ,(coeffs* 1) (* 3 (cbrt (* ,(f 0) ,(f 0)))))]
+                   [else
+                    `(/ (- ,(coeffs* n)
+                           ,@(for*/list ([terms (n-sum-to 3 n)]
+                                         #:unless (set-member? terms n))
+                               (match-define (list a b c) terms)
+                               `(* ,(f a) ,(f b) ,(f c))))
+                        (* 3 ,(f 0) ,(f 0)))]))))
 
 (define (taylor-pow coeffs n)
+  ;(-> term? number? term?)
   (match n ;; Russian peasant multiplication
     [(? negative?) (taylor-pow (taylor-invert coeffs) (- n))]
-    [0 (taylor-exact 1)]
+    [0 (taylor-exact (adder 1))]
     [1 coeffs]
     [(? even?)
      (define half (taylor-pow coeffs (/ n 2)))
@@ -380,72 +420,67 @@
                    (sow (cons head pt))))))]))
 
 (define (taylor-exp coeffs)
-  (let* ([hash (make-hash)])
-    (hash-set! hash 0 (reduce `(exp ,(coeffs 0))))
-    (cons 0
-          (λ (n)
-            (hash-ref! hash
-                       n
-                       (λ ()
-                         (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
-                         (define nums
-                           (for/list ([i (in-range 1 (+ n 1))]
-                                      [coeff (in-vector coeffs*)]
-                                      #:unless (equal? coeff 0))
-                             i))
-                         (reduce `(* (exp ,(coeffs 0))
-                                     (+ ,@(for/list ([p (all-partitions n (sort nums >))])
-                                            `(* ,@(for/list ([(count num) (in-dict p)])
-                                                    `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                                        ,(factorial count))))))))))))))
+  ;(-> (-> number? batchref?) term?)
+  (make-series 0
+               (λ (f n)
+                 (cond
+                   [(zero? n) `(exp ,(coeffs 0))]
+                   [else
+                    (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
+                    (define nums
+                      (for/list ([i (in-range 1 (+ n 1))]
+                                 [coeff (in-vector coeffs*)]
+                                 #:unless (equal? (deref coeff) 0))
+                        i))
+                    `(* (exp ,(coeffs 0))
+                        (+ ,@(for/list ([p (all-partitions n (sort nums >))])
+                               `(* ,@(for/list ([(count num) (in-dict p)])
+                                       `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                           ,(factorial count)))))))]))))
 
 (define (taylor-sin coeffs)
-  (let ([hash (make-hash)])
-    (hash-set! hash 0 0)
-    (cons 0
-          (λ (n)
-            (hash-ref! hash
-                       n
-                       (λ ()
-                         (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
-                         (define nums
-                           (for/list ([i (in-range 1 (+ n 1))]
-                                      [coeff (in-vector coeffs*)]
-                                      #:unless (equal? coeff 0))
-                             i))
-                         (reduce `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
-                                         (if (= (modulo (apply + (map car p)) 2) 1)
-                                             `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
-                                                 ,@(for/list ([(count num) (in-dict p)])
-                                                     `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                                         ,(factorial count))))
-                                             0))))))))))
+  ;(-> (-> number? batchref?) term?)
+  (make-series 0
+               (λ (f n)
+                 (cond
+                   [(zero? n) 0]
+                   [else
+                    (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
+                    (define nums
+                      (for/list ([i (in-range 1 (+ n 1))]
+                                 [coeff (in-vector coeffs*)]
+                                 #:unless (equal? (deref coeff) 0))
+                        i))
+                    `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
+                            (if (= (modulo (apply + (map car p)) 2) 1)
+                                `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
+                                    ,@(for/list ([(count num) (in-dict p)])
+                                        `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                            ,(factorial count))))
+                                0)))]))))
 
 (define (taylor-cos coeffs)
-  (let ([hash (make-hash)])
-    (hash-set! hash 0 1)
-    (cons 0
-          (λ (n)
-            (hash-ref! hash
-                       n
-                       (λ ()
-                         (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
-                         (define nums
-                           (for/list ([i (in-range 1 (+ n 1))]
-                                      [coeff (in-vector coeffs*)]
-                                      #:unless (equal? coeff 0))
-                             i))
-                         (reduce `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
-                                         (if (= (modulo (apply + (map car p)) 2) 0)
-                                             `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
-                                                 ,@(for/list ([(count num) (in-dict p)])
-                                                     `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                                         ,(factorial count))))
-                                             0))))))))))
+  ;(-> (-> number? batchref?) term?)
+  (make-series 0
+               (λ (f n)
+                 (cond
+                   [(zero? n) 1]
+                   [else
+                    (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
+                    (define nums
+                      (for/list ([i (in-range 1 (+ n 1))]
+                                 [coeff (in-vector coeffs*)]
+                                 #:unless (equal? (deref coeff) 0))
+                        i))
+                    `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
+                            (if (= (modulo (apply + (map car p)) 2) 0)
+                                `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
+                                    ,@(for/list ([(count num) (in-dict p)])
+                                        `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                            ,(factorial count))))
+                                0)))]))))
 
 ;; This is a hyper-specialized symbolic differentiator for log(f(x))
-
-(define initial-logtable '((1 -1 1)))
 
 (define (list-setinc l i)
   (let loop ([i i]
@@ -480,51 +515,62 @@
   (hash-ref! (log-cache) i (λ () (logstep (logcompute (- i 1))))))
 
 (define (taylor-log var arg)
-  (match-define (cons shift coeffs) (normalize-series arg))
-  (define hash (make-hash))
-  (define negate? (and (number? (coeffs 0)) (not (positive? (coeffs 0)))))
+  ;(-> symbol? term? term?)
+  (define normalized (normalize-series arg))
+  (define shift (series-offset normalized))
+  (define coeffs (series-function normalized))
+  (define negate? (and (number? (deref (coeffs 0))) (not (positive? (deref (coeffs 0))))))
   (define (maybe-negate x)
     (if negate?
         `(neg ,x)
         x))
-  (hash-set! hash 0 (reduce `(log ,(maybe-negate (coeffs 0)))))
 
-  (define (series n)
-    (hash-ref! hash
-               n
-               (λ ()
-                 (define tmpl (logcompute n))
-                 (reduce `(/ (+ ,@(for/list ([term tmpl])
-                                    (match-define `(,coeff ,k ,ps ...) term)
-                                    `(* ,coeff
-                                        (/ (* ,@(for/list ([i (in-naturals 1)]
-                                                           [p ps])
-                                                  (if (= p 0)
-                                                      1
-                                                      `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
-                                           (exp (* ,(- k) ,(series 0)))))))
-                             ,(factorial n))))))
+  (define base
+    (make-series 0
+                 (λ (f n)
+                   (cond
+                     [(zero? n) `(log ,(maybe-negate (coeffs 0)))]
+                     [else
+                      (define tmpl (logcompute n))
+                      `(/ (+ ,@(for/list ([term tmpl])
+                                 (match-define `(,coeff ,k ,ps ...) term)
+                                 `(* ,coeff
+                                     (/ (* ,@(for/list ([i (in-naturals 1)]
+                                                        [p ps])
+                                               (if (= p 0)
+                                                   1
+                                                   `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
+                                        (exp (* ,(- k) ,(f 0)))))))
+                          ,(factorial n))]))))
 
-  (cons 0
-        (λ (n)
-          (if (and (= n 0) (not (zero? shift)))
-              (reduce `(+ (* (neg ,shift) (log ,(maybe-negate var))) ,(series 0)))
-              (series n)))))
+  (if (zero? shift)
+      base
+      (taylor-add base
+                  (make-series 0
+                               (λ (f n)
+                                 (if (zero? n)
+                                     `(* (neg ,shift) (log ,(maybe-negate var)))
+                                     0))))))
 
 (module+ test
   (require rackunit)
   (define-values (batch brfs) (progs->batch (list '(pow x 1.0))))
-  (define brfs* (map (expand-taylor! batch) brfs))
-  (define brf (car brfs*))
-  (check-pred exact-integer? (car ((taylor 'x batch) brf))))
-
-(module+ test
-  (define (coeffs expr #:n [n 7])
-    (define-values (batch brfs) (progs->batch (list expr)))
+  (parameterize ([reduce (batch-reduce batch)]
+                 [add (λ (x) (batch-add! batch x))])
     (define brfs* (map (expand-taylor! batch) brfs))
     (define brf (car brfs*))
-    (match-define fn (zero-series ((taylor 'x batch) brf)))
-    (build-list n fn))
+    (check-pred exact-integer? (series-offset ((taylor 'x batch) brf)))))
+
+(module+ test
+  (require "batch-reduce.rkt")
+  (define (coeffs expr #:n [n 7])
+    (define-values (batch brfs) (progs->batch (list expr)))
+    (parameterize ([reduce (batch-reduce batch)]
+                   [add (λ (x) (batch-add! batch x))])
+      (define brfs* (map (expand-taylor! batch) brfs))
+      (define brf (car brfs*))
+      (define fn (zero-series ((taylor 'x batch) brf)))
+      (map batch-pull (build-list n fn))))
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
