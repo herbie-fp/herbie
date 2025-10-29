@@ -166,9 +166,9 @@
 
 ; Fractions
 (define-rules arithmetic
-  [sum-to-mult (+ a b) (* (+ 1 (/ b a)) a) #:unsound] ; unsound @ a = 0, b = 1
+  #;[sum-to-mult (+ a b) (* (+ 1 (/ b a)) a) #:unsound] ; unsound @ a = 0, b = 1
   [sum-to-mult-rev (* (+ 1 (/ b a)) a) (+ a b)]
-  [sub-to-mult (- a b) (* (- 1 (/ b a)) a) #:unsound] ; unsound @ a = 0, b = 1
+  #;[sub-to-mult (- a b) (* (- 1 (/ b a)) a) #:unsound] ; unsound @ a = 0, b = 1
   [sub-to-mult-rev (* (- 1 (/ b a)) a) (- a b)]
   [add-to-fraction (+ c (/ b a)) (/ (+ (* c a) b) a)]
   [add-to-fraction-rev (/ (+ (* c a) b) a) (+ c (/ b a))]
@@ -177,7 +177,7 @@
   [common-denominator (+ (/ a b) (/ c d)) (/ (+ (* a d) (* c b)) (* b d))])
 
 (define-rules polynomials
-  [sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
+  #;[sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
   [flip-+ (+ a b) (sound-/ (- (* a a) (* b b)) (- a b) (+ a b))]
   [flip-- (- a b) (sound-/ (- (* a a) (* b b)) (+ a b) (- a b))])
 
@@ -359,10 +359,10 @@
   [pow-neg (pow a (neg b)) (sound-/ 1 (sound-pow a b 0) 0)])
 
 (define-rules exponents
-  [pow-to-exp (pow a b) (exp (* (log a) b)) #:unsound] ; unsound @ a = -1, b = 1
-  [pow-add (pow a (+ b c)) (* (pow a b) (pow a c)) #:unsound] ; unsound @ a = -1, b = c = 1/2
-  [pow-sub (pow a (- b c)) (/ (pow a b) (pow a c)) #:unsound] ; unsound @ a = -1, b = c = 1/2
-  [unpow-prod-down (pow (* b c) a) (* (pow b a) (pow c a)) #:unsound]) ; unsound @ a = 1/2, b = c = -1
+  #;[pow-to-exp (pow a b) (exp (* (log a) b)) #:unsound] ; unsound @ a = -1, b = 1
+  #;[pow-add (pow a (+ b c)) (* (pow a b) (pow a c)) #:unsound] ; unsound @ a = -1, b = c = 1/2
+  #;[pow-sub (pow a (- b c)) (/ (pow a b) (pow a c)) #:unsound] ; unsound @ a = -1, b = c = 1/2
+  #;[unpow-prod-down (pow (* b c) a) (* (pow b a) (pow c a)) #:unsound]) ; unsound @ a = 1/2, b = c = -1
 
 ; Logarithms
 (define-rules exponents
