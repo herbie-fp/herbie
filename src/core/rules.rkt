@@ -154,7 +154,7 @@
 (define-rules arithmetic
   [mult-flip (/ a b) (* a (/ 1 b))]
   [mult-flip-rev (* a (/ 1 b)) (/ a b)]
-  [div-flip (/ a b) (/ 1 (/ b a)) #:unsound] ; unsound @ a = 0, b != 0
+  [div-flip (/ a b) (sound-/ 1 (sound-/ b a 0) (/ a b))]
   [div-flip-rev (/ 1 (/ b a)) (/ a b)])
 
 ; Fractions
@@ -171,8 +171,8 @@
 
 (define-rules polynomials
   [sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
-  [flip-+ (+ a b) (sound-/ (- (* a a) (* b b)) (- a b) (+ a b))] ; unsound @ a = b = 1
-  [flip-- (- a b) (sound-/ (- (* a a) (* b b)) (+ a b) (- a b))]) ; unsound @ a = -1, b = 1
+  [flip-+ (+ a b) (sound-/ (- (* a a) (* b b)) (- a b) (+ a b))]
+  [flip-- (- a b) (sound-/ (- (* a a) (* b b)) (+ a b) (- a b))])
 
 ; Difference of cubes
 (define-rules polynomials
@@ -181,7 +181,7 @@
   [difference-cubes-rev (* (+ (* a a) (+ (* b b) (* a b))) (- a b)) (- (pow a 3) (pow b 3))]
   [sum-cubes-rev (* (+ (* a a) (- (* b b) (* a b))) (+ a b)) (+ (pow a 3) (pow b 3))])
 
-(define-rules polynomials ; unsound @ a = b = 0
+(define-rules polynomials
   [flip3-+ (+ a b) (sound-/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b))) (+ a b))]
   [flip3-- (- a b) (sound-/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b))) (- a b))])
 
@@ -245,8 +245,8 @@
   [sqrt-undiv (/ (sqrt x) (sqrt y)) (sqrt (/ x y))])
 
 (define-rules arithmetic
-  [sqrt-prod (sqrt (* x y)) (* (sqrt x) (sqrt y)) #:unsound] ; unsound @ x = y = -1
-  [sqrt-div (sqrt (/ x y)) (/ (sqrt x) (sqrt y)) #:unsound] ; unsound @ x = y = -1
+  [sqrt-prod (sqrt (* x y)) (* (sqrt (fabs x)) (sqrt (fabs y)))]
+  [sqrt-div (sqrt (/ x y)) (/ (sqrt (fabs x)) (sqrt (fabs y)))]
   [add-sqr-sqrt x (* (sqrt x) (sqrt x)) #:unsound]) ; unsound @ x = -1
 
 ; Cubing
@@ -364,9 +364,9 @@
   [log-pow-rev (* b (log a)) (log (pow a b))])
 
 (define-rules exponents
-  [log-prod (log (* a b)) (+ (log a) (log b)) #:unsound] ; unsound @ a = b = -1
-  [log-div (log (/ a b)) (- (log a) (log b)) #:unsound] ; unsound @ a = b = -1
-  [log-pow (log (pow a b)) (* b (log a)) #:unsound]) ; unsound @ a = -1, b = 2
+  [log-prod (log (* a b)) (+ (log (fabs a)) (log (fabs b)))]
+  [log-div (log (/ a b)) (- (log (fabs a)) (log (fabs b)))]
+  [log-pow (log (pow a b)) (* b (log (fabs a)))])
 
 (define-rules exponents
   [sum-log (+ (log a) (log b)) (log (* a b))]
