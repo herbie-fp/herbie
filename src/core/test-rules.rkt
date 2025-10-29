@@ -32,8 +32,7 @@
      #:when (string-contains? (~a op) "sound")
      (define op* (string->symbol (substring (symbol->string (car expr)) (string-length "sound-"))))
      (cons op* (map drop-unsound args))]
-    [(list op args ...)
-     (cons op (map drop-unsound args))]
+    [(list op args ...) (cons op (map drop-unsound args))]
     [_ expr]))
 
 (define (check-rule test-rule)
