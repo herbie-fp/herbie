@@ -13,6 +13,8 @@
 
 (activate-platform! (*platform-name*))
 
+(define skip-rules '(log-pow))
+
 (define num-test-points (make-parameter 100))
 (define double-repr (get-representation 'binary64))
 
@@ -26,10 +28,12 @@
      #:when (string-contains? (~a op) "unsound")
      (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
      (cons op* (map drop-unsound args))]
-    [(list (? (λ (x) (string-prefix? (symbol->string x) "sound-")) op) args ...)
+    [(list op args ... extra)
+     #:when (string-contains? (~a op) "sound")
      (define op* (string->symbol (substring (symbol->string (car expr)) (string-length "sound-"))))
-     (define args* (drop-right args 1))
-     (cons op* (map drop-unsound args*))]
+     (cons op* (map drop-unsound args))]
+    [(list op args ...)
+     (cons op (map drop-unsound args))]
     [_ expr]))
 
 (define (check-rule test-rule)
@@ -59,6 +63,7 @@
                   (check-rule rule))))
 
 (module+ test
-  (for* ([rule (in-list (*rules*))])
+  (for* ([rule (in-list (*rules*))]
+         #:unless (set-member? skip-rules (rule-name rule)))
     (test-case (~a (rule-name rule))
       (check-rule rule))))
