@@ -373,7 +373,7 @@
 (define-rules exponents
   [log-prod (log (* a b)) (+ (log (fabs a)) (log (fabs b)))]
   [log-div (log (/ a b)) (- (log (fabs a)) (log (fabs b)))]
-  [log-pow (log (pow a b)) (* b (log (fabs a)))])
+  [log-pow (log (pow a b)) (* b (log (fabs a))) #:unsound]) ; unsound @ a == b == 0
 
 (define-rules exponents
   [sum-log (+ (log a) (log b)) (log (* a b))]
