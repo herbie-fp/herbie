@@ -1,8 +1,10 @@
 
 # Testing
 
-- Run `make fmt` to format the code before presentingcode. This is
+- Run `make fmt` to format the code before finishing a task. This is
   mandatory and PRs that don't follow the coding style are rejected.
+- Always check your `git diff` before finishing a task. There's often
+  leftover or dead code, and you should delete it.
 - Run `racket src/main.rkt report bench/tutorial.fpcore tmp` to test
   that your changes work; this should take about 5-10 seconds and all
   of the tests should pass, getting basically perfect accuracy.
