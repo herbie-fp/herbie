@@ -7,7 +7,7 @@
 
 (provide *rules*
          (struct-out rule)
-         add-sound-with-wildcard)
+         add-sound)
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
 ;; are patterns, meaning that symbols represent pattern variables.
