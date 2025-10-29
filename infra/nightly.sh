@@ -5,6 +5,7 @@ set -e -x
 
 # Ensure egglog is in the path
 export PATH="$PATH:$HOME/.cargo/bin/"
+rustup update
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
