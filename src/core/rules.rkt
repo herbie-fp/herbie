@@ -177,7 +177,7 @@
   [common-denominator (+ (/ a b) (/ c d)) (/ (+ (* a d) (* c b)) (* b d))])
 
 (define-rules polynomials
-  [sqr-pow (pow a b) (copysign (* (pow (fabs a) (/ b 2)) (pow (fabs a) (/ b 2))) a)]
+  [sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
   [flip-+ (+ a b) (sound-/ (- (* a a) (* b b)) (- a b) (+ a b))]
   [flip-- (- a b) (sound-/ (- (* a a) (* b b)) (+ a b) (- a b))])
 
