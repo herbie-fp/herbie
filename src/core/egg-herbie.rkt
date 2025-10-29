@@ -539,6 +539,10 @@
                                 (rule (sym-append 'lower-unsound- impl)
                                       (add-unsound spec-expr)
                                       impl-expr
+                                      '(lowering))
+                                (rule (sym-append 'lower-sound- impl)
+                                      (add-sound-with-wildcard spec-expr)
+                                      impl-expr
                                       '(lowering))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

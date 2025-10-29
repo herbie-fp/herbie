@@ -8,7 +8,8 @@
 (provide *rules*
          *sound-rules*
          (struct-out rule)
-         add-unsound)
+         add-unsound
+         add-sound-with-wildcard)
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
 ;; are patterns, meaning that symbols represent pattern variables.
@@ -34,6 +35,13 @@
 (define (add-unsound expr)
   (match expr
     [(list op args ...) (cons (sym-append "unsound-" op) (map add-unsound args))]
+    [_ expr]))
+
+(define (add-sound-with-wildcard expr)
+  (match expr
+    [(list op args ...)
+     (cons (sym-append "sound-" op)
+           (append (map add-sound-with-wildcard args) (list '_)))]
     [_ expr]))
 
 (define-syntax define-rule
