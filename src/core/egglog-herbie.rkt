@@ -93,7 +93,7 @@
   (egglog-runner batch brfs reprs schedule ctx))
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
-(define (run-egglog-multi-extractor runner output-batch) ; multi expression extraction
+(define (run-egglog-multi-extractor runner output-batch [label #f]) ; multi expression extraction
   (define insert-batch (egglog-runner-batch runner))
   (define insert-brfs (egglog-runner-brfs runner))
   (define curr-program (make-egglog-program))
@@ -107,8 +107,9 @@
          (make-directory dump-dir))
        (define name
          (for/first ([i (in-naturals)]
-                     #:unless (file-exists? (build-path dump-dir (format "~a.egg" i))))
-           (build-path dump-dir (format "~a.egg" i))))
+                     #:unless
+                     (file-exists? (build-path dump-dir (format "~a~a.egg" (if label label "") i))))
+           (build-path dump-dir (format "~a~a.egg" (if label label "") i))))
 
        (open-output-file name #:exists 'replace)]
 
@@ -436,15 +437,14 @@
              (hash-set! (id->e1) unsound-op (serialize-op unsound-op))
              (hash-set! (e1->id) (serialize-op unsound-op) unsound-op)
 
+             (define sound-op (sym-append "sound-" op))
+             (hash-set! (id->e1) sound-op (serialize-op sound-op))
+             (hash-set! (e1->id) (serialize-op sound-op) sound-op)
+
              (define arity (length (operator-info op 'itype)))
-             (list `(,(serialize-op op) ,@(for/list ([i (in-range arity)])
-                                            'M)
-                                        :cost
-                                        4294967295)
-                   `(,(serialize-op unsound-op) ,@(for/list ([i (in-range arity)])
-                                                    'M)
-                                                :cost
-                                                4294967295)))))
+             (list `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295)
+                   `(,(serialize-op sound-op) ,@(make-list arity 'M) M :cost 4294967295)
+                   `(,(serialize-op unsound-op) ,@(make-list arity 'M) :cost 4294967295)))))
 
 (define (platform-impl-nodes pform min-cost)
   (for/list ([impl (in-list (platform-impls pform))])
@@ -617,7 +617,7 @@
     (cond
       [(hash-has-key? vars x)
        (if spec?
-           (string->symbol (format "?~a" (hash-ref vars x)))
+           (string->symbol (format "?s~a" (hash-ref vars x)))
            (string->symbol (format "?t~a" (hash-ref vars x))))]
       [else (vector-ref mappings x)]))
 
@@ -726,7 +726,7 @@
   ; ; Var-spec-bindings
   (for ([var (in-list (context-vars ctx))])
     ; Get the binding names for the program
-    (define binding-name (string->symbol (format "?~a" var)))
+    (define binding-name (string->symbol (format "?s~a" var)))
     (define constructor-name (string->symbol (format "const~a" constructor-num)))
     (hash-set! binding->constructor binding-name constructor-name)
 
@@ -802,7 +802,7 @@
       (define curr-binding-name
         (if (hash-has-key? vars root)
             (if (spec? brf)
-                (string->symbol (format "?~a" (hash-ref vars root)))
+                (string->symbol (format "?s~a" (hash-ref vars root)))
                 (string->symbol (format "?t~a" (hash-ref vars root))))
             (string->symbol (format "?r~a" root))))
 

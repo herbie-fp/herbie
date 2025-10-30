@@ -15,7 +15,8 @@
          "rival.rkt"
          "taylor.rkt")
 
-(provide generate-candidates)
+(provide generate-candidates
+         get-starting-expr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -96,14 +97,15 @@
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
 
   (define runner
-    (if (flag-set? 'generate 'egglog)
-        (let-values ([(batch* brfs*) (batch-copy-only global-batch brfs)])
-          (make-egglog-runner batch* brfs* reprs schedule (*context*)))
-        (make-egraph global-batch brfs reprs schedule (*context*))))
+    (cond
+      [(flag-set? 'generate 'egglog)
+       (define-values (batch* brfs*) (batch-copy-only global-batch brfs))
+       (make-egglog-runner batch* brfs* reprs schedule (*context*))]
+      [else (make-egraph global-batch brfs reprs schedule (*context*))]))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog-multi-extractor runner global-batch)
+        (run-egglog-multi-extractor runner global-batch 'taylor)
         (egraph-best runner global-batch)))
 
   ; apply changelists
@@ -168,14 +170,15 @@
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
 
   (define runner
-    (if (flag-set? 'generate 'egglog)
-        (let-values ([(batch* brfs*) (batch-copy-only global-batch brfs)])
-          (make-egglog-runner batch* brfs* reprs schedule (*context*)))
-        (make-egraph global-batch brfs reprs schedule (*context*))))
+    (cond
+      [(flag-set? 'generate 'egglog)
+       (define-values (batch* brfs*) (batch-copy-only global-batch brfs))
+       (make-egglog-runner batch* brfs* reprs schedule (*context*))]
+      [else (make-egraph global-batch brfs reprs schedule (*context*))]))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog-multi-extractor runner global-batch)
+        (run-egglog-multi-extractor runner global-batch 'rewrite)
         (egraph-variations runner global-batch)))
 
   ; apply changelists
@@ -194,6 +197,11 @@
   rewritten)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (get-starting-expr altn)
+  (match (alt-prevs altn)
+    [(list) (alt-expr altn)]
+    [(list prev) (get-starting-expr prev)]))
 
 (define (generate-candidates batch brfs spec-batch reducer)
   ; Starting alternatives
@@ -218,4 +226,5 @@
         (run-rr start-altns batch)
         '()))
 
-  (remove-duplicates (append evaluations rewritten approximations) #:key alt-expr))
+  (remove-duplicates (append evaluations rewritten approximations)
+                     #:key (λ (altn) (cons (alt-expr altn) (get-starting-expr altn)))))

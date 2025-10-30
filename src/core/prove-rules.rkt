@@ -92,6 +92,7 @@
 
     [`(< (* ,a ,a) 0) '(FALSE)]
     [`(< (sqrt ,a) 0) '(FALSE)]
+    [`(< (fabs ,a) 0) '(FALSE)]
     [`(,(or '< '==) (cosh ,a) ,(? (conjoin number? (curryr < 1)))) '(FALSE)]
     [`(,(or '< '==) (exp ,a) ,(? (conjoin number? (curryr <= 0)))) '(FALSE)]
     [`(,(or '< '==) (* ,a ,a) ,(? (conjoin number? (curryr < 0)))) '(FALSE)]
@@ -159,29 +160,34 @@
       xs
       (simplify-conditions simple1)))
 
+;; The prover must prove: rhs-bad => lhs-bad
+;; IOW we can weaken the RHS or strengthen the LHS
+
 (define soundness-proofs
   '((pow-plus (implies (< b -1) (< b 0)))
     (pow-sqr (implies (even-denominator? (* 2 b)) (even-denominator? b)))
     (hang-0p-tan (implies (== (cos (/ a 2)) 0) (== (cos a) -1)))
-    (hang-0p-tan-rev (implies (== (cos (/ a 2)) 0) (== (cos a) -1)))
-    (hang-0m-tan (implies (== (cos (/ a 2)) 0) (== (cos a) -1)))
-    (hang-0m-tan-rev (implies (== (cos (/ a 2)) 0) (== (cos a) -1)))
+    (hang-0p-tan-rev (implies (== (cos a) -1) (== (cos (/ a 2)) 0)))
+    (hang-0m-tan (implies (== (cos (/ (neg a) 2)) 0) (== (cos a) -1)))
+    (hang-0m-tan-rev (implies (== (cos a) -1) (== (cos (/ (neg a) 2)) 0)))
     (tanh-sum (implies (== (* (tanh x) (tanh y)) -1) (FALSE)))
     (tanh-def-a (implies (== (+ (exp x) (exp (neg x))) 0) (FALSE)))
-    (acosh-def (implies (< x 1) (or (< x -1) (== x -1) (< (fabs x) 1))))
+    (acosh-def (implies (< x -1) (< x 1))
+               (implies (== x -1) (< x 1))
+               (implies (< (fabs x) 1) (< x 1)))
     (acosh-def-rev (implies (< x 1) (or (< x -1) (== x -1) (< (fabs x) 1))))
     (sqrt-undiv (implies (< (/ x y) 0) (or (< x 0) (< y 0))))
     (sqrt-unprod (implies (< (* x y) 0) (or (< x 0) (< y 0))))
+    (sqrt-pow2 (implies (and (< x 0) _) (< x 0)))
     (tan-sum-rev (implies (== (cos (+ x y)) 0) (== (* (tan x) (tan y)) 1)))
     (sum-log (implies (< (* x y) 0) (or (< x 0) (< y 0))))
     (diff-log (implies (< (/ x y) 0) (or (< x 0) (< y 0))))
     (exp-to-pow (implies (and a b) a))
-    (sinh-acosh (implies (< (fabs x) 1) (< x 1)))
     (acosh-2-rev (implies (< (fabs x) 1) (< x 1)))
     (tanh-acosh (implies (< (fabs x) 1) (< x 1)) (implies (== x 0) (< x 1)))
+    (sinh-acosh (implies (< (fabs x) 1) (< x 1)))
     (hang-p0-tan (implies (== (cos (/ a 2)) 0) (== (sin a) 0)))
     (hang-m0-tan (implies (== (cos (/ a 2)) 0) (== (sin a) 0)))
-    (sqrt-pow2 (implies (and a b) a))
     (pow-div (implies (< (- b c) 0) (or (< b 0) (> c 0)))
              (implies (even-denominator? (- b c)) (or (even-denominator? b) (even-denominator? c))))
     (pow-prod-up (implies (< (+ b c) 0) (or (< b 0) (< c 0)))
@@ -196,7 +202,7 @@
     (simplify-conditions (map (curryr rewrite-all a b) terms))))
 
 (define (rewrite-unsound? lhs rhs [proof '()])
-  (define lhs-bad (execute-proof proof (undefined-conditions lhs)))
+  (define lhs-bad (simplify-conditions (undefined-conditions lhs)))
   (define rhs-bad (execute-proof proof (undefined-conditions rhs)))
   (define extra (set-remove (set-subtract rhs-bad lhs-bad) '(FALSE)))
   (if (empty? extra)
@@ -204,8 +210,7 @@
       (values lhs-bad extra)))
 
 (define (potentially-unsound)
-  (define num 0)
-  (for ([rule (in-list (*sound-rules*))])
+  (for ([rule (in-list (*rules*))])
     (test-case (~a (rule-name rule))
       (define proof (dict-ref soundness-proofs (rule-name rule) '()))
       (define-values (lhs-bad rhs-bad) (rewrite-unsound? (rule-input rule) (rule-output rule) proof))
