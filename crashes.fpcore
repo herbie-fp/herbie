@@ -1,0 +1,4 @@
+(FPCore (x)
+  (if (> (fabs (cos x)) 0.0)
+      (/ 1.0 (cos x))
+      0.0))
