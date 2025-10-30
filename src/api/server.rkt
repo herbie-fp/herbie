@@ -236,7 +236,7 @@
      job-id]
     [(list 'count) (hash-count queued-jobs)]
     [(list 'improve)
-     (for/list ([(job-id result) (in-hash completed-jobs)]
+     (for/list ([result (in-hash-values completed-jobs)]
                 #:when (equal? (hash-ref result 'command) "improve"))
        result)]
     [(list 'forget job-id)
@@ -369,7 +369,7 @@
        ; Retrieve the improve results for results.json
        [(list 'improve handler)
         (define improved-list
-          (for/list ([(job-id result) (in-hash completed-jobs)]
+          (for/list ([result (in-hash-values completed-jobs)]
                      #:when (equal? (hash-ref result 'command) "improve"))
             result))
         (place-channel-put handler improved-list)]

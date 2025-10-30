@@ -180,12 +180,10 @@
                  (λ (brf recurse)
                    (define node (deref brf))
                    (define node* (f node))
-                   (define brf*
-                     (let loop ([node* node*])
-                       (match node*
-                         [(? batchref? brf) (recurse brf)]
-                         [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))
-                   brf*)))
+                   (let loop ([node* node*])
+                     (match node*
+                       [(? batchref? brf) (recurse brf)]
+                       [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))))
 
 ;; Allocates new batch
 (define (batch-apply b brfs f)

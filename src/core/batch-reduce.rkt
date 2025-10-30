@@ -167,7 +167,7 @@
   (define (gather-multiplicative-terms brf recurse)
     (match (deref brf)
       [+nan.0 (nan-term)]
-      [(? number? n) `(,n . ())]
+      [(? number? n) (list n)]
       [(? symbol?) `(1 . ((1 . ,brf)))]
       [`(neg ,arg)
        (define terms (recurse arg))
@@ -201,10 +201,10 @@
               (cons exact-cbrt
                     (for/list ([term (cdr terms)])
                       (cons (/ (car term) 3) (cdr term))))
-              (cons 1
-                    (list* (cons 1 (batch-add! batch `(cbrt ,(car terms))))
-                           (for/list ([term (cdr terms)])
-                             (cons (/ (car term) 3) (cdr term))))))])]
+              (list* 1
+                     (cons 1 (batch-add! batch `(cbrt ,(car terms))))
+                     (for/list ([term (cdr terms)])
+                       (cons (/ (car term) 3) (cdr term)))))])]
       [`(pow ,arg ,(app deref 0))
        (define terms (recurse arg))
        (if (equal? (car terms) +nan.0)

@@ -31,19 +31,20 @@
                 (for ([cache (caches)])
                   (hash-clear! cache))))
 
-(define-generator ((from-rival) spec ctx)
+(define-generator ((from-rival #:cache? [cache? #t]) spec ctx)
   (define compiler (make-real-compiler (list spec) (list ctx)))
   (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
-  (define cache (make-hash))
-  (caches (cons cache (caches)))
-  (lambda pt
-    (hash-ref! cache
-               pt
-               (lambda ()
-                 (define-values (_ exs) (real-apply compiler (list->vector pt)))
-                 (if exs
-                     (first exs)
-                     fail)))))
+  (define (compute . pt)
+    (define-values (_ exs) (real-apply compiler (list->vector pt)))
+    (if exs
+        (first exs)
+        fail))
+  (cond
+    [cache?
+     (define cache (make-hash))
+     (caches (cons cache (caches)))
+     (lambda pt (hash-ref! cache pt (lambda () (apply compute pt))))]
+    [else compute]))
 
 ; ----------------------- FFI GENERATOR -----------------------------
 

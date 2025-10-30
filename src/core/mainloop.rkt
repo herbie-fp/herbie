@@ -167,12 +167,6 @@
 
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
-  ;; extracts the base expressions of a patch as a batchref
-  (define (get-starting-expr altn)
-    (match (alt-prevs altn)
-      [(list) (alt-expr altn)]
-      [(list prev) (get-starting-expr prev)]))
-
   ;; takes a patch and converts it to a full alt
   (define (reconstruct-alt altn loc0 orig)
     (let loop ([altn altn])

@@ -288,9 +288,10 @@
       [(list 'Rewrite=> rule expr) (list 'Rewrite=> (get-canon-rule-name rule rule) (loop expr type))]
       [(list 'Rewrite<= rule expr) (list 'Rewrite<= (get-canon-rule-name rule rule) (loop expr type))]
       [(list op args ...)
-       #:when (string-contains? (~a op) "unsound")
-       (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
-       (cons op* (map loop args (map (const 'real) args)))]
+       #:when (string-prefix? (symbol->string op) "sound-")
+       (define op* (string->symbol (substring (symbol->string (car expr)) (string-length "sound-"))))
+       (define args* (drop-right args 1))
+       (cons op* (map loop args* (map (const 'real) args*)))]
       [(list op args ...)
        ;; Unfortunately the type parameter doesn't tell us much because mixed exprs exist
        ;; so if we see something like (and a b) we literally don't know which "and" it is
@@ -332,6 +333,8 @@
       (define computed-in (egg-expr->expr out ctx))
       (check-equal? out expected-out)
       (check-equal? computed-in in)))
+
+  (check-equal? (egg-expr->expr '(sound-sqrt $var0 $var1) ctx) '(sqrt x))
 
   (set! ctx (context '(x a b c r) <binary64> (make-list 5 <binary64>)))
   (define extended-expr-list
@@ -522,17 +525,16 @@
 ;; Synthesizes lowering rules for a given platform.
 (define (platform-lowering-rules [pform (*active-platform*)])
   (define impls (platform-impls pform))
-  (append* (for/list ([impl (in-list impls)])
-             (hash-ref! (*lowering-rules*)
-                        (cons impl pform)
-                        (lambda ()
-                          (define name (sym-append 'lower- impl))
-                          (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                          (list (rule name spec-expr impl-expr '(lowering))
-                                (rule (sym-append 'lower-unsound- impl)
-                                      (add-unsound spec-expr)
-                                      impl-expr
-                                      '(lowering))))))))
+  (append*
+   (for/list ([impl (in-list impls)])
+     (hash-ref!
+      (*lowering-rules*)
+      (cons impl pform)
+      (lambda ()
+        (define name (sym-append 'lower- impl))
+        (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+        (list (rule name spec-expr impl-expr '(lowering))
+              (rule (sym-append 'lower-sound- impl) (add-sound spec-expr) impl-expr '(lowering))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
@@ -575,7 +577,7 @@
     [(cons f _) ; application
      (cond
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
-       [(string-contains? (~a f) "unsound") (list 'real)]
+       [(string-prefix? (symbol->string f) "sound-") (list 'real)]
        [else
         (filter values
                 (list (and (impl-exists? f) (impl-info f 'otype))
@@ -592,9 +594,11 @@
         (define spec (u32vector-ref ids 0))
         (define impl (u32vector-ref ids 1))
         (list '$approx (lookup spec (representation-type type)) (lookup impl type))]
-       [(string-contains? (~a f) "unsound")
-        (define op (string->symbol (string-replace (symbol->string f) "unsound-" "")))
-        (list* op (map (λ (x) (lookup (u32vector-ref ids x) 'real)) (range (u32vector-length ids))))]
+       [(string-prefix? (~a f) "sound-")
+        (define op (string->symbol (substring (symbol->string f) (string-length "sound-"))))
+        (list* op
+               (map (λ (x) (lookup (u32vector-ref ids x) 'real))
+                    (range (- (u32vector-length ids) 1))))]
        [else
         (define itypes
           (cond
@@ -666,10 +670,11 @@
         (vector-set! id->eclass id (cons enode* (vector-ref id->eclass id)))
         (match enode*
           [(list _ ids ...)
-           (if (null? ids)
-               (vector-set! id->leaf? id #t)
-               (for ([child-id (in-list ids)])
-                 (vector-set! id->parents child-id (cons id (vector-ref id->parents child-id)))))]
+           #:when (null? ids)
+           (vector-set! id->leaf? id #t)]
+          [(list _ ids ...)
+           (for ([child-id (in-list ids)])
+             (vector-set! id->parents child-id (cons id (vector-ref id->parents child-id))))]
           [(? symbol?) (vector-set! id->leaf? id #t)]
           [(? number?) (vector-set! id->leaf? id #t)]))))
 
@@ -1108,7 +1113,11 @@
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
-  (and (rational? frac) (let ([denom (denominator frac)]) (and (> denom 1) (odd? denom)))))
+  (cond
+    [(rational? frac)
+     (define denom (denominator frac))
+     (and (> denom 1) (odd? denom))]
+    [else #f]))
 
 ;; Decompose an e-node representing an impl of `(pow b e)`.
 ;; Returns either `#f` or the `(cons b e)`

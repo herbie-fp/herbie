@@ -28,3 +28,4 @@ herbie-compiled/
 .env/
 
 .vscode/
+.worktrees
