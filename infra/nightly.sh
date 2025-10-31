@@ -22,6 +22,7 @@ for bench in "$BENCHDIR"/*; do
 
   racket -y "src/main.rkt" report \
          --seed "$SEED" \
+         --platform reflow.rkt \
          "$@" \
          "$bench" "$REPORTDIR"/"$name"
   
