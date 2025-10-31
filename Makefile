@@ -45,7 +45,7 @@ minimal-distribution:
 	[ ! -f herbie.app ] || (raco distribute herbie-compiled herbie.app && rm herbie.app)
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
-nightly: rustup install
+nightly:
 	bash infra/nightly.sh bench/ reports/ --threads 4
 
 upgrade:
@@ -70,6 +70,3 @@ random-file:
 		    -o -path 'infra/survey/*' -prune \
 		    -o -type f -print | \
 	sort -R | head -n1
-
-rustup:
-	rustup update
