@@ -10,6 +10,7 @@
                   core->julia
                   core->matlab
                   core->wls
+                  core->pvs
                   core->tex
                   expr->tex
                   core->js
@@ -48,6 +49,7 @@
          core->julia
          core->matlab
          core->wls
+         core->pvs
          core->tex
          expr->tex
          core->js)
@@ -142,6 +144,7 @@
                                                       ("Julia" "jl" ,core->julia)
                                                       ("MATLAB" "mat" ,core->matlab)
                                                       ("Wolfram" "wl" ,core->wls)
+                                                      ("PVS" "pvs" ,core->pvs)
                                                       ("TeX" "tex" ,(λ (c i) (core->tex c)))))
 
 (define (fpcore->tex fpcore #:loc [loc #f])
@@ -156,7 +159,8 @@
       (core-cse (program->fpcore expr ctx #:ident identifier))))
 
   (define output-prec (representation-name output-repr))
-  (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec)))
+  (define precondition* (prog->fpcore precondition ctx))
+  (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec ':pre precondition*)))
 
   (define versions
     (reap [sow]
