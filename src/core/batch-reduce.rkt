@@ -220,10 +220,10 @@
            (cons exact-pow
                  (for/list ([term (cdr terms)])
                    (cons (* a (car term)) (cdr term))))
-           (cons 1
-                 (list* (cons a (batch-push! batch (car terms)))
-                        (for/list ([term (cdr terms)])
-                          (cons (* a (car term)) (cdr term))))))]
+           (list* 1
+                  (cons a (batch-push! batch (car terms)))
+                  (for/list ([term (cdr terms)])
+                    (cons (* a (car term)) (cdr term)))))]
       [_ `(1 . ((1 . ,brf)))]))
   (batch-recurse batch gather-multiplicative-terms))
 
