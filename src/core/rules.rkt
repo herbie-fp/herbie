@@ -7,8 +7,7 @@
 
 (provide *rules*
          *sound-removal-rules*
-         (struct-out rule)
-         add-sound)
+         (struct-out rule))
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
 ;; are patterns, meaning that symbols represent pattern variables.
@@ -24,13 +23,6 @@
 
 (define (*rules*)
   (filter rule-enabled? *all-rules*))
-
-(define (add-sound expr)
-  (match expr
-    [(list (and (or '/ 'pow 'log) op) args ...)
-     `(,(sym-append "sound-" op) ,@(map add-sound args) ,(gensym))]
-    [(list op args ...) (cons op (map add-sound expr))]
-    [_ expr]))
 
 (define-syntax-rule (define-rule rname group input output)
   (set! *all-rules* (cons (rule 'rname 'input 'output '(group)) *all-rules*)))
