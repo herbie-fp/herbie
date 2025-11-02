@@ -5,6 +5,9 @@ set -e -x
 
 # Ensure egglog is in the path
 export PATH="$PATH:$HOME/.cargo/bin/"
+
+rustup override list
+rustup override set stable
 rustup update
 
 make install
