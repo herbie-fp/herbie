@@ -6,6 +6,7 @@
          "../syntax/syntax.rkt")
 
 (provide *rules*
+         *sound-removal-rules*
          (struct-out rule)
          add-sound)
 
@@ -612,3 +613,9 @@
   [cosh-atanh-rev (/ 1 (sqrt (- 1 (* x x)))) (cosh (atanh x))]
   [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh (fabs x)))]
   [acosh-2-rev (* 2 (acosh x)) (acosh (- (* 2 (* x x)) 1))])
+
+; Sound-X removal rules: run these before lowering
+(define (*sound-removal-rules*)
+  (list (rule 'remove-sound-/ '(sound-/ a b fallback) '(/ a b) '(sound-removal))
+        (rule 'remove-sound-pow '(sound-pow a b fallback) '(pow a b) '(sound-removal))
+        (rule 'remove-sound-log '(sound-log a fallback) '(log a) '(sound-removal))))

@@ -90,7 +90,9 @@
   approxs*)
 
 (define (run-lowering altns global-batch)
-  (define schedule `((lower . ((iteration . 1) (scheduler . simple)))))
+  (define schedule
+    `((,(*sound-removal-rules*) . ((iteration . 1) (scheduler . simple)))
+      (lower . ((iteration . 1) (scheduler . simple)))))
 
   ; run egg
   (define brfs (map alt-expr altns))
@@ -160,10 +162,11 @@
   ; generate required rules
   (define rules (*rules*))
 
-  ; egg schedule (3-phases for mathematical rewrites and implementation selection)
+  ; egg schedule (4-phases for mathematical rewrites, sound-X removal, and implementation selection)
   (define schedule
     (list `(lift . ((iteration . 1) (scheduler . simple)))
           `(,rules . ((node . ,(*node-limit*))))
+          `(,(*sound-removal-rules*) . ((iteration . 1) (scheduler . simple)))
           `(lower . ((iteration . 1) (scheduler . simple)))))
 
   (define brfs (map alt-expr altns))

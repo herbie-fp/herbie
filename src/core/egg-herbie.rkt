@@ -288,11 +288,6 @@
       [(list 'Rewrite=> rule expr) (list 'Rewrite=> (get-canon-rule-name rule rule) (loop expr type))]
       [(list 'Rewrite<= rule expr) (list 'Rewrite<= (get-canon-rule-name rule rule) (loop expr type))]
       [(list op args ...)
-       #:when (string-prefix? (symbol->string op) "sound-")
-       (define op* (string->symbol (substring (symbol->string (car expr)) (string-length "sound-"))))
-       (define args* (drop-right args 1))
-       (cons op* (map loop args* (map (const 'real) args*)))]
-      [(list op args ...)
        ;; Unfortunately the type parameter doesn't tell us much because mixed exprs exist
        ;; so if we see something like (and a b) we literally don't know which "and" it is
        (cons op
