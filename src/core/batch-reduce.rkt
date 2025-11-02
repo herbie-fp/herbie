@@ -230,8 +230,7 @@
 (define (combine-aterms terms)
   (define h (make-hash))
   (for ([term terms])
-    (define sum (hash-ref! h (cadr term) 0))
-    (hash-set! h (cadr term) (+ (car term) sum)))
+    (hash-update! h (cadr term) (λ (sum) (+ (car term) sum)) 0))
   (sort (reap [sow]
               (for ([(k v) (in-hash h)]
                     #:when (not (= v 0)))
@@ -243,8 +242,7 @@
   (cons (car terms)
         (let ([h (make-hash)])
           (for ([term (cdr terms)])
-            (define sum (hash-ref! h (cdr term) 0))
-            (hash-set! h (cdr term) (+ (car term) sum)))
+            (hash-update! h (cdr term) (λ (sum) (+ (car term) sum)) 0))
           (sort (reap [sow]
                       (for ([(k v) (in-hash h)]
                             #:unless (= v 0))
