@@ -1219,15 +1219,13 @@
 ;; Invariant: the returned egraph is never unsound
 (define (egraph-run-rules egg-graph0
                           egg-rules
-                          #:node-limit [node-limit #f]
-                          #:iter-limit [iter-limit #f]
-                          #:scheduler [scheduler 'backoff])
+                          #:node-limit [node-limit #f])
   (define ffi-rules (map cdr egg-rules))
 
   ;; run the rules
-  (let loop ([iter-limit iter-limit])
+  (let loop ([iter-limit #f])
     (define egg-graph (egraph-copy egg-graph0))
-    (define iteration-data (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
+    (define iteration-data (egraph-run egg-graph ffi-rules node-limit iter-limit 'backoff))
 
     (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
     (cond
@@ -1253,10 +1251,10 @@
         (match step
           ['lift
            (define rules (expand-rules (platform-lifting-rules)))
-           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
+           (egraph-run-rules egg-graph rules)]
           ['lower
            (define rules (expand-rules (platform-lowering-rules)))
-           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
+           (egraph-run-rules egg-graph rules)]
           ['rewrite
            (define rules (expand-rules (*rules*)))
            (egraph-run-rules egg-graph rules #:node-limit (*node-limit*))]))
