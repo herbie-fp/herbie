@@ -1214,10 +1214,11 @@
 
 ;; Runs rules over the egraph with the given egg parameters.
 ;; Invariant: the returned egraph is never unsound
-(define (egraph-run-rules egg-graph0 egg-rules params)
-  (define node-limit (dict-ref params 'node #f))
-  (define iter-limit (dict-ref params 'iteration #f))
-  (define scheduler (dict-ref params 'scheduler 'backoff))
+(define (egraph-run-rules egg-graph0
+                          egg-rules
+                          #:node-limit [node-limit #f]
+                          #:iter-limit [iter-limit #f]
+                          #:scheduler [scheduler 'backoff])
   (define ffi-rules (map cdr egg-rules))
 
   ;; run the rules
@@ -1244,14 +1245,21 @@
 
   ; run the schedule
   (define egg-graph*
-    (for/fold ([egg-graph egg-graph]) ([(rules params) (in-dict schedule)])
-      ; run rules in the egraph
-      (define egg-rules
-        (expand-rules (match rules
-                        [`lift (platform-lifting-rules)]
-                        [`lower (platform-lowering-rules)]
-                        [else rules])))
-      (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
+    (for/fold ([egg-graph egg-graph]) ([step (in-list schedule)])
+      (define-values (egg-graph* iteration-data)
+        (match step
+          ['lift
+           (define rules (expand-rules (platform-lifting-rules)))
+           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
+          ['lower
+           (define rules (expand-rules (platform-lowering-rules)))
+           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
+          ['unsound
+           (define rules (expand-rules (*sound-removal-rules*)))
+           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
+          ['rewrite
+           (define rules (expand-rules (*rules*)))
+           (egraph-run-rules egg-graph rules #:node-limit (*node-limit*))]))
 
       ; get cost statistics
       (for ([iter (in-list iteration-data)]
@@ -1287,37 +1295,17 @@
 
 ;; Constructs an egg runner.
 ;;
-;; The schedule is a list of pairs specifying
-;;  - a list of rules
-;;  - scheduling parameters:
-;;     - node limit: `(node . <number>)`
-;;     - iteration limit: `(iteration . <number>)`
-;;     - scheduler: `(scheduler . <name>)` [default: backoff]
-;;        - `simple`: run all rules without banning
-;;        - `backoff`: ban rules if the fire too much
+;; The schedule is a list of step symbols:
+;;  - `lift`: run lifting rules for 1 iteration with simple scheduler
+;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
+;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
 (define (make-egraph batch brfs reprs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
-  (for ([instr (in-list schedule)])
-    (match instr
-      [(cons rules params)
-       ;; `run` instruction
-
-       (unless (or (equal? `lift rules)
-                   (equal? `lower rules)
-                   (and (list? rules) (andmap rule? rules)))
-         (oops! "expected list of rules: `~a`" rules))
-
-       (for ([param (in-list params)])
-         (match param
-           [(cons 'node (? nonnegative-integer?)) (void)]
-           [(cons 'iteration (? nonnegative-integer?)) (void)]
-           [(cons 'scheduler mode)
-            (unless (set-member? '(simple backoff) mode)
-              (oops! "in instruction `~a`, unknown scheduler `~a`" instr mode))]
-           [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
-      [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
+  (for ([step (in-list schedule)])
+    (unless (memq step '(lift lower rewrite))
+      (oops! "unknown schedule step `~a`" step)))
 
   (define-values (root-ids egg-graph) (egraph-run-schedule batch brfs schedule ctx))
 
