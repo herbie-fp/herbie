@@ -46,7 +46,7 @@ minimal-distribution:
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 nightly: install
-	bash infra/nightly.sh
+	bash infra/compare.sh
 
 upgrade:
 	git pull
