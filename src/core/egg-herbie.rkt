@@ -1227,7 +1227,8 @@
     (define egg-graph (egraph-copy egg-graph0))
     (define iteration-data (egraph-run egg-graph ffi-rules node-limit iter-limit 'backoff))
 
-    (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
+    (when node-limit
+      (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1))
     (cond
       [(egraph-is-unsound-detected egg-graph)
        ; unsoundness means run again with less iterations
