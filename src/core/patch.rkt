@@ -90,7 +90,7 @@
   approxs*)
 
 (define (run-lowering altns global-batch)
-  (define schedule '(unsound lower))
+  (define schedule '(lower))
 
   ; run egg
   (define brfs (map alt-expr altns))
