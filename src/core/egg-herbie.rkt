@@ -1231,6 +1231,7 @@
       (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1))
     (cond
       [(egraph-is-unsound-detected egg-graph)
+       (timeline-push! 'stop "unsound" 1)
        ; unsoundness means run again with less iterations
        (define num-iters (length iteration-data))
        (if (<= num-iters 1) ; nothing to fall back on
