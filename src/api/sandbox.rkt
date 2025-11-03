@@ -175,7 +175,7 @@
       (match command
         ['improve
          (job-result command test 'timeout (*timeout*) (timeline-extract) #f (warning-log) #f)]
-        [_ (error 'run-herbie "command ~a timed out" command)])))
+        [_ (raise-arguments-error 'run-herbie "command timed out" "command" command)])))
 
   (define (compute-result)
     (parameterize ([*timeline-disabled* (not timeline?)])
@@ -197,7 +197,7 @@
             ['improve (get-alternatives test (get-sample test))]
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
-            [_ (error 'compute-result "unknown command ~a" command)]))
+            [_ (raise-arguments-error 'compute-result "unknown command" "command" command)]))
         (timeline-event! 'end)
         (define time (- (current-inexact-milliseconds) start-time))
         (job-result command test 'success time (timeline-extract) #f (warning-log) result))))
