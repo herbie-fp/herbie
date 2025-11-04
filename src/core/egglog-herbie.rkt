@@ -353,15 +353,15 @@
 
   (egglog-program-add! `(ruleset lifting) curr-program)
 
-  ;;; Adding function unsound before rules
+  ;;; Adding function unsound? before rules
 
-  ;; unsound functions
-  (egglog-program-add! `(function unsound () bool :merge (or old new)) curr-program)
+  ;; unsound detection function
+  (egglog-program-add! `(function unsound? () bool :merge (or old new)) curr-program)
   (egglog-program-add! `(ruleset unsound-rule) curr-program)
-  (egglog-program-add! `(set (unsound) false) curr-program)
+  (egglog-program-add! `(set (unsound?) false) curr-program)
 
   (egglog-program-add!
-   `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (unsound) true)) :ruleset unsound-rule)
+   `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (unsound?) true)) :ruleset unsound-rule)
    curr-program)
 
   (for ([curr-expr const-fold])
@@ -825,8 +825,8 @@
   ;; 1. Run (PUSH) to the save the above state of the egraph
   ;; 2. Repeat rules based on their ruleset tag once
   ;; 3. Run the unsound-rule function ruleset once
-  ;; 4. Extract the (unsound) function that returns a bool
-  ;; 5. If (unsound) function returns "true", we have unsoundless, so go to Step 10 for ROLLBACK
+  ;; 4. Extract the (unsound?) function that returns a bool
+  ;; 5. If (unsound?) function returns "true", we have unsoundless, so go to Step 10 for ROLLBACK
   ;; 6. Run (print-size) to get nodes of the form "node_name : num_nodes" for all nodes in egraph
   ;; 7. If the total number of nodes is more than node-limit, do NOT ROLLBACK and go to Step 11
   ;; 8. Repeat rules based on the const-fold tag once and repeat Steps 3-7
@@ -853,7 +853,7 @@
                `(run-schedule (repeat 1 ,tag))
                '(print-size)
                '(run unsound-rule 1)
-               '(extract (unsound))))
+               '(extract (unsound?))))
 
        ;; Get egglog output
        (define-values (math-unsound? math-node-limit? math-total-nodes)
@@ -913,7 +913,7 @@
                   `(run-schedule (repeat 1 const-fold))
                   '(print-size)
                   '(run unsound-rule 1)
-                  '(extract (unsound))))
+                  '(extract (unsound?))))
 
           (define-values (const-unsound? const-node-limit? const-total-nodes)
             (get-egglog-output const-schedule
