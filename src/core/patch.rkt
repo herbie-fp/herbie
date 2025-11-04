@@ -200,7 +200,7 @@
     [(list) (alt-expr altn)]
     [(list prev) (get-starting-expr prev)]))
 
-(define (generate-candidates batch brfs spec-batch reducer)
+(define (generate-candidates batch brfs spec-batch reducer iteration)
   ; Starting alternatives
   (define start-altns
     (for/list ([brf brfs])
@@ -213,7 +213,8 @@
 
   ; Series expand
   (define approximations
-    (if (flag-set? 'generate 'taylor)
+    (if (and (flag-set? 'generate 'taylor)
+             (>= iteration (- (*num-iterations*) 1)))
         (run-taylor start-altns batch spec-batch reducer)
         '()))
 

@@ -62,7 +62,7 @@
 
     (for ([iteration (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
-      (run-iteration! global-spec-batch spec-reducer))
+      (run-iteration! global-spec-batch spec-reducer iteration))
     (define alternatives (extract!))
     (timeline-event! 'preprocess)
     (for/list ([altn alternatives])
@@ -234,14 +234,14 @@
   (^patched^ #f)
   (void))
 
-(define (run-iteration! global-spec-batch spec-reducer)
+(define (run-iteration! global-spec-batch spec-reducer iteration)
   (unless (^next-alts^)
     (choose-alts!))
 
   (define brfs (map alt-expr (^next-alts^)))
   (define brfs* (batch-reachable (*global-batch*) brfs #:condition node-is-impl?))
 
-  (reconstruct! (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer))
+  (reconstruct! (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer iteration))
   (finalize-iter!)
   (void))
 
