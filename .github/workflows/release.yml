@@ -20,7 +20,7 @@ jobs:
           - os: macos-latest
             os-name: macOS-m1
             arch: arm64
-          - os: macos-13
+          - os: macos-15-large
             os-name: macOS
             arch: x64
 
@@ -32,7 +32,7 @@ jobs:
       - name: Install Racket
         uses: Bogdanp/setup-racket@v1.11
         with:
-          version: 8.11
+          version: 8.18
           architecture: ${{ matrix.arch }}
 
       - name: Install Rust compiler
