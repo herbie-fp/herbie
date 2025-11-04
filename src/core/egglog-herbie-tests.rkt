@@ -368,11 +368,7 @@
 
   (define reprs (make-list (length brfs) (context-repr ctx)))
 
-  (define rules (*rules*))
-  (define schedule
-    `((lift . ((iteration . 1) (scheduler . simple)))
-      (,rules . ((node . ,(*node-limit*)) (scheduler . simple)))
-      (lower . ((iteration . 1) (scheduler . simple)))))
+  (define schedule '(lift rewrite lower))
 
   (when (find-executable-path "egglog")
-    (run-egglog-multi-extractor (egglog-runner batch brfs reprs schedule ctx) batch)))
+    (run-egglog-multi-extractor (make-egglog-runner batch brfs reprs schedule ctx) batch)))
