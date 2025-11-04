@@ -153,19 +153,19 @@
      (define node (deref brf))
      (match node
        [(? (curry equal? var)) (taylor-exact (adder 0) (adder 1))]
-     [(? number?) (taylor-exact brf)]
-     [(? symbol?) (taylor-exact brf)]
-     [`(,const) (taylor-exact brf)]
-     [`(+ ,arg1 ,arg2) (taylor-add (recurse arg1) (recurse arg2))]
-     [`(neg ,arg) (taylor-negate (recurse arg))]
-     [`(* ,left ,right) (taylor-mult (recurse left) (recurse right))]
-     [`(/ ,num ,den)
-      #:when (equal? (deref num) 1)
-     (taylor-invert (recurse den))]
-     [`(/ ,num ,den) (taylor-quotient (recurse num) (recurse den))]
-     [`(sqrt ,arg) (taylor-sqrt var (recurse arg))]
-     [`(cbrt ,arg) (taylor-cbrt var (recurse arg))]
-     [`(fabs ,arg) (or (taylor-fabs var (recurse arg)) (taylor-exact brf))]
+       [(? number?) (taylor-exact brf)]
+       [(? symbol?) (taylor-exact brf)]
+       [`(,const) (taylor-exact brf)]
+       [`(+ ,arg1 ,arg2) (taylor-add (recurse arg1) (recurse arg2))]
+       [`(neg ,arg) (taylor-negate (recurse arg))]
+       [`(* ,left ,right) (taylor-mult (recurse left) (recurse right))]
+       [`(/ ,num ,den)
+        #:when (equal? (deref num) 1)
+        (taylor-invert (recurse den))]
+       [`(/ ,num ,den) (taylor-quotient (recurse num) (recurse den))]
+       [`(sqrt ,arg) (taylor-sqrt var (recurse arg))]
+       [`(cbrt ,arg) (taylor-cbrt var (recurse arg))]
+       [`(fabs ,arg) (or (taylor-fabs var (recurse arg)) (taylor-exact brf))]
        [`(exp ,arg)
         (define arg* (normalize-series (recurse arg)))
         (if (positive? (series-offset arg*))
@@ -174,29 +174,29 @@
        [`(sin ,arg)
         (define arg* (normalize-series (recurse arg)))
         (cond
-        [(positive? (series-offset arg*)) (taylor-exact brf)]
-        [(= (series-offset arg*) 0)
-        ; Our taylor-sin function assumes that a0 is 0,
-        ; because that way it is especially simple. We correct for this here
-        ; We use the identity sin (x + y) = sin x cos y + cos x sin y
-            (taylor-add (taylor-mult (taylor-exact (adder `(sin ,(series-ref arg* 0))))
-                                  (taylor-cos (zero-series arg*)))
-         (taylor-mult (taylor-exact (adder `(cos ,(series-ref arg* 0))))
-                                     (taylor-sin (zero-series arg*))))]
-        [else (taylor-sin (zero-series arg*))])]
+          [(positive? (series-offset arg*)) (taylor-exact brf)]
+          [(= (series-offset arg*) 0)
+           ; Our taylor-sin function assumes that a0 is 0,
+           ; because that way it is especially simple. We correct for this here
+           ; We use the identity sin (x + y) = sin x cos y + cos x sin y
+           (taylor-add (taylor-mult (taylor-exact (adder `(sin ,(series-ref arg* 0))))
+                                    (taylor-cos (zero-series arg*)))
+                       (taylor-mult (taylor-exact (adder `(cos ,(series-ref arg* 0))))
+                                    (taylor-sin (zero-series arg*))))]
+          [else (taylor-sin (zero-series arg*))])]
        [`(cos ,arg)
         (define arg* (normalize-series (recurse arg)))
         (cond
-        [(positive? (series-offset arg*)) (taylor-exact brf)]
-        [(= (series-offset arg*) 0)
-        ; Our taylor-cos function assumes that a0 is 0,
-        ; because that way it is especially simple. We correct for this here
-        ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-            (taylor-add (taylor-mult (taylor-exact (adder `(cos ,(series-ref arg* 0))))
-                                  (taylor-cos (zero-series arg*)))
-         (taylor-negate (taylor-mult (taylor-exact (adder `(sin ,(series-ref arg* 0))))
-                                                    (taylor-sin (zero-series arg*)))))]
-        [else (taylor-cos (zero-series arg*))])]
+          [(positive? (series-offset arg*)) (taylor-exact brf)]
+          [(= (series-offset arg*) 0)
+           ; Our taylor-cos function assumes that a0 is 0,
+           ; because that way it is especially simple. We correct for this here
+           ; We use the identity cos (x + y) = cos x cos y - sin x sin y
+           (taylor-add (taylor-mult (taylor-exact (adder `(cos ,(series-ref arg* 0))))
+                                    (taylor-cos (zero-series arg*)))
+                       (taylor-negate (taylor-mult (taylor-exact (adder `(sin ,(series-ref arg* 0))))
+                                                   (taylor-sin (zero-series arg*)))))]
+          [else (taylor-cos (zero-series arg*))])]
        [`(log ,arg) (taylor-log var (recurse arg))]
        [`(pow ,base ,power)
         #:when (exact-integer? (deref power))
@@ -398,13 +398,10 @@
   (define a0 (deref (series-ref normalized 0)))
   (cond
     [(or (not (number? a0)) (zero? a0)) #f]
-    [(and (even? offset) (negative? a0))
-     (taylor-negate normalized)]
-    [(and (even? offset) (positive? a0))
-     normalized]
+    [(and (even? offset) (negative? a0)) (taylor-negate normalized)]
+    [(and (even? offset) (positive? a0)) normalized]
     [(odd? offset)
-     (define scale-factor
-       (adder `(* (fabs ,var) ,(if (negative? a0) -1 1))))
+     (define scale-factor (adder `(* (fabs ,var) ,(if (negative? a0) -1 1))))
      (define new-offset (add1 offset))
      (make-series new-offset
                   (λ (f n)
