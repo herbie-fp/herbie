@@ -57,12 +57,8 @@ jobs:
           racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs0
           racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs1
           racket infra/diff.rkt graphs0 graphs1
-      - name: "Test the egglog backend"
-        run: |
-          racket -l herbie improve --enable generate:egglog --seed 1 bench/tutorial.fpcore /tmp/out.fpcore
-          test `grep -c :precision /tmp/out.fpcore` -eq 3
       - name: "Run Herbie with egglog"
-        run: racket -l herbie report --timeout 600 +o generate:egglog --seed 1 bench/hamming/trigonometry.fpcore graphs2
+        run: racket -y infra/ci.rkt --timeout 600 --enable generate:egglog --seed 0 bench/hamming/trigonometry.fpcore
 
       # Test the egg-herbie Rust code
       - run: cd egg-herbie && cargo clippy --tests
