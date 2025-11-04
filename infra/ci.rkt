@@ -101,7 +101,7 @@
                 (define given-seed (read (open-input-string rs)))
                 (when given-seed
                   (set-seed! given-seed))]
-   [("--egglog") (enable-flag! 'generate 'egglog)]
+   [("--egglog") "Switch to the egglog backend" (enable-flag! 'generate 'egglog)]
    [("--platform") platform "Which platform to use for tests" (*platform-name* platform)]
    [("--precision") prec "Which precision to use for tests" (*precision* (string->symbol prec))]
    [("--num-iters")
