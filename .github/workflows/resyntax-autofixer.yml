@@ -17,7 +17,7 @@ jobs:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v1.11
+        uses: Bogdanp/setup-racket@v1.14
         with:
           version: current
       - name: Install Rust compiler
@@ -25,7 +25,7 @@ jobs:
         with:
             toolchain: stable
             components: rustfmt, clippy
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v5
       - name: "Install dependencies"
         run: make install
       - name: Create a Resyntax pull request
