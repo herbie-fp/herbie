@@ -55,39 +55,18 @@
 
 ;; Constructs an egglog runner - structurally serves the same purpose as egg-runner
 ;;
-;; The schedule is a list of pairs specifying
-;;  - a list of rules
-;;  - scheduling parameters:
-;;     - node limit: `(node . <number>)`
-;;     - iteration limit: `(iteration . <number>)`
-;;     - constant fold: `(const-fold? . <boolean>)` [default: #t]
-;;     - scheduler: `(scheduler . <name>)` [default: backoff]
-;;        - `simple`: run all rules without banning
-;;        - `backoff`: ban rules if the fire too much
+;; The schedule is a list of step symbols:
+;;  - `lift`: run lifting rules for 1 iteration with simple scheduler
+;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
+;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
+;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
 (define (make-egglog-runner batch brfs reprs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
-  (for ([instr (in-list schedule)])
-    (match instr
-      [(cons rules params)
-
-       ;; `run` instruction
-       (unless (or (equal? `lift rules)
-                   (equal? `lower rules)
-                   (and (list? rules) (andmap rule? rules)))
-         (oops! "expected list of rules: `~a`" rules))
-
-       (for ([param (in-list params)])
-         (match param
-           [(cons 'node (? nonnegative-integer?)) (void)]
-           [(cons 'iteration (? nonnegative-integer?)) (void)]
-           [(cons 'const-fold? (? boolean?)) (void)]
-           [(cons 'scheduler mode)
-            (unless (set-member? '(simple backoff) mode)
-              (oops! "in instruction `~a`, unknown scheduler `~a`" instr mode))]
-           [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
-      [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
+  (for ([step (in-list schedule)])
+    (unless (memq step '(lift lower unsound rewrite))
+      (oops! "unknown schedule step `~a`" step)))
 
   ; make the runner
   (egglog-runner batch brfs reprs schedule ctx))
@@ -120,26 +99,20 @@
 
   ;; 2. User Rules which comes from schedule (need to be translated)
   (define tag-schedule
-    (for/list ([i (in-naturals 1)]
-               [element (in-list (egglog-runner-schedule runner))])
-
-      (define rule-type (car element))
-      (define schedule-params (cdr element))
-      (define tag
-        (match rule-type
-          ['lift 'lifting]
-          ['lower 'lowering]
-          [_
-           (define curr-tag (string->symbol (string-append "?tag" (number->string i))))
-           ;; Add rulesets
-           (egglog-program-add! `(ruleset ,curr-tag) curr-program)
-
-           ;; Add the actual egglog rewrite rules
-           (egglog-program-add-list! (egglog-rewrite-rules rule-type curr-tag) curr-program)
-
-           curr-tag]))
-
-      (cons tag schedule-params)))
+    (for/list ([step (in-list (egglog-runner-schedule runner))])
+      (match step
+        ['lift 'lift]
+        ['lower 'lower]
+        ['unsound
+         ;; Add the unsound rules
+         (egglog-program-add-list! (egglog-rewrite-rules (*sound-removal-rules*) 'unsound)
+                                   curr-program)
+         'unsound]
+        ['rewrite
+         ;; Add the rewrite ruleset and rules
+         (egglog-program-add! `(ruleset rewrite) curr-program)
+         (egglog-program-add-list! (egglog-rewrite-rules (*rules*) 'rewrite) curr-program)
+         'rewrite])))
 
   ;; 3. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
 
@@ -214,28 +187,35 @@
   ; run-schedule specifies the schedule of rulesets to saturate the egraph
   ; For performance, it stores the schedule in reverse order, and is reversed at the end
 
-  (for ([(tag schedule-params) (in-dict tag-schedule)])
+  (for ([tag (in-list tag-schedule)])
     (match tag
-      ['lifting
-       (send-to-egglog (list '(run-schedule (saturate lifting)))
+      ['lift
+       (send-to-egglog (list '(run-schedule (saturate lift)))
                        egglog-process
                        egglog-output
                        egglog-in
                        err
                        dump-file)]
 
-      ['lowering
-       (send-to-egglog (list '(run-schedule (saturate lowering)))
+      ['lower
+       (send-to-egglog (list '(run-schedule (saturate lower)))
                        egglog-process
                        egglog-output
                        egglog-in
                        err
                        dump-file)]
 
-      [_
-       ;; Run the current ruleset tag interleaved with const-fold until the best iteration
+      ['unsound
+       (send-to-egglog (list '(run-schedule (saturate unsound)))
+                       egglog-process
+                       egglog-output
+                       egglog-in
+                       err
+                       dump-file)]
+
+      ['rewrite
+       ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
        (egglog-unsound-detected-subprocess tag
-                                           schedule-params
                                            egglog-process
                                            egglog-output
                                            egglog-in
@@ -343,25 +323,27 @@
                ,@(platform-impl-nodes pform min-cost)))
   (egglog-program-add! typed-graph curr-program)
 
-  (egglog-program-add! `(constructor lower (M String) MTy :unextractable) curr-program)
+  (egglog-program-add! `(constructor do-lower (M String) MTy :unextractable) curr-program)
 
-  (egglog-program-add! `(constructor lift (MTy) M :unextractable) curr-program)
+  (egglog-program-add! `(constructor do-lift (MTy) M :unextractable) curr-program)
 
   (egglog-program-add! `(ruleset const-fold) curr-program)
 
-  (egglog-program-add! `(ruleset lowering) curr-program)
+  (egglog-program-add! `(ruleset lower) curr-program)
 
-  (egglog-program-add! `(ruleset lifting) curr-program)
+  (egglog-program-add! `(ruleset lift) curr-program)
 
-  ;;; Adding function unsound? before rules
+  (egglog-program-add! `(ruleset unsound) curr-program)
 
-  ;; unsound detection function
-  (egglog-program-add! `(function unsound? () bool :merge (or old new)) curr-program)
-  (egglog-program-add! `(ruleset unsound-rule) curr-program)
-  (egglog-program-add! `(set (unsound?) false) curr-program)
+  ;;; Adding bad-merge detection
+
+  ;; bad-merge detection function and rules
+  (egglog-program-add! `(function bad-merge? () bool :merge (or old new)) curr-program)
+  (egglog-program-add! `(ruleset bad-merge-rule) curr-program)
+  (egglog-program-add! `(set (bad-merge?) false) curr-program)
 
   (egglog-program-add!
-   `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (unsound?) true)) :ruleset unsound-rule)
+   `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule)
    curr-program)
 
   (for ([curr-expr const-fold])
@@ -487,9 +469,9 @@
             (let etx (,(typed-num-id repr)
                       n)
               )
-            (union (lower e tx) etx))
+            (union (do-lower e tx) etx))
            :ruleset
-           lowering)))
+           lower)))
 
 (define (num-lifting-rules)
   (for/list ([repr (in-list (all-repr-names))]
@@ -498,12 +480,12 @@
            ((let se (Num
                      n)
               )
-            (union (lift e) se))
+            (union (do-lift e) se))
            :ruleset
-           lifting)))
+           lift)))
 
 (define (approx-lifting-rule)
-  `(rule ((= e (Approx spec impl))) ((union (lift e) spec)) :ruleset lifting))
+  `(rule ((= e (Approx spec impl))) ((union (do-lift e) spec)) :ruleset lift))
 
 (define (impl-lowering-rules pform)
   (for/list ([impl (in-list (platform-impls pform))])
@@ -513,16 +495,16 @@
             ,@(for/list ([v (in-list (impl-info impl 'vars))]
                          [vt (in-list (impl-info impl 'itype))])
                 `(= ,(string->symbol (string-append "t" (symbol->string v)))
-                    (lower ,v ,(symbol->string (representation-name vt))))))
+                    (do-lower ,v ,(symbol->string (representation-name vt))))))
            ((let t0 ,(symbol->string (representation-name (impl-info impl 'otype)))
               )
             (let et0 (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
                       ,@(for/list ([v (in-list (impl-info impl 'vars))])
                           (string->symbol (string-append "t" (symbol->string v)))))
               )
-            (union (lower e t0) et0))
+            (union (do-lower e t0) et0))
            :ruleset
-           lowering)))
+           lower)))
 
 (define (impl-lifting-rules pform)
   (for/list ([impl (in-list (platform-impls pform))])
@@ -534,12 +516,12 @@
                 ,@(impl-info impl 'vars)))
             ,@(for/list ([v (in-list (impl-info impl 'vars))]
                          [vt (in-list (impl-info impl 'itype))])
-                `(= ,(string->symbol (string-append "s" (symbol->string v))) (lift ,v))))
+                `(= ,(string->symbol (string-append "s" (symbol->string v))) (do-lift ,v))))
            ((let se ,(expr->egglog-spec-serialized spec-expr "s")
               )
-            (union (lift e) se))
+            (union (do-lift e) se))
            :ruleset
-           lifting)))
+           lift)))
 
 (define (expr->egglog-spec-serialized expr s)
   (let loop ([expr expr])
@@ -678,7 +660,7 @@
            ,@(for/list ([arg (in-list args)])
                (remap arg (spec? (batchref batch n)))))]
 
-        [(hole ty spec) `(lower ,(remap spec #t) ,(symbol->string ty))]))
+        [(hole ty spec) `(do-lower ,(remap spec #t) ,(symbol->string ty))]))
 
     (if node*
         (vector-set! mappings n (insert-node! node* n root?))
@@ -697,9 +679,9 @@
               (let ety (,(typed-var-id (representation-name repr))
                         ,(symbol->string var))
                 )
-              (union (lower e ty) ety))
+              (union (do-lower e ty) ety))
              :ruleset
-             lowering))
+             lower))
 
     (egglog-program-add! curr-var-lowering-rule curr-program))
 
@@ -712,9 +694,9 @@
              ((let se (Var
                        ,(symbol->string var))
                 )
-              (union (lift e) se))
+              (union (do-lift e) se))
              :ruleset
-             lifting))
+             lift))
 
     (egglog-program-add! curr-var-lifting-rule curr-program))
 
@@ -780,8 +762,8 @@
 
     (define curr-datatype
       (match actual-binding
-        [(cons 'lower _) 'MTy]
-        [(cons 'lift _) 'M]
+        [(cons 'do-lower _) 'MTy]
+        [(cons 'do-lift _) 'M]
 
         ;; TODO : fix this way of getting spec or impl
         [_ (if root? 'MTy 'M)]))
@@ -810,23 +792,17 @@
 
   (values (reverse all-bindings) curr-bindings))
 
-(define (egglog-unsound-detected-subprocess tag
-                                            params
-                                            egglog-process
-                                            egglog-output
-                                            egglog-in
-                                            err
-                                            dump-file)
+(define (egglog-unsound-detected-subprocess tag egglog-process egglog-output egglog-in err dump-file)
 
-  (define node-limit (dict-ref params 'node (*node-limit*)))
-  (define iter-limit (dict-ref params 'iteration (*default-egglog-iter-limit*)))
+  (define node-limit (*node-limit*))
+  (define iter-limit (*default-egglog-iter-limit*))
 
   ;; Algorithm:
   ;; 1. Run (PUSH) to the save the above state of the egraph
   ;; 2. Repeat rules based on their ruleset tag once
-  ;; 3. Run the unsound-rule function ruleset once
-  ;; 4. Extract the (unsound?) function that returns a bool
-  ;; 5. If (unsound?) function returns "true", we have unsoundless, so go to Step 10 for ROLLBACK
+  ;; 3. Run the bad-merge-rule ruleset once
+  ;; 4. Extract the (bad-merge?) function that returns a bool
+  ;; 5. If (bad-merge?) function returns "true", we have a bad merge, so go to Step 10 for ROLLBACK
   ;; 6. Run (print-size) to get nodes of the form "node_name : num_nodes" for all nodes in egraph
   ;; 7. If the total number of nodes is more than node-limit, do NOT ROLLBACK and go to Step 11
   ;; 8. Repeat rules based on the const-fold tag once and repeat Steps 3-7
@@ -852,8 +828,8 @@
          (list '(push)
                `(run-schedule (repeat 1 ,tag))
                '(print-size)
-               '(run unsound-rule 1)
-               '(extract (unsound?))))
+               '(run bad-merge-rule 1)
+               '(extract (bad-merge?))))
 
        ;; Get egglog output
        (define-values (math-unsound? math-node-limit? math-total-nodes)
@@ -912,8 +888,8 @@
             (list '(push)
                   `(run-schedule (repeat 1 const-fold))
                   '(print-size)
-                  '(run unsound-rule 1)
-                  '(extract (unsound?))))
+                  '(run bad-merge-rule 1)
+                  '(extract (bad-merge?))))
 
           (define-values (const-unsound? const-node-limit? const-total-nodes)
             (get-egglog-output const-schedule
