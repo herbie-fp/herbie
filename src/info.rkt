@@ -17,11 +17,12 @@
 
 (define deps
   '(("base" #:version "8.0") "math-lib"
+                             "typed-racket-lib"
                              "profile-lib"
                              "rackunit-lib"
                              "web-server-lib"
                              ("egg-herbie" #:version "2.2")
-                             ("rival" #:version "2.2")
+                             ("rival" #:version "2.3")
                              ("fpbench" #:version "2.0.3")
                              "fmt"))
 

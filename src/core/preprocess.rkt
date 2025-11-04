@@ -68,15 +68,8 @@
             (make-sort-identities spec ctx)))
 
   ;; make egg runner
-  (define rules (*sound-rules*))
-
   (define-values (batch brfs) (progs->batch (cons spec (map cdr identities))))
-  (define runner
-    (make-egraph batch
-                 brfs
-                 (make-list (length brfs) (context-repr ctx))
-                 `((,rules . ((node . ,(*node-limit*)))))
-                 ctx))
+  (define runner (make-egraph batch brfs (make-list (length brfs) (context-repr ctx)) '(rewrite) ctx))
 
   ;; collect equalities
   (for/list ([(ident spec*) (in-dict identities)]

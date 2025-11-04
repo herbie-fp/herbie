@@ -5,6 +5,7 @@
          ffi/unsafe)
 
 (require "../core/rival.rkt"
+         "../config.rkt"
          "types.rkt")
 
 (provide from-rival
@@ -24,14 +25,26 @@
 
 ; ----------------------- RIVAL GENERATOR ---------------------------
 
-(define-generator ((from-rival) spec ctx)
+(define/reset caches
+              '()
+              (lambda ()
+                (for ([cache (caches)])
+                  (hash-clear! cache))))
+
+(define-generator ((from-rival #:cache? [cache? #t]) spec ctx)
   (define compiler (make-real-compiler (list spec) (list ctx)))
   (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
-  (lambda pt
+  (define (compute . pt)
     (define-values (_ exs) (real-apply compiler (list->vector pt)))
     (if exs
         (first exs)
-        fail)))
+        fail))
+  (cond
+    [cache?
+     (define cache (make-hash))
+     (caches (cons cache (caches)))
+     (lambda pt (hash-ref! cache pt (lambda () (apply compute pt))))]
+    [else compute]))
 
 ; ----------------------- FFI GENERATOR -----------------------------
 
@@ -54,10 +67,8 @@
 (define-generator ((from-ffi lib name) spec ctx)
   (let ([itypes (context-var-reprs ctx)]
         [otype (context-repr ctx)])
-    (define fl (make-ffi lib name itypes otype))
-    (unless fl
-      (error 'ffi-generator "Could not find FFI implementation of `~a ~a ~a`" otype name itypes))
-    fl))
+    (or (make-ffi lib name itypes otype)
+        (error 'ffi-generator "Could not find FFI implementation of `~a ~a ~a`" otype name itypes))))
 
 (define libm-lib (ffi-lib #f))
 (define (from-libm name)

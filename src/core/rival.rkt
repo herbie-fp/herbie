@@ -32,12 +32,14 @@
                 (listof any/c))]))
 
 (define (unified-contexts? ctxs)
-  (and ((non-empty-listof context?) ctxs)
-       (let ([ctx0 (car ctxs)])
-         (for/and ([ctx (in-list (cdr ctxs))])
-           (and (equal? (context-vars ctx0) (context-vars ctx))
-                (for/and ([var (in-list (context-vars ctx0))])
-                  (equal? (context-lookup ctx0 var) (context-lookup ctx var))))))))
+  (cond
+    [((non-empty-listof context?) ctxs)
+     (define ctx0 (car ctxs))
+     (for/and ([ctx (in-list (cdr ctxs))])
+       (and (equal? (context-vars ctx0) (context-vars ctx))
+            (for/and ([var (in-list (context-vars ctx0))])
+              (equal? (context-lookup ctx0 var) (context-lookup ctx var)))))]
+    [else #f]))
 
 (define (expr-size expr)
   (if (list? expr)
@@ -94,6 +96,13 @@
                  machine
                  dump-file))
 
+(define (bigfloat->readable-string x)
+  (define real (bigfloat->real x)) ; Exact rational unless inf/nan
+  (define float (real->double-flonum real))
+  (if (= real float)
+      (format "#i~a" float) ; The #i explicitly means nearest float
+      (number->string real))) ; Backup is print as rational
+
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
   (match-define (real-compiler _ vars var-reprs _ _ machine dump-file) compiler)
@@ -104,9 +113,8 @@
                  [repr (in-vector var-reprs)])
       ((representation-repr->bf repr) val)))
   (when dump-file
-    (define args (map bigfloat->rational (vector->list pt*)))
-    ;; convert to rational, because Rival reads as exact
-    (pretty-print `(eval f ,@args) dump-file 1))
+    (define args (map bigfloat->readable-string (vector->list pt*)))
+    (fprintf dump-file "(eval f ~a)\n" (string-join args " ")))
   (define-values (status value)
     (with-handlers ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
                     [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
@@ -128,11 +136,15 @@
     (define name (symbol->string (execution-name execution)))
     (define precision
       (- (execution-precision execution) (remainder (execution-precision execution) prec-threshold)))
-    (timeline-push!/unsafe 'mixsample (execution-time execution) name precision))
+    (timeline-push!/unsafe 'mixsample
+                           (execution-time execution)
+                           name
+                           precision
+                           (execution-memory execution)))
   (timeline-push!/unsafe 'outcomes
                          (- (current-inexact-milliseconds) start)
                          (rival-profile machine 'iterations)
-                         (~a status)
+                         (symbol->string status)
                          1)
   (values status value))
 

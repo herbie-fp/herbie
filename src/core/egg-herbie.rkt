@@ -108,22 +108,23 @@
 
   (define reprs (batch-reprs batch ctx))
   (define add-to-egraph
-    (batch-map batch
-               (λ (get-remapping node)
-                 (match node
-                   [(literal v _) (insert-node! v)]
-                   [(? number?) (insert-node! node)]
-                   [(? symbol?) (insert-node! (var->egg-var node ctx))]
-                   [(hole prec spec) (get-remapping spec)] ; "hole" terms currently disappear
-                   [(approx spec impl)
-                    (hash-ref! id->spec ; Save original (spec, type) for extraction
-                               (get-remapping spec)
-                               (lambda ()
-                                 (define spec* (normalize-spec (batch-pull (batchref batch spec))))
-                                 (define type (representation-type (reprs (batchref batch impl))))
-                                 (cons spec* type)))
-                    (insert-node! (list '$approx (get-remapping spec) (get-remapping impl)))]
-                   [(list op (app get-remapping args) ...) (insert-node! (cons op args))]))))
+    (batch-recurse batch
+                   (λ (brf recurse)
+                     (define node (deref brf))
+                     (match node
+                       [(literal v _) (insert-node! v)]
+                       [(? number?) (insert-node! node)]
+                       [(? symbol?) (insert-node! (var->egg-var node ctx))]
+                       [(hole prec spec) (recurse spec)] ; "hole" terms currently disappear
+                       [(approx spec impl)
+                        (hash-ref! id->spec ; Save original (spec, type) for extraction
+                                   (recurse spec)
+                                   (lambda ()
+                                     (define spec* (normalize-spec (batch-pull spec)))
+                                     (define type (representation-type (reprs impl)))
+                                     (cons spec* type)))
+                        (insert-node! (list '$approx (recurse spec) (recurse impl)))]
+                       [(list op (app recurse args) ...) (insert-node! (cons op args))]))))
 
   (for/list ([brf (in-list brfs)])
     (define brf-id (add-to-egraph brf)) ; remapping of brf
@@ -287,9 +288,10 @@
       [(list 'Rewrite=> rule expr) (list 'Rewrite=> (get-canon-rule-name rule rule) (loop expr type))]
       [(list 'Rewrite<= rule expr) (list 'Rewrite<= (get-canon-rule-name rule rule) (loop expr type))]
       [(list op args ...)
-       #:when (string-contains? (~a op) "unsound")
-       (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
-       (cons op* (map loop args (map (const 'real) args)))]
+       #:when (string-prefix? (symbol->string op) "sound-")
+       (define op* (string->symbol (substring (symbol->string (car expr)) (string-length "sound-"))))
+       (define args* (drop-right args 1))
+       (cons op* (map loop args* (map (const 'real) args*)))]
       [(list op args ...)
        ;; Unfortunately the type parameter doesn't tell us much because mixed exprs exist
        ;; so if we see something like (and a b) we literally don't know which "and" it is
@@ -331,6 +333,8 @@
       (define computed-in (egg-expr->expr out ctx))
       (check-equal? out expected-out)
       (check-equal? computed-in in)))
+
+  (check-equal? (egg-expr->expr '(sound-sqrt $var0 $var1) ctx) '(sqrt x))
 
   (set! ctx (context '(x a b c r) <binary64> (make-list 5 <binary64>)))
   (define extended-expr-list
@@ -521,17 +525,16 @@
 ;; Synthesizes lowering rules for a given platform.
 (define (platform-lowering-rules [pform (*active-platform*)])
   (define impls (platform-impls pform))
-  (append* (for/list ([impl (in-list impls)])
-             (hash-ref! (*lowering-rules*)
-                        (cons impl pform)
-                        (lambda ()
-                          (define name (sym-append 'lower- impl))
-                          (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                          (list (rule name spec-expr impl-expr '(lowering))
-                                (rule (sym-append 'lower-unsound- impl)
-                                      (add-unsound spec-expr)
-                                      impl-expr
-                                      '(lowering))))))))
+  (append*
+   (for/list ([impl (in-list impls)])
+     (hash-ref!
+      (*lowering-rules*)
+      (cons impl pform)
+      (lambda ()
+        (define name (sym-append 'lower- impl))
+        (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+        (list (rule name spec-expr impl-expr '(lowering))
+              (rule (sym-append 'lower-sound- impl) (add-sound spec-expr) impl-expr '(lowering))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
@@ -574,7 +577,7 @@
     [(cons f _) ; application
      (cond
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
-       [(string-contains? (~a f) "unsound") (list 'real)]
+       [(string-prefix? (symbol->string f) "sound-") (list 'real)]
        [else
         (filter values
                 (list (and (impl-exists? f) (impl-info f 'otype))
@@ -591,9 +594,11 @@
         (define spec (u32vector-ref ids 0))
         (define impl (u32vector-ref ids 1))
         (list '$approx (lookup spec (representation-type type)) (lookup impl type))]
-       [(string-contains? (~a f) "unsound")
-        (define op (string->symbol (string-replace (symbol->string f) "unsound-" "")))
-        (list* op (map (λ (x) (lookup (u32vector-ref ids x) 'real)) (range (u32vector-length ids))))]
+       [(string-prefix? (~a f) "sound-")
+        (define op (string->symbol (substring (symbol->string f) (string-length "sound-"))))
+        (list* op
+               (map (λ (x) (lookup (u32vector-ref ids x) 'real))
+                    (range (- (u32vector-length ids) 1))))]
        [else
         (define itypes
           (cond
@@ -665,10 +670,11 @@
         (vector-set! id->eclass id (cons enode* (vector-ref id->eclass id)))
         (match enode*
           [(list _ ids ...)
-           (if (null? ids)
-               (vector-set! id->leaf? id #t)
-               (for ([child-id (in-list ids)])
-                 (vector-set! id->parents child-id (cons id (vector-ref id->parents child-id)))))]
+           #:when (null? ids)
+           (vector-set! id->leaf? id #t)]
+          [(list _ ids ...)
+           (for ([child-id (in-list ids)])
+             (vector-set! id->parents child-id (cons id (vector-ref id->parents child-id))))]
           [(? symbol?) (vector-set! id->leaf? id #t)]
           [(? number?) (vector-set! id->leaf? id #t)]))))
 
@@ -1107,7 +1113,11 @@
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
-  (and (rational? frac) (let ([denom (denominator frac)]) (and (> denom 1) (odd? denom)))))
+  (cond
+    [(rational? frac)
+     (define denom (denominator frac))
+     (and (> denom 1) (odd? denom))]
+    [else #f]))
 
 ;; Decompose an e-node representing an impl of `(pow b e)`.
 ;; Returns either `#f` or the `(cons b e)`
@@ -1207,10 +1217,11 @@
 
 ;; Runs rules over the egraph with the given egg parameters.
 ;; Invariant: the returned egraph is never unsound
-(define (egraph-run-rules egg-graph0 egg-rules params)
-  (define node-limit (dict-ref params 'node #f))
-  (define iter-limit (dict-ref params 'iteration #f))
-  (define scheduler (dict-ref params 'scheduler 'backoff))
+(define (egraph-run-rules egg-graph0
+                          egg-rules
+                          #:node-limit [node-limit #f]
+                          #:iter-limit [iter-limit #f]
+                          #:scheduler [scheduler 'backoff])
   (define ffi-rules (map cdr egg-rules))
 
   ;; run the rules
@@ -1237,14 +1248,18 @@
 
   ; run the schedule
   (define egg-graph*
-    (for/fold ([egg-graph egg-graph]) ([(rules params) (in-dict schedule)])
-      ; run rules in the egraph
-      (define egg-rules
-        (expand-rules (match rules
-                        [`lift (platform-lifting-rules)]
-                        [`lower (platform-lowering-rules)]
-                        [else rules])))
-      (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
+    (for/fold ([egg-graph egg-graph]) ([step (in-list schedule)])
+      (define-values (egg-graph* iteration-data)
+        (match step
+          ['lift
+           (define rules (expand-rules (platform-lifting-rules)))
+           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
+          ['lower
+           (define rules (expand-rules (platform-lowering-rules)))
+           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
+          ['rewrite
+           (define rules (expand-rules (*rules*)))
+           (egraph-run-rules egg-graph rules #:node-limit (*node-limit*))]))
 
       ; get cost statistics
       (for ([iter (in-list iteration-data)]
@@ -1280,37 +1295,17 @@
 
 ;; Constructs an egg runner.
 ;;
-;; The schedule is a list of pairs specifying
-;;  - a list of rules
-;;  - scheduling parameters:
-;;     - node limit: `(node . <number>)`
-;;     - iteration limit: `(iteration . <number>)`
-;;     - scheduler: `(scheduler . <name>)` [default: backoff]
-;;        - `simple`: run all rules without banning
-;;        - `backoff`: ban rules if the fire too much
+;; The schedule is a list of step symbols:
+;;  - `lift`: run lifting rules for 1 iteration with simple scheduler
+;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
+;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
 (define (make-egraph batch brfs reprs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
-  (for ([instr (in-list schedule)])
-    (match instr
-      [(cons rules params)
-       ;; `run` instruction
-
-       (unless (or (equal? `lift rules)
-                   (equal? `lower rules)
-                   (and (list? rules) (andmap rule? rules)))
-         (oops! "expected list of rules: `~a`" rules))
-
-       (for ([param (in-list params)])
-         (match param
-           [(cons 'node (? nonnegative-integer?)) (void)]
-           [(cons 'iteration (? nonnegative-integer?)) (void)]
-           [(cons 'scheduler mode)
-            (unless (set-member? '(simple backoff) mode)
-              (oops! "in instruction `~a`, unknown scheduler `~a`" instr mode))]
-           [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
-      [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
+  (for ([step (in-list schedule)])
+    (unless (memq step '(lift lower rewrite))
+      (oops! "unknown schedule step `~a`" step)))
 
   (define-values (root-ids egg-graph) (egraph-run-schedule batch brfs schedule ctx))
 
