@@ -1217,9 +1217,7 @@
 
 ;; Runs rules over the egraph with the given egg parameters.
 ;; Invariant: the returned egraph is never unsound
-(define (egraph-run-rules egg-graph0
-                          egg-rules
-                          #:node-limit [node-limit #f])
+(define (egraph-run-rules egg-graph0 egg-rules #:node-limit [node-limit #f])
   (define ffi-rules (map cdr egg-rules))
 
   ;; run the rules
