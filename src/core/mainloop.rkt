@@ -1,6 +1,7 @@
 #lang racket
 
-(require "../utils/alternative.rkt"
+(require "../config.rkt"
+         "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../syntax/platform.rkt"
@@ -45,7 +46,10 @@
 
 (define (run-improve! initial specification context pcontext)
   (timeline-event! 'preprocess)
-  (define preprocessing (find-preprocessing specification context))
+  (define preprocessing
+    (if (flag-set? 'setup 'preprocess)
+        (find-preprocessing specification context)
+        '()))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
