@@ -28,7 +28,8 @@
                   (define prop-dict (props->dict props))
                   (define arg-prec (dict-ref prop-dict ':precision prec))
                   (values name arg-prec)]
-                 [(? symbol? name) (values name prec)])))
+                 [(? symbol? name) (values name prec)]
+                 [(list var 2) (values var '(real 2))])))
 
   (define ctx (context var-names (get-representation prec) (map get-representation var-precs)))
   (assert-expression-type! body prop-dict ctx))

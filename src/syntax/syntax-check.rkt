@@ -162,11 +162,14 @@
             (for ([var (in-list vars)])
               (match var
                 [(? identifier? x) (sow var)]
+                ;; FPCore syntax for 1D arrays
+                [#`(#,(? identifier? x) 2) (sow x)]
                 [#`(! #,props ... #,name)
                  (check-properties* props (immutable-bound-id-set '()) error!)
                  (cond
                    [(identifier? name) (sow name)]
-                   [else (error! var "Annotated argument ~a is not a variable name" name)])])))))
+                   [else (error! var "Annotated argument ~a is not a variable name" name)])]
+                [_ (error! var "Invalid syntax ~a for variable name" var)])))))
   (when (check-duplicate-identifier vars*)
     (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*)))
   (check-properties* props (immutable-bound-id-set vars*) error!)

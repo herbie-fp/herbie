@@ -11,6 +11,7 @@
          <bool>
          <binary32>
          <binary64>
+         <binary64x2>
          (struct-out context)
          *context*
          context-extend
@@ -112,6 +113,18 @@
                        #:repr->ordinal flonum->ordinal
                        #:total-bits 64
                        #:special-value? nan?))
+
+(define <binary64x2>
+  (representation 'binary64x2
+                  '(real 2)
+                  (curry vector-map bigfloat->flonum)
+                  (lambda (x)
+                    (parameterize ([bf-precision 53])
+                      (vector-map bf x)))
+                  (curry vector-map ordinal->flonum)
+                  (curry vector-map flonum->ordinal)
+                  '(64 2)
+                  (lambda (v) (ormap identity (vector->list v)))))
 
 ;; Contexts
 
