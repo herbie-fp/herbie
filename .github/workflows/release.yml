@@ -20,7 +20,7 @@ jobs:
           - os: macos-latest
             os-name: macOS-m1
             arch: arm64
-          - os: macos-15-large
+          - os: macos-15-intel
             os-name: macOS
             arch: x64
 
