@@ -2,30 +2,39 @@
 
 (require "../config.rkt")
 
-(provide create-new-egglog-subprocess
+(provide (struct-out egglog-subprocess)
+         create-new-egglog-subprocess
          send-to-egglog
-         send-to-egglog-unsound-detection)
+         send-to-egglog-unsound-detection
+         egglog-subprocess-close)
+
+;; Struct to hold egglog subprocess handles
+(struct egglog-subprocess (process output input error dump-file) #:transparent)
+
+;; Close all ports and wait for/kill the subprocess
+(define (egglog-subprocess-close subproc)
+  (close-output-port (egglog-subprocess-input subproc))
+  (close-input-port (egglog-subprocess-output subproc))
+  (close-input-port (egglog-subprocess-error subproc))
+  (subprocess-wait (egglog-subprocess-process subproc))
+  (unless (eq? (subprocess-status (egglog-subprocess-process subproc)) 'done)
+    (subprocess-kill (egglog-subprocess-process subproc) #f)))
 
 ;; High-level function that writes the program to a file, runs it then returns output
 ;;
 ;; If the flag is set to dump the egglog file, since a new subprocess is starting, we can
 ;;  create a new file to dump the egglog program is and set it
-(define (create-new-egglog-subprocess)
+(define (create-new-egglog-subprocess dump-file)
   (define egglog-path
     (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
 
   ; TODO : "RUST_BACKTRACE=1"
   (define-values (egglog-process egglog-output egglog-in err) (subprocess #f #f #f egglog-path))
 
-  (values egglog-process egglog-output egglog-in err))
+  (egglog-subprocess egglog-process egglog-output egglog-in err dump-file))
 
-(define (send-to-egglog commands
-                        egglog-process
-                        egglog-output
-                        egglog-in
-                        err
-                        dump-file
-                        #:num-extracts [num-extracts 0])
+(define (send-to-egglog commands subproc #:num-extracts [num-extracts 0])
+  (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
 
   (define egglog-program (apply ~s #:separator "\n" commands))
 
@@ -56,12 +65,9 @@
     (for/list ([i (in-range num-extracts)])
       (read egglog-output))))
 
-(define (send-to-egglog-unsound-detection commands
-                                          egglog-process
-                                          egglog-output
-                                          egglog-in
-                                          err
-                                          dump-file)
+(define (send-to-egglog-unsound-detection commands subproc)
+  (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
+
   (define egglog-program (apply ~s #:separator "\n" commands))
 
   (when dump-file
@@ -103,11 +109,11 @@
 
 (module+ test
   (when (find-executable-path "egglog")
-    (define-values (egglog-process egglog-output egglog-in err) (create-new-egglog-subprocess))
+    (define subproc (create-new-egglog-subprocess #f))
 
     (thread (lambda ()
               (with-handlers ([exn:fail? (lambda (_) (void))])
-                (for ([line (in-lines err)])
+                (for ([line (in-lines (egglog-subprocess-error subproc))])
                   (printf "[egglog-log] ~a\n" line)))))
 
     (define first-commands
@@ -139,13 +145,12 @@
             '(run init 1)))
 
     ; Nothing to output
-    (send-to-egglog first-commands egglog-process egglog-output egglog-in err #f)
+    (send-to-egglog first-commands subproc)
 
     ; Has extract 1 thing
     (define second-commands (list '(extract (const1))))
 
-    (define lines1
-      (send-to-egglog second-commands egglog-process egglog-output egglog-in err #f #:num-extracts 1))
+    (define lines1 (send-to-egglog second-commands subproc #:num-extracts 1))
     (printf "\noutput-vals1 : ~a\n\n" lines1)
 
     ;; Print size
@@ -153,12 +158,7 @@
     (define print-size-commands (list '(print-size) '(run unsound-rule 1) '(extract (unsound))))
 
     (define-values (node-values unsound?)
-      (send-to-egglog-unsound-detection print-size-commands
-                                        egglog-process
-                                        egglog-output
-                                        egglog-in
-                                        err
-                                        #f))
+      (send-to-egglog-unsound-detection print-size-commands subproc))
 
     (for ([line node-values]
           #:when (> (string-length line) 0))
@@ -171,18 +171,10 @@
     ;; last two
     (define third-commands (list '(extract (const2)) '(extract (const3))))
 
-    (define lines2
-      (send-to-egglog third-commands egglog-process egglog-output egglog-in err #f #:num-extracts 2))
+    (define lines2 (send-to-egglog third-commands subproc #:num-extracts 2))
     (printf "\noutput-vals2 : ~a\n\n" lines2)
 
-    (close-output-port egglog-in)
-    (close-input-port egglog-output)
-    (close-input-port err)
-
-    (subprocess-wait egglog-process)
-
-    (unless (eq? (subprocess-status egglog-process) 'done)
-      (subprocess-kill egglog-process #f))))
+    (egglog-subprocess-close subproc)))
 
 (define (calculate-nodes lines)
   ;; Don't start from last index, but previous to last index - as last has current unsoundness result

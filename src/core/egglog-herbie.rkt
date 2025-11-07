@@ -166,21 +166,16 @@
   (egglog-program-add! `(run-schedule (repeat 1 run-extract-commands)) curr-program)
 
   ;;;; SUBPROCESS START ;;;;
-  (define-values (egglog-process egglog-output egglog-in err) (create-new-egglog-subprocess))
+  (define subproc (create-new-egglog-subprocess dump-file))
 
   (thread (lambda ()
             (with-handlers ([exn:fail? (lambda (_) (void))])
-              (for ([line (in-lines err)])
+              (for ([line (in-lines (egglog-subprocess-error subproc))])
                 (void)))))
 
   ;; Send whatever we have so far to egglog
   ;; Expected no output anyways as there is no extraction
-  (send-to-egglog (get-current-program curr-program)
-                  egglog-process
-                  egglog-output
-                  egglog-in
-                  err
-                  dump-file)
+  (send-to-egglog (get-current-program curr-program) subproc)
 
   ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
 
@@ -189,38 +184,14 @@
 
   (for ([tag (in-list tag-schedule)])
     (match tag
-      ['lift
-       (send-to-egglog (list '(run-schedule (saturate lift)))
-                       egglog-process
-                       egglog-output
-                       egglog-in
-                       err
-                       dump-file)]
+      ['lift (send-to-egglog (list '(run-schedule (saturate lift))) subproc)]
 
-      ['lower
-       (send-to-egglog (list '(run-schedule (saturate lower)))
-                       egglog-process
-                       egglog-output
-                       egglog-in
-                       err
-                       dump-file)]
+      ['lower (send-to-egglog (list '(run-schedule (saturate lower))) subproc)]
 
-      ['unsound
-       (send-to-egglog (list '(run-schedule (saturate unsound)))
-                       egglog-process
-                       egglog-output
-                       egglog-in
-                       err
-                       dump-file)]
+      ['unsound (send-to-egglog (list '(run-schedule (saturate unsound))) subproc)]
 
-      ['rewrite
-       ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
-       (egglog-unsound-detected-subprocess tag
-                                           egglog-process
-                                           egglog-output
-                                           egglog-in
-                                           err
-                                           dump-file)]))
+      ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
+      ['rewrite (egglog-unsound-detected-subprocess tag subproc)]))
 
   ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
   (define extract-commands
@@ -234,13 +205,7 @@
 
   ;; Extract its returned value
   (define stdout-content
-    (send-to-egglog extract-commands
-                    egglog-process
-                    egglog-output
-                    egglog-in
-                    err
-                    dump-file
-                    #:num-extracts (length extract-commands)))
+    (send-to-egglog extract-commands subproc #:num-extracts (length extract-commands)))
 
   ;; (Listof (Listof exprs))
   (define herbie-exprss
@@ -255,12 +220,7 @@
        #:key batchref-idx)))
 
   ;; Close everything subprocess related
-  (close-output-port egglog-in)
-  (close-input-port egglog-output)
-  (close-input-port err)
-  (subprocess-wait egglog-process)
-  (unless (eq? (subprocess-status egglog-process) 'done)
-    (subprocess-kill egglog-process #f))
+  (egglog-subprocess-close subproc)
 
   ;; (Listof (Listof batchref))
   result)
@@ -792,7 +752,7 @@
 
   (values (reverse all-bindings) curr-bindings))
 
-(define (egglog-unsound-detected-subprocess tag egglog-process egglog-output egglog-in err dump-file)
+(define (egglog-unsound-detected-subprocess tag subproc)
 
   (define node-limit (*node-limit*))
   (define iter-limit (*default-egglog-iter-limit*))
@@ -833,13 +793,7 @@
 
        ;; Get egglog output
        (define-values (math-unsound? math-node-limit? math-total-nodes)
-         (get-egglog-output math-schedule
-                            egglog-process
-                            egglog-output
-                            egglog-in
-                            err
-                            node-limit
-                            dump-file))
+         (get-egglog-output math-schedule subproc node-limit))
 
        (cond
          ;;  There are two condiitons where we exit unsoundness dteection WITHOUT running (pop)
@@ -866,14 +820,14 @@
          ;;        e-graph while extracting. For now, popping provides a smaller e-graph and gives
          ;;        performance comparable to Egg-Herbie, thought it doesn't affect correctness too much
          [math-node-limit?
-          (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err dump-file)
+          (send-to-egglog (list '(pop)) subproc)
           (values (sub1 curr-iter) #t)]
 
          ;; If Unsoundness detected or node-limit reached, then return the
          ;; optimal iter limit (one less than current) and run (pop)
          [math-unsound?
           ;; Pop once at the end since the egraph isn't valid
-          (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err dump-file)
+          (send-to-egglog (list '(pop)) subproc)
 
           ;; Return one less than current iteration and indicate that we need to run again because pop
           (values (sub1 curr-iter) #t)]
@@ -892,23 +846,17 @@
                   '(extract (bad-merge?))))
 
           (define-values (const-unsound? const-node-limit? const-total-nodes)
-            (get-egglog-output const-schedule
-                               egglog-process
-                               egglog-output
-                               egglog-in
-                               err
-                               node-limit
-                               dump-file))
+            (get-egglog-output const-schedule subproc node-limit))
 
           (cond
             ;; TODO:  See the TODO from above
             [(equal? const-total-nodes prev-number-nodes) (values curr-iter #f)]
             [const-node-limit?
-             (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err dump-file)
+             (send-to-egglog (list '(pop)) subproc)
              (values (sub1 curr-iter) #t)]
 
             [const-unsound?
-             (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err dump-file)
+             (send-to-egglog (list '(pop)) subproc)
              (values (sub1 curr-iter) #t)]
 
             [else
@@ -917,20 +865,8 @@
 
              (loop (add1 curr-iter))])])])))
 
-(define (get-egglog-output curr-schedule
-                           egglog-process
-                           egglog-output
-                           egglog-in
-                           err
-                           node-limit
-                           dump-file)
-  (define-values (node-values unsound?)
-    (send-to-egglog-unsound-detection curr-schedule
-                                      egglog-process
-                                      egglog-output
-                                      egglog-in
-                                      err
-                                      dump-file))
+(define (get-egglog-output curr-schedule subproc node-limit)
+  (define-values (node-values unsound?) (send-to-egglog-unsound-detection curr-schedule subproc))
 
   ;  (when unsound?
   ;    (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
