@@ -209,8 +209,10 @@
       (batchref-idx (batch-push! batch term))))
   (batchref batch idx))
 
-(define (normalize-cost c min-cost)
-  (exact-round (* (/ c min-cost) 100)))
+;; Egglog requires integer costs, but Herbie uses floating-point costs.
+;; Scale by 1000 to convert Herbie's float costs to Egglog's integer costs.
+(define (normalize-cost c)
+  (exact-round (* c 1000)))
 
 (define (prelude curr-program #:mixed-egraph? [mixed-egraph? #t])
   (define pform (*active-platform*))
@@ -220,30 +222,12 @@
 
   (egglog-program-add! spec-egraph curr-program)
 
-  ;;; To add support for floating point cost (which egglog does not support), compute
-  ;;; the minimum by accumulating all raw costs and normalize them
-  (define raw-costs '())
-
-  ;; Add raw num-typed-nodes and var-typed-nodes costs
-  (for ([repr (in-list (all-repr-names))])
-    (set! raw-costs (cons (platform-repr-cost pform (get-representation repr)) raw-costs)))
-
-  ;; Add raw platform-impl-nodes
-  (for ([impl (in-list (platform-impls pform))])
-    (set! raw-costs (cons (impl-info impl 'cost) raw-costs)))
-
-  (define nonzero-costs (filter (negate zero?) raw-costs))
-  (define min-cost
-    (if (empty? nonzero-costs)
-        1
-        (apply min nonzero-costs)))
-
   (define typed-graph
     `(datatype MTy
-               ,@(num-typed-nodes pform min-cost)
-               ,@(var-typed-nodes pform min-cost)
+               ,@(num-typed-nodes pform)
+               ,@(var-typed-nodes pform)
                (Approx M MTy)
-               ,@(platform-impl-nodes pform min-cost)))
+               ,@(platform-impl-nodes pform)))
   (egglog-program-add! typed-graph curr-program)
 
   (egglog-program-add! `(constructor do-lower (M String) MTy :unextractable) curr-program)
@@ -358,7 +342,7 @@
                    `(,(serialize-op sound-op) ,@(make-list arity 'M) M :cost 4294967295)
                    `(,(serialize-op unsound-op) ,@(make-list arity 'M) :cost 4294967295)))))
 
-(define (platform-impl-nodes pform min-cost)
+(define (platform-impl-nodes pform)
   (for/list ([impl (in-list (platform-impls pform))])
     (define arity (length (impl-info impl 'itype)))
     (define typed-name (string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty")))
@@ -367,7 +351,7 @@
     `(,typed-name ,@(for/list ([i (in-range arity)])
                       'MTy)
                   :cost
-                  ,(normalize-cost (impl-info impl 'cost) min-cost))))
+                  ,(normalize-cost (impl-info impl 'cost)))))
 
 (define (typed-num-id repr-name)
   (string->symbol (string-append "Num" (symbol->string repr-name))))
@@ -375,20 +359,18 @@
 (define (typed-var-id repr-name)
   (string->symbol (string-append "Var" (symbol->string repr-name))))
 
-(define (num-typed-nodes pform min-cost)
+(define (num-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))]
              #:when (not (eq? repr 'bool)))
     `(,(typed-num-id repr) BigRat
                            :cost
-                           ,(normalize-cost (platform-repr-cost pform (get-representation repr))
-                                            min-cost))))
+                           ,(normalize-cost (platform-repr-cost pform (get-representation repr))))))
 
-(define (var-typed-nodes pform min-cost)
+(define (var-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))])
     `(,(typed-var-id repr) String
                            :cost
-                           ,(normalize-cost (platform-repr-cost pform (get-representation repr))
-                                            min-cost))))
+                           ,(normalize-cost (platform-repr-cost pform (get-representation repr))))))
 
 (define (num-lowering-rules)
   (for/list ([repr (in-list (all-repr-names))]
