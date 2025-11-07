@@ -165,6 +165,7 @@
        [`(/ ,num ,den) (taylor-quotient (recurse num) (recurse den))]
        [`(sqrt ,arg) (taylor-sqrt var (recurse arg))]
        [`(cbrt ,arg) (taylor-cbrt var (recurse arg))]
+       [`(fabs ,arg) (or (taylor-fabs var (recurse arg)) (taylor-exact brf))]
        [`(exp ,arg)
         (define arg* (normalize-series (recurse arg)))
         (if (positive? (series-offset arg*))
@@ -391,6 +392,24 @@
                                `(* ,(f a) ,(f b) ,(f c))))
                         (* 3 ,(f 0) ,(f 0)))]))))
 
+(define (taylor-fabs var term)
+  (define normalized (normalize-series term))
+  (define offset (series-offset normalized))
+  (define a0 (deref (series-ref normalized 0)))
+  (cond
+    [(or (not (number? a0)) (zero? a0)) #f]
+    [(and (even? offset) (negative? a0)) (taylor-negate normalized)]
+    [(and (even? offset) (positive? a0)) normalized]
+    [(odd? offset)
+     (define scale-factor (adder `(* (fabs ,var) ,(if (negative? a0) -1 1))))
+     (define new-offset (add1 offset))
+     (make-series new-offset
+                  (λ (f n)
+                    (if (zero? n)
+                        scale-factor
+                        (series-ref normalized (+ n (- new-offset offset))))))]
+    [else #f]))
+
 (define (taylor-pow coeffs n)
   ;(-> term? number? term?)
   (match n ;; Russian peasant multiplication
@@ -576,4 +595,6 @@
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
   (check-equal? (coeffs '(sqrt x)) '((sqrt x) 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt x)) '((cbrt x) 0 0 0 0 0 0))
-  (check-equal? (coeffs '(cbrt (* x x))) '((pow x 2/3) 0 0 0 0 0 0)))
+  (check-equal? (coeffs '(cbrt (* x x))) '((pow x 2/3) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(fabs (+ 2 x))) '(2 1 0 0 0 0 0))
+  (check-equal? (coeffs '(fabs (+ -2 x))) '(2 -1 0 0 0 0 0)))

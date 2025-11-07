@@ -206,6 +206,14 @@
     points</a>" error more often. Instead of turning this option off,
     try adjusting the <kbd>--num-analysis</kbd> flag.</dd>
 
+    <dt><code>setup:preprocess</code></dt>
+    <dd>This option, on by default, uses identities of the input
+    expression (like even or symmetric expressions) to perform
+    rewriting more effectively. If turned off, Herbie will skip
+    preprocessing and work directly with the original expression. This
+    can be faster but may produce less accurate results for
+    expressions with exploitable symmetries.</dd>
+
     <dt><code>generate:rr</code></dt>
     <dd>This option, on by default, uses algebraic rewriting to
     generate candidate programs. This is Herbie's primary method of

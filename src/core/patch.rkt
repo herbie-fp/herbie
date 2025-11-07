@@ -90,7 +90,7 @@
   approxs*)
 
 (define (run-lowering altns global-batch)
-  (define schedule `((lower . ((iteration . 1) (scheduler . simple)))))
+  (define schedule '(lower))
 
   ; run egg
   (define brfs (map alt-expr altns))
@@ -157,14 +157,9 @@
 
 (define (run-rr altns global-batch)
   (timeline-event! 'rewrite)
-  ; generate required rules
-  (define rules (*rules*))
 
-  ; egg schedule (3-phases for mathematical rewrites and implementation selection)
-  (define schedule
-    (list `(lift . ((iteration . 1) (scheduler . simple)))
-          `(,rules . ((node . ,(*node-limit*))))
-          `(lower . ((iteration . 1) (scheduler . simple)))))
+  ; egg schedule (4-phases for mathematical rewrites, sound-X removal, and implementation selection)
+  (define schedule '(lift rewrite unsound lower))
 
   (define brfs (map alt-expr altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))

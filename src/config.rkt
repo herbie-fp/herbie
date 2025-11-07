@@ -8,7 +8,7 @@
 
 (define default-flags
   #hash([precision . ()]
-        [setup . (search)]
+        [setup . (search preprocess)]
         [localize . ()]
         [generate . (rr taylor proofs evaluate)]
         [reduce . (regimes binary-search branch-expressions)]

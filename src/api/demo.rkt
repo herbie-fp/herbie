@@ -439,7 +439,7 @@
                ([entry (in-list json)])
                (match-define (list pt ex) entry)
                (unless (and (list? pt) (= (length pt) (length var-reprs)))
-                 (error 'json->pcontext "Invalid point ~a" pt))
+                 (raise-arguments-error 'json->pcontext "Invalid point" "pt" pt))
                (values (list->vector (map json->value pt var-reprs)) (json->value ex output-repr))))
   (mk-pcontext pts exs))
 
