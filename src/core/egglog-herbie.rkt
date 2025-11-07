@@ -77,27 +77,10 @@
   (define insert-brfs (egglog-runner-brfs runner))
   (define curr-program (make-egglog-program))
 
-  ;; 1. Add the Prelude
+  ;; 1. Add the Prelude (includes all rules)
   (prelude curr-program #:mixed-egraph? #t)
 
-  ;; 2. User Rules which comes from schedule (need to be translated)
-  (define tag-schedule
-    (for/list ([step (in-list (egglog-runner-schedule runner))])
-      (match step
-        ['lift 'lift]
-        ['lower 'lower]
-        ['unsound
-         ;; Add the unsound rules
-         (egglog-program-add-list! (egglog-rewrite-rules (*sound-removal-rules*) 'unsound)
-                                   curr-program)
-         'unsound]
-        ['rewrite
-         ;; Add the rewrite ruleset and rules
-         (egglog-program-add! `(ruleset rewrite) curr-program)
-         (egglog-program-add-list! (egglog-rewrite-rules (*rules*) 'rewrite) curr-program)
-         'rewrite])))
-
-  ;; 3. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
+  ;; 2. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
 
   ;; Overview of the new extraction method:
   ;;
@@ -162,11 +145,8 @@
 
   ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
 
-  ; run-schedule specifies the schedule of rulesets to saturate the egraph
-  ; For performance, it stores the schedule in reverse order, and is reversed at the end
-
-  (for ([tag (in-list tag-schedule)])
-    (match tag
+  (for ([step (in-list (egglog-runner-schedule runner))])
+    (match step
       ['lift (send-to-egglog (list '(run-schedule (saturate lift))) subproc)]
 
       ['lower (send-to-egglog (list '(run-schedule (saturate lower))) subproc)]
@@ -174,7 +154,7 @@
       ['unsound (send-to-egglog (list '(run-schedule (saturate unsound))) subproc)]
 
       ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
-      ['rewrite (egglog-unsound-detected-subprocess tag subproc)]))
+      ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
   ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
   (define extract-commands
@@ -305,6 +285,13 @@
     (egglog-program-add! curr-expr curr-program))
 
   (egglog-program-add! (approx-lifting-rule) curr-program)
+
+  ;; Add unsound rules
+  (egglog-program-add-list! (egglog-rewrite-rules (*sound-removal-rules*) 'unsound) curr-program)
+
+  ;; Add rewrite ruleset and rules
+  (egglog-program-add! `(ruleset rewrite) curr-program)
+  (egglog-program-add-list! (egglog-rewrite-rules (*rules*) 'rewrite) curr-program)
 
   (void))
 
