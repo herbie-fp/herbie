@@ -77,23 +77,6 @@
   (define insert-brfs (egglog-runner-brfs runner))
   (define curr-program (make-egglog-program))
 
-  ;; Dump-file
-  (define dump-file
-    (cond
-      [(flag-set? 'dump 'egglog)
-       (define dump-dir "dump-egglog")
-       (unless (directory-exists? dump-dir)
-         (make-directory dump-dir))
-       (define name
-         (for/first ([i (in-naturals)]
-                     #:unless
-                     (file-exists? (build-path dump-dir (format "~a~a.egg" (if label label "") i))))
-           (build-path dump-dir (format "~a~a.egg" (if label label "") i))))
-
-       (open-output-file name #:exists 'replace)]
-
-      [else #f]))
-
   ;; 1. Add the Prelude
   (prelude curr-program #:mixed-egraph? #t)
 
@@ -166,7 +149,7 @@
   (egglog-program-add! `(run-schedule (repeat 1 run-extract-commands)) curr-program)
 
   ;;;; SUBPROCESS START ;;;;
-  (define subproc (create-new-egglog-subprocess dump-file))
+  (define subproc (create-new-egglog-subprocess label))
 
   (thread (lambda ()
             (with-handlers ([exn:fail? (lambda (_) (void))])

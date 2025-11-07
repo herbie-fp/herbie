@@ -22,14 +22,28 @@
 
 ;; High-level function that writes the program to a file, runs it then returns output
 ;;
-;; If the flag is set to dump the egglog file, since a new subprocess is starting, we can
-;;  create a new file to dump the egglog program is and set it
-(define (create-new-egglog-subprocess dump-file)
+;; If the flag is set to dump the egglog file, creates a new dump file in dump-egglog/ directory
+(define (create-new-egglog-subprocess [label #f])
   (define egglog-path
     (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
 
   ; TODO : "RUST_BACKTRACE=1"
   (define-values (egglog-process egglog-output egglog-in err) (subprocess #f #f #f egglog-path))
+
+  ;; Create dump file if flag is set
+  (define dump-file
+    (cond
+      [(flag-set? 'dump 'egglog)
+       (define dump-dir "dump-egglog")
+       (unless (directory-exists? dump-dir)
+         (make-directory dump-dir))
+       (define name
+         (for/first ([i (in-naturals)]
+                     #:unless
+                     (file-exists? (build-path dump-dir (format "~a~a.egg" (if label label "") i))))
+           (build-path dump-dir (format "~a~a.egg" (if label label "") i))))
+       (open-output-file name #:exists 'replace)]
+      [else #f]))
 
   (egglog-subprocess egglog-process egglog-output egglog-in err dump-file))
 
