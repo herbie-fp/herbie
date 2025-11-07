@@ -470,7 +470,6 @@
   (define mappings (build-vector (batch-length batch) values))
   (define bindings (make-hash))
   (define vars (make-hash))
-  (define commands-to-send '()) ; Accumulate all commands to send
   (define (remap x spec?)
     (cond
       [(hash-has-key? vars x)
@@ -545,34 +544,30 @@
       (set! root-bindings (cons (vector-ref mappings n) root-bindings))))
 
   ; Var-lowering-rules
-  (for ([var (in-list (context-vars ctx))]
-        [repr (in-list (context-var-reprs ctx))])
-
-    (set! commands-to-send
-          (cons `(rule ((= e (Var ,(symbol->string var))))
-                       ((let ty ,(symbol->string (representation-name repr))
-                          )
-                        (let ety (,(typed-var-id (representation-name repr))
-                                  ,(symbol->string var))
-                          )
-                        (union (do-lower e ty) ety))
-                       :ruleset
-                       lower)
-                commands-to-send)))
+  (send-to-egglog (for/list ([var (in-list (context-vars ctx))]
+                             [repr (in-list (context-var-reprs ctx))])
+                    `(rule ((= e (Var ,(symbol->string var))))
+                           ((let ty ,(symbol->string (representation-name repr))
+                              )
+                            (let ety (,(typed-var-id (representation-name repr))
+                                      ,(symbol->string var))
+                              )
+                            (union (do-lower e ty) ety))
+                           :ruleset
+                           lower))
+                  subproc)
 
   ; Var-lifting-rules
-  (for ([var (in-list (context-vars ctx))]
-        [repr (in-list (context-var-reprs ctx))])
-
-    (set! commands-to-send
-          (cons `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
-                       ((let se (Var
-                                 ,(symbol->string var))
-                          )
-                        (union (do-lift e) se))
-                       :ruleset
-                       lift)
-                commands-to-send)))
+  (send-to-egglog (for/list ([var (in-list (context-vars ctx))]
+                             [repr (in-list (context-var-reprs ctx))])
+                    `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
+                           ((let se (Var
+                                     ,(symbol->string var))
+                              )
+                            (union (do-lift e) se))
+                           :ruleset
+                           lift))
+                  subproc)
 
   (define all-bindings '())
   (define binding->constructor (make-hash)) ; map from binding name to constructor name
@@ -589,9 +584,8 @@
     ; Define the actual binding
     (define curr-var-spec-binding `(let ,binding-name (Var ,(symbol->string var))))
 
-    ; Add the unique constructor to send list
-    (set! commands-to-send
-          (cons `(constructor ,constructor-name () M :unextractable) commands-to-send))
+    ; Send the constructor definition
+    (send-to-egglog (list `(constructor ,constructor-name () M :unextractable)) subproc)
 
     ; Add the binding and constructor set to all-bindings for the future rule
     (set! all-bindings (cons curr-var-spec-binding all-bindings))
@@ -611,9 +605,8 @@
     (define curr-var-typed-binding
       `(let ,binding-name (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
 
-    ; Add the unique constructor to send list
-    (set! commands-to-send
-          (cons `(constructor ,constructor-name () MTy :unextractable) commands-to-send))
+    ; Send the constructor definition
+    (send-to-egglog (list `(constructor ,constructor-name () MTy :unextractable)) subproc)
 
     ; Add the binding and constructor set to all-bindings for the future rule
     (set! all-bindings (cons curr-var-typed-binding all-bindings))
@@ -646,8 +639,7 @@
 
     (define curr-binding-exprs `(let ,binding-name ,actual-binding))
 
-    (set! commands-to-send
-          (cons `(constructor ,constructor-name () ,curr-datatype :unextractable) commands-to-send))
+    (send-to-egglog (list `(constructor ,constructor-name () ,curr-datatype :unextractable)) subproc)
 
     (set! all-bindings (cons curr-binding-exprs all-bindings))
     (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings))
@@ -665,9 +657,6 @@
             (string->symbol (format "?r~a" root))))
 
       (hash-ref binding->constructor curr-binding-name)))
-
-  ; Send all accumulated commands to egglog
-  (send-to-egglog (reverse commands-to-send) subproc)
 
   (values (reverse all-bindings) curr-bindings))
 
