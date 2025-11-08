@@ -48,22 +48,22 @@ double cos_quotient_xy(double x, double y) {
     return fma(cos_p, cos_q, -sin_p * sin_q);
 }
 
-double approx_sin_xy(double x, double y) {
-    double p = x * y;
-    double q = fma(x, y, -p); 
+// double approx_sin_xy(double x, double y) {
+//     double p = x * y;
+//     double q = fma(x, y, -p); 
 
-    double sin_p, cos_p;
-    __sincos(p, &sin_p, &cos_p);
+//     double sin_p, cos_p;
+//     __sincos(p, &sin_p, &cos_p);
 
-    return fma(sin_p, 1, cos_p);
-}
+//     return fma(sin_p, 1, cos_p);
+// }
 
-double approx_cos_xy(double x, double y) {
-    double p = x * y;
-    double q = fma(x, y, -p); 
+// double approx_cos_xy(double x, double y) {
+//     double p = x * y;
+//     double q = fma(x, y, -p); 
 
-    double sin_p, cos_p;
-    __sincos(p, &sin_p, &cos_p);
+//     double sin_p, cos_p;
+//     __sincos(p, &sin_p, &cos_p);
 
-    return fma(cos_p, 1, -sin_p);
-}
+//     return fma(cos_p, 1, -sin_p);
+// }
