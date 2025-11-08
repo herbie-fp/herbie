@@ -5,6 +5,7 @@
 (provide (struct-out egglog-subprocess)
          create-new-egglog-subprocess
          egglog-send
+         egglog-extract
          egglog-send-unsound-detection
          egglog-subprocess-close)
 
@@ -47,7 +48,7 @@
 
   (egglog-subprocess egglog-process egglog-output egglog-in err dump-file))
 
-(define (egglog-send subproc commands #:num-extracts [num-extracts 0])
+(define (egglog-send subproc . commands)
   (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
 
   (define egglog-program (apply ~s #:separator "\n" commands))
@@ -73,11 +74,14 @@
                                (raise exn))])
 
     (displayln egglog-program egglog-in)
-    (flush-output egglog-in)
+    (flush-output egglog-in)))
 
-    ;; Return each S-expr based on the numer of extractions
-    (for/list ([i (in-range num-extracts)])
-      (read egglog-output))))
+;; Send extract commands and read results
+(define (egglog-extract subproc extract-commands)
+  (apply egglog-send subproc extract-commands)
+  (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
+  (for/list ([i (in-range (length extract-commands))])
+    (read egglog-output)))
 
 (define (egglog-send-unsound-detection subproc commands)
   (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
@@ -159,12 +163,10 @@
             '(run init 1)))
 
     ; Nothing to output
-    (egglog-send subproc first-commands)
+    (apply egglog-send subproc first-commands)
 
     ; Has extract 1 thing
-    (define second-commands (list '(extract (const1))))
-
-    (define lines1 (egglog-send subproc second-commands #:num-extracts 1))
+    (define lines1 (egglog-extract subproc (list '(extract (const1)))))
     (printf "\noutput-vals1 : ~a\n\n" lines1)
 
     ;; Print size
@@ -182,9 +184,7 @@
     (printf "num-nodes : ~a\n" (calculate-nodes node-values))
 
     ;; last two
-    (define third-commands (list '(extract (const2)) '(extract (const3))))
-
-    (define lines2 (egglog-send subproc third-commands #:num-extracts 2))
+    (define lines2 (egglog-extract subproc (list '(extract (const2)) '(extract (const3)))))
     (printf "\noutput-vals2 : ~a\n\n" lines2)
 
     (egglog-subprocess-close subproc)))
