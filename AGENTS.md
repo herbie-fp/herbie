@@ -8,6 +8,12 @@
 - Run `racket src/main.rkt report bench/tutorial.fpcore tmp` to test
   that your changes work; this should take about 5-10 seconds and all
   of the tests should pass, getting basically perfect accuracy.
+- After running tests, you should be able to look into `tmp`, and see
+  one directory per benchmark. Each directory has a `graph.html` with
+  more detail on what happened, including tracebacks for crashes.
+- Herbie prints a seed every time it runs; you can pass --seed N after
+  the "report" argument to fix a seed. That should be perfectly
+  reproducible.
 - You can also run the unit tests with `raco test <file>`, when unit
   tests exist. Often they don't.
 
