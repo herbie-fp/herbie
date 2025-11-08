@@ -80,7 +80,7 @@
   [remove-double-neg (neg (neg a)) a]
   [*-lft-identity (* 1 a) a]
   [*-rgt-identity (* a 1) a]
-  [1-split 1 (* 2 1/2)]
+  ;[1-split 1 (* 2 1/2)]
   [/-rgt-identity (/ a 1) a]
   [mul-1-neg (* -1 a) (neg a)])
 

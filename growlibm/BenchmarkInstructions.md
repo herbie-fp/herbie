@@ -23,6 +23,7 @@ When you receive a new source file:
    racket -y src/main.rkt report --platform no-accelerators <FPCORE FILE> out
    ```
 
-   Fix any syntax errors Herbie reports (missing parentheses, unsupported identifiers, missing preconditions). Rerun until the file parses cleanly. Warnings about improvement quality are fine; only syntax errors must be resolved.
+   Fix any syntax errors Herbie reports (missing parentheses, unsupported identifiers, missing preconditions). Rerun until the file parses cleanly. Warnings about improvement quality are fine; only syntax errors must be resolved. Make sure that the number of FPCores you
+   add to the file is the same number that appears in the report when you run this command.
 
 Aim for a set of 15–20 expressions that represent the numerical behaviors from the source file. Ideally, this collection will include  hard expressions that Herbie has trouble improving. 
