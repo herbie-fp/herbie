@@ -7,7 +7,10 @@
   (let loop ([expr expr])
     (match* (pre-fpcore? expr)
       [(_ (? string?))
-       (or (string->number expr) (error 'fix-expr "string that is not a num: ~a" expr))]
+       (or (string->number expr) (raise-arguments-error 'fix-expr
+                                                        "string that is not a num"
+                                                        "expr"
+                                                        expr))]
       [(#t (list 'expt (app loop a) (app loop b))) (list 'pow a b)]
       [(#t (list 'cube (app loop a))) (list 'pow a 3)]
       [(#t (list 'cot (app loop a))) (list '/ 1 (list 'tan a))]
