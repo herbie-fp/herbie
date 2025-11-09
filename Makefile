@@ -45,7 +45,7 @@ minimal-distribution:
 	[ ! -f herbie.app ] || (raco distribute herbie-compiled herbie.app && rm herbie.app)
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
-nightly: install
+nightly: 
 	bash infra/nightly.sh
 
 upgrade:
