@@ -52,9 +52,6 @@
      (ormap contains-comparison? args)]
     [_ #f]))
 
-(define (sanitize expr)
-  (strip-approx expr))
-
 (define (get-error expr)
   (with-handlers ([exn? (lambda (exn) 0)])
     (define ctx (get-ctx expr))
@@ -67,7 +64,6 @@
     err-score))
 
 (define (best-exprs exprs ctxs)
-  (define rules (*rules*))
   (*context* (max-ctx ctxs))
 
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
@@ -83,7 +79,7 @@
   batchrefss)
 
 (define (rename-vars impl)
-  (define free-vars (free-variables impl))
+  (define free-vars (sort (free-variables impl) symbol<?))
   (define varDict
     (for/hash ([v free-vars]
                [i (in-naturals)])
@@ -121,7 +117,7 @@
 
 (define (to-fpcore-str pair)
   (define expr (car pair))
-  (define vars (free-variables expr))
+  (define vars (sort (free-variables expr) symbol<?))
   (define ctx (get-ctx expr))
   (format "(FPCore ~a ~a)" vars (prog->fpcore expr ctx)))
 
@@ -136,7 +132,7 @@
 (define lines (file->list (string-append report-dir "/expr_dump.txt")))
 (define unflattened-subexprs  (map all-subexpressions lines))
 
-(define subexprs (map sanitize (apply append unflattened-subexprs)))
+(define subexprs (map strip-approx (apply append unflattened-subexprs)))
 (define filtered-subexprs
   (filter (lambda (n)
             (not (or (symbol? n)
