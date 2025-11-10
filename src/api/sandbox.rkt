@@ -140,7 +140,7 @@
       (sample-points precondition (list specification) (list (*context*)))))
   (apply mk-pcontext sample))
 
-  (define (get-spec-sample spec)
+(define (get-spec-sample spec)
   (random) ;; Tick the random number generator, for backwards compatibility
   (define sample
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])

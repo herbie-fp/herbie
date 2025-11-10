@@ -73,7 +73,8 @@
     (for/list ([altn alternatives])
       (define expr (alt-expr altn))
       (define expr* (compile-useful-preprocessing expr context pcontext (*preprocessing*)))
-      (when (*dump-exprs*) (displayln expr))
+      (when (*dump-exprs*)
+        (displayln expr))
       (alt expr* 'add-preprocessing (list altn)))))
 
 (define (extract!)

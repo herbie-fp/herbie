@@ -67,9 +67,7 @@
     (define given-seed (read (open-input-string int)))
     (when given-seed
       (set-seed! given-seed))]
-   [("--dump-exprs")
-    "Dump all expressions that herbie sees"
-    (*dump-exprs* #t)]
+   [("--dump-exprs") "Dump all expressions that herbie sees" (*dump-exprs* #t)]
    [("--threads")
     num
     "How many jobs to run in parallel: Processor count is the default."

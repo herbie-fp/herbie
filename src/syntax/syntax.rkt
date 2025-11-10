@@ -42,10 +42,9 @@
 (define/contract (operator-info op field)
   (-> symbol? (or/c 'itype 'otype) any/c)
   (define info
-    (hash-ref rival-functions op (lambda () (raise-arguments-error 'operator-info
-                                                                   "Unknown operator"
-                                                                   "op"
-                                                                   op))))
+    (hash-ref rival-functions
+              op
+              (lambda () (raise-arguments-error 'operator-info "Unknown operator" "op" op))))
   (match-define (cons otype itypes) info)
   (case field
     [(itype) itypes]
