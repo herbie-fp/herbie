@@ -1,0 +1,131 @@
+(FPCore (W)
+ :name "omerc-forward-half-diff"
+ :pre (not (== W 0.0))
+ (* 0.5 (- W (/ 1.0 W))))
+
+(FPCore (W)
+ :name "omerc-forward-half-sum"
+ :pre (not (== W 0.0))
+ (* 0.5 (+ W (/ 1.0 W))))
+
+(FPCore (S T singam cosgam B lam)
+ :name "omerc-forward-U"
+ :pre (not (== T 0.0))
+ (let* ((V (sin (* B lam))))
+   (/ (- (* S singam) (* V cosgam)) T)))
+
+(FPCore (U ArB)
+ :name "omerc-forward-v"
+ :pre (< (fabs U) 1.0)
+ (* 0.5 (* ArB (log (/ (- 1.0 U) (+ 1.0 U))))))
+
+(FPCore (S B lam cosgam singam ArB)
+ :name "omerc-forward-u-atan"
+ :pre (>= (fabs (cos (* B lam))) 1e-7)
+ (let* ((V (sin (* B lam)))
+        (temp (cos (* B lam)))
+        (numer (+ (* S cosgam) (* V singam))))
+   (* ArB (atan2 numer temp))))
+
+(FPCore (A lam)
+ :name "omerc-forward-u-linear"
+ (* A lam))
+
+(FPCore (u v cosrot sinrot u0)
+ :name "omerc-forward-rot-x"
+ (let* ((udiff (- u u0)))
+   (+ (* v cosrot) (* udiff sinrot))))
+
+(FPCore (u v cosrot sinrot u0)
+ :name "omerc-forward-rot-y"
+ (let* ((udiff (- u u0)))
+   (- (* udiff cosrot) (* v sinrot))))
+
+(FPCore (BrA v)
+ :name "omerc-inverse-exp"
+ (exp (- (* BrA v))))
+
+(FPCore (Qp)
+ :name "omerc-inverse-Sp"
+ :pre (not (== Qp 0.0))
+ (* 0.5 (- Qp (/ 1.0 Qp))))
+
+(FPCore (Qp)
+ :name "omerc-inverse-Tp"
+ :pre (not (== Qp 0.0))
+ (* 0.5 (+ Qp (/ 1.0 Qp))))
+
+(FPCore (Sp Tp Vp singam cosgam)
+ :name "omerc-inverse-Up"
+ :pre (not (== Tp 0.0))
+ (/ (+ (* Vp cosgam) (* Sp singam)) Tp))
+
+(FPCore (Up Esc)
+ :name "omerc-inverse-prephi"
+ :pre (< (fabs Up) 1.0)
+ (/ Esc (sqrt (/ (+ 1.0 Up) (- 1.0 Up)))))
+
+(FPCore (Sp Vp cosgam singam BrA u rB)
+ :name "omerc-inverse-lambda"
+ (let* ((temp (cos (* BrA u)))
+        (numer (- (* Sp cosgam) (* Vp singam))))
+   (- (* rB (atan2 numer temp)))))
+
+(FPCore (phi0 es)
+ :name "omerc-init-con"
+ :pre (and (>= es 0.0)
+           (< es 1.0)
+           (< (fabs phi0) (/ PI 2.0)))
+ (let* ((sinphi0 (sin phi0)))
+   (- 1.0 (* es (* sinphi0 sinphi0)))))
+
+(FPCore (phi0 es one_es)
+ :name "omerc-init-B"
+ :pre (and (>= es 0.0)
+           (< es 1.0)
+           (> one_es 0.0)
+           (< (fabs phi0) (/ PI 2.0)))
+ (let* ((cosphi0 (cos phi0))
+        (cos2 (* cosphi0 cosphi0))
+        (cos4 (* cos2 cos2)))
+   (sqrt (+ 1.0 (/ (* es cos4) one_es)))))
+
+(FPCore (phi0 es one_es com)
+ :name "omerc-init-D"
+ :pre (and (>= es 0.0)
+           (< es 1.0)
+           (> one_es 0.0)
+           (> com 0.0)
+           (< (fabs phi0) (/ PI 2.0))
+           (> (fabs (cos phi0)) 0.0)
+           (> (- 1.0 (* es (* (sin phi0) (sin phi0)))) 0.0))
+ (let* ((sinphi0 (sin phi0))
+        (cosphi0 (cos phi0))
+        (cos2 (* cosphi0 cosphi0))
+        (cos4 (* cos2 cos2))
+        (con (- 1.0 (* es (* sinphi0 sinphi0))))
+        (B (sqrt (+ 1.0 (/ (* es cos4) one_es))))
+        (root (sqrt con)))
+   (/ (* B com) (* cosphi0 root))))
+
+(FPCore (ArB D alpha_c phi0)
+ :name "omerc-init-u0"
+ :pre (and (>= (- (* D D) 1.0) 0.0)
+           (not (== (cos alpha_c) 0.0)))
+ (let* ((ratio (/ (sqrt (- (* D D) 1.0)) (cos alpha_c)))
+        (angle (atan ratio))
+        (scaled (* ArB angle))
+        (mag (fabs scaled)))
+   (if (< phi0 0.0)
+       (- mag)
+       mag)))
+
+(FPCore (ArB gamma0)
+ :name "omerc-init-v-pole-n"
+ :pre (> (tan (- (/ PI 4.0) (* 0.5 gamma0))) 0.0)
+ (* ArB (log (tan (- (/ PI 4.0) (* 0.5 gamma0))))))
+
+(FPCore (ArB gamma0)
+ :name "omerc-init-v-pole-s"
+ :pre (> (tan (+ (/ PI 4.0) (* 0.5 gamma0))) 0.0)
+ (* ArB (log (tan (+ (/ PI 4.0) (* 0.5 gamma0))))))

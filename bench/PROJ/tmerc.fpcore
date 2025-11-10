@@ -1,0 +1,144 @@
+(FPCore (phi)
+ :name "approx-t-guarded"
+ :pre (and (>= phi -1.5707963267948966)
+           (<= phi 1.5707963267948966)
+           (> (fabs (cos phi)) 1e-10))
+ (let* ((sinphi (sin phi))
+        (cosphi (cos phi)))
+   (if (> (fabs cosphi) 1e-10)
+       (/ sinphi cosphi)
+       0.0)))
+
+(FPCore (phi lam es)
+ :name "approx-scaled-lambda"
+ :pre (and (>= es 0.0)
+           (< es 1.0)
+           (> (- 1.0 (* es (* (sin phi) (sin phi)))) 0.0))
+ (let* ((sinphi (sin phi))
+        (cosphi (cos phi))
+        (den (- 1.0 (* es (* sinphi sinphi)))))
+   (/ (* cosphi lam)
+      (sqrt den))))
+
+(FPCore (phi es)
+ :name "approx-inv-meridional-con"
+ :pre (and (>= es 0.0)
+           (< es 1.0))
+ (let* ((sinphi (sin phi)))
+   (- 1.0 (* es (* sinphi sinphi)))))
+
+(FPCore (phi x es k0)
+ :name "approx-inv-d-term"
+ :pre (and (>= es 0.0)
+           (< es 1.0)
+           (> k0 0.0)
+           (> (- 1.0 (* es (* (sin phi) (sin phi)))) 0.0))
+ (let* ((sinphi (sin phi))
+        (con (- 1.0 (* es (* sinphi sinphi)))))
+   (/ (* x (sqrt con)) k0)))
+
+(FPCore (x esp)
+ :name "spherical-inv-g-from-exp"
+ :pre (> esp 0.0)
+ (let* ((h (exp (/ x esp))))
+   (* 0.5 (- h (/ 1.0 h)))))
+
+(FPCore (y esp phi0 g)
+ :name "spherical-inv-latitude-angle"
+ :pre (and (> esp 0.0)
+           (> (+ 1.0 (* g g)) 0.0)
+           (>= (- 1.0 (* (cos (+ phi0 (/ y esp)))
+                         (cos (+ phi0 (/ y esp))))) 0.0))
+ (let* ((D (+ phi0 (/ y esp)))
+        (cosD (cos D))
+        (numer (- 1.0 (* cosD cosD)))
+        (denom (+ 1.0 (* g g))))
+   (asin (sqrt (/ numer denom)))))
+
+(FPCore (y esp phi0 g)
+ :name "spherical-inv-longitude"
+ :pre (and (> esp 0.0)
+           (or (> (fabs g) 0.0)
+               (> (fabs (cos (+ phi0 (/ y esp)))) 0.0)))
+ (atan2 g (cos (+ phi0 (/ y esp)))))
+
+(FPCore (angle esp phi0)
+ :name "spherical-y-scale-shift"
+ :pre (> esp 0.0)
+ (* esp (- angle phi0)))
+
+(FPCore (Cn lam)
+ :name "exact-forward-conformal-lat"
+ (let* ((sC (sin Cn))
+        (cC (cos Cn))
+        (cE (cos lam)))
+   (atan2 sC (* cC cE))))
+
+(FPCore (Cn lam)
+ :name "exact-forward-tanCe"
+ :pre (> (+ (* (sin Cn) (sin Cn))
+            (* (cos Cn) (cos Cn) (* (cos lam) (cos lam)))) 0.0)
+ (let* ((sC (sin Cn))
+        (cC (cos Cn))
+        (sE (sin lam))
+        (cE (cos lam))
+        (den (sqrt (+ (* sC sC)
+                      (* cC cC (* cE cE))))))
+   (/ (* sE cC) den)))
+
+(FPCore (Cn lam)
+ :name "exact-forward-two-inv-denom"
+ :pre (> (+ (* (sin Cn) (sin Cn))
+            (* (cos Cn) (cos Cn) (* (cos lam) (cos lam)))) 0.0)
+ (let* ((sC (sin Cn))
+        (cC (cos Cn))
+        (cE (cos lam))
+        (den (sqrt (+ (* sC sC)
+                      (* cC cC (* cE cE))))))
+   (/ 2.0 den)))
+
+(FPCore (Ce)
+ :name "exact-inv-exp2Ce"
+ (exp (* 2.0 Ce)))
+
+
+(FPCore (Ce)
+ :name "exact-inv-half-inv-exp"
+ (let* ((exp2-val (exp (* 2.0 Ce))))
+   (/ 0.5 exp2-val)))
+
+(FPCore (Ce)
+ :name "exact-inv-cosh-arg"
+ (let* ((exp2-val (exp (* 2.0 Ce)))
+        (half (/ 0.5 exp2-val)))
+   (+ (* 0.5 exp2-val) half)))
+
+(FPCore (Cn Ce)
+ :name "exact-inv-rr"
+ (let* ((sinhCe (sinh Ce))
+        (cosC (cos Cn))
+        (sinC (sin Cn))
+        (mod (sqrt (+ (* sinhCe sinhCe)
+                      (* cosC cosC)))))
+   (sqrt (+ (* sinC sinC)
+            (* mod mod)))))
+
+(FPCore (cos_arg_r cosh_arg_i)
+ :name "clenshaw-initial-r"
+ (* 2.0 cos_arg_r cosh_arg_i))
+
+(FPCore (sin_arg_r sinh_arg_i)
+ :name "clenshaw-initial-i"
+ (* -2.0 sin_arg_r sinh_arg_i))
+
+(FPCore (sin_arg_r cosh_arg_i cos_arg_r sinh_arg_i hr hi)
+ :name "clenshaw-final-real"
+ (let* ((r (* sin_arg_r cosh_arg_i))
+        (i (* cos_arg_r sinh_arg_i)))
+   (- (* r hr) (* i hi))))
+
+(FPCore (sin_arg_r cosh_arg_i cos_arg_r sinh_arg_i hr hi)
+ :name "clenshaw-final-imag"
+ (let* ((r (* sin_arg_r cosh_arg_i))
+        (i (* cos_arg_r sinh_arg_i)))
+   (+ (* r hi) (* i hr))))
