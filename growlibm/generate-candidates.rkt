@@ -130,9 +130,11 @@
 (define report-dir (vector-ref (current-command-line-arguments) 0))
 
 (define lines (file->list (string-append report-dir "/expr_dump.txt")))
-(define unflattened-subexprs  (map all-subexpressions lines))
+(define stripped-lines (map strip-approx lines))
+(define unflattened-subexprs (map all-subexpressions stripped-lines))
 
-(define subexprs (map strip-approx (apply append unflattened-subexprs)))
+(define subexprs (apply append unflattened-subexprs))
+
 (define filtered-subexprs
   (filter (lambda (n)
             (not (or (symbol? n)
@@ -140,6 +142,7 @@
                      (number? n)
                      (contains-comparison? n))))
           subexprs))
+
 (define filtered-again (filter (lambda (n)
                                  (and (> (length (free-variables n)) 0)
                                       (< (length (free-variables n)) 4))) filtered-subexprs))
@@ -153,7 +156,9 @@
 (define first-2000 (take sorted-pairs (min (length sorted-pairs) 2000)))
 
 (define filtered (filter (lambda (p) (< 0.1 (get-error (car p)))) first-2000))
+
 ;;; (define filtered first-2000)
+
 (define first-500 (take filtered (min (length filtered) 500)))
 (define fpcores-out (map to-fpcore-str first-500))
 (define counts-out (map to-count-print first-500))
