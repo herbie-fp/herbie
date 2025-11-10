@@ -105,4 +105,10 @@ racket -y "src/main.rkt" report \
         "$BENCHDIR" \
         "$REPORTDIR/herbie20plus_no_taylor_regimes" 
 
+racket -y "src/main.rkt" report \
+        --seed "$SEED" \
+        --platform "growlibmbest" \
+        "$BENCHDIR" \
+        "$REPORTDIR/growlibmbest_base" 
+
 python3 growlibm/evaluate.py $REPORTDIR

@@ -16,6 +16,7 @@ for p in platforms:
     for o in options:
         r = report(p == "growlibm" or p == "herbie20plus", p + "_" + o)
         reports.append(r)
+reports.append(report(True, "growlibmbest_base"))
 
 def calculate_end_accuracy(data):
     total_end = 0

@@ -1,4 +1,3 @@
-//clang -dynamiclib -O3 -o libaccelerators.dylib accelerators.c
 #define _GNU_SOURCE
 #include <math.h>
 #include <stdio.h>
