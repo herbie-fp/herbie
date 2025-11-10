@@ -37,6 +37,13 @@ racket -y "src/main.rkt" report \
 
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
+        --platform "vanilla" \
+        --disable "generate:taylor" \
+        "$BENCHDIR" \
+        "$REPORTDIR/vanilla_no_taylor 
+
+racket -y "src/main.rkt" report \
+        --seed "$SEED" \
         --platform "herbie20" \
         "$BENCHDIR" \
         "$REPORTDIR/herbie20_base" 
@@ -48,6 +55,13 @@ racket -y "src/main.rkt" report \
         --disable "reduce:regimes" \
         "$BENCHDIR" \
         "$REPORTDIR/herbie20_no_taylor_regimes" 
+
+racket -y "src/main.rkt" report \
+        --seed "$SEED" \
+        --platform "herbie20" \
+        --disable "generate:taylor" \
+        "$BENCHDIR" \
+        "$REPORTDIR/herbie20_no_taylor" 
 
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
@@ -65,6 +79,13 @@ racket -y "src/main.rkt" report \
 
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
+        --platform "growlibm" \
+        --disable "generate:taylor" \
+        "$BENCHDIR" \
+        "$REPORTDIR/growlibm_no_taylor" 
+
+racket -y "src/main.rkt" report \
+        --seed "$SEED" \
         --platform "herbie20plus" \
         "$BENCHDIR" \
         "$REPORTDIR/herbie20plus_base" 
@@ -77,5 +98,11 @@ racket -y "src/main.rkt" report \
         "$BENCHDIR" \
         "$REPORTDIR/herbie20plus_no_taylor_regimes" 
 
-# generate the html report page
+racket -y "src/main.rkt" report \
+        --seed "$SEED" \
+        --platform "herbie20plus" \
+        --disable "generate:taylor" \
+        "$BENCHDIR" \
+        "$REPORTDIR/herbie20plus_no_taylor" 
+
 python3 growlibm/evaluate.py $REPORTDIR
