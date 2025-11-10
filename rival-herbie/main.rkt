@@ -124,8 +124,18 @@
                              (>= (discretization-bits (car discs)) 53))
                         53
                         53))
+  ;; Convert exact Racket numbers to inexact f64
+  (define (inexactify x)
+    (cond
+      [(number? x)
+       (cond
+         [(exact? x) (real->double-flonum x)]
+         [else x])]
+      [(pair? x) (cons (inexactify (car x)) (inexactify (cdr x)))]
+      [(vector? x) (list->vector (map inexactify (vector->list x)))]
+      [else x]))
   (define vars-str (~a `(,@vars)))
-  (define exprs-str (~a `(,@exprs)))
+  (define exprs-str (~a `(,@(map inexactify exprs))))
   (rival_compile vars-str exprs-str precision))
 
 (define (rival-apply machine pt* [hint #f])
