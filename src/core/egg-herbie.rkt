@@ -1342,8 +1342,7 @@
 
   ; Return empty results if unsound
   (cond
-    [(egraph-is-unsound-detected egg-graph)
-     (map (const empty) root-ids)]
+    [(egraph-is-unsound-detected egg-graph) (map (const empty) root-ids)]
     [else
      (define regraph (make-regraph egg-graph ctx))
      (define reprs (egg-runner-reprs runner))
@@ -1364,8 +1363,7 @@
 
   ; Return empty results if unsound
   (cond
-    [(egraph-is-unsound-detected egg-graph)
-     (map (const empty) root-ids)]
+    [(egraph-is-unsound-detected egg-graph) (map (const empty) root-ids)]
     [else
      (define regraph (make-regraph egg-graph ctx))
      (define reprs (egg-runner-reprs runner))
