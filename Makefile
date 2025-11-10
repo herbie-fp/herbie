@@ -46,7 +46,7 @@ minimal-distribution:
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 nightly:
-	bash infra/nightly.sh bench/ reports/ --threads 4
+	bash growlibm/evaluate.sh
 
 upgrade:
 	git pull
