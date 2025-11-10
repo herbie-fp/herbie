@@ -7,7 +7,7 @@ class report:
 
 reports_path = sys.argv[1]
 platforms = ["vanilla", "herbie20", "growlibm", "herbie20plus"] 
-options = ["base", "no_taylor_regimes", "no_taylor"]
+options = ["base", "no_taylor", "no_taylor_regimes"]
 accelerators = ["sin-xy", "cos-xy", "cos-quotient-xy", "sin-quotient-xy"]
 output_path = reports_path + "/index.html"
 reports = []
