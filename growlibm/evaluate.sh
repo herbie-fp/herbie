@@ -40,7 +40,7 @@ racket -y "src/main.rkt" report \
         --platform "vanilla" \
         --disable "generate:taylor" \
         "$BENCHDIR" \
-        "$REPORTDIR/vanilla_no_taylor 
+        "$REPORTDIR/vanilla_no_taylor"
 
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
