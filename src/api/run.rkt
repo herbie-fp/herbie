@@ -40,6 +40,7 @@
 
 (define (make-report bench-dirs #:dir dir #:threads threads)
   (activate-platform! (*platform-name*))
+  (with-handlers ([exn? (lambda (e) (void))]) (disable-flag! 'setup 'search))
   (define tests (reverse (sort (append-map load-tests bench-dirs) test<?)))
   (run-tests tests #:dir dir #:threads threads))
 
@@ -47,6 +48,7 @@
   (define data (call-with-input-file json-file read-datafile))
   (define tests (map extract-test (report-info-tests data)))
   (activate-platform! (*platform-name*))
+  (with-handlers ([exn? (lambda (e) (void))]) (disable-flag! 'setup 'search))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))

@@ -1,10 +1,10 @@
 #lang racket
 
-(require math/bigfloat
-         rival)
+(require math/bigfloat)
 
 (require "../utils/errors.rkt"
          "../utils/float.rkt"
+         "../utils/ival.rkt"
          "../utils/pretty-print.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"

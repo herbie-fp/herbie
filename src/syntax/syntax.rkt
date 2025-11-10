@@ -2,7 +2,7 @@
 
 (require math/bigfloat
          racket/hash
-         (only-in rival/eval/main rival-functions))
+         (only-in rival-herbie/eval/main rival-functions))
 
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
@@ -42,10 +42,9 @@
 (define/contract (operator-info op field)
   (-> symbol? (or/c 'itype 'otype) any/c)
   (define info
-    (hash-ref rival-functions op (lambda () (raise-arguments-error 'operator-info
-                                                                   "Unknown operator"
-                                                                   "op"
-                                                                   op))))
+    (hash-ref rival-functions
+              op
+              (lambda () (raise-arguments-error 'operator-info "Unknown operator" "op" op))))
   (match-define (cons otype itypes) info)
   (case field
     [(itype) itypes]

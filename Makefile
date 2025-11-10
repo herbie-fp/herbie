@@ -4,7 +4,7 @@ help:
 	@echo "Type 'make install' to install Herbie"
 	@echo "Then type 'racket -l herbie web' to run it."
 
-install: clean egg-herbie egglog-herbie update
+install: clean egg-herbie rival-herbie egglog-herbie update
 
 clean:
 	raco pkg remove --force --no-docs herbie && echo "Uninstalled old herbie" || :
@@ -13,10 +13,11 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Uninstalled old egg-herbie" || :
+	raco pkg remove --force --no-docs rival-herbie && echo "Uninstalled old rival-herbie" || :
 
 update:
+	raco pkg install --skip-installed --no-docs --auto ./rival-herbie
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/
-	raco pkg update --auto rival
 	raco pkg update --name herbie --deps search-auto src/
 
 egg-herbie:
@@ -27,6 +28,11 @@ egg-herbie:
 	raco pkg remove --force --no-docs egg-herbie-osx && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg install ./egg-herbie
+
+rival-herbie:
+	cargo build --release --manifest-path=rival-herbie/Cargo.toml
+	raco pkg remove --force --no-docs rival-herbie && echo "Warning: uninstalling rival-herbie and reinstalling local version" || :
+	raco pkg install ./rival-herbie
 
 egglog-herbie:
 	cargo install egglog --version 1.0.0

@@ -27,3 +27,6 @@ herbie-compiled/
 # Python
 .env/
 .worktrees
+
+rival-herbie/target/
+tmp/

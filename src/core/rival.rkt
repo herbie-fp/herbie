@@ -8,11 +8,12 @@
 #lang racket
 
 (require math/bigfloat
-         rival)
+         rival-herbie/main)
 
 (require "../config.rkt"
          "../utils/errors.rkt"
          "../utils/float.rkt"
+         "../utils/ival.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt")
 
@@ -116,12 +117,11 @@
     (define args (map bigfloat->readable-string (vector->list pt*)))
     (fprintf dump-file "(eval f ~a)\n" (string-join args " ")))
   (define-values (status value)
-    (with-handlers ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
-                    [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
-      (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
-                     [*rival-max-iterations* 5])
-        (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
-        (values 'valid value))))
+    (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
+                   [*rival-max-iterations* 5])
+      (define out-vec (rival-apply machine pt* hint))
+      (define value (rest (vector->list out-vec))) ; drop precondition
+      (values 'valid value)))
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"
