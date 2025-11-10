@@ -1,16 +1,16 @@
 (FPCore (W)
  :name "omerc-forward-half-diff"
- :pre (not (= W 0.0))
+ :pre (not (== W 0.0))
  (* 0.5 (- W (/ 1.0 W))))
 
 (FPCore (W)
  :name "omerc-forward-half-sum"
- :pre (not (= W 0.0))
+ :pre (not (== W 0.0))
  (* 0.5 (+ W (/ 1.0 W))))
 
 (FPCore (S T singam cosgam B lam)
  :name "omerc-forward-U"
- :pre (not (= T 0.0))
+ :pre (not (== T 0.0))
  (let* ((V (sin (* B lam))))
    (/ (- (* S singam) (* V cosgam)) T)))
 
@@ -47,17 +47,17 @@
 
 (FPCore (Qp)
  :name "omerc-inverse-Sp"
- :pre (not (= Qp 0.0))
+ :pre (not (== Qp 0.0))
  (* 0.5 (- Qp (/ 1.0 Qp))))
 
 (FPCore (Qp)
  :name "omerc-inverse-Tp"
- :pre (not (= Qp 0.0))
+ :pre (not (== Qp 0.0))
  (* 0.5 (+ Qp (/ 1.0 Qp))))
 
 (FPCore (Sp Tp Vp singam cosgam)
  :name "omerc-inverse-Up"
- :pre (not (= Tp 0.0))
+ :pre (not (== Tp 0.0))
  (/ (+ (* Vp cosgam) (* Sp singam)) Tp))
 
 (FPCore (Up Esc)
@@ -111,7 +111,7 @@
 (FPCore (ArB D alpha_c phi0)
  :name "omerc-init-u0"
  :pre (and (>= (- (* D D) 1.0) 0.0)
-           (not (= (cos alpha_c) 0.0)))
+           (not (== (cos alpha_c) 0.0)))
  (let* ((ratio (/ (sqrt (- (* D D) 1.0)) (cos alpha_c)))
         (angle (atan ratio))
         (scaled (* ArB angle))

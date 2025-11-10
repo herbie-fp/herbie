@@ -33,7 +33,7 @@
 (FPCore (cp lamp phipp)
  :name "somerc-forward-lampp"
  :pre (and (<= (fabs cp) 1.0)
-           (not (= (cos phipp) 0.0))
+           (not (== (cos phipp) 0.0))
            (<= (fabs (/ (* cp (sin lamp)) (cos phipp))) 1.0))
  (asin (/ (* cp (sin lamp)) (cos phipp))))
 
@@ -61,13 +61,13 @@
 
 (FPCore (phipp lampp phip)
  :name "somerc-inverse-lamp"
- :pre (and (not (= (cos phip) 0.0))
+ :pre (and (not (== (cos phip) 0.0))
            (<= (fabs (/ (* (cos phipp) (sin lampp)) (cos phip))) 1.0))
  (asin (/ (* (cos phipp) (sin lampp)) (cos phip))))
 
 (FPCore (K c phip)
  :name "somerc-inverse-con"
- :pre (and (not (= c 0.0))
+ :pre (and (not (== c 0.0))
            (> (+ (/ PI 4.0) (* 0.5 phip)) 0.0)
            (< (+ (/ PI 4.0) (* 0.5 phip)) (/ PI 2.0)))
  (/ (- K (log (tan (+ (/ PI 4.0) (* 0.5 phip))))) c))
@@ -83,7 +83,7 @@
  :name "somerc-inverse-delp"
  :pre (and (> ecc 0.0)
            (< ecc 1.0)
-           (not (= rone_es 0.0))
+           (not (== rone_es 0.0))
            (< (* ecc (fabs (sin phip))) 1.0)
            (> (+ (/ PI 4.0) (* 0.5 phip)) 0.0)
            (< (+ (/ PI 4.0) (* 0.5 phip)) (/ PI 2.0)))
@@ -111,7 +111,7 @@
 
 (FPCore (phi0 c)
  :name "somerc-init-sinp0"
- :pre (and (not (= c 0.0))
+ :pre (and (not (== c 0.0))
            (< (fabs phi0) (/ PI 2.0)))
  (/ (sin phi0) c))
 

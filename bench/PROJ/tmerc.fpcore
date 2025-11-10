@@ -1,5 +1,8 @@
 (FPCore (phi)
  :name "approx-t-guarded"
+ :pre (and (>= phi -1.5707963267948966)
+           (<= phi 1.5707963267948966)
+           (> (fabs (cos phi)) 1e-10))
  (let* ((sinphi (sin phi))
         (cosphi (cos phi)))
    (if (> (fabs cosphi) 1e-10)
@@ -98,16 +101,17 @@
  :name "exact-inv-exp2Ce"
  (exp (* 2.0 Ce)))
 
+
 (FPCore (Ce)
  :name "exact-inv-half-inv-exp"
- (let* ((exp2 (exp (* 2.0 Ce))))
-   (/ 0.5 exp2)))
+ (let* ((exp2-val (exp (* 2.0 Ce))))
+   (/ 0.5 exp2-val)))
 
 (FPCore (Ce)
  :name "exact-inv-cosh-arg"
- (let* ((exp2 (exp (* 2.0 Ce)))
-        (half (/ 0.5 exp2)))
-   (+ (* 0.5 exp2) half)))
+ (let* ((exp2-val (exp (* 2.0 Ce)))
+        (half (/ 0.5 exp2-val)))
+   (+ (* 0.5 exp2-val) half)))
 
 (FPCore (Cn Ce)
  :name "exact-inv-rr"
