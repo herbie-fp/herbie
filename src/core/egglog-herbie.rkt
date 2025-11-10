@@ -152,11 +152,15 @@
       ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
   ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
-  (define extract-commands
-    (for/list ([constructor-name extract-bindings])
-      `(extract (,constructor-name) ,(*egglog-variants-limit*))))
+  ; (define extract-commands
+  ;   (for/list ([constructor-name extract-bindings])
+  ;     `(extract (,constructor-name) ,(*egglog-variants-limit*))))
+  (define multi-extract-command
+    `(multi-extract ,(*egglog-variants-limit*)
+                    ,(for/list ([constructor-name extract-bindings])
+                       `(,constructor-name))))
 
-  (define stdout-content (egglog-extract subproc extract-commands))
+  (define stdout-content (egglog-multi-extract subproc multi-extract-command))
 
   ;; (Listof (Listof exprs))
   (define herbie-exprss

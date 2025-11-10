@@ -6,6 +6,7 @@
          create-new-egglog-subprocess
          egglog-send
          egglog-extract
+         egglog-multi-extract
          egglog-send-unsound-detection
          egglog-subprocess-close)
 
@@ -82,6 +83,12 @@
   (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
   (for/list ([i (in-range (length extract-commands))])
     (read egglog-output)))
+
+;; Send multi-extract command and read results
+(define (egglog-multi-extract subproc multi-extract-command)
+  (egglog-send subproc multi-extract-command)
+  (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
+  (read egglog-output))
 
 (define (egglog-send-unsound-detection subproc commands)
   (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)

@@ -29,7 +29,7 @@ egg-herbie:
 	raco pkg install ./egg-herbie
 
 egglog-herbie:
-	cargo install egglog --version 1.0.0
+	cargo install --locked --git https://github.com/ajpal/poach.git --rev d2bbb43a603ffdf37fdeabbefcb5d3242e3e525e
 
 
 distribution: minimal-distribution
