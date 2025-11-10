@@ -16,7 +16,6 @@
 (define-runtime-module-path rival-platform "../platforms/rival.rkt")
 (define-runtime-module-path growlibm-platform "../platforms/grow-libm.rkt")
 
-
 (define default-platforms
   (hash "herbie10"
         herbie10-platform

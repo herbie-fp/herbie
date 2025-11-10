@@ -41,6 +41,21 @@
 (define chosen-pair (first sorted-pairs))
 (define fpcore (with-input-from-string (first chosen-pair) read))
 (define link (second chosen-pair))
+
+(define accelerators-path "reports/accelerators.json")
+(define existing-accelerators
+  (if (file-exists? accelerators-path)
+      (let ([data (call-with-input-file accelerators-path read-json)])
+        (cond
+          [(vector? data) (vector->list data)]
+          [(list? data) data]
+          [else '()]))
+      '()))
+
+(when (ormap (lambda (entry) (equal? (hash-ref entry 'name #f) link)) existing-accelerators)
+  (displayln (format "accelerator ~a already present; skipping" link))
+  (exit 0))
+
 (define ctx (context (free-variables fpcore) 
                      (get-representation 'binary64) 
                      (make-list (length (free-variables fpcore)) 
@@ -72,20 +87,10 @@
    (displayln operator-strf32))
   #:exists 'append)
 
-(define accelerators-path "reports/accelerators.json")
-
 (define new-entry (hash 'name link 'spec (format "~a" spec)))
 
 (define updated-accelerators
-  (let ([previous
-         (if (file-exists? accelerators-path)
-             (let ([data (call-with-input-file accelerators-path read-json)])
-               (cond
-                 [(vector? data) (vector->list data)]
-                 [(list? data) data]
-                 [else '()]))
-             '())])
-    (append previous (list new-entry))))
+  (append existing-accelerators (list new-entry)))
 
 (call-with-output-file accelerators-path
   (lambda (out)
