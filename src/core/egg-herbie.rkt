@@ -1226,15 +1226,17 @@
     (define egg-graph (egraph-copy egg-graph0))
     (define iteration-data (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
 
-    (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
     (cond
       [(egraph-is-unsound-detected egg-graph)
        ; unsoundness means run again with less iterations
+       (timeline-push! 'stop 'unsound 1)
        (define num-iters (length iteration-data))
        (if (<= num-iters 1) ; nothing to fall back on
            (values egg-graph0 (list))
            (loop (sub1 num-iters)))]
-      [else (values egg-graph iteration-data)])))
+      [else
+       (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
+       (values egg-graph iteration-data)])))
 
 (define (egraph-run-schedule batch brfs schedule ctx)
   ; allocate the e-graph
