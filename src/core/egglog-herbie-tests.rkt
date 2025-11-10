@@ -371,4 +371,4 @@
   (define schedule '(lift rewrite lower))
 
   (when (find-executable-path "egglog")
-    (run-egglog-multi-extractor (make-egglog-runner batch brfs reprs schedule ctx) batch)))
+    (run-egglog (make-egglog-runner batch brfs reprs schedule ctx) batch #:extract 1000000)))

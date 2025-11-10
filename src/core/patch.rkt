@@ -105,7 +105,7 @@
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog-multi-extractor runner global-batch 'taylor)
+        (run-egglog runner global-batch 'taylor #:extract 1)
         (egraph-best runner global-batch)))
 
   ; apply changelists
@@ -173,7 +173,7 @@
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog-multi-extractor runner global-batch 'rewrite)
+        (run-egglog runner global-batch 'rewrite #:extract 1000000) ; "infinity"
         (egraph-variations runner global-batch)))
 
   ; apply changelists
