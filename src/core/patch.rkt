@@ -123,7 +123,7 @@
   (define brfs (map alt-expr real-altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
   (define contexts
-    (for/list ([repr reprs])
+    (for/list ([repr (in-list reprs)])
       (context '() repr '())))
 
   (define spec-brfs (batch-to-spec! global-batch brfs))
@@ -140,7 +140,9 @@
                [ctx (in-list contexts)]
                #:when (equal? status 'valid))
       (define repr (context-repr ctx))
-      (literal (repr->real pt repr) (representation-name repr))))
+      (match (representation-type repr)
+        ['bool (if pt '(TRUE) '(FALSE))]
+        ['real (literal (repr->real pt repr) (representation-name repr))])))
 
   (define final-altns
     (for/list ([literal (in-list literals)]
