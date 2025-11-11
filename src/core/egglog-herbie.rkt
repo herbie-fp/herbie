@@ -14,7 +14,7 @@
          prelude
          egglog-add-exprs
          make-egglog-runner
-         run-egglog-multi-extractor
+         run-egglog
          e2->expr
          e1->expr
          egglog-var?
@@ -71,7 +71,7 @@
   (egglog-runner batch brfs reprs schedule ctx))
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
-(define (run-egglog-multi-extractor runner output-batch [label #f]) ; multi expression extraction
+(define (run-egglog runner output-batch [label #f] #:extract extract) ; multi expression extraction
   (define insert-batch (egglog-runner-batch runner))
   (define insert-brfs (egglog-runner-brfs runner))
 
@@ -154,7 +154,7 @@
   ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
   (define extract-commands
     (for/list ([constructor-name extract-bindings])
-      `(extract (,constructor-name) ,(*egglog-variants-limit*))))
+      `(extract (,constructor-name) ,extract)))
 
   (define stdout-content (egglog-extract subproc extract-commands))
 
