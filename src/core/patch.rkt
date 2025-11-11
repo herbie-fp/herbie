@@ -141,7 +141,10 @@
                #:when (equal? status 'valid))
       (define repr (context-repr ctx))
       (match (representation-type repr)
-        ['bool (if pt '(TRUE) '(FALSE))]
+        ['bool
+         (if pt
+             '(TRUE)
+             '(FALSE))]
         ['real (literal (repr->real pt repr) (representation-name repr))])))
 
   (define final-altns
