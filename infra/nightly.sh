@@ -24,7 +24,7 @@ for bench in "$BENCHDIR"/*; do
   rm -rf "$REPORTDIR"/"$name"
 
   racket -y "src/main.rkt" report \
-         --enable generate:egglog
+         --enable generate:egglog \
          --seed "$SEED" \
          "$@" \
          "$bench" "$REPORTDIR"/"$name"
