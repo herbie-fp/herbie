@@ -1206,8 +1206,15 @@
 ;; A mini-interpreter for egraph "schedules" including running egg,
 ;; pruning certain kinds of nodes, extracting expressions, etc.
 
+; Creates a new runner using an existing egraph.
+; Useful for multi-phased rule application
+(define (egraph-copy eg-data)
+  (struct-copy egraph-data
+               eg-data
+               [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
+
 ;; Runs rules over the egraph with the given egg parameters.
-(define (egraph-run-rules egg-graph
+(define (egraph-run-rules egg-graph0
                           egg-rules
                           #:node-limit [node-limit #f]
                           #:iter-limit [iter-limit #f]
@@ -1215,6 +1222,7 @@
   (define ffi-rules (map cdr egg-rules))
 
   ;; run the rules
+  (define egg-graph (egraph-copy egg-graph0))
   (define iteration-data (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
 
   (when (egraph-is-unsound-detected egg-graph)
