@@ -279,7 +279,8 @@
                   prop-dict))
             (assert-fpcore-impl op prop-dict* (impl-info impl 'itype))]
            ; rounding context inherited from parent context
-           [(list op _ ...) (assert-fpcore-impl op prop-dict (impl-info impl 'itype))]))
+           [(or (? symbol? op) (list op _ ...))
+            (assert-fpcore-impl op prop-dict (impl-info impl 'itype))]))
        (cond
          [(equal? impl impl*) ; inlining is safe
           (define expr* (loop expr prop-dict))
