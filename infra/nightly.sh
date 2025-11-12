@@ -11,7 +11,7 @@ make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
-BENCHDIR="bench/PROJ/omerc.fpcore"
+BENCHDIR="bench/PROJ/somerc.fpcore"
 REPORTDIR="reports"
 NUMITERS=10
 
