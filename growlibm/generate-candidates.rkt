@@ -3,54 +3,51 @@
 (require
   "../src/api/sandbox.rkt"
   "../src/core/points.rkt"
-  "../src/core/rules.rkt"
-  "../src/config.rkt"
   "../src/core/batch.rkt"
   "../src/core/egg-herbie.rkt"
   "../src/syntax/load-platform.rkt"
   "../src/core/points.rkt"
-  "../src/core/rules.rkt"
-  "../src/config.rkt"
   "../src/core/batch.rkt"
   "../src/core/egg-herbie.rkt"
   "../src/syntax/load-platform.rkt"
   "../src/syntax/sugar.rkt"
   "../src/core/programs.rkt"
   "../src/syntax/syntax.rkt"
-  "../src/syntax/platform-language.rkt")
+  "../src/utils/common.rkt"
+  "../src/syntax/platform.rkt"
+  "../src/syntax/types.rkt")
 
 (activate-platform! "no-accelerators")
 
-(define (strip-approx expr)
+(define (all-subexpressions* expr)
+  (define subexprs
+    (reap [sow]
+          (let loop ([expr expr])
+            (match expr
+              [(or `(if ,_ ,t ,f)
+                   `(if.f32 ,_ ,t ,f)
+                   `(if.f64 ,_ ,t ,f))
+               (loop t)
+               (loop f)]
+              [(approx _ impl)
+               (loop impl)]
+              [_
+               (sow expr)
+               (match expr
+                 [(? number?) (void)]
+                 [(? literal?) (void)]
+                 [(? symbol?) (void)]
+                 [(list _ args ...)
+                 (for ([arg args])
+                   (loop arg))]
+                 [_ (void)])]))))
+  subexprs)
+
+(define (strip-approxes expr)
   (match expr
-    [(? approx?) (strip-approx (approx-impl expr))]
-    [(? hole?) (strip-approx (hole-spec expr))]
-    [`(if ,c ,t ,f) `(if ,(strip-approx c)
-                         ,(strip-approx t)
-                         ,(strip-approx f))]
-    [(list op args ...) (cons op (map strip-approx args))]
+    [(approx _ impl) (strip-approxes impl)]
+    [(list op args ...) (cons op (map strip-approxes args))]
     [_ expr]))
-
-(define (comparison-symbol? sym)
-  (define name (symbol->string sym))
-  (or (string-contains? name "=")
-      (string-contains? name "<")
-      (string-contains? name ">")))
-
-(define (contains-comparison? expr)
-  (match expr
-    [(? symbol?) #f]
-    [(? number?) #f]
-    [(? literal?) #f]
-    [`(if ,c ,t ,f) (or (contains-comparison? c)
-                        (contains-comparison? t)
-                        (contains-comparison? f))]
-    [(list (? symbol? op) args ...)
-     (or (comparison-symbol? op)
-         (ormap contains-comparison? args))]
-    [(list args ...)
-     (ormap contains-comparison? args)]
-    [_ #f]))
 
 (define (get-error expr)
   (with-handlers ([exn? (lambda (exn) 0)])
@@ -130,8 +127,7 @@
 (define report-dir (vector-ref (current-command-line-arguments) 0))
 
 (define lines (file->list (string-append report-dir "/expr_dump.txt")))
-(define stripped-lines (map strip-approx lines))
-(define unflattened-subexprs (map all-subexpressions stripped-lines))
+(define unflattened-subexprs (map all-subexpressions* (map strip-approxes lines)))
 
 (define subexprs (apply append unflattened-subexprs))
 
@@ -139,8 +135,7 @@
   (filter (lambda (n)
             (not (or (symbol? n)
                      (literal? n)
-                     (number? n)
-                     (contains-comparison? n))))
+                     (number? n))))
           subexprs))
 
 (define filtered-again (filter (lambda (n)
