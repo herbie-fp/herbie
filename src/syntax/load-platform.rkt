@@ -17,7 +17,6 @@
 (define-runtime-module-path herbie20plus-platform "../../growlibm/herbie20plus.rkt")
 (define-runtime-module-path growlibmbest-platform "../../growlibm/growlibmbest.rkt")
 
-
 (define default-platforms
   (hash "herbie10"
         herbie10-platform
