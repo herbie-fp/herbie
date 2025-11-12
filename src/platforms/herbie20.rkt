@@ -252,10 +252,3 @@
                   #:fpcore (! :precision binary64 (cast x))
                   #:impl identity
                   #:cost 64)
-
-(define-operation (test [z0 <binary64>])
-                  <binary64>
-                  #:spec (log (fabs (- (* 1 z0) -1)))
-                  #:impl (from-rival)
-                  #:fpcore (! :precision binary64 (test z0))
-                  #:cost 256)
