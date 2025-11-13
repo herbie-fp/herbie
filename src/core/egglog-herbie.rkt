@@ -462,32 +462,30 @@
       (set! root-bindings (cons (vector-ref mappings n) root-bindings))))
 
   ; Var-lowering-rules
-  (apply egglog-send
-         subproc
-         (for/list ([var (in-list (context-vars ctx))]
-                    [repr (in-list (context-var-reprs ctx))])
-           `(rule ((= e (Var ,(symbol->string var))))
-                  ((let ty ,(symbol->string (representation-name repr))
-                     )
-                   (let ety (,(typed-var-id (representation-name repr))
-                             ,(symbol->string var))
-                     )
-                   (union (do-lower e ty) ety))
-                  :ruleset
-                  lower)))
+  (for ([var (in-list (context-vars ctx))]
+        [repr (in-list (context-var-reprs ctx))])
+    (egglog-send subproc
+                 `(rule ((= e (Var ,(symbol->string var))))
+                        ((let ty ,(symbol->string (representation-name repr))
+                           )
+                         (let ety (,(typed-var-id (representation-name repr))
+                                   ,(symbol->string var))
+                           )
+                         (union (do-lower e ty) ety))
+                        :ruleset
+                        lower)))
 
   ; Var-lifting-rules
-  (apply egglog-send
-         subproc
-         (for/list ([var (in-list (context-vars ctx))]
-                    [repr (in-list (context-var-reprs ctx))])
-           `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
-                  ((let se (Var
-                            ,(symbol->string var))
-                     )
-                   (union (do-lift e) se))
-                  :ruleset
-                  lift)))
+  (for ([var (in-list (context-vars ctx))]
+        [repr (in-list (context-var-reprs ctx))])
+    (egglog-send subproc
+                 `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
+                        ((let se (Var
+                                  ,(symbol->string var))
+                           )
+                         (union (do-lift e) se))
+                        :ruleset
+                        lift)))
 
   (define all-bindings '())
   (define binding->constructor (make-hash)) ; map from binding name to constructor name
@@ -713,7 +711,7 @@
   (define process-lines
     (reverse (if (empty? lines)
                  lines ;; Has no nodes or first iteration
-                 (take lines (- (length lines) 1)))))
+                 (drop-right lines 1))))
 
   ;; Break when we reach the previous unsoundness result -> NOTE: "true" should technically never be reached
   (for/fold ([total_nodes 0]) ([line (in-list process-lines)])
@@ -742,18 +740,11 @@
 (define (egglog-var? id)
   (string-prefix? (symbol->string id) "Var"))
 
-(define (egglog-expr-typed? expr)
-  (match expr
-    [(? number?) #t]
-    [(? symbol?) #t]
-    [`(,impl ,args ...) (and (not (eq? impl 'typed-id)) (andmap egglog-expr-typed? args))]))
-
 (define (e1->expr expr)
   (let loop ([expr expr])
     (match expr
-      [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
-       (/ (string->number n) (string->number d))]
-      [`(,(? egglog-var? var) ,v) (string->symbol v)]
+      [`(Num (bigrat (from-string ,n) (from-string ,d))) (/ (string->number n) (string->number d))]
+      [`(Var ,v) (string->symbol v)]
       [`(,op ,args ...) `(,(hash-ref (e1->id) op) ,@(map loop args))])))
 
 (define (e2->expr expr)
