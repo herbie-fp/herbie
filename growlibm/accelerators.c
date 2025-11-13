@@ -9,7 +9,6 @@ double sin_xy(double x, double y) {
     double sin_p, cos_p, sin_q, cos_q;
     __sincos(p, &sin_p, &cos_p);
     __sincos(q, &sin_q, &cos_q);
-
     return fma(sin_p, cos_q, cos_p * sin_q);
 }
 
