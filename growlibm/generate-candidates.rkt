@@ -20,17 +20,25 @@
 (activate-platform! "no-accelerators")
 
 (define (all-subexpressions* expr)
+  (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
+  (define (comparison-op? op)
+    (and (symbol? op)
+         (member op comparison-bases)))
   (define subexprs
     (reap [sow]
           (let loop ([expr expr])
             (match expr
-              [(or `(if ,_ ,t ,f)
-                   `(if.f32 ,_ ,t ,f)
-                   `(if.f64 ,_ ,t ,f))
+              [(or `(if ,test ,t ,f)
+                   `(if.f32 ,test ,t ,f)
+                   `(if.f64 ,test ,t ,f))
+               (loop test)
                (loop t)
                (loop f)]
               [(approx _ impl)
                (loop impl)]
+              [(list (? comparison-op?) lhs rhs)
+               (loop lhs)
+               (loop rhs)]
               [_
                (sow expr)
                (match expr
@@ -38,15 +46,15 @@
                  [(? literal?) (void)]
                  [(? symbol?) (void)]
                  [(list _ args ...)
-                 (for ([arg args])
-                   (loop arg))]
+                  (for ([arg args])
+                    (loop arg))]
                  [_ (void)])]))))
-  subexprs)
+  (remove-duplicates subexprs))
 
-(define (strip-approxes expr)
+(define (remove-approxes expr)
   (match expr
-    [(approx _ impl) (strip-approxes impl)]
-    [(list op args ...) (cons op (map strip-approxes args))]
+    [(approx _ impl) (remove-approxes impl)]
+    [(list op args ...) (cons op (map remove-approxes args))]
     [_ expr]))
 
 (define (get-error expr)
@@ -109,7 +117,6 @@
   (for ([b best]
         [c counts])
     (hash-update! ht (batch-pull (first b)) (lambda (n) (+ n c)) 0))
-
   ht)
 
 (define (to-fpcore-str pair)
@@ -127,7 +134,7 @@
 (define report-dir (vector-ref (current-command-line-arguments) 0))
 
 (define lines (file->list (string-append report-dir "/expr_dump.txt")))
-(define unflattened-subexprs (map all-subexpressions* (map strip-approxes lines)))
+(define unflattened-subexprs (map all-subexpressions* (map remove-approxes lines)))
 
 (define subexprs (apply append unflattened-subexprs))
 
