@@ -2,6 +2,7 @@
 
 (require rackunit
          "egglog-herbie.rkt"
+         "egglog-subprocess.rkt"
          "../syntax/syntax.rkt")
 
 (define (test-e1->expr)
@@ -372,3 +373,57 @@
 
   (when (find-executable-path "egglog")
     (run-egglog (make-egglog-runner batch brfs reprs schedule ctx) batch #:extract 1000000)))
+
+(module+ test
+  (require rackunit)
+  (when (find-executable-path "egglog")
+    (define subproc (create-new-egglog-subprocess #f))
+
+    (define first-commands
+      (list '(datatype Expr (Var String :cost 150) (Add Expr Expr :cost 200))
+            '(constructor const1 () Expr :unextractable)
+            '(constructor const2 () Expr :unextractable)
+            '(constructor const3 () Expr :unextractable)
+            '(function unsound () bool :merge (or old new))
+            '(ruleset unsound-rule)
+            '(set (unsound) false)
+            '(rule ((= (Var c1) (Var c2)) (!= c1 c2)) ((set (unsound) true)) :ruleset unsound-rule)
+            '(ruleset init)
+            '(rule ()
+                   ((let a1 (Var
+                             "x")
+                      )
+                    (set (const1) a1)
+                    (let a2 (Var
+                             "y")
+                      )
+                    (set (const2) a2)
+                    (let b1 (Add
+                             a1
+                             a2)
+                      )
+                    (set (const3) b1))
+                   :ruleset
+                   init)
+            '(run init 1)))
+
+    ; Nothing to output
+    (apply egglog-send subproc first-commands)
+
+    ; Has extract 1 thing
+    (define lines1 (egglog-extract subproc (list '(extract (const1)))))
+    (check-equal? lines1 '((Var "x")))
+
+    ;; Print size
+
+    (define print-size-commands (list '(print-size) '(run unsound-rule 1) '(extract (unsound))))
+
+    (define-values (node-values unsound?) (egglog-send-unsound-detection subproc print-size-commands))
+    (check-equal? node-values '("unsound: 1" "const3: 1" "const2: 1" "const1: 1" "Var: 2" "Add: 1" ""))
+    (check-false unsound?)
+
+    ;; last two
+    (define lines2 (egglog-extract subproc (list '(extract (const2)) '(extract (const3)))))
+    (check-equal? lines2 '((Var "y") (Add (Var "x") (Var "y"))))
+
+    (egglog-subprocess-close subproc)))
