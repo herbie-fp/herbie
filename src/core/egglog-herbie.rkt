@@ -466,7 +466,7 @@
               #t ;; appl with op -> Is a spec
               #f)])))) ;; appl impl -> Not a spec
 
-  (for ([brf brfs])
+  (for ([brf (in-list brfs)])
     (vector-set! root-mask (batchref-idx brf) #t))
   (for ([node (in-batch batch)]
         [root? (in-vector root-mask)]

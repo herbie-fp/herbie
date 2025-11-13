@@ -126,13 +126,14 @@
     (values lines unsound?)))
 
 (module+ test
+  (require rackunit)
   (when (find-executable-path "egglog")
     (define subproc (create-new-egglog-subprocess #f))
 
     (thread (lambda ()
               (with-handlers ([exn:fail? (lambda (_) (void))])
                 (for ([line (in-lines (egglog-subprocess-error subproc))])
-                  (printf "[egglog-log] ~a\n" line)))))
+                  (void)))))
 
     (define first-commands
       (list '(datatype Expr (Var String :cost 150) (Add Expr Expr :cost 200))
@@ -167,25 +168,19 @@
 
     ; Has extract 1 thing
     (define lines1 (egglog-extract subproc (list '(extract (const1)))))
-    (printf "\noutput-vals1 : ~a\n\n" lines1)
+    (check-equal? lines1 '((Var "x")))
 
     ;; Print size
 
     (define print-size-commands (list '(print-size) '(run unsound-rule 1) '(extract (unsound))))
 
     (define-values (node-values unsound?) (egglog-send-unsound-detection subproc print-size-commands))
-
-    (for ([line node-values]
-          #:when (> (string-length line) 0))
-      (printf "Line : ~a\n" line)
-      (printf "string? : ~a\n\n" (string? line)))
-    (printf "\nUnsound : ~a\n\n" unsound?)
-
-    (printf "num-nodes : ~a\n" (calculate-nodes node-values))
+    (check-equal? node-values '("unsound: 1" "const3: 1" "const2: 1" "const1: 1" "Var: 2" "Add: 1" ""))
+    (check-false unsound?)
 
     ;; last two
     (define lines2 (egglog-extract subproc (list '(extract (const2)) '(extract (const3)))))
-    (printf "\noutput-vals2 : ~a\n\n" lines2)
+    (check-equal? lines2 '((Var "y") (Add (Var "x") (Var "y"))))
 
     (egglog-subprocess-close subproc)))
 
