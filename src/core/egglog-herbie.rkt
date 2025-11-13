@@ -411,18 +411,6 @@
         ""))
   (string->symbol (string-append (symbol->string (serialize-op op)) type)))
 
-(define (expr->e2-pattern expr repr)
-  (let loop ([expr expr]
-             [repr repr])
-    (match expr
-      [(? literal?)
-       `(,(typed-num-id (representation-name repr)) ,(real->bigrat (literal-value expr)))]
-      [(? symbol?) expr]
-      [(list op args ...)
-       `(,(hash-ref (id->e2) op) ,@(for/list ([arg (in-list args)]
-                                              [itype (in-list (impl-info op 'itype))])
-                                     (loop arg itype)))])))
-
 (define (expr->e1-pattern expr)
   (let loop ([expr expr])
     (match expr
