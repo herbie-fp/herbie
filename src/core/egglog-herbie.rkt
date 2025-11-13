@@ -243,8 +243,10 @@
 
 (define (const-fold-rules)
   `((ruleset const-fold)
-    (let ?0 ,(real->bigrat 0))
-    (let ?1 ,(real->bigrat 1))
+    (let ?0 ,(real->bigrat 0)
+      )
+    (let ?1 ,(real->bigrat 1)
+      )
     (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
     (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
     (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
@@ -253,15 +255,9 @@
     (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
     ;; Power rules -> only case missing is 0^0 making it non-total
     ;; 0^y where y > 0
-    (rule ((= e (Pow (Num x) (Num y))) (= ?0 x) (> y ?0))
-          ((union e (Num ?0)))
-          :ruleset
-          const-fold)
+    (rule ((= e (Pow (Num x) (Num y))) (= ?0 x) (> y ?0)) ((union e (Num ?0))) :ruleset const-fold)
     ;; x^0 where x != 0
-    (rule ((= e (Pow (Num x) (Num y))) (= ?0 y) (!= ?0 x))
-          ((union e (Num ?1)))
-          :ruleset
-          const-fold)
+    (rule ((= e (Pow (Num x) (Num y))) (= ?0 y) (!= ?0 x)) ((union e (Num ?1))) :ruleset const-fold)
     ;; x^y when y is a whole number and y > 0 and x != 0
     (rule ((= e (Pow (Num x) (Num y))) (> y ?0) (!= ?0 x) (= y (round y)))
           ((union e (Num (pow x y))))
@@ -285,17 +281,16 @@
   (for ([op '(sound-/ sound-log sound-pow)])
     (hash-set! (id->e1) op (serialize-op op))
     (hash-set! (e1->id) (serialize-op op) op))
-  (list*
-   '(Num BigRat :cost 4294967295)
-   '(Var String :cost 4294967295)
-   '(Sound-/ M M M :cost 4294967295)
-   '(Sound-Log M M :cost 4294967295)
-   '(Sound-Pow M M M :cost 4294967295)
-   (for/list ([op (in-list (all-operators))])
-     (define arity (length (operator-info op 'itype)))
-     (hash-set! (id->e1) op (serialize-op op))
-     (hash-set! (e1->id) (serialize-op op) op)
-     `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295))))
+  (list* '(Num BigRat :cost 4294967295)
+         '(Var String :cost 4294967295)
+         '(Sound-/ M M M :cost 4294967295)
+         '(Sound-Log M M :cost 4294967295)
+         '(Sound-Pow M M M :cost 4294967295)
+         (for/list ([op (in-list (all-operators))])
+           (define arity (length (operator-info op 'itype)))
+           (hash-set! (id->e1) op (serialize-op op))
+           (hash-set! (e1->id) (serialize-op op) op)
+           `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295))))
 
 (define (platform-impl-nodes pform)
   (for/list ([impl (in-list (platform-impls pform))])
@@ -387,8 +382,7 @@
 (define (expr->egglog-spec-serialized expr s)
   (let loop ([expr expr])
     (match expr
-      [(? number?)
-       `(Num ,(real->bigrat expr))]
+      [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) (string->symbol (string-append s (symbol->string expr)))]
       [(list op args ...)
        `(,(hash-ref (if (hash-has-key? (id->e1) op)
@@ -414,16 +408,8 @@
 (define (expr->e1-pattern expr)
   (let loop ([expr expr])
     (match expr
-      [(? number?)
-       `(Num ,(real->bigrat expr))]
-      [(? symbol?) expr]
-      [(list op args ...) `(,(hash-ref (id->e1) op) ,@(map loop args))])))
-
-(define (expr->e1-expr expr)
-  (let loop ([expr expr])
-    (match expr
       [(? number?) `(Num ,(real->bigrat expr))]
-      [(? symbol?) `(Var ,(symbol->string expr))]
+      [(? symbol?) expr]
       [(list op args ...) `(,(hash-ref (id->e1) op) ,@(map loop args))])))
 
 (define (egglog-rewrite-rules rules tag)
