@@ -32,7 +32,10 @@
 
 ;; [Copied from egg-herbie.rkt] Returns all representatations (and their types) in the current platform.
 (define (all-repr-names [pform (*active-platform*)])
-  (remove-duplicates (map (lambda (repr) (representation-name repr)) (platform-reprs pform))))
+  (map representation-name (platform-reprs pform)))
+
+(define (real->bigrat val)
+  `(bigrat (from-string ,(~s (numerator val))) (from-string ,(~s (denominator val)))))
 
 ; Types handled
 ; - rationals
@@ -205,9 +208,7 @@
 (define (prelude subproc #:mixed-egraph? [mixed-egraph? #t])
   (define pform (*active-platform*))
 
-  (egglog-send
-   subproc
-   `(datatype M (Num BigRat :cost 4294967295) (Var String :cost 4294967295) ,@(platform-spec-nodes)))
+  (egglog-send subproc `(datatype M ,@(platform-spec-nodes)))
 
   (apply egglog-send
          subproc
@@ -218,7 +219,6 @@
                                   ,@(platform-impl-nodes pform))
                        `(constructor do-lower (M String) MTy :unextractable)
                        `(constructor do-lift (MTy) M :unextractable)
-                       `(ruleset const-fold)
                        `(ruleset lower)
                        `(ruleset lift)
                        `(ruleset unsound)
@@ -229,7 +229,7 @@
                               ((set (bad-merge?) true))
                               :ruleset
                               bad-merge-rule))
-                 const-fold
+                 (const-fold-rules)
                  (impl-lowering-rules pform)
                  (impl-lifting-rules pform)
                  (num-lowering-rules)
@@ -241,109 +241,96 @@
 
   (void))
 
-(define const-fold
-  `((let ?zero (bigrat
-                [from-string "0"]
-                [from-string "1"])
-      )
+(define (const-fold-rules)
+  `((ruleset const-fold)
+    (let ?0 ,(real->bigrat 0))
+    (let ?1 ,(real->bigrat 1))
     (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
     (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
     (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
     ; TODO : Non-total operator
-    (rule ((= e (Div (Num x) (Num y))) (!= ?zero y)) ((union e (Num (/ x y)))) :ruleset const-fold)
+    (rule ((= e (Div (Num x) (Num y))) (!= ?0 y)) ((union e (Num (/ x y)))) :ruleset const-fold)
     (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
     ;; Power rules -> only case missing is 0^0 making it non-total
     ;; 0^y where y > 0
-    (rule ((= e (Pow (Num x) (Num y))) (= ?zero x) (> y ?zero))
-          ((union e (Num ?zero)))
+    (rule ((= e (Pow (Num x) (Num y))) (= ?0 x) (> y ?0))
+          ((union e (Num ?0)))
           :ruleset
           const-fold)
     ;; x^0 where x != 0
-    (rule ((= e (Pow (Num x) (Num y))) (= ?zero y) (!= ?zero x))
-          ((union e (Num (bigrat (from-string "1") (from-string "1")))))
+    (rule ((= e (Pow (Num x) (Num y))) (= ?0 y) (!= ?0 x))
+          ((union e (Num ?1)))
           :ruleset
           const-fold)
     ;; x^y when y is a whole number and y > 0 and x != 0
-    (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (= y (round y)))
+    (rule ((= e (Pow (Num x) (Num y))) (> y ?0) (!= ?0 x) (= y (round y)))
           ((union e (Num (pow x y))))
           :ruleset
           const-fold)
     ;; New rule according to Rust : x^y where y is not a whole number
-    (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (!= y (round y)))
+    (rule ((= e (Pow (Num x) (Num y))) (> y ?0) (!= ?0 x) (!= y (round y)))
           ((union e (Num (pow x (round y)))))
           :ruleset
           const-fold)
     ;; Sqrt rules -> Non-total but egglog implementation handles it
     (rule ((= e (Sqrt (Num n))) (sqrt n)) ((union e (Num (sqrt n)))) :ruleset const-fold)
-    (rule ((= e (Log (Num x))) (= (numer x) (denom x))) ((union e (Num ?zero))) :ruleset const-fold)
-    (rule ((= e (Cbrt (Num x))) (= (numer x) (denom x)))
-          ((union e (Num (bigrat (from-string "1") (from-string "1")))))
-          :ruleset
-          const-fold)
+    (rewrite (Log (Num ?1)) (Num ?0) :ruleset const-fold)
+    (rewrite (Cbrt (Num ?1)) (Num ?1) :ruleset const-fold)
     (rewrite (Fabs (Num x)) (Num (abs x)) :ruleset const-fold)
     (rewrite (Floor (Num x)) (Num (floor x)) :ruleset const-fold)
     (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
     (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
 
 (define (platform-spec-nodes)
-  (append* (for/list ([op (in-list (all-operators))])
-             (hash-set! (id->e1) op (serialize-op op))
-             (hash-set! (e1->id) (serialize-op op) op)
-
-             ; Unsound versions of operations
-             (define unsound-op (sym-append "unsound-" op))
-             (hash-set! (id->e1) unsound-op (serialize-op unsound-op))
-             (hash-set! (e1->id) (serialize-op unsound-op) unsound-op)
-
-             (define sound-op (sym-append "sound-" op))
-             (hash-set! (id->e1) sound-op (serialize-op sound-op))
-             (hash-set! (e1->id) (serialize-op sound-op) sound-op)
-
-             (define arity (length (operator-info op 'itype)))
-             (list `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295)
-                   `(,(serialize-op sound-op) ,@(make-list arity 'M) M :cost 4294967295)
-                   `(,(serialize-op unsound-op) ,@(make-list arity 'M) :cost 4294967295)))))
+  (for ([op '(sound-/ sound-log sound-pow)])
+    (hash-set! (id->e1) op (serialize-op op))
+    (hash-set! (e1->id) (serialize-op op) op))
+  (list*
+   '(Num BigRat :cost 4294967295)
+   '(Var String :cost 4294967295)
+   '(Sound-/ M M M :cost 4294967295)
+   '(Sound-Log M M :cost 4294967295)
+   '(Sound-Pow M M M :cost 4294967295)
+   (for/list ([op (in-list (all-operators))])
+     (define arity (length (operator-info op 'itype)))
+     (hash-set! (id->e1) op (serialize-op op))
+     (hash-set! (e1->id) (serialize-op op) op)
+     `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295))))
 
 (define (platform-impl-nodes pform)
   (for/list ([impl (in-list (platform-impls pform))])
     (define arity (length (impl-info impl 'itype)))
-    (define typed-name (string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty")))
+    (define typed-name (string->symbol (format "~ATy" (serialize-impl impl))))
     (hash-set! (id->e2) impl typed-name)
     (hash-set! (e2->id) typed-name impl)
-    `(,typed-name ,@(for/list ([i (in-range arity)])
-                      'MTy)
-                  :cost
-                  ,(normalize-cost (impl-info impl 'cost)))))
+    (define cost (normalize-cost (impl-info impl 'cost)))
+    `(,typed-name ,@(make-list arity 'MTy) :cost ,cost)))
 
 (define (typed-num-id repr-name)
-  (string->symbol (string-append "Num" (symbol->string repr-name))))
+  (string->symbol (format "Num~a" repr-name)))
 
 (define (typed-var-id repr-name)
-  (string->symbol (string-append "Var" (symbol->string repr-name))))
+  (string->symbol (format "Var~a" repr-name)))
 
 (define (num-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))]
              #:when (not (eq? repr 'bool)))
-    `(,(typed-num-id repr) BigRat
-                           :cost
-                           ,(normalize-cost (platform-repr-cost pform (get-representation repr))))))
+    (define cost (normalize-cost (platform-repr-cost pform (get-representation repr))))
+    `(,(typed-num-id repr) BigRat :cost ,cost)))
 
 (define (var-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))])
-    `(,(typed-var-id repr) String
-                           :cost
-                           ,(normalize-cost (platform-repr-cost pform (get-representation repr))))))
+    (define cost (normalize-cost (platform-repr-cost pform (get-representation repr))))
+    `(,(typed-var-id repr) String :cost ,cost)))
 
 (define (num-lowering-rules)
   (for/list ([repr (in-list (all-repr-names))]
              #:when (not (eq? repr 'bool)))
     `(rule ((= e (Num n)))
-           ((let tx ,(symbol->string repr)
-              )
-            (let etx (,(typed-num-id repr)
+           ((let etx (,(typed-num-id repr)
                       n)
               )
-            (union (do-lower e tx) etx))
+            (union (do-lower e ,(symbol->string repr)) etx))
            :ruleset
            lower)))
 
@@ -401,8 +388,7 @@
   (let loop ([expr expr])
     (match expr
       [(? number?)
-       `(Num (bigrat (from-string ,(number->string (numerator expr)))
-                     (from-string ,(number->string (denominator expr)))))]
+       `(Num ,(real->bigrat expr))]
       [(? symbol?) (string->symbol (string-append s (symbol->string expr)))]
       [(list op args ...)
        `(,(hash-ref (if (hash-has-key? (id->e1) op)
@@ -430,9 +416,7 @@
              [repr repr])
     (match expr
       [(? literal?)
-       `(,(typed-num-id (representation-name repr))
-         (bigrat (from-string ,(number->string (numerator (literal-value expr))))
-                 (from-string ,(number->string (denominator (literal-value expr))))))]
+       `(,(typed-num-id (representation-name repr)) ,(real->bigrat (literal-value expr)))]
       [(? symbol?) expr]
       [(list op args ...)
        `(,(hash-ref (id->e2) op) ,@(for/list ([arg (in-list args)]
@@ -443,17 +427,14 @@
   (let loop ([expr expr])
     (match expr
       [(? number?)
-       `(Num (bigrat (from-string ,(number->string (numerator expr)))
-                     (from-string ,(number->string (denominator expr)))))]
+       `(Num ,(real->bigrat expr))]
       [(? symbol?) expr]
       [(list op args ...) `(,(hash-ref (id->e1) op) ,@(map loop args))])))
 
 (define (expr->e1-expr expr)
   (let loop ([expr expr])
     (match expr
-      [(? number?)
-       `(Num (bigrat (from-string ,(number->string (numerator expr)))
-                     (from-string ,(number->string (denominator expr)))))]
+      [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) `(Var ,(symbol->string expr))]
       [(list op args ...) `(,(hash-ref (id->e1) op) ,@(map loop args))])))
 
@@ -518,12 +499,8 @@
         [n (in-naturals)])
     (define node*
       (match node
-        [(literal v repr)
-         `(,(typed-num-id repr) (bigrat (from-string ,(number->string (numerator v)))
-                                        (from-string ,(number->string (denominator v)))))]
-        [(? number?)
-         `(Num (bigrat (from-string ,(number->string (numerator node)))
-                       (from-string ,(number->string (denominator node)))))]
+        [(literal v repr) `(,(typed-num-id repr) ,(real->bigrat v))]
+        [(? number?) `(Num ,(real->bigrat node))]
         [(? symbol?) #f]
         [(approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
         [(list impl args ...)
