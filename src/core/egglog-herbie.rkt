@@ -146,11 +146,8 @@
   (for ([step (in-list (egglog-runner-schedule runner))])
     (match step
       ['lift (egglog-send subproc '(run-schedule (saturate lift)))]
-
       ['lower (egglog-send subproc '(run-schedule (saturate lower)))]
-
       ['unsound (egglog-send subproc '(run-schedule (saturate unsound)))]
-
       ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
       ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
@@ -161,44 +158,17 @@
 
   (define stdout-content (egglog-extract subproc extract-commands))
 
+  ;; Close everything subprocess related
+  (egglog-subprocess-close subproc)
+
   ;; (Listof (Listof exprs))
   (define herbie-exprss
     (for/list ([next-expr (in-list stdout-content)])
       (map e2->expr next-expr)))
 
-  (define result
-    (for/list ([variants (in-list herbie-exprss)])
-      (remove-duplicates
-       (for/list ([v (in-list variants)])
-         (egglog->batchref v output-batch (context-repr (egglog-runner-ctx runner))))
-       #:key batchref-idx)))
-
-  ;; Close everything subprocess related
-  (egglog-subprocess-close subproc)
-
-  ;; (Listof (Listof batchref))
-  result)
-
-(define (egglog->batchref expr batch type)
-  (define idx
-    (let loop ([expr expr]
-               [type type])
-      (define term
-        (match expr
-          [(? number?)
-           (if (representation? type)
-               (literal expr (representation-name type))
-               expr)]
-          [(? symbol?) expr]
-          [(approx spec impl) (approx (loop spec #f) (loop impl type))]
-          [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
-          [(list op args ...)
-           (define args*
-             (for/list ([arg (in-list args)])
-               (loop arg #f)))
-           (cons op args*)]))
-      (batchref-idx (batch-push! batch term))))
-  (batchref batch idx))
+  (for/list ([variants (in-list herbie-exprss)])
+    (for/list ([v (in-list variants)])
+      (batch-add! output-batch v))))
 
 ;; Egglog requires integer costs, but Herbie uses floating-point costs.
 ;; Scale by 1000 to convert Herbie's float costs to Egglog's integer costs.
@@ -792,7 +762,7 @@
   (let loop ([expr expr])
     (match expr
       [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
-       (/ (string->number n) (string->number d))]
+       (literal (/ (string->number n) (string->number d)) (egglog-num-repr num))]
       [`(,(? egglog-var? var) ,v) (string->symbol v)]
       [`(Approx ,spec ,impl) (approx (e1->expr spec) (loop impl))] ;;; todo approx bug or not?
       [`(,impl ,args ...) `(,(hash-ref (e2->id) impl) ,@(map loop args))])))
