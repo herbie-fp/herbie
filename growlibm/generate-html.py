@@ -78,8 +78,10 @@ html_content = f"""
 </head>
 <body>
     <h1>GrowLibm Report</h1>
-    <p><a href="grow_platform.txt">Grow Platform</a></p>
+    <p><a href="expr_dump.txt">Herbie Dump</a></p>
     <p><a href="candidates.txt">Candidates</a></p>
+    <p><a href="counts.rkt">Candidate Counts</a></p>
+    <p><a href="grow_platform.txt">Grow Platform</a></p>
     
     <h2>Overall Summary</h2>
     <p><strong>Start:</strong> {start_accuracy_str} - <a href="{START_FOLDER}/">Folder</a></p>
