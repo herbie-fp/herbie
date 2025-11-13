@@ -130,11 +130,6 @@
   (when (find-executable-path "egglog")
     (define subproc (create-new-egglog-subprocess #f))
 
-    (thread (lambda ()
-              (with-handlers ([exn:fail? (lambda (_) (void))])
-                (for ([line (in-lines (egglog-subprocess-error subproc))])
-                  (void)))))
-
     (define first-commands
       (list '(datatype Expr (Var String :cost 150) (Add Expr Expr :cost 200))
             '(constructor const1 () Expr :unextractable)
@@ -143,7 +138,7 @@
             '(function unsound () bool :merge (or old new))
             '(ruleset unsound-rule)
             '(set (unsound) false)
-            '(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (unsound) true)) :ruleset unsound-rule)
+            '(rule ((= (Var c1) (Var c2)) (!= c1 c2)) ((set (unsound) true)) :ruleset unsound-rule)
             '(ruleset init)
             '(rule ()
                    ((let a1 (Var
