@@ -23,6 +23,7 @@ racket -y "src/main.rkt" report \
         --seed "$SEED" \
         --dump-exprs \
         --platform "no-accelerators" \
+        --disable "generate:taylor" \
         --disable "generate:evaluate" \
         "$BENCHDIR" \
         "$REPORTDIR/start" > "$REPORTDIR/expr_dump.txt"
@@ -50,6 +51,7 @@ racket -y "src/main.rkt" report \
         --seed "$SEED" \
         --platform "grow" \
         --threads 4 \
+        --disable "generate:taylor" \
         --disable "generate:evaluate" \
         "$BENCHDIR" \
         "$REPORTDIR/end"
