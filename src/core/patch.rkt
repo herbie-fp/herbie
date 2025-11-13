@@ -105,7 +105,7 @@
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog-multi-extractor runner global-batch 'taylor)
+        (run-egglog runner global-batch 'taylor #:extract 1)
         (egraph-best runner global-batch)))
 
   ; apply changelists
@@ -123,7 +123,7 @@
   (define brfs (map alt-expr real-altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
   (define contexts
-    (for/list ([repr reprs])
+    (for/list ([repr (in-list reprs)])
       (context '() repr '())))
 
   (define spec-brfs (batch-to-spec! global-batch brfs))
@@ -140,7 +140,12 @@
                [ctx (in-list contexts)]
                #:when (equal? status 'valid))
       (define repr (context-repr ctx))
-      (literal (repr->real pt repr) (representation-name repr))))
+      (match (representation-type repr)
+        ['bool
+         (if pt
+             '(TRUE)
+             '(FALSE))]
+        ['real (literal (repr->real pt repr) (representation-name repr))])))
 
   (define final-altns
     (for/list ([literal (in-list literals)]
@@ -173,7 +178,7 @@
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog-multi-extractor runner global-batch 'rewrite)
+        (run-egglog runner global-batch 'rewrite #:extract 1000000) ; "infinity"
         (egraph-variations runner global-batch)))
 
   ; apply changelists
