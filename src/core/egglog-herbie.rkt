@@ -152,11 +152,9 @@
       ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
   ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
-  (define extract-commands
+  (define stdout-content
     (for/list ([constructor-name extract-bindings])
-      `(extract (,constructor-name) ,extract)))
-
-  (define stdout-content (egglog-extract subproc extract-commands))
+      (egglog-extract subproc `(extract (,constructor-name) ,extract))))
 
   ;; Close everything subprocess related
   (egglog-subprocess-close subproc)

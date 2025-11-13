@@ -76,11 +76,9 @@
     (flush-output egglog-in)))
 
 ;; Send extract commands and read results
-(define (egglog-extract subproc extract-commands)
-  (apply egglog-send subproc extract-commands)
-  (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
-  (for/list ([i (in-range (length extract-commands))])
-    (read egglog-output)))
+(define (egglog-extract subproc extract-command)
+  (egglog-send subproc extract-command)
+  (read (egglog-subprocess-output subproc)))
 
 (define (egglog-send-unsound-detection subproc commands)
   (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
