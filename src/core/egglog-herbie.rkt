@@ -7,7 +7,6 @@
          "../syntax/types.rkt"
          "../config.rkt"
          "batch.rkt"
-         "egglog-program.rkt"
          "../utils/common.rkt"
          "egglog-subprocess.rkt")
 
@@ -15,7 +14,7 @@
          prelude
          egglog-add-exprs
          make-egglog-runner
-         run-egglog-multi-extractor
+         run-egglog
          e2->expr
          e1->expr
          egglog-var?
@@ -72,49 +71,22 @@
   (egglog-runner batch brfs reprs schedule ctx))
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
-(define (run-egglog-multi-extractor runner output-batch [label #f]) ; multi expression extraction
+(define (run-egglog runner output-batch [label #f] #:extract extract) ; multi expression extraction
   (define insert-batch (egglog-runner-batch runner))
   (define insert-brfs (egglog-runner-brfs runner))
-  (define curr-program (make-egglog-program))
 
-  ;; Dump-file
-  (define dump-file
-    (cond
-      [(flag-set? 'dump 'egglog)
-       (define dump-dir "dump-egglog")
-       (unless (directory-exists? dump-dir)
-         (make-directory dump-dir))
-       (define name
-         (for/first ([i (in-naturals)]
-                     #:unless
-                     (file-exists? (build-path dump-dir (format "~a~a.egg" (if label label "") i))))
-           (build-path dump-dir (format "~a~a.egg" (if label label "") i))))
+  ;;;; SUBPROCESS START ;;;;
+  (define subproc (create-new-egglog-subprocess label))
 
-       (open-output-file name #:exists 'replace)]
+  (thread (lambda ()
+            (with-handlers ([exn:fail? (lambda (_) (void))])
+              (for ([line (in-lines (egglog-subprocess-error subproc))])
+                (void)))))
 
-      [else #f]))
+  ;; 1. Add the Prelude (includes all rules) - send directly to egglog
+  (prelude subproc #:mixed-egraph? #t)
 
-  ;; 1. Add the Prelude
-  (prelude curr-program #:mixed-egraph? #t)
-
-  ;; 2. User Rules which comes from schedule (need to be translated)
-  (define tag-schedule
-    (for/list ([step (in-list (egglog-runner-schedule runner))])
-      (match step
-        ['lift 'lift]
-        ['lower 'lower]
-        ['unsound
-         ;; Add the unsound rules
-         (egglog-program-add-list! (egglog-rewrite-rules (*sound-removal-rules*) 'unsound)
-                                   curr-program)
-         'unsound]
-        ['rewrite
-         ;; Add the rewrite ruleset and rules
-         (egglog-program-add! `(ruleset rewrite) curr-program)
-         (egglog-program-add-list! (egglog-rewrite-rules (*rules*) 'rewrite) curr-program)
-         'rewrite])))
-
-  ;; 3. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
+  ;; 2. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
 
   ;; Overview of the new extraction method:
   ;;
@@ -159,88 +131,32 @@
   ;; keep track of the mapping between each binding and its corresponding constructor.
 
   (define-values (all-bindings extract-bindings)
-    (egglog-add-exprs insert-batch insert-brfs (egglog-runner-ctx runner) curr-program))
+    (egglog-add-exprs insert-batch insert-brfs (egglog-runner-ctx runner) subproc))
 
-  (egglog-program-add! `(ruleset run-extract-commands) curr-program)
-  (egglog-program-add! `(rule () (,@all-bindings) :ruleset run-extract-commands) curr-program)
-  (egglog-program-add! `(run-schedule (repeat 1 run-extract-commands)) curr-program)
-
-  ;;;; SUBPROCESS START ;;;;
-  (define-values (egglog-process egglog-output egglog-in err) (create-new-egglog-subprocess))
-
-  (thread (lambda ()
-            (with-handlers ([exn:fail? (lambda (_) (void))])
-              (for ([line (in-lines err)])
-                (void)))))
-
-  ;; Send whatever we have so far to egglog
-  ;; Expected no output anyways as there is no extraction
-  (send-to-egglog (get-current-program curr-program)
-                  egglog-process
-                  egglog-output
-                  egglog-in
-                  err
-                  dump-file)
+  (egglog-send subproc
+               `(ruleset run-extract-commands)
+               `(rule () (,@all-bindings) :ruleset run-extract-commands)
+               `(run-schedule (repeat 1 run-extract-commands)))
 
   ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
 
-  ; run-schedule specifies the schedule of rulesets to saturate the egraph
-  ; For performance, it stores the schedule in reverse order, and is reversed at the end
+  (for ([step (in-list (egglog-runner-schedule runner))])
+    (match step
+      ['lift (egglog-send subproc '(run-schedule (saturate lift)))]
 
-  (for ([tag (in-list tag-schedule)])
-    (match tag
-      ['lift
-       (send-to-egglog (list '(run-schedule (saturate lift)))
-                       egglog-process
-                       egglog-output
-                       egglog-in
-                       err
-                       dump-file)]
+      ['lower (egglog-send subproc '(run-schedule (saturate lower)))]
 
-      ['lower
-       (send-to-egglog (list '(run-schedule (saturate lower)))
-                       egglog-process
-                       egglog-output
-                       egglog-in
-                       err
-                       dump-file)]
+      ['unsound (egglog-send subproc '(run-schedule (saturate unsound)))]
 
-      ['unsound
-       (send-to-egglog (list '(run-schedule (saturate unsound)))
-                       egglog-process
-                       egglog-output
-                       egglog-in
-                       err
-                       dump-file)]
-
-      ['rewrite
-       ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
-       (egglog-unsound-detected-subprocess tag
-                                           egglog-process
-                                           egglog-output
-                                           egglog-in
-                                           err
-                                           dump-file)]))
+      ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
+      ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
   ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
   (define extract-commands
     (for/list ([constructor-name extract-bindings])
-      `(extract (,constructor-name) ,(*egglog-variants-limit*))))
+      `(extract (,constructor-name) ,extract)))
 
-  (egglog-program-add-list! extract-commands curr-program)
-
-  ;; 6. After step-by-step building the program, process it
-  ;; by running it using egglog
-
-  ;; Extract its returned value
-  (define stdout-content
-    (send-to-egglog extract-commands
-                    egglog-process
-                    egglog-output
-                    egglog-in
-                    err
-                    dump-file
-                    #:num-extracts (length extract-commands)))
+  (define stdout-content (egglog-extract subproc extract-commands))
 
   ;; (Listof (Listof exprs))
   (define herbie-exprss
@@ -255,12 +171,7 @@
        #:key batchref-idx)))
 
   ;; Close everything subprocess related
-  (close-output-port egglog-in)
-  (close-input-port egglog-output)
-  (close-input-port err)
-  (subprocess-wait egglog-process)
-  (unless (eq? (subprocess-status egglog-process) 'done)
-    (subprocess-kill egglog-process #f))
+  (egglog-subprocess-close subproc)
 
   ;; (Listof (Listof batchref))
   result)
@@ -286,82 +197,47 @@
       (batchref-idx (batch-push! batch term))))
   (batchref batch idx))
 
-(define (normalize-cost c min-cost)
-  (exact-round (* (/ c min-cost) 100)))
+;; Egglog requires integer costs, but Herbie uses floating-point costs.
+;; Scale by 1000 to convert Herbie's float costs to Egglog's integer costs.
+(define (normalize-cost c)
+  (exact-round (* c 1000)))
 
-(define (prelude curr-program #:mixed-egraph? [mixed-egraph? #t])
+(define (prelude subproc #:mixed-egraph? [mixed-egraph? #t])
   (define pform (*active-platform*))
 
-  (define spec-egraph
-    `(datatype M (Num BigRat :cost 4294967295) (Var String :cost 4294967295) ,@(platform-spec-nodes)))
+  (egglog-send
+   subproc
+   `(datatype M (Num BigRat :cost 4294967295) (Var String :cost 4294967295) ,@(platform-spec-nodes)))
 
-  (egglog-program-add! spec-egraph curr-program)
-
-  ;;; To add support for floating point cost (which egglog does not support), compute
-  ;;; the minimum by accumulating all raw costs and normalize them
-  (define raw-costs '())
-
-  ;; Add raw num-typed-nodes and var-typed-nodes costs
-  (for ([repr (in-list (all-repr-names))])
-    (set! raw-costs (cons (platform-repr-cost pform (get-representation repr)) raw-costs)))
-
-  ;; Add raw platform-impl-nodes
-  (for ([impl (in-list (platform-impls pform))])
-    (set! raw-costs (cons (impl-info impl 'cost) raw-costs)))
-
-  (define nonzero-costs (filter (negate zero?) raw-costs))
-  (define min-cost
-    (if (empty? nonzero-costs)
-        1
-        (apply min nonzero-costs)))
-
-  (define typed-graph
-    `(datatype MTy
-               ,@(num-typed-nodes pform min-cost)
-               ,@(var-typed-nodes pform min-cost)
-               (Approx M MTy)
-               ,@(platform-impl-nodes pform min-cost)))
-  (egglog-program-add! typed-graph curr-program)
-
-  (egglog-program-add! `(constructor do-lower (M String) MTy :unextractable) curr-program)
-
-  (egglog-program-add! `(constructor do-lift (MTy) M :unextractable) curr-program)
-
-  (egglog-program-add! `(ruleset const-fold) curr-program)
-
-  (egglog-program-add! `(ruleset lower) curr-program)
-
-  (egglog-program-add! `(ruleset lift) curr-program)
-
-  (egglog-program-add! `(ruleset unsound) curr-program)
-
-  ;;; Adding bad-merge detection
-
-  ;; bad-merge detection function and rules
-  (egglog-program-add! `(function bad-merge? () bool :merge (or old new)) curr-program)
-  (egglog-program-add! `(ruleset bad-merge-rule) curr-program)
-  (egglog-program-add! `(set (bad-merge?) false) curr-program)
-
-  (egglog-program-add!
-   `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule)
-   curr-program)
-
-  (for ([curr-expr const-fold])
-    (egglog-program-add! curr-expr curr-program))
-
-  (for ([curr-expr (impl-lowering-rules pform)])
-    (egglog-program-add! curr-expr curr-program))
-
-  (for ([curr-expr (impl-lifting-rules pform)])
-    (egglog-program-add! curr-expr curr-program))
-
-  (for ([curr-expr (num-lowering-rules)])
-    (egglog-program-add! curr-expr curr-program))
-
-  (for ([curr-expr (num-lifting-rules)])
-    (egglog-program-add! curr-expr curr-program))
-
-  (egglog-program-add! (approx-lifting-rule) curr-program)
+  (apply egglog-send
+         subproc
+         (append (list `(datatype MTy
+                                  ,@(num-typed-nodes pform)
+                                  ,@(var-typed-nodes pform)
+                                  (Approx M MTy)
+                                  ,@(platform-impl-nodes pform))
+                       `(constructor do-lower (M String) MTy :unextractable)
+                       `(constructor do-lift (MTy) M :unextractable)
+                       `(ruleset const-fold)
+                       `(ruleset lower)
+                       `(ruleset lift)
+                       `(ruleset unsound)
+                       `(function bad-merge? () bool :merge (or old new))
+                       `(ruleset bad-merge-rule)
+                       `(set (bad-merge?) false)
+                       `(rule ((= (Num c1) (Num c2)) (!= c1 c2))
+                              ((set (bad-merge?) true))
+                              :ruleset
+                              bad-merge-rule))
+                 const-fold
+                 (impl-lowering-rules pform)
+                 (impl-lifting-rules pform)
+                 (num-lowering-rules)
+                 (num-lifting-rules)
+                 (list (approx-lifting-rule))
+                 (egglog-rewrite-rules (*sound-removal-rules*) 'unsound)
+                 (list `(ruleset rewrite))
+                 (egglog-rewrite-rules (*rules*) 'rewrite)))
 
   (void))
 
@@ -428,7 +304,7 @@
                    `(,(serialize-op sound-op) ,@(make-list arity 'M) M :cost 4294967295)
                    `(,(serialize-op unsound-op) ,@(make-list arity 'M) :cost 4294967295)))))
 
-(define (platform-impl-nodes pform min-cost)
+(define (platform-impl-nodes pform)
   (for/list ([impl (in-list (platform-impls pform))])
     (define arity (length (impl-info impl 'itype)))
     (define typed-name (string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty")))
@@ -437,7 +313,7 @@
     `(,typed-name ,@(for/list ([i (in-range arity)])
                       'MTy)
                   :cost
-                  ,(normalize-cost (impl-info impl 'cost) min-cost))))
+                  ,(normalize-cost (impl-info impl 'cost)))))
 
 (define (typed-num-id repr-name)
   (string->symbol (string-append "Num" (symbol->string repr-name))))
@@ -445,20 +321,18 @@
 (define (typed-var-id repr-name)
   (string->symbol (string-append "Var" (symbol->string repr-name))))
 
-(define (num-typed-nodes pform min-cost)
+(define (num-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))]
              #:when (not (eq? repr 'bool)))
     `(,(typed-num-id repr) BigRat
                            :cost
-                           ,(normalize-cost (platform-repr-cost pform (get-representation repr))
-                                            min-cost))))
+                           ,(normalize-cost (platform-repr-cost pform (get-representation repr))))))
 
-(define (var-typed-nodes pform min-cost)
+(define (var-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))])
     `(,(typed-var-id repr) String
                            :cost
-                           ,(normalize-cost (platform-repr-cost pform (get-representation repr))
-                                            min-cost))))
+                           ,(normalize-cost (platform-repr-cost pform (get-representation repr))))))
 
 (define (num-lowering-rules)
   (for/list ([repr (in-list (all-repr-names))]
@@ -591,7 +465,7 @@
               :ruleset
               ,tag)))
 
-(define (egglog-add-exprs batch brfs ctx curr-program)
+(define (egglog-add-exprs batch brfs ctx subproc)
   (define mappings (build-vector (batch-length batch) values))
   (define bindings (make-hash))
   (define vars (make-hash))
@@ -669,36 +543,32 @@
       (set! root-bindings (cons (vector-ref mappings n) root-bindings))))
 
   ; Var-lowering-rules
-  (for ([var (in-list (context-vars ctx))]
-        [repr (in-list (context-var-reprs ctx))])
-
-    (define curr-var-lowering-rule
-      `(rule ((= e (Var ,(symbol->string var))))
-             ((let ty ,(symbol->string (representation-name repr))
-                )
-              (let ety (,(typed-var-id (representation-name repr))
-                        ,(symbol->string var))
-                )
-              (union (do-lower e ty) ety))
-             :ruleset
-             lower))
-
-    (egglog-program-add! curr-var-lowering-rule curr-program))
+  (apply egglog-send
+         subproc
+         (for/list ([var (in-list (context-vars ctx))]
+                    [repr (in-list (context-var-reprs ctx))])
+           `(rule ((= e (Var ,(symbol->string var))))
+                  ((let ty ,(symbol->string (representation-name repr))
+                     )
+                   (let ety (,(typed-var-id (representation-name repr))
+                             ,(symbol->string var))
+                     )
+                   (union (do-lower e ty) ety))
+                  :ruleset
+                  lower)))
 
   ; Var-lifting-rules
-  (for ([var (in-list (context-vars ctx))]
-        [repr (in-list (context-var-reprs ctx))])
-
-    (define curr-var-lifting-rule
-      `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
-             ((let se (Var
-                       ,(symbol->string var))
-                )
-              (union (do-lift e) se))
-             :ruleset
-             lift))
-
-    (egglog-program-add! curr-var-lifting-rule curr-program))
+  (apply egglog-send
+         subproc
+         (for/list ([var (in-list (context-vars ctx))]
+                    [repr (in-list (context-var-reprs ctx))])
+           `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
+                  ((let se (Var
+                            ,(symbol->string var))
+                     )
+                   (union (do-lift e) se))
+                  :ruleset
+                  lift)))
 
   (define all-bindings '())
   (define binding->constructor (make-hash)) ; map from binding name to constructor name
@@ -715,8 +585,8 @@
     ; Define the actual binding
     (define curr-var-spec-binding `(let ,binding-name (Var ,(symbol->string var))))
 
-    ; Add the unique constructur to the program
-    (egglog-program-add! `(constructor ,constructor-name () M :unextractable) curr-program)
+    ; Send the constructor definition
+    (egglog-send subproc `(constructor ,constructor-name () M :unextractable))
 
     ; Add the binding and constructor set to all-bindings for the future rule
     (set! all-bindings (cons curr-var-spec-binding all-bindings))
@@ -736,8 +606,8 @@
     (define curr-var-typed-binding
       `(let ,binding-name (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
 
-    ; Add the unique constructur to the program
-    (egglog-program-add! `(constructor ,constructor-name () MTy :unextractable) curr-program)
+    ; Send the constructor definition
+    (egglog-send subproc `(constructor ,constructor-name () MTy :unextractable))
 
     ; Add the binding and constructor set to all-bindings for the future rule
     (set! all-bindings (cons curr-var-typed-binding all-bindings))
@@ -770,8 +640,7 @@
 
     (define curr-binding-exprs `(let ,binding-name ,actual-binding))
 
-    (egglog-program-add! `(constructor ,constructor-name () ,curr-datatype :unextractable)
-                         curr-program)
+    (egglog-send subproc `(constructor ,constructor-name () ,curr-datatype :unextractable))
 
     (set! all-bindings (cons curr-binding-exprs all-bindings))
     (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings))
@@ -792,7 +661,7 @@
 
   (values (reverse all-bindings) curr-bindings))
 
-(define (egglog-unsound-detected-subprocess tag egglog-process egglog-output egglog-in err dump-file)
+(define (egglog-unsound-detected-subprocess tag subproc)
 
   (define node-limit (*node-limit*))
   (define iter-limit (*default-egglog-iter-limit*))
@@ -833,13 +702,7 @@
 
        ;; Get egglog output
        (define-values (math-unsound? math-node-limit? math-total-nodes)
-         (get-egglog-output math-schedule
-                            egglog-process
-                            egglog-output
-                            egglog-in
-                            err
-                            node-limit
-                            dump-file))
+         (get-egglog-output math-schedule subproc node-limit))
 
        (cond
          ;;  There are two condiitons where we exit unsoundness dteection WITHOUT running (pop)
@@ -866,14 +729,14 @@
          ;;        e-graph while extracting. For now, popping provides a smaller e-graph and gives
          ;;        performance comparable to Egg-Herbie, thought it doesn't affect correctness too much
          [math-node-limit?
-          (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err dump-file)
+          (egglog-send subproc '(pop))
           (values (sub1 curr-iter) #t)]
 
          ;; If Unsoundness detected or node-limit reached, then return the
          ;; optimal iter limit (one less than current) and run (pop)
          [math-unsound?
           ;; Pop once at the end since the egraph isn't valid
-          (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err dump-file)
+          (egglog-send subproc '(pop))
 
           ;; Return one less than current iteration and indicate that we need to run again because pop
           (values (sub1 curr-iter) #t)]
@@ -892,23 +755,17 @@
                   '(extract (bad-merge?))))
 
           (define-values (const-unsound? const-node-limit? const-total-nodes)
-            (get-egglog-output const-schedule
-                               egglog-process
-                               egglog-output
-                               egglog-in
-                               err
-                               node-limit
-                               dump-file))
+            (get-egglog-output const-schedule subproc node-limit))
 
           (cond
             ;; TODO:  See the TODO from above
             [(equal? const-total-nodes prev-number-nodes) (values curr-iter #f)]
             [const-node-limit?
-             (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err dump-file)
+             (egglog-send subproc '(pop))
              (values (sub1 curr-iter) #t)]
 
             [const-unsound?
-             (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err dump-file)
+             (egglog-send subproc '(pop))
              (values (sub1 curr-iter) #t)]
 
             [else
@@ -917,20 +774,8 @@
 
              (loop (add1 curr-iter))])])])))
 
-(define (get-egglog-output curr-schedule
-                           egglog-process
-                           egglog-output
-                           egglog-in
-                           err
-                           node-limit
-                           dump-file)
-  (define-values (node-values unsound?)
-    (send-to-egglog-unsound-detection curr-schedule
-                                      egglog-process
-                                      egglog-output
-                                      egglog-in
-                                      err
-                                      dump-file))
+(define (get-egglog-output curr-schedule subproc node-limit)
+  (define-values (node-values unsound?) (egglog-send-unsound-detection subproc curr-schedule))
 
   ;  (when unsound?
   ;    (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
