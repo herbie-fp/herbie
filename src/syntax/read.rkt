@@ -248,8 +248,10 @@
   (call-with-input-file file
                         (λ (port)
                           (port-count-lines! port)
-                          (for/list ([test (in-port (curry our-read-syntax file) port)])
-                            (parse-test test)))))
+                          (filter identity
+                                  (for/list ([test (in-port (curry our-read-syntax file) port)])
+                                    (with-handlers ([exn:fail? (const #f)])
+                                      (parse-test test)))))))
 
 (define (load-directory dir)
   (apply append
