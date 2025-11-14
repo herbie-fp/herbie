@@ -144,7 +144,7 @@
                                                       ("Julia" "jl" ,core->julia)
                                                       ("MATLAB" "mat" ,core->matlab)
                                                       ("Wolfram" "wl" ,core->wls)
-                                                      ("PVS" "pvs" ,core->pvs)
+                                                      ("ReFlow" "pvs" ,core->pvs)
                                                       ("TeX" "tex" ,(λ (c i) (core->tex c)))))
 
 (define (fpcore->tex fpcore #:loc [loc #f])
