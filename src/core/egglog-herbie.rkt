@@ -263,7 +263,7 @@
 (define (platform-impl-nodes pform)
   (for/list ([impl (in-list (platform-impls pform))])
     (define arity (length (impl-info impl 'itype)))
-    (define typed-name (string->symbol (format "~ATy" (serialize-impl impl))))
+    (define typed-name (string->symbol (format "~aTy" (serialize-impl impl))))
     (hash-set! (id->e2) impl typed-name)
     (hash-set! (e2->id) typed-name impl)
     (define cost (normalize-cost (impl-info impl 'cost)))
@@ -741,17 +741,15 @@
   (string-prefix? (symbol->string id) "Var"))
 
 (define (e1->expr expr)
-  (let loop ([expr expr])
-    (match expr
-      [`(Num (bigrat (from-string ,n) (from-string ,d))) (/ (string->number n) (string->number d))]
-      [`(Var ,v) (string->symbol v)]
-      [`(,op ,args ...) `(,(hash-ref (e1->id) op) ,@(map loop args))])))
+  (match expr
+    [`(Num (bigrat (from-string ,n) (from-string ,d))) (/ (string->number n) (string->number d))]
+    [`(Var ,v) (string->symbol v)]
+    [`(,op ,args ...) `(,(hash-ref (e1->id) op) ,@(map e1->expr args))]))
 
 (define (e2->expr expr)
-  (let loop ([expr expr])
-    (match expr
-      [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
-       (literal (/ (string->number n) (string->number d)) (egglog-num-repr num))]
-      [`(,(? egglog-var? var) ,v) (string->symbol v)]
-      [`(Approx ,spec ,impl) (approx (e1->expr spec) (loop impl))] ;;; todo approx bug or not?
-      [`(,impl ,args ...) `(,(hash-ref (e2->id) impl) ,@(map loop args))])))
+  (match expr
+    [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
+     (literal (/ (string->number n) (string->number d)) (egglog-num-repr num))]
+    [`(,(? egglog-var? var) ,v) (string->symbol v)]
+    [`(Approx ,spec ,impl) (approx (e1->expr spec) (e2->expr impl))] ;;; todo approx bug or not?
+    [`(,impl ,args ...) `(,(hash-ref (e2->id) impl) ,@(map e2->expr args))]))
