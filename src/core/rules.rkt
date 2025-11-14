@@ -624,11 +624,9 @@
     [(? symbol?) expr]
     [(list (and (or '/ 'log 'pow) op) args ...)
      (unsound-counter (add1 (unsound-counter)))
-     `(,(string->symbol (format "sound-~a" op))
-       ,@(map add-unsound args)
-       ,(string->symbol (format "t_~a" (unsound-counter))))]
-    [(list op args ...)
-     (cons op (map add-unsound args))]))
+     `(,(string->symbol (format "sound-~a" op)) ,@(map add-unsound args)
+                                                ,(string->symbol (format "t_~a" (unsound-counter))))]
+    [(list op args ...) (cons op (map add-unsound args))]))
 
 (define (*sound-removal-rules*)
   (list (rule 'remove-sound-/ '(/ a b) '(sound-/ a b 0) '(sound-removal))
