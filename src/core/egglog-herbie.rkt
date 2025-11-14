@@ -315,7 +315,7 @@
   (for/list ([impl (in-list (platform-impls pform))])
     (define spec-expr (impl-info impl 'spec))
     (define arity (length (impl-info impl 'itype)))
-    `(rule ((= e ,(expr->egglog-spec-serialized spec-expr ""))
+    `(rule ((= e ,(expr->egglog-spec-serialized (add-unsound spec-expr) ""))
             ,@(for/list ([v (in-list (impl-info impl 'vars))]
                          [vt (in-list (impl-info impl 'itype))])
                 `(= ,(string->symbol (string-append "t" (symbol->string v)))
