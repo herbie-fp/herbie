@@ -5,7 +5,8 @@
          "types.rkt"
          "generators.rkt"
          "../utils/errors.rkt"
-         "../config.rkt")
+         "../config.rkt"
+         rival/eval/types)
 
 (provide define-representation
          define-operation
@@ -24,56 +25,14 @@
 ;; Specification checking and operator implementation creation moved
 ;; from syntax.rkt
 (define (check-spec! name ctx spec)
-  (define (bad! fmt . args)
-    (error name "~a in `~a`" (apply format fmt args) spec))
-
-  (define (type-error! expr actual-ty expect-ty)
-    (bad! "expression `~a` has type `~a`, expected `~a`" expr actual-ty expect-ty))
-
   (match-define (context vars repr var-reprs) ctx)
-  (define itypes (map representation-type var-reprs))
+  (define env (map cons vars (map representation-type var-reprs)))
   (define otype (representation-type repr))
 
-  (unless (= (length itypes) (length vars))
-    (bad! "arity mismatch; expected ~a, got ~a" (length itypes) (length vars)))
-
-  (define env (map cons vars itypes))
-  (define actual-ty
-    (let type-of ([expr spec])
-      (match expr
-        [(? number?) 'real]
-        [(? symbol?)
-         #:when (assq expr env)
-         (cdr (assq expr env))]
-        [(? symbol?) (bad! "unbound variable `~a`" expr)]
-        [`(if ,cond ,ift ,iff)
-         (define cond-ty (type-of cond))
-         (unless (equal? cond-ty 'bool)
-           (type-error! cond cond-ty 'bool))
-         (define ift-ty (type-of ift))
-         (define iff-ty (type-of iff))
-         (unless (equal? ift-ty iff-ty)
-           (type-error! iff iff-ty ift-ty))
-         ift-ty]
-        [`(,op ,args ...)
-         (unless (operator-exists? op)
-           (bad! "at `~a`, `~a` not an operator" expr op))
-         (define itypes (operator-info op 'itype))
-         (unless (= (length itypes) (length args))
-           (bad! "arity mismatch at `~a`: expected `~a`, got `~a`"
-                 expr
-                 (length itypes)
-                 (length args)))
-         (for ([arg (in-list args)]
-               [itype (in-list itypes)])
-           (define arg-ty (type-of arg))
-           (unless (equal? itype arg-ty)
-             (type-error! arg arg-ty itype)))
-         (operator-info op 'otype)]
-        [_ (bad! "expected an expression, got `~a`" expr)])))
-
-  (unless (equal? actual-ty otype)
-    (type-error! spec actual-ty otype)))
+  (match (rival-type spec env)
+    [(== otype) (void)]
+    [#f (error name "expression ~a is ill-typed, expected `~a`" spec otype)]
+    [actual-ty (error name "expression ~a has type `~a`, expected `~a`" spec actual-ty otype)]))
 
 (define fpcore-context (make-parameter '_))
 
