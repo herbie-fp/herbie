@@ -147,7 +147,7 @@
 
 (define filtered-again (filter (lambda (n)
                                  (and (> (length (free-variables n)) 0)
-                                      (< (length (free-variables n)) 4))) filtered-subexprs))
+                                      (< (length (free-variables n)) 5))) filtered-subexprs))
 
 (define renamed-subexprs (map rename-vars filtered-again))
 (define pairs (hash->list (count-frequencies renamed-subexprs)))
