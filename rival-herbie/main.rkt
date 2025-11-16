@@ -6,45 +6,50 @@
          math/bigfloat
          racket/runtime-path)
 
-(provide
-  rival-compile
-  rival-apply
-  rival-profile
-  rival-analyze-with-hints
-  (struct-out execution)
-  (struct-out discretization)
-  boolean-discretization
-  *rival-max-precision*
-  *rival-max-iterations*
-  *rival-profile-executions*
-  exn:rival:invalid?
-  exn:rival:unsamplable?)
+(provide rival-compile
+         rival-apply
+         rival-profile
+         rival-analyze-with-hints
+         (struct-out execution)
+         (struct-out discretization)
+         boolean-discretization
+         *rival-max-precision*
+         *rival-max-iterations*
+         *rival-profile-executions*
+         exn:rival:invalid?
+         exn:rival:unsamplable?)
 
 (define-runtime-path librival-path
-  (build-path "target/release"
-              (string-append (case (system-type)
-                               [(windows) "rival_herbie"]
-                               [else "librival_herbie"])
-                             (bytes->string/utf-8 (system-type 'so-suffix)))))
+                     (build-path "target/release"
+                                 (string-append (case (system-type)
+                                                  [(windows) "rival_herbie"]
+                                                  [else "librival_herbie"])
+                                                (bytes->string/utf-8 (system-type 'so-suffix)))))
 
+; Checks if Racket is being run in emulation via rosetta
 (define (running-on-rosetta?)
   (and (equal? (system-type 'os) 'macosx)
        (equal? (system-type 'arch) 'x86_64)
-       (equal? (with-output-to-string (lambda () (system "sysctl -n sysctl.proc_translated")))
+       (equal? (with-output-to-string (lambda () ; returns true if running in emulation
+                                        (system "sysctl -n sysctl.proc_translated")))
                "1\n")))
 
+; Note, this message should not be reached.
 (define fallback-message
   (string-append "Error: unable to load the 'rival_herbie' library\n"
                  "Please file a bug at https://github.com/herbie-fp/herbie/issues"))
 
+; Note, refering to ARM as Apple Silicon to match Racket download page.
 (define rosetta-message
   (string-append "Error: You are running the 'x86' version of Racket via 'Rosetta' emulation.\n"
                  "  Please use the 'Apple Silicon' version of Racket instead.\n"
                  "You can install it from https://download.racket-lang.org"))
 
 (define (handle-rival-import-failure)
-  (raise-user-error (if (running-on-rosetta?) rosetta-message fallback-message)))
+  (define error-message (if (running-on-rosetta?) rosetta-message fallback-message))
+  (raise-user-error error-message))
 
+; Checks for a condition on MacOS if x86 Racket is being used on an ARM mac.
 (define-ffi-definer define-rival (ffi-lib librival-path #:fail handle-rival-import-failure))
 
 ;; CString helpers
@@ -72,23 +77,25 @@
                (register-finalizer p rival_destroy)
                p)))
 
-(define-rival rival_compile (_fun _string      ;; vars sexpr (NUL-terminated UTF-8)
-                                  _string      ;; exprs sexpr (list of exprs)
-                                  _uint32      ;; precision (53 for binary64)
-                                  ->
-                                  _rival-pointer))
+(define-rival rival_compile
+              (_fun _string ;; vars sexpr (NUL-terminated UTF-8)
+                    _string ;; exprs sexpr (list of exprs)
+                    _uint32 ;; precision (53 for binary64)
+                    ->
+                    _rival-pointer))
 (define-rival rival_destroy (_fun _rival-pointer -> _void))
 (define-rival rival_instruction_count (_fun _rival-pointer -> _uint32))
 (define-rival rival_bumps (_fun _rival-pointer -> _uint32))
-(define-rival rival_apply (_fun _rival-pointer
-                                    _f64vector ;; point data
-                                    _uint32    ;; length
-                                    _uint32    ;; max iterations
-                                    (out-len : (_ptr o _uint32))
-                                    ->
-                                    (out-ptr : _pointer)
-                                    ->
-                                    (values out-ptr out-len)))
+(define-rival rival_apply
+              (_fun _rival-pointer
+                    _f64vector ;; point data
+                    _uint32 ;; length
+                    _uint32 ;; max iterations
+                    (out-len : (_ptr o _uint32))
+                    ->
+                    (out-ptr : _pointer)
+                    ->
+                    (values out-ptr out-len)))
 (define-rival destroy_f64_array (_fun _pointer _uint32 -> _void))
 (define-rival rival_last_iterations (_fun _rival-pointer -> _uint32))
 
@@ -112,18 +119,20 @@
 (define-values (exn:rival:unsamplable? make-exn:rival:unsamplable)
   (let ()
     (define-struct (exn:rival:unsamplable exn:fail) ())
-    (values exn:rival:unsamplable? (lambda (msg) (exn:rival:unsamplable msg (current-continuation-marks))))))
+    (values exn:rival:unsamplable?
+            (lambda (msg) (exn:rival:unsamplable msg (current-continuation-marks))))))
 
 ;; Public API
 
 (define (rival-compile exprs vars discs)
-;   (eprintf "[rival-herbie] compile ~a vars ~a\n" exprs vars)
-  (define precision (if (and (list? discs)
-                             (pair? discs)
-                             (discretization? (car discs))
-                             (>= (discretization-bits (car discs)) 53))
-                        53
-                        53))
+  ;   (eprintf "[rival-herbie] compile ~a vars ~a\n" exprs vars)
+  (define precision
+    (if (and (list? discs)
+             (pair? discs)
+             (discretization? (car discs))
+             (>= (discretization-bits (car discs)) 53))
+        53
+        53))
   ;; Convert exact Racket numbers to inexact f64
   (define (inexactify x)
     (cond
@@ -139,17 +148,16 @@
   (rival_compile vars-str exprs-str precision))
 
 (define (rival-apply machine pt* [hint #f])
-;   (eprintf "[rival-herbie] apply on ~a\n" (vector->list pt*))
+  ;   (eprintf "[rival-herbie] apply on ~a\n" (vector->list pt*))
   ;; Convert bigfloats to f64 for FFI; this is a best-effort discretization
-  (define f64s (list->f64vector
-                (for/list ([v (in-vector pt*)])
-                  (cond
-                    [(bigfloat? v) (real->double-flonum (bigfloat->real v))]
-                    [(real? v) (real->double-flonum v)]
-                    [else 0.0]))))
+  (define f64s
+    (list->f64vector (for/list ([v (in-vector pt*)])
+                       (cond
+                         [(bigfloat? v) (real->double-flonum (bigfloat->real v))]
+                         [(real? v) (real->double-flonum v)]
+                         [else 0.0]))))
   (define max-iters (*rival-max-iterations*))
-  (define-values (out-ptr out-len)
-    (rival_apply machine f64s (f64vector-length f64s) max-iters))
+  (define-values (out-ptr out-len) (rival_apply machine f64s (f64vector-length f64s) max-iters))
   (define len out-len)
   (define arr (make-f64vector len))
   (for ([i (in-range len)])
