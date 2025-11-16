@@ -125,7 +125,6 @@
 ;; Public API
 
 (define (rival-compile exprs vars discs)
-  ;   (eprintf "[rival-herbie] compile ~a vars ~a\n" exprs vars)
   (define precision
     (if (and (list? discs)
              (pair? discs)
@@ -148,7 +147,6 @@
   (rival_compile vars-str exprs-str precision))
 
 (define (rival-apply machine pt* [hint #f])
-  ;   (eprintf "[rival-herbie] apply on ~a\n" (vector->list pt*))
   ;; Convert bigfloats to f64 for FFI; this is a best-effort discretization
   (define f64s
     (list->f64vector (for/list ([v (in-vector pt*)])

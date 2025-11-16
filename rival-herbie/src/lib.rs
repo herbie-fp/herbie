@@ -1,5 +1,6 @@
 #![allow(clippy::missing_safety_doc)]
 
+use eval::ops::Expr as E;
 use libc::strlen;
 use rival::eval::machine::{Discretization, Machine, MachineBuilder};
 use rival::eval::{self};
@@ -21,10 +22,6 @@ pub unsafe extern "C" fn string_length(ptr: *const c_char) -> u32 {
     strlen(ptr) as u32
 }
 
-fn to_c_string(s: &str) -> *mut c_char {
-    CString::new(s).unwrap().into_raw()
-}
-
 unsafe fn from_c_str_lossy(p: *const c_char) -> String {
     CStr::from_ptr(p).to_string_lossy().into_owned()
 }
@@ -42,9 +39,7 @@ fn parse_sexpr(s: &str) -> Result<SExpr, String> {
     parse_sexpr_inner(&mut chars)
 }
 
-fn parse_sexpr_inner(
-    chars: &mut std::iter::Peekable<std::str::Chars>,
-) -> Result<SExpr, String> {
+fn parse_sexpr_inner(chars: &mut std::iter::Peekable<std::str::Chars>) -> Result<SExpr, String> {
     skip_whitespace(chars);
     match chars.peek() {
         Some('(') => {
@@ -97,7 +92,6 @@ fn sexpr_to_expr_env(
     vars: &[String],
     env: &[(String, eval::ast::Expr)],
 ) -> Result<eval::ast::Expr, String> {
-    use eval::ops::Expr as E;
     match sexpr {
         SExpr::Atom(s) => {
             // Look up let-bound names first
@@ -149,26 +143,28 @@ fn sexpr_to_expr_env(
                 SExpr::Atom(s) => s.as_str(),
                 _ => return Err("Invalid operator".to_string()),
             };
-            use eval::ops::{TernaryOp as T, UnaryOp as U, UnaryParamOp as U1};
             // Helper folds for variadic ops
-            let mut fold_left = |mut acc: eval::ast::Expr, rest: &[SExpr], bop: &str| -> Result<E, String> {
-                for a in rest {
-                    let rhs = sexpr_to_expr_env(a, vars, env)?;
-                    acc = match bop {
-                        "+" => E::Add(Box::new(acc), Box::new(rhs)),
-                        "-" => E::Sub(Box::new(acc), Box::new(rhs)),
-                        "*" => E::Mul(Box::new(acc), Box::new(rhs)),
-                        "/" => E::Div(Box::new(acc), Box::new(rhs)),
-                        _ => return Err(format!("unsupported fold op: {}", bop)),
-                    };
-                }
-                Ok(acc)
-            };
+            let fold_left =
+                |mut acc: eval::ast::Expr, rest: &[SExpr], bop: &str| -> Result<E, String> {
+                    for a in rest {
+                        let rhs = sexpr_to_expr_env(a, vars, env)?;
+                        acc = match bop {
+                            "+" => E::Add(Box::new(acc), Box::new(rhs)),
+                            "-" => E::Sub(Box::new(acc), Box::new(rhs)),
+                            "*" => E::Mul(Box::new(acc), Box::new(rhs)),
+                            "/" => E::Div(Box::new(acc), Box::new(rhs)),
+                            _ => return Err(format!("unsupported fold op: {}", bop)),
+                        };
+                    }
+                    Ok(acc)
+                };
             let e = match sym {
                 // Let and Let*
                 "let" | "let*" => {
                     // (let ((v1 e1) (v2 e2) ...) body)
-                    if args.is_empty() { return Err("let without args".to_string()); }
+                    if args.is_empty() {
+                        return Err("let without args".to_string());
+                    }
                     let bindings = &args[0];
                     let body = args.get(1).ok_or_else(|| "let missing body".to_string())?;
                     let mut new_env: Vec<(String, E)> = env.to_vec();
@@ -181,7 +177,10 @@ fn sexpr_to_expr_env(
                                 for p in pairs {
                                     match p {
                                         SExpr::List(kv) if kv.len() == 2 => {
-                                            let name = match &kv[0] { SExpr::Atom(s) => s.clone(), _ => return Err("let binding name".to_string()) };
+                                            let name = match &kv[0] {
+                                                SExpr::Atom(s) => s.clone(),
+                                                _ => return Err("let binding name".to_string()),
+                                            };
                                             let val = sexpr_to_expr_env(&kv[1], vars, env)?;
                                             evaluated.push((name, val));
                                         }
@@ -194,7 +193,10 @@ fn sexpr_to_expr_env(
                                 for p in pairs {
                                     match p {
                                         SExpr::List(kv) if kv.len() == 2 => {
-                                            let name = match &kv[0] { SExpr::Atom(s) => s.clone(), _ => return Err("let* binding name".to_string()) };
+                                            let name = match &kv[0] {
+                                                SExpr::Atom(s) => s.clone(),
+                                                _ => return Err("let* binding name".to_string()),
+                                            };
                                             let val = sexpr_to_expr_env(&kv[1], vars, &new_env)?;
                                             new_env.push((name, val));
                                         }
@@ -216,52 +218,47 @@ fn sexpr_to_expr_env(
                 // Treat INFINITY/NAN as literals; Rival interval engine will clamp appropriately
                 "INFINITY" if args.is_empty() => E::Literal(f64::INFINITY),
                 "NAN" if args.is_empty() => E::Literal(f64::NAN),
-                "+" => {
-                    match args.len() {
-                        0 => E::Literal(0.0),
-                        1 => sexpr_to_expr_env(&args[0], vars, env)?,
-                        _ => {
-                            let first = sexpr_to_expr_env(&args[0], vars, env)?;
-                            fold_left(first, &args[1..], "+")?
-                        }
+                "+" => match args.len() {
+                    0 => E::Literal(0.0),
+                    1 => sexpr_to_expr_env(&args[0], vars, env)?,
+                    _ => {
+                        let first = sexpr_to_expr_env(&args[0], vars, env)?;
+                        fold_left(first, &args[1..], "+")?
                     }
-                }
-                "-" => {
-                    match args.len() {
-                        1 => E::Neg(Box::new(sexpr_to_expr_env(&args[0], vars, env)?)),
-                        2 => E::Sub(
-                            Box::new(sexpr_to_expr_env(&args[0], vars, env)?),
-                            Box::new(sexpr_to_expr_env(&args[1], vars, env)?),
-                        ),
-                        _ => {
-                            let first = sexpr_to_expr_env(&args[0], vars, env)?;
-                            fold_left(first, &args[1..], "-")?
-                        }
+                },
+                "-" => match args.len() {
+                    1 => E::Neg(Box::new(sexpr_to_expr_env(&args[0], vars, env)?)),
+                    2 => E::Sub(
+                        Box::new(sexpr_to_expr_env(&args[0], vars, env)?),
+                        Box::new(sexpr_to_expr_env(&args[1], vars, env)?),
+                    ),
+                    _ => {
+                        let first = sexpr_to_expr_env(&args[0], vars, env)?;
+                        fold_left(first, &args[1..], "-")?
                     }
-                }
-                "*" => {
-                    match args.len() {
-                        0 => E::Literal(1.0),
-                        1 => sexpr_to_expr_env(&args[0], vars, env)?,
-                        _ => {
-                            let first = sexpr_to_expr_env(&args[0], vars, env)?;
-                            fold_left(first, &args[1..], "*")?
-                        }
+                },
+                "*" => match args.len() {
+                    0 => E::Literal(1.0),
+                    1 => sexpr_to_expr_env(&args[0], vars, env)?,
+                    _ => {
+                        let first = sexpr_to_expr_env(&args[0], vars, env)?;
+                        fold_left(first, &args[1..], "*")?
                     }
-                }
-                "/" => {
-                    match args.len() {
-                        1 => E::Div(Box::new(E::Literal(1.0)), Box::new(sexpr_to_expr_env(&args[0], vars, env)?)),
-                        2 => E::Div(
-                            Box::new(sexpr_to_expr_env(&args[0], vars, env)?),
-                            Box::new(sexpr_to_expr_env(&args[1], vars, env)?),
-                        ),
-                        _ => {
-                            let first = sexpr_to_expr_env(&args[0], vars, env)?;
-                            fold_left(first, &args[1..], "/")?
-                        }
+                },
+                "/" => match args.len() {
+                    1 => E::Div(
+                        Box::new(E::Literal(1.0)),
+                        Box::new(sexpr_to_expr_env(&args[0], vars, env)?),
+                    ),
+                    2 => E::Div(
+                        Box::new(sexpr_to_expr_env(&args[0], vars, env)?),
+                        Box::new(sexpr_to_expr_env(&args[1], vars, env)?),
+                    ),
+                    _ => {
+                        let first = sexpr_to_expr_env(&args[0], vars, env)?;
+                        fold_left(first, &args[1..], "/")?
                     }
-                }
+                },
                 "neg" => E::Neg(Box::new(sexpr_to_expr_env(&args[0], vars, env)?)),
                 "fabs" => E::Fabs(Box::new(sexpr_to_expr_env(&args[0], vars, env)?)),
                 "sqrt" => E::Sqrt(Box::new(sexpr_to_expr_env(&args[0], vars, env)?)),
@@ -412,7 +409,11 @@ impl Discretization for Fp64Discretization {
         let y = hi.to_f64();
         #[inline]
         fn ordinal64(v: f64) -> i128 {
-            if v < 0.0 { -((-v).abs().to_bits() as i128) } else { v.abs().to_bits() as i128 }
+            if v < 0.0 {
+                -((-v).abs().to_bits() as i128)
+            } else {
+                v.abs().to_bits() as i128
+            }
         }
         let ox = ordinal64(x);
         let oy = ordinal64(y);
@@ -444,7 +445,11 @@ impl Discretization for BfDiscretization {
                 rival::mpfr::mpfr_nextabove(&mut current);
                 count += 1;
             }
-            if current == target { count } else { usize::MAX }
+            if current == target {
+                count
+            } else {
+                usize::MAX
+            }
         }
     }
 }
@@ -456,7 +461,10 @@ enum MachineBox {
 
 impl MachineBox {
     fn bumps(&self) -> usize {
-        match self { MachineBox::Fp64(m) => m.bumps(), MachineBox::Bf(m) => m.bumps() }
+        match self {
+            MachineBox::Fp64(m) => m.bumps(),
+            MachineBox::Bf(m) => m.bumps(),
+        }
     }
     fn load_args_and_run(&mut self, point: &[f64], max_iter: usize) -> (u32, Vec<Ival>) {
         match self {
@@ -472,7 +480,11 @@ impl MachineBox {
     }
 }
 
-fn run_machine<D: Discretization>(machine: &mut Machine<D>, point: &[f64], max_iter: usize) -> (u32, Vec<Ival>) {
+fn run_machine<D: Discretization>(
+    machine: &mut Machine<D>,
+    point: &[f64],
+    max_iter: usize,
+) -> (u32, Vec<Ival>) {
     let prec = machine.disc.target().max(53);
     let input_ivals: Vec<Ival> = point
         .iter()
@@ -482,16 +494,35 @@ fn run_machine<D: Discretization>(machine: &mut Machine<D>, point: &[f64], max_i
             ival
         })
         .collect();
-    machine.load_arguments(&input_ivals);
-    let hints = machine.default_hint().to_vec();
-    let mut last_iter = 0u32;
-    for iter in 0..=max_iter {
-        last_iter = iter as u32;
-        if let Ok(Some(final_vals)) = machine.run_iteration(iter, &hints) {
-            return (last_iter, final_vals);
+
+    let result = machine.apply(&input_ivals, None, max_iter);
+
+    match result {
+        Ok(ivals) => {
+            // Get the actual iteration count from profiler if available
+            let iter_count = if !machine.state.profiler.records().is_empty() {
+                machine
+                    .state
+                    .profiler
+                    .records()
+                    .iter()
+                    .map(|e| e.iteration)
+                    .max()
+                    .unwrap_or(0)
+                    + 1
+            } else {
+                0
+            };
+            (iter_count as u32, ivals)
+        }
+        Err(_) => {
+            // Return zero values on error
+            (
+                max_iter as u32,
+                machine.outputs().iter().map(|_| Ival::zero(prec)).collect(),
+            )
         }
     }
-    (last_iter, machine.outputs().iter().map(|_| Ival::zero(prec)).collect())
 }
 
 #[repr(C)]
@@ -511,7 +542,8 @@ pub unsafe extern "C" fn rival_compile(
     let vars_sexpr = parse_sexpr(&vars_str).unwrap_or(SExpr::List(vec![]));
     let vars = extract_vars(&vars_sexpr).unwrap_or_else(|_| Vec::new());
     let exprs_sexpr = parse_sexpr(&exprs_str).unwrap_or(SExpr::List(vec![]));
-    let exprs = extract_exprs(&exprs_sexpr, &vars).unwrap_or_else(|_| vec![eval::ops::Expr::Literal(0.0)]);
+    let exprs =
+        extract_exprs(&exprs_sexpr, &vars).unwrap_or_else(|_| vec![eval::ops::Expr::Literal(0.0)]);
 
     let machine = if precision == 53 {
         let disc = Fp64Discretization;
@@ -520,7 +552,10 @@ pub unsafe extern "C" fn rival_compile(
         let disc = BfDiscretization { precision };
         MachineBox::Bf(MachineBuilder::new(disc).build(exprs, vars))
     };
-    Box::into_raw(Box::new(RivalContext { machine, last_iterations: 0 }))
+    Box::into_raw(Box::new(RivalContext {
+        machine,
+        last_iterations: 0,
+    }))
 }
 
 #[no_mangle]
@@ -551,8 +586,11 @@ pub unsafe extern "C" fn rival_apply(
     let ctx = &mut *ctx;
     let n = point_len as usize;
     let point = std::slice::from_raw_parts(point_ptr, n);
-    let (iters, ivals) = ctx.machine.load_args_and_run(point, max_iterations as usize);
+    let (iters, ivals) = ctx
+        .machine
+        .load_args_and_run(point, max_iterations as usize);
     ctx.last_iterations = iters;
+
     let mut out: Vec<f64> = Vec::with_capacity(ivals.len());
     for iv in ivals.iter() {
         // Best-effort: take midpoint as a scalar representative
@@ -561,6 +599,7 @@ pub unsafe extern "C" fn rival_apply(
         let mid = if lo == hi { lo } else { 0.5f64 * (lo + hi) };
         out.push(mid);
     }
+
     ptr::write(out_len_ptr, out.len() as u32);
     let ptr = out.as_mut_ptr();
     std::mem::forget(out);
