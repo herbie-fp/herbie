@@ -175,30 +175,30 @@
   #:spec x #:fpcore (! :precision binary64 (cast x)) #:impl identity #:cost 64)
 
 
-(define-operation (sin-xy.f64 [x <binary64>] [y <binary64>])
+(define-operation (sin_xy.f64 [x <binary64>] [y <binary64>])
                   <binary64>
                   #:spec (sin (* x y))
                   #:impl (from-accelerators 'sin_xy)
-                  #:fpcore (! :precision binary64 (sin-xy x y))
+                  #:fpcore (! :precision binary64 (sin_xy x y))
                   #:cost 12800)
 
-(define-operation (cos-xy.f64 [x <binary64>] [y <binary64>])
+(define-operation (cos_xy.f64 [x <binary64>] [y <binary64>])
                   <binary64>
                   #:spec (cos (* x y))
                   #:impl (from-accelerators 'cos_xy)
-                  #:fpcore (! :precision binary64 (cos-xy x y))
+                  #:fpcore (! :precision binary64 (cos_xy x y))
                   #:cost 12800)
 
-(define-operation (sin-quotient-xy.f64 [x <binary64>] [y <binary64>])
+(define-operation (sin_quotient_xy.f64 [x <binary64>] [y <binary64>])
                   <binary64>
                   #:spec (sin (/ x y))
                   #:impl (from-accelerators 'sin_quotient_xy)
-                  #:fpcore (! :precision binary64 (sin-quotient-xy x y))
+                  #:fpcore (! :precision binary64 (sin_quotient_xy x y))
                   #:cost 12800)
 
-(define-operation (cos-quotient-xy.f64 [x <binary64>] [y <binary64>])
+(define-operation (cos_quotient_xy.f64 [x <binary64>] [y <binary64>])
                   <binary64>
                   #:spec (cos (/ x y))
                   #:impl (from-accelerators 'cos_quotient_xy)
-                  #:fpcore (! :precision binary64 (cos-quotient-xy x y))
+                  #:fpcore (! :precision binary64 (cos_quotient_xy x y))
                   #:cost 12800)
