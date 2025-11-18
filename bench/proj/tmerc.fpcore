@@ -18,13 +18,6 @@
    (/ (* cosphi lam)
       (sqrt den))))
 
-(FPCore (phi es)
- :name "approx-inv-meridional-con"
- :pre (and (>= es 0.0)
-           (< es 1.0))
- (let ([sinphi (sin phi)])
-   (- 1.0 (* es (* sinphi sinphi)))))
-
 (FPCore (phi x es k0)
  :name "approx-inv-d-term"
  :pre (and (>= es 0.0)
