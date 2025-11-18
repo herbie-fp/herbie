@@ -49,14 +49,6 @@
  (let ([theta (+ (/ PI 4.0) (* 0.5 phidp))])
    (log (tan theta))))
 
-(FPCore (lamdp p22 sa t w q)
- :name "forward-s"
- (let* ([sd (sin lamdp)]
-        [sdsq (* sd sd)]
-        [numer (+ 1.0 (* t sdsq))]
-        [denom (* (+ 1.0 (* w sdsq)) (+ 1.0 (* q sdsq)))])
-   (* p22 (* sa (* (cos lamdp) (sqrt (/ numer denom)))))))
-
 (FPCore (lamdp b a2 a4 tanph s xj)
  :name "forward-xy-x"
  (let* ([d (sqrt (+ (* xj xj) (* s s)))])

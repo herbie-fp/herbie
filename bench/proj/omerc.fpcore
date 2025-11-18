@@ -42,10 +42,6 @@
  :name "inverse-Qp"
  (exp (- (* BrA v))))
 
-(FPCore (Qp)
- :name "inverse-Tp"
- (* 0.5 (+ Qp (/ 1.0 Qp))))
-
 (FPCore (Sp Tp Vp singam cosgam)
  :name "inverse-Up"
  (/ (+ (* Vp cosgam) (* Sp singam)) Tp))
@@ -153,7 +149,3 @@
 (FPCore (ArB gamma0)
  :name "init-v-pole-n"
  (* ArB (log (tan (- (/ PI 4.0) (* 0.5 gamma0))))))
-
-(FPCore (ArB gamma0)
- :name "init-v-pole-s"
- (* ArB (log (tan (+ (/ PI 4.0) (* 0.5 gamma0))))))

@@ -8,20 +8,6 @@
           (/ (* es (pow (cos phi0) 4.0))
              (- 1.0 es)))))
 
-(FPCore (phi0 evar alpha)
- :name "setup-g"
- :pre (and (>= evar 0.0)
-           (< evar 1.0)
-           (> alpha 0.0))
- (pow (/ (+ 1.0 (* evar (sin phi0)))
-         (- 1.0 (* evar (sin phi0))))
-      (* 0.5 (* alpha evar))))
-
-(FPCore (phi0 alpha)
- :name "setup-u0"
- :pre (> alpha 0.0)
- (asin (/ (sin phi0) alpha)))
-
 (FPCore (u0 phi0 alpha g)
  :name "setup-k"
  :pre (and (> g 0.0)
@@ -68,10 +54,6 @@
  :name "krovak-forward-s"
  (asin (+ (* (cos ad) (sin u))
           (* (sin ad) (* (cos u) (cos deltav))))))
-
-(FPCore (u deltav s)
- :name "forward-d"
- (asin (/ (* (cos u) (sin deltav)) (cos s))))
 
 (FPCore (rho0 s n)
  :name "forward-rho"
@@ -151,10 +133,6 @@
  :name "inverse-u"
  (asin (+ (* (cos ad) (sin s))
           (* -1.0 (* (sin ad) (* (cos s) (cos d)))))))
-
-(FPCore (s d u)
- :name "inverse-deltav"
- (asin (/ (* (cos s) (sin d)) (cos u))))
 
 (FPCore (u k alpha evar fi)
  :name "inverse-phi-iter"
