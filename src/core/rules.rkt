@@ -7,7 +7,6 @@
 
 (provide *rules*
          add-unsound
-         *sound-removal-rules*
          (struct-out rule))
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
@@ -620,7 +619,9 @@
                                                 ,(string->symbol (format "t_~a" (unsound-counter))))]
     [(list op args ...) (cons op (map add-unsound args))]))
 
-(define (*sound-removal-rules*)
-  (list (rule 'remove-sound-/ '(/ a b) '(sound-/ a b 0) '(sound-removal))
-        (rule 'remove-sound-pow '(pow a b) '(sound-pow a b 0) '(sound-removal))
-        (rule 'remove-sound-log '(log a) '(sound-log a 0) '(sound-removal))))
+(define-rules arithmetic
+  [add-sound-/ '(/ a b) '(sound-/ a b 0)]
+  [add-sound-pow '(pow a b) '(sound-pow a b 0)]
+  [add-sound-log '(log a) '(sound-log a 0)]
+  [remove-sound-/ '(sound-/ a 0 b) b]
+  [remove-sound-log '(sound-log 0 b) b])
