@@ -16,7 +16,8 @@ When you receive a new source file:
    - Convert to FPCore using lisp syntax.
    - Add a `:pre` condition mirroring parameter invarients. Don't worry about adding `:pre` conditions for mathematical domain checks as Herbie's sampler already takes care of this. 
    - Name the fpcores something reasonable but don't prefix the name with the name of the benchmark file.
-   - Use `let*` and `let` as needed.
+   - Use `let*` and `let` as needed. Make sure to wrap variable assignment in square brackets in `let` expressions.
+   - Ensure that `+` and `*` are only used as binary operations.
    - Preserve structure instead of using algebraic simplifications.
 
 4. **Validate syntax.** Run
