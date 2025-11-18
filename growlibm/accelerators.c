@@ -2,6 +2,8 @@
 #include <math.h>
 #include <stdio.h>
 
+#include "accelerators.h"
+
 static inline void sincos_wrapper(double x, double* s, double* c) {
 #if defined(__APPLE__)
     __sincos(x, s, c);
