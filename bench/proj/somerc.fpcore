@@ -8,17 +8,17 @@
  :name "forward-ellipsoid-logratio"
  :pre (and (> ecc 0.0)
            (< ecc 1.0))
- (let ((sp (* ecc (sin phi))))
+ (let ([sp (* ecc (sin phi))])
    (log (/ (+ 1.0 sp) (- 1.0 sp)))))
 
 (FPCore (phi ecc c hlf_e K)
  :name "forward-phip"
  :pre (and (> ecc 0.0)
            (< ecc 1.0))
- (let* ((sp (* ecc (sin phi)))
-        (log_tan (log (tan (+ (/ PI 4.0) (* 0.5 phi)))))
-        (log_ratio (log (/ (+ 1.0 sp) (- 1.0 sp))))
-        (exponent (+ (* c (- log_tan (* hlf_e log_ratio))) K)))
+ (let* ([sp (* ecc (sin phi))]
+        [log_tan (log (tan (+ (/ PI 4.0) (* 0.5 phi))))]
+        [log_ratio (log (/ (+ 1.0 sp) (- 1.0 sp)))]
+        [exponent (+ (* c (- log_tan (* hlf_e log_ratio))) K)])
    (- (* 2.0 (atan (exp exponent))) (/ PI 2.0))))
 
 (FPCore (phip cosp0 sinp0 lamp)
@@ -61,11 +61,11 @@
  :name "inverse-delp"
  :pre (and (> ecc 0.0)
            (< ecc 1.0))
- (let* ((esp (* ecc (sin phip)))
-        (log_tan (log (tan (+ (/ PI 4.0) (* 0.5 phip)))))
-        (log_ratio (log (/ (+ 1.0 esp) (- 1.0 esp))))
-        (term (- (+ con log_tan) (* hlf_e log_ratio)))
-        (factor (* (- 1.0 (* esp esp)) (* (cos phip) rone_es))))
+ (let* ([esp (* ecc (sin phip))]
+        [log_tan (log (tan (+ (/ PI 4.0) (* 0.5 phip))))]
+        [log_ratio (log (/ (+ 1.0 esp) (- 1.0 esp)))]
+        [term (- (+ con log_tan) (* hlf_e log_ratio))]
+        [factor (* (- 1.0 (* esp esp)) (* (cos phip) rone_es))])
    (* term factor)))
 
 (FPCore (phi0 es rone_es)
@@ -73,9 +73,9 @@
  :pre (and (>= es 0.0)
            (< es 1.0)
            (> rone_es 0.0))
- (let* ((cosphi0 (cos phi0))
-        (cos2 (* cosphi0 cosphi0))
-        (cos4 (* cos2 cos2)))
+ (let* ([cosphi0 (cos phi0)]
+        [cos2 (* cosphi0 cosphi0)]
+        [cos4 (* cos2 cos2)])
    (sqrt (+ 1.0 (* es (* cos4 rone_es))))))
 
 (FPCore (phi0 c)
@@ -87,10 +87,10 @@
  :pre (and (> c 0.0)
            (> ecc 0.0)
            (< ecc 1.0))
- (let* ((sp (* ecc (sin phi0)))
-        (log_tan_phi   (log (tan (+ (/ PI 4.0) (* 0.5 phi0)))))
-        (log_tan_phip0 (log (tan (+ (/ PI 4.0) (* 0.5 phip0)))))
-        (log_ratio     (log (/ (+ 1.0 sp) (- 1.0 sp)))))
+ (let* ([sp (* ecc (sin phi0))]
+        [log_tan_phi   (log (tan (+ (/ PI 4.0) (* 0.5 phi0))))]
+        [log_tan_phip0 (log (tan (+ (/ PI 4.0) (* 0.5 phip0))))]
+        [log_ratio     (log (/ (+ 1.0 sp) (- 1.0 sp)))])
    (- log_tan_phip0
       (* c (- log_tan_phi (* hlf_e log_ratio))))))
 
@@ -100,6 +100,6 @@
            (> one_es 0.0)
            (> ecc 0.0)
            (< ecc 1.0))
- (let ((sp (* ecc (sin phi0))))
+ (let ([sp (* ecc (sin phi0))])
    (/ (* k0 (sqrt one_es)) (- 1.0 (* sp sp)))))
    
