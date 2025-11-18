@@ -81,11 +81,6 @@
        (atan2 g cD)
        0.0)))
 
-(FPCore (angle esp phi0)
- :name "spherical-y-scale-shift"
- :pre (> esp 0.0)
- (* esp (- angle phi0)))
-
 (FPCore (Cn lam)
  :name "exact-forward-conformal-lat"
  (let ((sC (sin Cn))

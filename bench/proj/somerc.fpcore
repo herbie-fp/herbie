@@ -102,3 +102,4 @@
            (< ecc 1.0))
  (let ((sp (* ecc (sin phi0))))
    (/ (* k0 (sqrt one_es)) (- 1.0 (* sp sp)))))
+   
