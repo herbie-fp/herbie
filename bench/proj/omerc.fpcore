@@ -149,3 +149,12 @@
 (FPCore (ArB gamma0)
  :name "init-v-pole-n"
  (* ArB (log (tan (- (/ PI 4.0) (* 0.5 gamma0))))))
+
+(FPCore (phi e)
+ :name "pj_tsfn"
+ (let* ([sinphi (sin phi)]
+        [e_sin (* e sinphi)])
+   (* (tan (* 0.5 (- (/ PI 2) phi)))
+      (pow (/ (+ 1.0 e_sin) 
+              (- 1.0 e_sin)) 
+           (* 0.5 e)))))
