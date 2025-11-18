@@ -60,14 +60,13 @@
 ;; The schedule is a list of step symbols:
 ;;  - `lift`: run lifting rules for 1 iteration with simple scheduler
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
-;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
 ;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
 (define (make-egglog-runner batch brfs reprs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
   (for ([step (in-list schedule)])
-    (unless (memq step '(lift lower unsound rewrite))
+    (unless (memq step '(lift lower rewrite))
       (oops! "unknown schedule step `~a`" step)))
 
   ; make the runner
@@ -147,7 +146,6 @@
     (match step
       ['lift (egglog-send subproc '(run-schedule (saturate lift)))]
       ['lower (egglog-send subproc '(run-schedule (saturate lower)))]
-      ['unsound (egglog-send subproc '(run-schedule (saturate unsound)))]
       ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
       ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
@@ -189,7 +187,6 @@
                        `(constructor do-lift (MTy) M :unextractable)
                        `(ruleset lower)
                        `(ruleset lift)
-                       `(ruleset unsound)
                        `(function bad-merge? () bool :merge (or old new))
                        `(ruleset bad-merge-rule)
                        `(set (bad-merge?) false)
@@ -203,7 +200,6 @@
                  (num-lowering-rules)
                  (num-lifting-rules)
                  (list (approx-lifting-rule))
-                 (egglog-rewrite-rules (*sound-removal-rules*) 'unsound)
                  (list `(ruleset rewrite))
                  (egglog-rewrite-rules (*rules*) 'rewrite)))
 
