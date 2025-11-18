@@ -1,0 +1,104 @@
+; -*- mode: scheme -*-
+
+(FPCore (phi)
+ :name "forward-tanlog"
+ (log (tan (+ (/ PI 4.0) (* 0.5 phi)))))
+
+(FPCore (phi ecc)
+ :name "forward-ellipsoid-logratio"
+ :pre (and (> ecc 0.0)
+           (< ecc 1.0))
+ (let ((sp (* ecc (sin phi))))
+   (log (/ (+ 1.0 sp) (- 1.0 sp)))))
+
+(FPCore (phi ecc c hlf_e K)
+ :name "forward-phip"
+ :pre (and (> ecc 0.0)
+           (< ecc 1.0))
+ (let* ((sp (* ecc (sin phi)))
+        (log_tan (log (tan (+ (/ PI 4.0) (* 0.5 phi)))))
+        (log_ratio (log (/ (+ 1.0 sp) (- 1.0 sp))))
+        (exponent (+ (* c (- log_tan (* hlf_e log_ratio))) K)))
+   (- (* 2.0 (atan (exp exponent))) (/ PI 2.0))))
+
+(FPCore (phip cosp0 sinp0 lamp)
+ :name "forward-phipp"
+ (asin (- (* cosp0 (sin phip)) (* sinp0 (* (cos phip) (cos lamp))))))
+
+(FPCore (cp lamp phipp)
+ :name "forward-lampp"
+ (asin (/ (* cp (sin lamp)) (cos phipp))))
+
+(FPCore (kR phipp)
+ :name "forward-y"
+ :pre (> kR 0.0)
+ (* kR (log (tan (+ (/ PI 4.0) (* 0.5 phipp))))))
+
+(FPCore (y kR)
+ :name "inverse-phipp"
+ :pre (> kR 0.0)
+ (* 2.0 (- (atan (exp (/ y kR))) (/ PI 4.0))))
+
+(FPCore (phipp cosp0 sinp0 lampp)
+ :name "inverse-phip"
+ (asin (+ (* cosp0 (sin phipp)) (* sinp0 (* (cos phipp) (cos lampp))))))
+
+(FPCore (phipp lampp phip)
+ :name "inverse-lamp"
+ (asin (/ (* (cos phipp) (sin lampp)) (cos phip))))
+
+(FPCore (K c phip)
+ :name "inverse-con"
+ (/ (- K (log (tan (+ (/ PI 4.0) (* 0.5 phip))))) c))
+
+(FPCore (phip ecc)
+ :name "inverse-esp"
+ :pre (and (> ecc 0.0)
+           (< ecc 1.0))
+ (* ecc (sin phip)))
+
+(FPCore (phip ecc hlf_e con rone_es)
+ :name "inverse-delp"
+ :pre (and (> ecc 0.0)
+           (< ecc 1.0))
+ (let* ((esp (* ecc (sin phip)))
+        (log_tan (log (tan (+ (/ PI 4.0) (* 0.5 phip)))))
+        (log_ratio (log (/ (+ 1.0 esp) (- 1.0 esp))))
+        (term (- (+ con log_tan) (* hlf_e log_ratio)))
+        (factor (* (- 1.0 (* esp esp)) (* (cos phip) rone_es))))
+   (* term factor)))
+
+(FPCore (phi0 es rone_es)
+ :name "init-c"
+ :pre (and (>= es 0.0)
+           (< es 1.0)
+           (> rone_es 0.0))
+ (let* ((cosphi0 (cos phi0))
+        (cos2 (* cosphi0 cosphi0))
+        (cos4 (* cos2 cos2)))
+   (sqrt (+ 1.0 (* es (* cos4 rone_es))))))
+
+(FPCore (phi0 c)
+ :name "init-sinp0"
+ (/ (sin phi0) c))
+
+(FPCore (phi0 phip0 c hlf_e ecc)
+ :name "init-K"
+ :pre (and (> c 0.0)
+           (> ecc 0.0)
+           (< ecc 1.0))
+ (let* ((sp (* ecc (sin phi0)))
+        (log_tan_phi   (log (tan (+ (/ PI 4.0) (* 0.5 phi0)))))
+        (log_tan_phip0 (log (tan (+ (/ PI 4.0) (* 0.5 phip0)))))
+        (log_ratio     (log (/ (+ 1.0 sp) (- 1.0 sp)))))
+   (- log_tan_phip0
+      (* c (- log_tan_phi (* hlf_e log_ratio))))))
+
+(FPCore (k0 one_es ecc phi0)
+ :name "init-kR"
+ :pre (and (> k0 0.0)
+           (> one_es 0.0)
+           (> ecc 0.0)
+           (< ecc 1.0))
+ (let ((sp (* ecc (sin phi0))))
+   (/ (* k0 (sqrt one_es)) (- 1.0 (* sp sp)))))
