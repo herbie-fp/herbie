@@ -14,7 +14,9 @@ When you receive a new source file:
 3. **Isolate the expression.** For each expression:
    - Identify the minimal set of variables needed (pull intermediate definitions when helpful).
    - Convert to FPCore using lisp syntax.
-   - Add a `:pre` condition mirroring the guards in the source so Herbie’s sampler stays inside the intended domain.
+   - Add a `:pre` condition mirroring parameter invarients. Don't worry about adding `:pre` conditions for mathematical domain checks as Herbie's sampler already takes care of this. 
+   - Name the fpcores something reasonable but don't prefix the name with the name of the benchmark file.
+   - Use `let*` and `let` as needed.
    - Preserve structure instead of using algebraic simplifications.
 
 4. **Validate syntax.** Run
@@ -26,4 +28,4 @@ When you receive a new source file:
    Fix any syntax errors Herbie reports (missing parentheses, unsupported identifiers, missing preconditions). Rerun until the file parses cleanly. Warnings about improvement quality are fine; only syntax errors must be resolved. Make sure that the number of FPCores you
    add to the file is the same number that appears in the report when you run this command.
 
-Aim for a set of 15–20 expressions that represent the numerical behaviors from the source file. Ideally, this collection will include  hard expressions that Herbie has trouble improving. 
+Aim for a set of 15–20 expressions that represent the numerical behaviors from the source file. Ideally, this collection will include hard expressions that Herbie has trouble improving. 
