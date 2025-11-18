@@ -1,131 +1,160 @@
+; -*- mode: scheme -*-
+
+(FPCore (E_var tsfn_phi B)
+ :name "forward-W"
+ (/ E_var (pow tsfn_phi B)))
+
 (FPCore (W)
- :name "omerc-forward-half-diff"
- :pre (not (== W 0.0))
+ :name "forward-half-diff"
  (* 0.5 (- W (/ 1.0 W))))
 
 (FPCore (W)
- :name "omerc-forward-half-sum"
- :pre (not (== W 0.0))
+ :name "forward-half-sum"
  (* 0.5 (+ W (/ 1.0 W))))
 
 (FPCore (S T singam cosgam B lam)
- :name "omerc-forward-U"
- :pre (not (== T 0.0))
- (let* ((V (sin (* B lam))))
+ :name "forward-U"
+ (let ([V (sin (* B lam))])
    (/ (- (* S singam) (* V cosgam)) T)))
 
 (FPCore (U ArB)
- :name "omerc-forward-v"
- :pre (< (fabs U) 1.0)
+ :name "forward-v"
  (* 0.5 (* ArB (log (/ (- 1.0 U) (+ 1.0 U))))))
 
 (FPCore (S B lam cosgam singam ArB)
- :name "omerc-forward-u-atan"
- :pre (>= (fabs (cos (* B lam))) 1e-7)
- (let* ((V (sin (* B lam)))
-        (temp (cos (* B lam)))
-        (numer (+ (* S cosgam) (* V singam))))
+ :name "forward-u-atan"
+ (let* ([V (sin (* B lam))]
+        [temp (cos (* B lam))]
+        [numer (+ (* S cosgam) (* V singam))])
    (* ArB (atan2 numer temp))))
 
-(FPCore (A lam)
- :name "omerc-forward-u-linear"
- (* A lam))
-
 (FPCore (u v cosrot sinrot u0)
- :name "omerc-forward-rot-x"
- (let* ((udiff (- u u0)))
+ :name "forward-rot-x"
+ (let ([udiff (- u u0)])
    (+ (* v cosrot) (* udiff sinrot))))
 
 (FPCore (u v cosrot sinrot u0)
- :name "omerc-forward-rot-y"
- (let* ((udiff (- u u0)))
+ :name "forward-rot-y"
+ (let ([udiff (- u u0)])
    (- (* udiff cosrot) (* v sinrot))))
 
 (FPCore (BrA v)
- :name "omerc-inverse-exp"
+ :name "inverse-Qp"
  (exp (- (* BrA v))))
 
-(FPCore (Qp)
- :name "omerc-inverse-Sp"
- :pre (not (== Qp 0.0))
- (* 0.5 (- Qp (/ 1.0 Qp))))
-
-(FPCore (Qp)
- :name "omerc-inverse-Tp"
- :pre (not (== Qp 0.0))
- (* 0.5 (+ Qp (/ 1.0 Qp))))
-
 (FPCore (Sp Tp Vp singam cosgam)
- :name "omerc-inverse-Up"
- :pre (not (== Tp 0.0))
+ :name "inverse-Up"
  (/ (+ (* Vp cosgam) (* Sp singam)) Tp))
 
 (FPCore (Up Esc)
- :name "omerc-inverse-prephi"
- :pre (< (fabs Up) 1.0)
+ :name "inverse-prephi"
  (/ Esc (sqrt (/ (+ 1.0 Up) (- 1.0 Up)))))
 
 (FPCore (Sp Vp cosgam singam BrA u rB)
- :name "omerc-inverse-lambda"
- (let* ((temp (cos (* BrA u)))
-        (numer (- (* Sp cosgam) (* Vp singam))))
+ :name "inverse-lambda"
+ (let ([temp (cos (* BrA u))]
+        [numer (- (* Sp cosgam) (* Vp singam))])
    (- (* rB (atan2 numer temp)))))
 
 (FPCore (phi0 es)
- :name "omerc-init-con"
+ :name "init-con"
  :pre (and (>= es 0.0)
-           (< es 1.0)
-           (< (fabs phi0) (/ PI 2.0)))
- (let* ((sinphi0 (sin phi0)))
+           (< es 1.0))
+ (let ([sinphi0 (sin phi0)])
    (- 1.0 (* es (* sinphi0 sinphi0)))))
 
 (FPCore (phi0 es one_es)
- :name "omerc-init-B"
+ :name "init-B"
  :pre (and (>= es 0.0)
            (< es 1.0)
-           (> one_es 0.0)
-           (< (fabs phi0) (/ PI 2.0)))
- (let* ((cosphi0 (cos phi0))
-        (cos2 (* cosphi0 cosphi0))
-        (cos4 (* cos2 cos2)))
+           (> one_es 0.0))
+ (let* ([cosphi0 (cos phi0)]
+        [cos2 (* cosphi0 cosphi0)]
+        [cos4 (* cos2 cos2)])
    (sqrt (+ 1.0 (/ (* es cos4) one_es)))))
 
 (FPCore (phi0 es one_es com)
- :name "omerc-init-D"
+ :name "init-D"
  :pre (and (>= es 0.0)
            (< es 1.0)
            (> one_es 0.0)
-           (> com 0.0)
-           (< (fabs phi0) (/ PI 2.0))
-           (> (fabs (cos phi0)) 0.0)
-           (> (- 1.0 (* es (* (sin phi0) (sin phi0)))) 0.0))
- (let* ((sinphi0 (sin phi0))
-        (cosphi0 (cos phi0))
-        (cos2 (* cosphi0 cosphi0))
-        (cos4 (* cos2 cos2))
-        (con (- 1.0 (* es (* sinphi0 sinphi0))))
-        (B (sqrt (+ 1.0 (/ (* es cos4) one_es))))
-        (root (sqrt con)))
+           (> com 0.0))
+ (let* ([sinphi0 (sin phi0)]
+        [cosphi0 (cos phi0)]
+        [cos2 (* cosphi0 cosphi0)]
+        [cos4 (* cos2 cos2)]
+        [con (- 1.0 (* es (* sinphi0 sinphi0)))]
+        [B (sqrt (+ 1.0 (/ (* es cos4) one_es)))]
+        [root (sqrt con)])
    (/ (* B com) (* cosphi0 root))))
 
+(FPCore (D phi0)
+ :name "init-F"
+ (let ([Fraw (- (* D D) 1.0)])
+   (if (<= Fraw 0.0)
+       0.0
+       (let ([Froot (sqrt Fraw)])
+         (if (< phi0 0.0)
+             (- Froot)
+             Froot)))))
+
+(FPCore (alpha_c D)
+ :name "init-gamma0-from-alpha"
+ (asin (/ (sin alpha_c) D)))
+
+(FPCore (gamma0 D)
+ :name "init-alpha-from-gamma0"
+ (asin (* D (sin gamma0))))
+
+(FPCore (lamc F gamma0 B)
+ :name "init-lam0-alpha"
+ (let* ([half_diff (* 0.5 (- F (/ 1.0 F)))]
+        [angle (asin (* half_diff (tan gamma0)))])
+   (- lamc (/ angle B))))
+
+(FPCore (L H)
+ :name "init-p"
+ (/ (- L H) (+ L H)))
+
+(FPCore (E_var L H)
+ :name "init-J"
+ (let ([E2 (* E_var E_var)]
+        [LH (* L H)])
+   (/ (- E2 LH) (+ E2 LH))))
+
+(FPCore (lam1 lam2 B J p)
+ :name "init-lam0-twopoint"
+ (let* ([delta (- lam1 lam2)]
+        [lam2_adj (if (< delta (- PI))
+                      (+ lam2 (* 2.0 PI))
+                      (if (> delta PI)
+                          (- lam2 (* 2.0 PI))
+                          lam2))]
+        [delta_adj (- lam1 lam2_adj)]
+        [center (* 0.5 (+ lam1 lam2_adj))]
+        [halfBdelta (* 0.5 (* B delta_adj))]
+        [angle (atan (/ (* J (tan halfBdelta)) p))])
+   (- center (/ angle B))))
+
 (FPCore (ArB D alpha_c phi0)
- :name "omerc-init-u0"
- :pre (and (>= (- (* D D) 1.0) 0.0)
-           (not (== (cos alpha_c) 0.0)))
- (let* ((ratio (/ (sqrt (- (* D D) 1.0)) (cos alpha_c)))
-        (angle (atan ratio))
-        (scaled (* ArB angle))
-        (mag (fabs scaled)))
+ :name "init-u0"
+ (let* ([ratio (/ (sqrt (- (* D D) 1.0)) (cos alpha_c))]
+        [angle (atan ratio)]
+        [scaled (* ArB angle)]
+        [mag (fabs scaled)])
    (if (< phi0 0.0)
        (- mag)
        mag)))
 
 (FPCore (ArB gamma0)
- :name "omerc-init-v-pole-n"
- :pre (> (tan (- (/ PI 4.0) (* 0.5 gamma0))) 0.0)
+ :name "init-v-pole-n"
  (* ArB (log (tan (- (/ PI 4.0) (* 0.5 gamma0))))))
 
-(FPCore (ArB gamma0)
- :name "omerc-init-v-pole-s"
- :pre (> (tan (+ (/ PI 4.0) (* 0.5 gamma0))) 0.0)
- (* ArB (log (tan (+ (/ PI 4.0) (* 0.5 gamma0))))))
+(FPCore (phi e)
+ :name "pj_tsfn"
+ (let* ([sinphi (sin phi)]
+        [e_sin (* e sinphi)])
+   (* (tan (* 0.5 (- (/ PI 2) phi)))
+      (pow (/ (+ 1.0 e_sin) 
+              (- 1.0 e_sin)) 
+           (* 0.5 e)))))

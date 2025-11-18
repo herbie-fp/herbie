@@ -1,178 +1,135 @@
+; -*- mode: scheme -*-
+
 (FPCore (lam p22 sa t w q)
- :name "som-seraz0-s"
- :pre (let* ((sd (sin lam))
-             (sdsq (* sd sd)))
-        (and (> (+ 1.0 (* w sdsq)) 0.0)
-             (> (+ 1.0 (* q sdsq)) 0.0)
-             (>= (+ 1.0 (* t sdsq)) 0.0)))
- (let* ((sd (sin lam))
-        (sdsq (* sd sd))
-        (numer (+ 1.0 (* t sdsq)))
-        (denom (* (+ 1.0 (* w sdsq)) (+ 1.0 (* q sdsq)))))
-   (* p22 sa (cos lam) (sqrt (/ numer denom)))))
+ :name "seraz0-s"
+ (let* ([sd (sin lam)]
+        [sdsq (* sd sd)]
+        [numer (+ 1.0 (* t sdsq))]
+        [denom (* (+ 1.0 (* w sdsq)) (+ 1.0 (* q sdsq)))])
+   (* p22 (* sa (* (cos lam) (sqrt (/ numer denom)))))))
 
 (FPCore (lam p22 ca q w)
- :name "som-seraz0-h"
- :pre (let* ((sd (sin lam))
-             (sdsq (* sd sd))
-             (d1 (+ 1.0 (* q sdsq)))
-             (wterm (+ 1.0 (* w sdsq))))
-        (and (> d1 0.0)
-             (> wterm 0.0)
-             (not (== d1 0.0))))
- (let* ((sd (sin lam))
-        (sdsq (* sd sd))
-        (d1 (+ 1.0 (* q sdsq)))
-        (wterm (+ 1.0 (* w sdsq)))
-        (ratio (/ (+ 1.0 (* q sdsq)) wterm))
-        (scale (- (/ wterm (* d1 d1)) (* p22 ca))))
+ :name "seraz0-h"
+ (let* ([sd (sin lam)]
+        [sdsq (* sd sd)]
+        [d1 (+ 1.0 (* q sdsq))]
+        [wterm (+ 1.0 (* w sdsq))]
+        [ratio (/ (+ 1.0 (* q sdsq)) wterm)]
+        [scale (- (/ wterm (* d1 d1)) (* p22 ca))])
    (* (sqrt ratio) scale)))
 
 (FPCore (mult h xj s)
- :name "som-seraz0-fc-a2"
- :pre (> (+ (* xj xj) (* s s)) 0.0)
- (let* ((sq (sqrt (+ (* xj xj) (* s s)))))
+ :name "seraz0-fc-a2"
+ (let* ([sq (sqrt (+ (* xj xj) (* s s)))])
    (* mult (/ (- (* h xj) (* s s)) sq))))
 
 (FPCore (mult h xj s)
- :name "som-seraz0-fc-c1"
- :pre (> (+ (* xj xj) (* s s)) 0.0)
- (let* ((sq (sqrt (+ (* xj xj) (* s s)))))
+ :name "seraz0-fc-c1"
+ (let* ([sq (sqrt (+ (* xj xj) (* s s)))])
    (* mult (/ (* s (+ h xj)) sq))))
 
 (FPCore (lamt one_es tanphi sa ca)
- :name "som-forward-xlam"
- :pre (not (== (cos lamt) 0.0))
- (/ (+ (* one_es tanphi sa) (* (sin lamt) ca)) (cos lamt)))
+ :name "forward-xlam"
+ (/
+  (+ (* one_es (* tanphi sa))
+     (* (sin lamt) ca))
+  (cos lamt)))
 
 (FPCore (phi es one_es ca sa lamt)
- :name "som-forward-phidp"
- :pre (let* ((sp (sin phi))
-             (cosphi (cos phi))
-             (sinlamt (sin lamt))
-             (root (- 1.0 (* es (* sp sp))))
-             (denom (sqrt root))
-             (arg (/ (- (* one_es ca sp) (* sa cosphi sinlamt)) denom)))
-        (and (> root 0.0)
-             (not (== denom 0.0))
-             (<= (fabs arg) 1.0)))
- (let* ((sp (sin phi))
-        (cosphi (cos phi))
-        (sinlamt (sin lamt))
-        (denom (sqrt (- 1.0 (* es (* sp sp)))))
-        (arg (/ (- (* one_es ca sp) (* sa cosphi sinlamt)) denom)))
+ :name "forward-phidp"
+ (let* ([sp (sin phi)]
+        [cosphi (cos phi)]
+        [sinlamt (sin lamt)]
+        [denom (sqrt (- 1.0 (* es (* sp sp))))]
+        [arg (/ (- (* one_es (* ca sp)) (* sa (* cosphi sinlamt))) denom)])
    (asin arg)))
 
 (FPCore (phidp)
- :name "som-forward-tanph"
- :pre (let* ((theta (+ (/ PI 4.0) (* 0.5 phidp))))
-        (and (> theta 0.0)
-             (< theta (/ PI 2.0))))
- (let* ((theta (+ (/ PI 4.0) (* 0.5 phidp))))
+ :name "forward-tanph"
+ (let ([theta (+ (/ PI 4.0) (* 0.5 phidp))])
    (log (tan theta))))
 
-(FPCore (lamdp p22 sa t w q)
- :name "som-forward-s"
- :pre (let* ((sd (sin lamdp))
-             (sdsq (* sd sd)))
-        (and (> (+ 1.0 (* w sdsq)) 0.0)
-             (> (+ 1.0 (* q sdsq)) 0.0)
-             (>= (+ 1.0 (* t sdsq)) 0.0)))
- (let* ((sd (sin lamdp))
-        (sdsq (* sd sd))
-        (numer (+ 1.0 (* t sdsq)))
-        (denom (* (+ 1.0 (* w sdsq)) (+ 1.0 (* q sdsq)))))
-   (* p22 sa (cos lamdp) (sqrt (/ numer denom)))))
-
 (FPCore (lamdp b a2 a4 tanph s xj)
- :name "som-forward-xy-x"
- :pre (> (+ (* xj xj) (* s s)) 0.0)
- (let* ((d (sqrt (+ (* xj xj) (* s s)))))
+ :name "forward-xy-x"
+ (let* ([d (sqrt (+ (* xj xj) (* s s)))])
    (+ (* b lamdp)
-      (* a2 (sin (* 2.0 lamdp)))
-      (* a4 (sin (* 4.0 lamdp)))
-      (- (* tanph (/ s d))))))
+    (+  (* a2 (sin (* 2.0 lamdp)))
+    (+  (* a4 (sin (* 4.0 lamdp)))
+      (- (* tanph (/ s d))))))))
 
 (FPCore (lamdp c1 c3 tanph s xj)
- :name "som-forward-xy-y"
- :pre (> (+ (* xj xj) (* s s)) 0.0)
- (let* ((d (sqrt (+ (* xj xj) (* s s))))
-        (sd (sin lamdp)))
+ :name "forward-xy-y"
+ (let* ([d (sqrt (+ (* xj xj) (* s s)))]
+        [sd (sin lamdp)])
    (+ (* c1 sd)
-      (* c3 (sin (* 3.0 lamdp)))
-      (* tanph (/ xj d)))))
+   (+ (* c3 (sin (* 3.0 lamdp)))
+      (* tanph (/ xj d))))))
 
 (FPCore (lamdp xy_x xy_y s xj a2 a4 c1 c3 b)
- :name "som-inverse-lamdp-update"
- :pre (and (not (== xj 0.0))
-           (not (== b 0.0)))
- (let* ((sinlam (sin lamdp))
-        (sin2 (sin (* 2.0 lamdp)))
-        (sin3 (sin (* 3.0 lamdp)))
-        (sin4 (sin (* 4.0 lamdp)))
-        (ratio (/ s xj))
-        (base (+ xy_x (* xy_y ratio)))
-        (poly (- (- base (* a2 sin2)) (* a4 sin4)))
-        (corr (* ratio (+ (* c1 sinlam) (* c3 sin3)))))
+ :name "inverse-lamdp-update"
+ (let* ([sinlam (sin lamdp)]
+        [sin2 (sin (* 2.0 lamdp))]
+        [sin3 (sin (* 3.0 lamdp))]
+        [sin4 (sin (* 4.0 lamdp))]
+        [ratio (/ s xj)]
+        [base (+ xy_x (* xy_y ratio))]
+        [poly (- (- base (* a2 sin2)) (* a4 sin4))]
+        [corr (* ratio (+ (* c1 sinlam) (* c3 sin3)))])
    (/ (- poly corr) b)))
 
 (FPCore (s xj xy_y c1 c3 lamdp)
- :name "som-inverse-fac"
- :pre (not (== xj 0.0))
- (let* ((ratio (/ (* s s) (* xj xj)))
-        (scale (sqrt (+ 1.0 ratio)))
-        (sl (sin lamdp)))
-   (exp (* scale (- xy_y (* c1 sl) (* c3 (sin (* 3.0 lamdp))))))))
+ :name "inverse-fac"
+ (let* ([ratio (/ (* s s) (* xj xj))]
+        [scale (sqrt (+ 1.0 ratio))]
+        [sl (sin lamdp)]
+        [inner (- xy_y
+                  (+ (* c1 sl)
+                     (* c3 (sin (* 3.0 lamdp)))))])
+   (exp (* scale inner))))
 
 (FPCore (fac)
- :name "som-inverse-phidp"
- :pre (> fac 0.0)
+ :name "inverse-phidp"
  (* 2.0 (- (atan fac) (/ PI 4.0))))
 
 (FPCore (lamdp spp q u rone_es ca sa)
- :name "som-inverse-lamt"
- :pre (let* ((sppsq (* spp spp))
-             (dd (* (sin lamdp) (sin lamdp)))
-             (coslam (cos lamdp))
-             (denom (- 1.0 (* sppsq (+ 1.0 u))))
-             (kterm (+ 1.0 (* q dd)))
-             (root (- (* kterm (- 1.0 sppsq)) (* sppsq u))))
-        (and (not (== coslam 0.0))
-             (not (== denom 0.0))
-             (>= root 0.0)
-             (> kterm 0.0)))
- (let* ((sppsq (* spp spp))
-        (dd (* (sin lamdp) (sin lamdp)))
-        (coslam (cos lamdp))
-        (denom (- 1.0 (* sppsq (+ 1.0 u))))
-        (kterm (+ 1.0 (* q dd)))
-        (root (sqrt (- (* kterm (- 1.0 sppsq)) (* sppsq u))))
-        (term1 (* (- 1.0 (* sppsq rone_es)) (tan lamdp) ca))
-        (term2 (/ (* spp sa root) coslam)))
-   (/ (- term1 term2) denom)))
+ :name "inverse-lamt"
+ (let* ([sppsq (* spp spp)]
+        [dd (* (sin lamdp) (sin lamdp))]
+        [coslam (cos lamdp)]
+        [denom (- 1.0 (* sppsq (+ 1.0 u)))]
+        [kterm (+ 1.0 (* q dd))]
+        [root (sqrt (- (* kterm (- 1.0 sppsq)) (* sppsq u)))]
+        [term1 (* (- 1.0 (* sppsq rone_es)) (* (tan lamdp) ca))]
+        [term2 (/ (* spp (* sa root)) coslam)]
+        [frac (/ (- term1 term2) denom)])
+   (atan frac)))
 
 (FPCore (lamdp lamt ca one_es sa)
- :name "som-inverse-phi"
- :pre (and (not (== (* one_es sa) 0.0))
-           (not (== (cos lamt) 0.0)))
+ :name "inverse-phi"
  (atan (/ (- (* (tan lamdp) (cos lamt)) (* ca (sin lamt)))
          (* one_es sa))))
 
+(FPCore (spp es one_es)
+ :name "inverse-phi-degenerate"
+ (let* ([one_es2 (* one_es one_es)]
+        [denom (sqrt (+ one_es2 (* es (* spp spp))))])
+   (asin (/ spp denom))))
+
 (FPCore (es ca rone_es)
- :name "som-setup-w"
+ :name "setup-w"
  :pre (> rone_es 0.0)
- (let* ((esc (* es ca ca))
-        (scaled (* (- 1.0 esc) rone_es)))
+ (let* ([esc (* es (* ca ca))]
+        [scaled (* (- 1.0 esc) rone_es)])
    (- (* scaled scaled) 1.0)))
 
 (FPCore (es sa rone_es)
- :name "som-setup-t"
+ :name "setup-t"
  :pre (> rone_es 0.0)
- (let* ((ess (* es sa sa))
-        (rone2 (* rone_es rone_es)))
-   (* ess (- 2.0 es) rone2)))
+ (let ([ess (* es (* sa sa))]
+        [rone2 (* rone_es rone_es)])
+   (* ess (* (- 2.0 es) rone2))))
 
 (FPCore (one_es)
- :name "som-setup-xj"
+ :name "setup-xj"
  :pre (> one_es 0.0)
  (* one_es (* one_es one_es)))
