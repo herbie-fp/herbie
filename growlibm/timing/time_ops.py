@@ -2,7 +2,6 @@ import subprocess
 import math
 
 NUM_RUNS = 100
-time_unit = 'ms'
 unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'exp2', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc']
 binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', 'fmod', 'pow', 'remainder'] + ['sin_xy', 'cos_xy', 'sin_quotient_xy', 'cos_quotient_xy']
 
@@ -45,7 +44,7 @@ def generate_driver(compiled, input_points, arity, filepath):
         print('#include <accelerators.h>', file=f)
         print('#define TRUE 1', file=f)
         print('#define FALSE 0', file=f)
-        print('#define NUM_RUNS {NUM_RUNS}', file=f)
+        print(f'#define NUM_RUNS {NUM_RUNS}', file=f)
 
         print(f'static inline {compiled}', file=f)
 
@@ -53,22 +52,28 @@ def generate_driver(compiled, input_points, arity, filepath):
             print(f"const double x{i}[{len(input_points[0])}] = {{", file=f)
             print(',\n'.join(points), file=f)
             print('};', file=f)
+        arg_str = ', '.join(map(lambda i: f'x{i}[i]', range(int(arity))))
+        app_str =  f'foo({arg_str})'
 
         print('int main() {', file=f)
         print(f'    struct timespec ts1, ts2;', file=f)
         print(f'    volatile double res;', file=f)
-
-        print(f'    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts1);', file=f)
-
-        arg_str = ', '.join(map(lambda i: f'x{i}[i]', range(int(arity))))
-        app_str =  f'foo({arg_str})'
+        print(f'    double total = 0;', file=f)
+        print('    // warmup loop', file=f)
         print(f'    for (long i = 0; i < {len(input_points[0])}; i++) {{', file=f)
         print(f'        res = {app_str};', file=f)
         print('    }', file=f)
-
-        print(f'    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts2);', file=f)
-        print(f'    double diff = (1000.0 * ts2.tv_sec + 1e-6 * ts2.tv_nsec) - (1000.0 * ts1.tv_sec + 1e-6 * ts1.tv_nsec);', file=f)
-        print(f'    printf("%.17g {time_unit}", diff);', file=f)
+        print('    // timing loop', file=f)
+        print(f'    for(long run = 0; run < NUM_RUNS; run++) {{', file=f)
+        print(f'        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts1);', file=f)
+        print(f'        for (long i = 0; i < {len(input_points[0])}; i++) {{', file=f)
+        print(f'            res = {app_str};', file=f)
+        print('        }', file=f)
+        print(f'        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts2);', file=f)
+        print(f'        double diff = (1000.0 * ts2.tv_sec + 1e-6 * ts2.tv_nsec) - (1000.0 * ts1.tv_sec + 1e-6 * ts1.tv_nsec);', file=f)
+        print(f'        total += diff;', file=f)
+        print('    }', file=f)
+        print(f'    printf("%.17g", total / NUM_RUNS);', file=f)
         print('    return 0;', file=f)
         print('}', file=f)
 
@@ -76,32 +81,30 @@ def run_command(args):
     result = subprocess.run(args, capture_output=True, text=True, check=True)
     return result.stdout
 
-def time_code(sort_points):
-    print("SORTED" if sort_points else "UNSORTED")
-    print("op".ljust(20), '|', 'average', '|', 'median')
-    print("-------------------------------------------------")
-    for op in to_test:
-        fpcore = generate_fpcore(op)
-        result = run_command(['racket', 'sample.rkt', fpcore.core])
+def time_op(op, sort_points):
+    fpcore = generate_fpcore(op)
+    result = run_command(['racket', 'sample.rkt', fpcore.core])
 
-        points = [i.split() for i in result.splitlines()]
+    points = [i.split() for i in result.splitlines()]
+    if sort_points:
         points.sort(key= lambda x: float(x[0]))
-        _points = [list(col) for col in zip(*points)]
+    _points = [list(col) for col in zip(*points)]
 
-        result = run_command(['racket', 'compile.rkt', fpcore.core])
-        op_name = 'div' if op == '/' else op
-        driver_name = f'{'sorted' if sort_points else 'unsorted'}_{op_name}.c'
-        generate_driver(result, _points, str(fpcore.arity), f'drivers/{driver_name}')
+    result = run_command(['racket', 'compile.rkt', fpcore.core])
+    op_name = 'div' if op == '/' else op
+    driver_name = f'{'sorted' if sort_points else 'unsorted'}_{op_name}.c'
+    generate_driver(result, _points, str(fpcore.arity), f'drivers/{driver_name}')
 
-        run_command(['clang', '-O2', '-I', '..', f'drivers/{driver_name}', '../accelerators.c', '-o', 'benchmark'])
+    run_command(['clang', '-O2', '-I', '..', f'drivers/{driver_name}', '../accelerators.c', '-o', 'benchmark'])
 
-        times = []
-        for i in range(NUM_RUNS):
-            result = run_command(['./benchmark'])
-            times.append(float(result.split()[0]))
-        times.sort()
-        print(op.ljust(20), '|', f"{sum(times)/len(times):.5f}" , '|', f"{(times[len(times)//2]):.5f}")
+    result = run_command(['./benchmark'])
+    return float(result)
 
 if __name__ == "__main__":
-    time_code(True)
-    time_code(False)
+    print('--------------------------------------------------')
+    print('|', 'op'.ljust(20), '|', 'unsorted'.ljust(10), '|', 'sorted'.ljust(10), '|')
+    print('--------------------------------------------------')
+    times = {}
+    for op in to_test:
+        print('|', op.ljust(20), '|', f'{time_op(op, False):.5f} ms', '|', f'{time_op(op, True):.5f} ms', '|')
+    print('--------------------------------------------------')
