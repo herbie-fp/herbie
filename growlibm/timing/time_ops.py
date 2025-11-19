@@ -36,8 +36,8 @@ def generate_fpcore(op : str) -> FPCore:
         core = format_fpcore(op, 2)
     return core
 
-def generate_driver(compiled, input_points, arity):
-    with open("driver.c", 'w') as f:
+def generate_driver(compiled, input_points, arity, filepath):
+    with open(filepath, 'w') as f:
         print('#include <math.h>', file=f)
         print('#include <stdio.h>', file=f)
         print('#include <stdlib.h>', file=f)
@@ -45,6 +45,7 @@ def generate_driver(compiled, input_points, arity):
         print('#include <accelerators.h>', file=f)
         print('#define TRUE 1', file=f)
         print('#define FALSE 0', file=f)
+        print('#define NUM_RUNS {NUM_RUNS}', file=f)
 
         print(f'static inline {compiled}', file=f)
 
@@ -54,41 +55,53 @@ def generate_driver(compiled, input_points, arity):
             print('};', file=f)
 
         print('int main() {', file=f)
-        print(f'struct timespec ts1, ts2;', file=f)
-        print(f'volatile double res;', file=f)
-        print(f'clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts1);', file=f)
+        print(f'    struct timespec ts1, ts2;', file=f)
+        print(f'    volatile double res;', file=f)
+
+        print(f'    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts1);', file=f)
 
         arg_str = ', '.join(map(lambda i: f'x{i}[i]', range(int(arity))))
         app_str =  f'foo({arg_str})'
-        print(f'for (long i = 0; i < {len(input_points[0])}; i++) {{', file=f)
-        print(f'  res = {app_str};', file=f)
+        print(f'    for (long i = 0; i < {len(input_points[0])}; i++) {{', file=f)
+        print(f'        res = {app_str};', file=f)
+        print('    }', file=f)
+
+        print(f'    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts2);', file=f)
+        print(f'    double diff = (1000.0 * ts2.tv_sec + 1e-6 * ts2.tv_nsec) - (1000.0 * ts1.tv_sec + 1e-6 * ts1.tv_nsec);', file=f)
+        print(f'    printf("%.17g {time_unit}", diff);', file=f)
+        print('    return 0;', file=f)
         print('}', file=f)
 
-        print(f'clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts2);', file=f)
-        print(f'double diff = (1000.0 * ts2.tv_sec + 1e-6 * ts2.tv_nsec) - (1000.0 * ts1.tv_sec + 1e-6 * ts1.tv_nsec);', file=f)
-        print(f'printf("%.17g {time_unit}", diff);', file=f)
-        print('  return 0;', file=f)
-        print('}', file=f)
+def run_command(args):
+    result = subprocess.run(args, capture_output=True, text=True, check=True)
+    return result.stdout
 
-if __name__ == "__main__":
+def time_code(sort_points):
+    print("SORTED" if sort_points else "UNSORTED")
     print("op".ljust(20), '|', 'average', '|', 'median')
     print("-------------------------------------------------")
     for op in to_test:
         fpcore = generate_fpcore(op)
-        pargs = ['racket', 'sample.rkt', fpcore.core]
-        result = subprocess.run(pargs, capture_output=True, text=True, check=True)
-        points = [i.split() for i in result.stdout.splitlines()]
+        result = run_command(['racket', 'sample.rkt', fpcore.core])
+
+        points = [i.split() for i in result.splitlines()]
+        points.sort(key= lambda x: float(x[0]))
         _points = [list(col) for col in zip(*points)]
-        pargs = ['racket', 'compile.rkt', fpcore.core]
-        result = subprocess.run(pargs, capture_output=True, text=True, check=True)
-        generate_driver(result.stdout, _points, str(fpcore.arity))
-        pargs = ['clang', '-O2', '-I', '..', 'driver.c', '../accelerators.c', '-o', 'benchmark']
-        result = subprocess.run(pargs, capture_output=True, text=True, check=True)
-        pargs = ['./benchmark']
+
+        result = run_command(['racket', 'compile.rkt', fpcore.core])
+        op_name = 'div' if op == '/' else op
+        driver_name = f'{'sorted' if sort_points else 'unsorted'}_{op_name}.c'
+        generate_driver(result, _points, str(fpcore.arity), f'drivers/{driver_name}')
+
+        run_command(['clang', '-O2', '-I', '..', f'drivers/{driver_name}', '../accelerators.c', '-o', 'benchmark'])
+
         times = []
         for i in range(NUM_RUNS):
-            result = subprocess.run(pargs, capture_output=True, text=True, check=True)
-            times.append(float(result.stdout.split()[0]))
+            result = run_command(['./benchmark'])
+            times.append(float(result.split()[0]))
         times.sort()
-
         print(op.ljust(20), '|', f"{sum(times)/len(times):.5f}" , '|', f"{(times[len(times)//2]):.5f}")
+
+if __name__ == "__main__":
+    time_code(True)
+    time_code(False)
