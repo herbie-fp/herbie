@@ -166,14 +166,16 @@
   [sum-cubes-rev (* (+ (* a a) (- (* b b) (* a b))) (+ a b)) (+ (pow a 3) (pow b 3))])
 
 (define-rules polynomials
-  [flip3-+ (+ (cbrt a) (cbrt b))
-           (sound-/ (+ a b)
-                    (+ (* (cbrt a) (cbrt a)) (- (* (cbrt b) (cbrt b)) (* (cbrt a) (cbrt b))))
-                    (+ (cbrt a) (cbrt b)))]
-  [flip3-- (- (cbrt a) (cbrt b))
-           (sound-/ (+ a b)
-                    (+ (* (cbrt a) (cbrt a)) (+ (* (cbrt b) (cbrt b)) (* (cbrt a) (cbrt b))))
-                    (- (cbrt a) (cbrt b)))])
+  [flip3-+
+   (+ (cbrt a) (cbrt b))
+   (sound-/ (+ a b)
+            (+ (* (cbrt a) (cbrt a)) (- (* (cbrt b) (cbrt b)) (* (cbrt a) (cbrt b))))
+            (+ (cbrt a) (cbrt b)))]
+  [flip3--
+   (- (cbrt a) (cbrt b))
+   (sound-/ (+ a b)
+            (+ (* (cbrt a) (cbrt a)) (+ (* (cbrt b) (cbrt b)) (* (cbrt a) (cbrt b))))
+            (- (cbrt a) (cbrt b)))])
 
 ; Dealing with fractions
 (define-rules fractions
