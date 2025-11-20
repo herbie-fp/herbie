@@ -1259,7 +1259,7 @@
   (for ([(rule delta) (in-dict sorted-results)]
         [_ (in-range 10)]
         #:unless (= delta 0))
-    (eprintf "~a (~a%): ~a\n"
+    (printf "~a (~a%): ~a\n"
              delta
              (~r (/ (* 100.0 delta) final-size) #:precision '(= 1))
              (rule-name rule)))
