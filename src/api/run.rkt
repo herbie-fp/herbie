@@ -153,7 +153,10 @@
     ["failure"
      (match-define (list 'exn type msg url locs tb) (hash-ref-path result-hash 'backend))
      (if type
-         (eprintf "[ ERROR ]\t\t~a\n" name)
+         (begin
+           (eprintf "Message: ~a\n" msg)
+           (eprintf "Traceback: ~a\n" tb)
+           (eprintf "[ ERROR ]\t\t~a\n" name))
          (begin
            (eprintf "[ CRASH ]\t\t~a\n" name)
            (eprintf "Message: ~a\n" msg)

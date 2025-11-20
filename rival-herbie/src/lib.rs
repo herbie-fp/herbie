@@ -1,6 +1,6 @@
 use rival::eval::machine::Hint;
 use rival::{Ival, Machine, MachineBuilder, RivalError};
-use rug::Float;
+use rug::{Assign, Float};
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_void};
 use std::panic;
@@ -227,8 +227,34 @@ pub unsafe extern "C" fn rival_analyze(
         let hints = parse_hints(&hints_str);
 
         let (status, next_hints, converged) = match machine_enum {
-            RivalMachine::Fp64(m) => m.analyze_with_hints(args, hints.as_deref()),
-            RivalMachine::Callback(m) => m.analyze_with_hints(args, hints.as_deref()),
+            RivalMachine::Fp64(m) => {
+                let (mut s, h, c) = m.analyze_with_hints(args, hints.as_deref());
+                if !m.state.outputs.is_empty() {
+                    let pre_idx = m.state.outputs[0];
+                    let pre_val = &m.state.registers[pre_idx];
+                    if pre_val.hi.as_float().is_zero() {
+                        s.lo.as_float_mut().assign(1.0);
+                    }
+                    if pre_val.lo.as_float().is_zero() {
+                        s.hi.as_float_mut().assign(1.0);
+                    }
+                }
+                (s, h, c)
+            }
+            RivalMachine::Callback(m) => {
+                let (mut s, h, c) = m.analyze_with_hints(args, hints.as_deref());
+                if !m.state.outputs.is_empty() {
+                    let pre_idx = m.state.outputs[0];
+                    let pre_val = &m.state.registers[pre_idx];
+                    if pre_val.hi.as_float().is_zero() {
+                        s.lo.as_float_mut().assign(1.0);
+                    }
+                    if pre_val.lo.as_float().is_zero() {
+                        s.hi.as_float_mut().assign(1.0);
+                    }
+                }
+                (s, h, c)
+            }
         };
 
         // Serialize output
