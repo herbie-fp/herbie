@@ -173,7 +173,7 @@
             (+ (cbrt a) (cbrt b)))]
   [flip3--
    (- (cbrt a) (cbrt b))
-   (sound-/ (+ a b)
+   (sound-/ (- a b)
             (+ (* (cbrt a) (cbrt a)) (+ (* (cbrt b) (cbrt b)) (* (cbrt a) (cbrt b))))
             (- (cbrt a) (cbrt b)))])
 
