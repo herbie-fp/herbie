@@ -25,6 +25,7 @@ racket -y "src/main.rkt" report \
         --platform "no-accelerators" \
         --disable "generate:taylor" \
         --disable "generate:evaluate" \
+        --enable "generate:egglog" \
         "$BENCHDIR" \
         "$REPORTDIR/start" > "$REPORTDIR/expr_dump.txt"
 
@@ -32,6 +33,7 @@ racket -y "src/main.rkt" report \
 racket -y growlibm/generate-candidates.rkt "$REPORTDIR"
  
 racket -y growlibm/to-json.rkt 
+
 # extend platform loop
 for ((i = 0; i < $NUMITERS; i++)) do
     racket -y "src/main.rkt" report \
@@ -40,6 +42,7 @@ for ((i = 0; i < $NUMITERS; i++)) do
             --threads 4 \
             --disable "generate:taylor" \
             --disable "generate:evaluate" \
+            --enable "generate:egglog" \
             "$REPORTDIR/candidates.txt" \
             "$REPORTDIR/iter$i" 
 
@@ -53,6 +56,7 @@ racket -y "src/main.rkt" report \
         --threads 4 \
         --disable "generate:taylor" \
         --disable "generate:evaluate" \
+        --enable "generate:egglog" \
         "$BENCHDIR" \
         "$REPORTDIR/end"
 
