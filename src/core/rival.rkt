@@ -70,7 +70,12 @@
           (define bf-val (bf val-str))
           (define val ((representation-bf->repr repr) bf-val))
           (define bf* ((representation-repr->bf repr) val))
-          (string->c-pointer (bigfloat->string bf*)))
+          ;; TODO: hacky-- fix this
+          (define s (bigfloat->string bf*))
+          (string->c-pointer
+           (cond
+             [(string-suffix? s ".bf") (substring s 0 (- (string-length s) 3))]
+             [else s])))
         #f))
 
   (define distance-cb
