@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat
-         rival)
+         rival-herbie)
 
 (require "../utils/errors.rkt"
          "../utils/float.rkt"

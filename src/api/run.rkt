@@ -154,7 +154,10 @@
      (match-define (list 'exn type msg url locs tb) (hash-ref-path result-hash 'backend))
      (if type
          (eprintf "[ ERROR ]\t\t~a\n" name)
-         (eprintf "[ CRASH ]\t\t~a\n" name))]
+         (begin
+           (eprintf "[ CRASH ]\t\t~a\n" name)
+           (eprintf "Message: ~a\n" msg)
+           (eprintf "Traceback: ~a\n" tb)))]
     ["timeout" (eprintf "[TIMEOUT]\t\t~a\n" name)]
     [_
      (define bits (representation-total-bits (test-output-repr test)))

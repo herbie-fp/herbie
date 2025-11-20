@@ -8,7 +8,8 @@
 #lang racket
 
 (require math/bigfloat
-         rival)
+         (except-in ffi/unsafe ->)
+         rival-herbie)
 
 (require "../config.rkt"
          "../utils/errors.rkt"
@@ -19,17 +20,13 @@
 (provide (struct-out real-compiler)
          (contract-out
           [make-real-compiler
-           (->i ([es (listof any/c)]
-                 [ctxs (es) (and/c unified-contexts? (lambda (ctxs) (= (length es) (length ctxs))))])
-                (#:pre [pre any/c])
-                [c real-compiler?])]
+           (->* ((listof any/c) (non-empty-listof context?)) (#:pre any/c) real-compiler?)]
           [real-apply
-           (->* (real-compiler? vector?) ((or/c (vectorof any/c) boolean?)) (values symbol? any/c))]
-          [real-compiler-clear! (-> real-compiler-clear! void?)]
-          [real-compiler-analyze
-           (->* (real-compiler? (vectorof ival?))
-                ((or/c (vectorof any/c) boolean?))
-                (listof any/c))]))
+           (->* (real-compiler? vector?)
+                ((or/c #f list?))
+                (values (or/c 'valid 'invalid 'unknown 'exit) (or/c #f (listof bigfloat?))))]
+          [real-compiler-clear! (-> real-compiler? void?)]
+          [real-compiler-analyze (->* (real-compiler? vector?) ((or/c #f list?)) list?)]))
 
 (define (unified-contexts? ctxs)
   (cond
@@ -46,28 +43,57 @@
       (apply + 1 (map expr-size (cdr expr)))
       1))
 
-(define (repr->discretization repr)
-  (discretization (representation-total-bits repr)
-                  (representation-bf->repr repr)
-                  (lambda (x y) (- (ulp-difference x y repr) 1))))
-
 ;; Herbie's wrapper around the Rival machine abstraction.
-(struct real-compiler (pre vars var-reprs exprs reprs machine dump-file))
+(struct real-compiler (pre vars var-reprs exprs reprs machine dump-file callbacks))
 
 ;; Creates a Rival machine.
-;; Takes a context to encode input variables and their representations,
-;; a list of expressions, and a list of output representations
-;; for each expression. Optionally, takes a precondition.
 (define (make-real-compiler specs ctxs #:pre [pre '(TRUE)])
   (define vars (context-vars (first ctxs)))
   (define reprs (map context-repr ctxs))
-  ; create the machine
   (define exprs (cons `(assert ,pre) specs))
-  (define discs (cons boolean-discretization (map repr->discretization reprs)))
-  (define machine (rival-compile exprs vars discs))
-  (timeline-push! 'compiler
-                  (apply + 1 (expr-size pre) (map expr-size specs))
-                  (+ (length vars) (rival-profile machine 'instructions)))
+
+  ;; Prepare arguments for rival_make_context
+  (define exprs-str (string-append "(" (string-join (map ~a exprs) " ") ")"))
+  (define vars-str (string-join (map symbol->string vars) " "))
+
+  (define all-binary64? (andmap (lambda (r) (equal? (representation-name r) 'binary64)) reprs))
+  (define use-callback (not all-binary64?))
+
+  ;; Callbacks
+  (define convert-cb
+    (if use-callback
+        (lambda (idx val-str)
+          (define repr
+            (if (= idx 0)
+                <bool>
+                (list-ref reprs (- idx 1))))
+          (define bf-val (bf val-str))
+          (define val ((representation-bf->repr repr) bf-val))
+          (define bf* ((representation-repr->bf repr) val))
+          (string->c-pointer (bigfloat->string bf*)))
+        #f))
+
+  (define distance-cb
+    (if use-callback
+        (lambda (idx lo-str hi-str)
+          (define repr
+            (if (= idx 0)
+                <bool>
+                (list-ref reprs (- idx 1))))
+          (define lo (bf lo-str))
+          (define hi (bf hi-str))
+          (define lo-ord ((representation-repr->ordinal repr) ((representation-bf->repr repr) lo)))
+          (define hi-ord ((representation-repr->ordinal repr) ((representation-bf->repr repr) hi)))
+          (abs (- hi-ord lo-ord)))
+        #f))
+
+  (define free-cb (if use-callback c-free #f))
+
+  (define machine
+    (rival_make_context exprs-str vars-str use-callback 53 convert-cb distance-cb free-cb))
+
+  (when (not machine)
+    (error 'make-real-compiler "Failed to create Rival machine"))
 
   (define dump-file
     (cond
@@ -87,74 +113,91 @@
        dump-file]
       [else #f]))
 
-  ; wrap it with useful information for Herbie
   (real-compiler pre
                  (list->vector vars)
                  (list->vector (context-var-reprs (first ctxs)))
                  specs
                  (list->vector reprs)
                  machine
-                 dump-file))
+                 dump-file
+                 (list convert-cb distance-cb))) ; Keep callbacks alive
 
-(define (bigfloat->readable-string x)
-  (define real (bigfloat->real x)) ; Exact rational unless inf/nan
-  (define float (real->double-flonum real))
-  (if (= real float)
-      (format "#i~a" float) ; The #i explicitly means nearest float
-      (number->string real))) ; Backup is print as rational
+(define (serialize-hint h)
+  (match h
+    ['execute "execute"]
+    ['skip "skip"]
+    [(list 'alias n) (format "(alias ~a)" n)]
+    [(list 'known-bool b)
+     (format "(known-bool ~a)" (if (or (equal? b 'true) (equal? b #t)) "true" "false"))]
+    [_ (error 'serialize-hint "Unknown hint: ~a" h)]))
 
-;; Runs a Rival machine on an input point.
+(define (serialize-hints hints)
+  (if hints
+      (string-append "(" (string-join (map serialize-hint hints) " ") ")")
+      "false"))
+
 (define (real-apply compiler pt [hint #f])
-  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file) compiler)
+  (match-define (real-compiler _ vars var-reprs exprs _ machine dump-file _) compiler)
   (define start (current-inexact-milliseconds))
   (define pt*
     (for/vector #:length (vector-length vars)
                 ([val (in-vector pt)]
                  [repr (in-vector var-reprs)])
       ((representation-repr->bf repr) val)))
+
+  (define args-str (string-join (map bigfloat->string (vector->list pt*)) " "))
+  (define hints-str (serialize-hints hint))
+
   (when dump-file
-    (define args (map bigfloat->readable-string (vector->list pt*)))
-    (fprintf dump-file "(eval f ~a)\n" (string-join args " ")))
+    (fprintf dump-file "(eval f ~a)\n" args-str))
+
+  (define res-ptr (rival_eval machine args-str hints-str))
+  (define res-str (cast res-ptr _pointer _string/utf-8))
+  (define res-list (read (open-input-string res-str)))
+  (rival_free_string res-ptr)
+
   (define-values (status value)
-    (with-handlers ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
-                    [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
-      (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
-                     [*rival-max-iterations* 5])
-        (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
-        (values 'valid value))))
-  (when (> (rival-profile machine 'bumps) 0)
-    (warn 'ground-truth
-          "Could not converge on a ground truth"
-          #:extra (for/list ([var (in-vector vars)]
-                             [val (in-vector pt)])
-                    (format "~a = ~a" var val))))
-  (define executions (rival-profile machine 'executions))
-  (when (>= (vector-length executions) (*rival-profile-executions*))
-    (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
-  (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
-  (for ([execution (in-vector executions)])
-    (define name (symbol->string (execution-name execution)))
-    (define precision
-      (- (execution-precision execution) (remainder (execution-precision execution) prec-threshold)))
-    (timeline-push!/unsafe 'mixsample
-                           (execution-time execution)
-                           name
-                           precision
-                           (execution-memory execution)))
+    (match res-list
+      [(list 'valid vals ...)
+       ;; Drop the first value (precondition)
+       (define vals* (cdr vals))
+       (define parsed-vals (map (lambda (s) (bf s)) vals*))
+       (values 'valid parsed-vals)]
+      [(list 'invalid) (values 'invalid #f)]
+      [(list 'unsamplable) (values 'exit #f)]
+      [_ (error 'real-apply "Unknown result from rival: ~a" res-list)]))
+
   (timeline-push!/unsafe 'outcomes
                          (- (current-inexact-milliseconds) start)
-                         (rival-profile machine 'iterations)
+                         1 ; iterations (dummy)
                          (symbol->string status)
                          1)
   (values status value))
 
-;; Clears profiling data.
 (define (real-compiler-clear! compiler)
-  (rival-profile (real-compiler-machine compiler) 'executions)
   (void))
 
-;; Returns whether the machine is guaranteed to raise an exception
-;; for the given inputs range. The result is an interval representing
-;; how certain the result is: no, maybe, yes.
 (define (real-compiler-analyze compiler input-ranges [hint #f])
-  (rival-analyze-with-hints (real-compiler-machine compiler) input-ranges hint))
+  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file _) compiler)
+
+  (define args-str
+    (string-join (for/list ([iv (in-vector input-ranges)])
+                   (format "~a ~a" (bigfloat->string (ival-lo iv)) (bigfloat->string (ival-hi iv))))
+                 " "))
+
+  (define hints-str (serialize-hints hint))
+
+  (define res-ptr (rival_analyze machine args-str hints-str))
+  (define res-str (cast res-ptr _pointer _string/utf-8))
+  (define res-list (read (open-input-string res-str)))
+  (rival_free_string res-ptr)
+
+  (match res-list
+    [(list lo-str hi-str converged hints)
+     (define lo (bf lo-str))
+     (define hi (bf hi-str))
+     (define status (ival (not (bfzero? lo)) (not (bfzero? hi))))
+     (define next-hint hints) ; hints is already a list of symbols/lists from read
+     (define conv (equal? converged 'true))
+     (list status next-hint conv)]
+    [_ (error 'real-compiler-analyze "Unknown result: ~a" res-list)]))

@@ -21,7 +21,10 @@
 
 (define (ulp-difference x y repr)
   (define ->ordinal (representation-repr->ordinal repr))
-  (+ 1 (abs (- (->ordinal y) (->ordinal x)))))
+  (define bf->repr (representation-bf->repr repr))
+  (define x* (if (bigfloat? x) (bf->repr x) x))
+  (define y* (if (bigfloat? y) (bf->repr y) y))
+  (+ 1 (abs (- (->ordinal y*) (->ordinal x*)))))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint
@@ -78,10 +81,11 @@
        [(or +inf.0 +inf.f) (hash 'type "real" 'value "+inf")]
        [(or +nan.0 +nan.f) (hash 'type "real" 'value "NaN")])]
     [_
+     (define val (if (bigfloat? x) ((representation-bf->repr repr) x) x))
      (hash 'type
            (~a (representation-name repr))
            'ordinal
-           (~a ((representation-repr->ordinal repr) x)))]))
+           (~a ((representation-repr->ordinal repr) val)))]))
 
 (define (json->value x repr)
   (match x

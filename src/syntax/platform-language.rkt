@@ -6,7 +6,7 @@
          "generators.rkt"
          "../utils/errors.rkt"
          "../config.rkt"
-         rival/eval/types)
+         (only-in rival-herbie/ops rival-type))
 
 (provide define-representation
          define-operation

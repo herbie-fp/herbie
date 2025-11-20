@@ -2,7 +2,7 @@
 
 (require math/bigfloat
          racket/hash
-         (only-in rival/eval/main rival-functions))
+         (only-in rival-herbie/ops rival-functions))
 
 (require "../utils/common.rkt"
          "../utils/errors.rkt"

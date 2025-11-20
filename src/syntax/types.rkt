@@ -95,8 +95,9 @@
   (make-representation #:name 'binary32
                        #:bf->repr bigfloat->float32
                        #:repr->bf (lambda (x)
-                                    (parameterize ([bf-precision 24])
-                                      (bf x)))
+                                    (if (bigfloat? x) x
+                                        (parameterize ([bf-precision 24])
+                                          (bf x))))
                        #:ordinal->repr ordinal->float32
                        #:repr->ordinal float32->ordinal
                        #:total-bits 32
@@ -106,8 +107,9 @@
   (make-representation #:name 'binary64
                        #:bf->repr bigfloat->flonum
                        #:repr->bf (lambda (x)
-                                    (parameterize ([bf-precision 53])
-                                      (bf x)))
+                                    (if (bigfloat? x) x
+                                        (parameterize ([bf-precision 53])
+                                          (bf x))))
                        #:ordinal->repr ordinal->flonum
                        #:repr->ordinal flonum->ordinal
                        #:total-bits 64

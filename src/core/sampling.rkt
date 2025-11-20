@@ -1,6 +1,6 @@
 #lang racket
 (require math/bigfloat
-         rival
+         rival-herbie
          math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "../utils/common.rkt"
@@ -100,7 +100,7 @@
   hyperrect-sampler)
 
 (define (make-sampler compiler)
-  (match-define (real-compiler pre vars var-reprs _ reprs _ _) compiler)
+  (match-define (real-compiler pre vars var-reprs _ reprs _ _ _) compiler)
   (cond
     [(and (flag-set? 'setup 'search)
           (not (vector-empty? var-reprs))
