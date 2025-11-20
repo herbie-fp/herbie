@@ -6,7 +6,7 @@
          "../syntax/syntax.rkt")
 
 (provide *rules*
-         *sound-removal-rules*
+         add-unsound
          (struct-out rule))
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
@@ -608,7 +608,21 @@
   [acosh-2-rev (* 2 (acosh x)) (acosh (- (* 2 (* x x)) 1))])
 
 ; Sound-X removal rules: run these before lowering
-(define (*sound-removal-rules*)
-  (list (rule 'remove-sound-/ '(sound-/ a b fallback) '(/ a b) '(sound-removal))
-        (rule 'remove-sound-pow '(sound-pow a b fallback) '(pow a b) '(sound-removal))
-        (rule 'remove-sound-log '(sound-log a fallback) '(log a) '(sound-removal))))
+(define/reset unsound-counter 0)
+
+(define (add-unsound expr)
+  (match expr
+    [(? number?) expr]
+    [(? symbol?) expr]
+    [(list (and (or '/ 'log 'pow) op) args ...)
+     (unsound-counter (add1 (unsound-counter)))
+     `(,(string->symbol (format "sound-~a" op)) ,@(map add-unsound args)
+                                                ,(string->symbol (format "t_~a" (unsound-counter))))]
+    [(list op args ...) (cons op (map add-unsound args))]))
+
+(define-rules arithmetic
+  [add-sound-/ '(/ a b) '(sound-/ a b 0)]
+  [add-sound-pow '(pow a b) '(sound-pow a b 0)]
+  [add-sound-log '(log a) '(sound-log a 0)]
+  [remove-sound-/ '(sound-/ a 0 b) b]
+  [remove-sound-log '(sound-log 0 b) b])
