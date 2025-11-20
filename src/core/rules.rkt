@@ -132,7 +132,8 @@
   [sub-square-pow-rev (+ (- (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (- a b) 2)]
   [difference-of-sqr-1-rev (* (+ a 1) (- a 1)) (- (* a a) 1)]
   [difference-of-sqr--1-rev (* (+ a 1) (- a 1)) (+ (* a a) -1)]
-  [difference-of-squares-rev (* (+ a b) (- a b)) (- (* a a) (* b b))])
+  [difference-of-squares-rev (* (+ a b) (- a b)) (- (* a a) (* b b))]
+  [complete-square (+ (pow x 2) (* b x)) (- (pow (+ x (/ b 2)) 2) (pow (/ b 2) 2))])
 
 ; Mul/div flip
 (define-rules arithmetic
