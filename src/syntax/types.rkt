@@ -5,6 +5,7 @@
          math/flonum)
 
 (provide (struct-out representation)
+         (struct-out tensor-type)
          repr->prop
          shift
          unshift
@@ -29,6 +30,7 @@
 
 (define-type real)
 (define-type bool)
+(define-type tensor)
 
 ;; Representations
 
@@ -41,9 +43,14 @@
 
 ;; Converts a representation into a rounding property
 (define (repr->prop repr)
-  (match (representation-type repr)
-    ['bool '()]
-    ['real (list (cons ':precision (representation-name repr)))]))
+  (match repr
+    [(? representation?)
+     (match (representation-type repr)
+       ['bool '()]
+       ['real (list (cons ':precision (representation-name repr)))])]
+    [(tensor-type _ elem) (repr->prop elem)]))
+
+(struct tensor-type (dims elem) #:transparent)
 
 (define (make-representation #:name name
                              #:bf->repr bf->repr

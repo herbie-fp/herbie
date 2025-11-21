@@ -1,0 +1,34 @@
+; -*- mode: scheme -*-
+
+(FPCore dot-product ((v n) (w n))
+ :name "Dot product of two vectors"
+ (for ([i n])
+   ([acc 0 (+ acc (* (ref v i) (ref w i)))])
+   acc))
+
+(FPCore normalize ((v n))
+ :name "Normalize vector with tensor literal output"
+ :pre (> n 0)
+ (let ([mag (sqrt (for ([i n])
+                         ([acc 0 (+ acc (* (ref v i) (ref v i)))])
+                         acc))])
+   (tensor ([i n])
+     (/ (ref v i) mag))))
+
+(FPCore matvec ((A m n) (x n))
+ :name "Matrix-vector product using tensor"
+ (tensor ([i m])
+   (for ([j n])
+     ([acc 0 (+ acc (* (ref A i j) (ref x j)))])
+     acc)))
+
+(FPCore affine-2d ((p 2))
+ :name "Apply 2x2 affine transform literal"
+ (let* ([M (array (array 2.0 0.5)
+                  (array -0.25 1.5))]
+        [bias (array 0.1 -0.2)])
+   (tensor ([i 2])
+     (+ (for ([j 2])
+          ([acc 0 (+ acc (* (ref M i j) (ref p j)))])
+          acc)
+        (ref bias i)))))
