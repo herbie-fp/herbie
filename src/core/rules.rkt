@@ -628,8 +628,8 @@
     [(list op args ...) (cons op (map add-unsound args))]))
 
 (define-rules arithmetic
-  [add-sound-/ '(/ a b) '(sound-/ a b 0)]
-  [add-sound-pow '(pow a b) '(sound-pow a b 0)]
-  [add-sound-log '(log a) '(sound-log a 0)]
-  [remove-sound-/ '(sound-/ a 0 b) b]
-  [remove-sound-log '(sound-log 0 b) b])
+  [add-sound-/ (/ a b) (sound-/ a b 0)]
+  [add-sound-pow (pow a b) (sound-pow a b 0)]
+  [add-sound-log (log a) (sound-log a 0)]
+  [remove-sound-/ (sound-/ a 0 b) b]
+  [remove-sound-log (sound-log 0 b) b])
