@@ -32,7 +32,6 @@
   (define backend (hash-ref result-hash 'backend))
   (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
   (define pre (test-pre test))
-
   (define time (hash-ref result-hash 'time))
   (define warnings (hash-ref result-hash 'warnings))
   (define repr (test-output-repr test))
