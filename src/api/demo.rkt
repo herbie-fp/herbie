@@ -447,9 +447,6 @@
   (define test (get-test post-data))
   (define sample (hash-ref post-data 'sample))
   (json->pcontext sample (test-context test)))
-""
-"Base class for numerical types."
-""
 
 (define-api-endpoint ("sample" post-data)
   (define test (get-test post-data))
