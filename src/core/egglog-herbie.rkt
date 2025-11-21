@@ -593,13 +593,12 @@
     (cond
       [(> curr-iter iter-limit) (void)]
       [else
-       ;; Run the ruleset once more
+       ;; 1. Run rewrite rules
        (define math-schedule
          (list `(run-schedule (repeat 1 ,tag))
                '(print-size)
                '(extract "DONE")))
 
-       ;; Get egglog output
        (define-values (math-node-limit? math-total-nodes)
          (get-egglog-size math-schedule subproc node-limit))
 
@@ -607,7 +606,7 @@
          [math-node-limit? (void)]
          [(equal? math-total-nodes prev-nodes) (void)]
          [else
-          ;; 3. Run const-fold
+          ;; 2. Run const-fold
           (define const-schedule
             (list `(run-schedule (repeat 1 const-fold))
                   '(print-size)
