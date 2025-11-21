@@ -6,7 +6,7 @@
          create-new-egglog-subprocess
          egglog-send
          egglog-extract
-         egglog-send-unsound-detection
+         egglog-send-and-read
          egglog-subprocess-close)
 
 ;; Struct to hold egglog subprocess handles
@@ -80,7 +80,7 @@
   (egglog-send subproc extract-command)
   (read (egglog-subprocess-output subproc)))
 
-(define (egglog-send-unsound-detection subproc commands)
+(define (egglog-send-and-read subproc commands)
   (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
 
   (define egglog-program (apply ~s #:separator "\n" commands))
@@ -109,15 +109,13 @@
     (flush-output egglog-in)
 
     (define lines '())
-    (define unsound? #t)
 
     (let loop ()
       (define line (read-line egglog-output 'any))
       (cond
-        [(or (equal? line "true") (equal? line "false")) (set! unsound? (equal? line "true"))]
+        [(eof-object? line) lines]
+        [(equal? line "\"DONE\"") lines]
         [else
          (set! lines (cons line lines))
 
-         (loop)]))
-
-    (values lines unsound?)))
+         (loop)]))))
