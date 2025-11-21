@@ -90,7 +90,7 @@
   approxs*)
 
 (define (run-lowering altns global-batch)
-  (define schedule `((lower . ((iteration . 1) (scheduler . simple)))))
+  (define schedule '(lower))
 
   ; run egg
   (define brfs (map alt-expr altns))
@@ -105,7 +105,7 @@
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog-multi-extractor runner global-batch 'taylor)
+        (run-egglog runner global-batch 'taylor #:extract 1)
         (egraph-best runner global-batch)))
 
   ; apply changelists
@@ -123,7 +123,7 @@
   (define brfs (map alt-expr real-altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
   (define contexts
-    (for/list ([repr reprs])
+    (for/list ([repr (in-list reprs)])
       (context '() repr '())))
 
   (define spec-brfs (batch-to-spec! global-batch brfs))
@@ -140,7 +140,12 @@
                [ctx (in-list contexts)]
                #:when (equal? status 'valid))
       (define repr (context-repr ctx))
-      (literal (repr->real pt repr) (representation-name repr))))
+      (match (representation-type repr)
+        ['bool
+         (if pt
+             '(TRUE)
+             '(FALSE))]
+        ['real (literal (repr->real pt repr) (representation-name repr))])))
 
   (define final-altns
     (for/list ([literal (in-list literals)]
@@ -157,14 +162,9 @@
 
 (define (run-rr altns global-batch)
   (timeline-event! 'rewrite)
-  ; generate required rules
-  (define rules (*rules*))
 
-  ; egg schedule (3-phases for mathematical rewrites and implementation selection)
-  (define schedule
-    (list `(lift . ((iteration . 1) (scheduler . simple)))
-          `(,rules . ((node . ,(*node-limit*))))
-          `(lower . ((iteration . 1) (scheduler . simple)))))
+  ; egg schedule (4-phases for mathematical rewrites, sound-X removal, and implementation selection)
+  (define schedule '(lift rewrite unsound lower))
 
   (define brfs (map alt-expr altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
@@ -178,7 +178,7 @@
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog-multi-extractor runner global-batch 'rewrite)
+        (run-egglog runner global-batch 'rewrite #:extract 1000000) ; "infinity"
         (egraph-variations runner global-batch)))
 
   ; apply changelists

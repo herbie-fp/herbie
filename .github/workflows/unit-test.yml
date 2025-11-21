@@ -13,15 +13,17 @@ jobs:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v1.11
+        uses: Bogdanp/setup-racket@v1.14
         with:
-          version: "8.14"
+          version: "8.18"
       - name: Install Rust compiler
         uses: dtolnay/rust-toolchain@stable
         with:
             toolchain: stable
             components: rustfmt, clippy
-      - uses: actions/checkout@master
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@v5
       - name: "Install dependencies"
         run: make install
       # SoftPosit is required to test the softposit platform we use for testing
@@ -68,7 +70,7 @@ jobs:
       - run: cd egg-herbie && raco test ./
 
       # Test the API
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - name: "Test the endpoint"

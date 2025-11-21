@@ -11,6 +11,7 @@
          json) ; for dumping
 
 (require "../utils/common.rkt"
+         "../utils/errors.rkt"
          "../utils/timeline.rkt"
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
@@ -24,7 +25,8 @@
          egraph-equal?
          egraph-prove
          egraph-best
-         egraph-variations)
+         egraph-variations
+         egraph-analyze-rewrite-impact)
 
 (module+ test
   (require rackunit))
@@ -56,13 +58,6 @@
 ; Makes a new egraph that is managed by Racket's GC
 (define (make-egraph-data)
   (egraph-data (egraph_create) (make-hash)))
-
-; Creates a new runner using an existing egraph.
-; Useful for multi-phased rule application
-(define (egraph-copy eg-data)
-  (struct-copy egraph-data
-               eg-data
-               [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
 
 ; Adds expressions returning the root ids
 (define (egraph-add-exprs egg-data batch brfs ctx)
@@ -289,7 +284,7 @@
       [(list 'Rewrite<= rule expr) (list 'Rewrite<= (get-canon-rule-name rule rule) (loop expr type))]
       [(list op args ...)
        #:when (string-prefix? (symbol->string op) "sound-")
-       (define op* (string->symbol (substring (symbol->string (car expr)) (string-length "sound-"))))
+       (define op* (string->symbol (substring (symbol->string op) (string-length "sound-"))))
        (define args* (drop-right args 1))
        (cons op* (map loop args* (map (const 'real) args*)))]
       [(list op args ...)
@@ -525,16 +520,13 @@
 ;; Synthesizes lowering rules for a given platform.
 (define (platform-lowering-rules [pform (*active-platform*)])
   (define impls (platform-impls pform))
-  (append*
-   (for/list ([impl (in-list impls)])
-     (hash-ref!
-      (*lowering-rules*)
-      (cons impl pform)
-      (lambda ()
-        (define name (sym-append 'lower- impl))
-        (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-        (list (rule name spec-expr impl-expr '(lowering))
-              (rule (sym-append 'lower-sound- impl) (add-sound spec-expr) impl-expr '(lowering))))))))
+  (append* (for/list ([impl (in-list impls)])
+             (hash-ref! (*lowering-rules*)
+                        (cons impl pform)
+                        (lambda ()
+                          (define name (sym-append 'lower- impl))
+                          (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+                          (list (rule name spec-expr impl-expr '(lowering))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
@@ -1215,28 +1207,63 @@
 ;; A mini-interpreter for egraph "schedules" including running egg,
 ;; pruning certain kinds of nodes, extracting expressions, etc.
 
+; Creates a new runner using an existing egraph.
+; Useful for multi-phased rule application
+(define (egraph-copy eg-data)
+  (struct-copy egraph-data
+               eg-data
+               [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
+
 ;; Runs rules over the egraph with the given egg parameters.
-;; Invariant: the returned egraph is never unsound
-(define (egraph-run-rules egg-graph0 egg-rules params)
-  (define node-limit (dict-ref params 'node #f))
-  (define iter-limit (dict-ref params 'iteration #f))
-  (define scheduler (dict-ref params 'scheduler 'backoff))
+(define (egraph-run-rules egg-graph0
+                          egg-rules
+                          #:node-limit [node-limit #f]
+                          #:iter-limit [iter-limit #f]
+                          #:scheduler [scheduler 'backoff])
   (define ffi-rules (map cdr egg-rules))
 
   ;; run the rules
-  (let loop ([iter-limit iter-limit])
-    (define egg-graph (egraph-copy egg-graph0))
-    (define iteration-data (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
+  (define egg-graph (egraph-copy egg-graph0))
+  (define iteration-data (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
 
-    (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
-    (cond
-      [(egraph-is-unsound-detected egg-graph)
-       ; unsoundness means run again with less iterations
-       (define num-iters (length iteration-data))
-       (if (<= num-iters 1) ; nothing to fall back on
-           (values egg-graph0 (list))
-           (loop (sub1 num-iters)))]
-      [else (values egg-graph iteration-data)])))
+  (when (egraph-is-unsound-detected egg-graph)
+    (warn 'unsound-egraph #:url "faq.html#unsound-egraph" "unsoundness detected in the egraph"))
+  (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
+  (values egg-graph iteration-data))
+
+(define (egraph-analyze-rewrite-impact batch brfs ctx iter)
+  (define egg-graph (make-egraph-data))
+  (egraph-add-exprs egg-graph batch brfs ctx)
+  (define lifting-rules (expand-rules (platform-lifting-rules)))
+  (define-values (egg-graph1 _1)
+    (egraph-run-rules egg-graph lifting-rules #:iter-limit 1 #:scheduler 'simple))
+  (define-values (egg-graph2 iter-data2)
+    (if (> iter 0)
+        (egraph-run-rules egg-graph1 (expand-rules (*rules*)) #:iter-limit iter)
+        (values egg-graph1 _1)))
+  (define-values (egg-graph3 iter-data3) (egraph-run-rules egg-graph2 '()))
+  (define initial-size (iteration-data-num-nodes (last iter-data3)))
+  (define results
+    (for/list ([rule (in-list (*rules*))])
+      (define-values (egg-graph5 iter-data5)
+        (egraph-run-rules egg-graph3 (expand-rules (list rule)) #:iter-limit 2))
+      (define size (iteration-data-num-nodes (last (if (empty? iter-data5) iter-data3 iter-data5))))
+      (cons rule (- size initial-size))))
+  (define sorted-results (sort results > #:key cdr))
+  (define final-size
+    (let-values ([(egg-graph6 iter-data6)
+                  (egraph-run-rules egg-graph3 (expand-rules (*rules*)) #:iter-limit 2)])
+      (iteration-data-num-nodes (last (if (empty? iter-data6) iter-data3 iter-data6)))))
+
+  (printf "=== Iteration ~a: ~a -> ~a nodes ===\n" iter initial-size final-size)
+  (for ([(rule delta) (in-dict sorted-results)]
+        [_ (in-range 10)]
+        #:unless (= delta 0))
+    (eprintf "~a (~a%): ~a\n"
+             delta
+             (~r (/ (* 100.0 delta) final-size) #:precision '(= 1))
+             (rule-name rule)))
+  (newline))
 
 (define (egraph-run-schedule batch brfs schedule ctx)
   ; allocate the e-graph
@@ -1247,14 +1274,21 @@
 
   ; run the schedule
   (define egg-graph*
-    (for/fold ([egg-graph egg-graph]) ([(rules params) (in-dict schedule)])
-      ; run rules in the egraph
-      (define egg-rules
-        (expand-rules (match rules
-                        [`lift (platform-lifting-rules)]
-                        [`lower (platform-lowering-rules)]
-                        [else rules])))
-      (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
+    (for/fold ([egg-graph egg-graph]) ([step (in-list schedule)])
+      (define-values (egg-graph* iteration-data)
+        (match step
+          ['lift
+           (define rules (expand-rules (platform-lifting-rules)))
+           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
+          ['lower
+           (define rules (expand-rules (platform-lowering-rules)))
+           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
+          ['unsound
+           (define rules (expand-rules (*sound-removal-rules*)))
+           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
+          ['rewrite
+           (define rules (expand-rules (*rules*)))
+           (egraph-run-rules egg-graph rules #:node-limit (*node-limit*))]))
 
       ; get cost statistics
       (for ([iter (in-list iteration-data)]
@@ -1290,37 +1324,18 @@
 
 ;; Constructs an egg runner.
 ;;
-;; The schedule is a list of pairs specifying
-;;  - a list of rules
-;;  - scheduling parameters:
-;;     - node limit: `(node . <number>)`
-;;     - iteration limit: `(iteration . <number>)`
-;;     - scheduler: `(scheduler . <name>)` [default: backoff]
-;;        - `simple`: run all rules without banning
-;;        - `backoff`: ban rules if the fire too much
+;; The schedule is a list of step symbols:
+;;  - `lift`: run lifting rules for 1 iteration with simple scheduler
+;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
+;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
+;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
 (define (make-egraph batch brfs reprs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
-  (for ([instr (in-list schedule)])
-    (match instr
-      [(cons rules params)
-       ;; `run` instruction
-
-       (unless (or (equal? `lift rules)
-                   (equal? `lower rules)
-                   (and (list? rules) (andmap rule? rules)))
-         (oops! "expected list of rules: `~a`" rules))
-
-       (for ([param (in-list params)])
-         (match param
-           [(cons 'node (? nonnegative-integer?)) (void)]
-           [(cons 'iteration (? nonnegative-integer?)) (void)]
-           [(cons 'scheduler mode)
-            (unless (set-member? '(simple backoff) mode)
-              (oops! "in instruction `~a`, unknown scheduler `~a`" instr mode))]
-           [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
-      [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
+  (for ([step (in-list schedule)])
+    (unless (memq step '(lift lower unsound rewrite))
+      (oops! "unknown schedule step `~a`" step)))
 
   (define-values (root-ids egg-graph) (egraph-run-schedule batch brfs schedule ctx))
 
@@ -1368,31 +1383,39 @@
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
 
-  (define regraph (make-regraph egg-graph ctx))
-  (define reprs (egg-runner-reprs runner))
-  (when (flag-set? 'dump 'egg)
-    (regraph-dump regraph root-ids reprs))
+  ; Return empty results if unsound
+  (cond
+    [(egraph-is-unsound-detected egg-graph) (map (const empty) root-ids)]
+    [else
+     (define regraph (make-regraph egg-graph ctx))
+     (define reprs (egg-runner-reprs runner))
+     (when (flag-set? 'dump 'egg)
+       (regraph-dump regraph root-ids reprs))
 
-  (define extract-id ((typed-egg-batch-extractor batch) regraph))
+     (define extract-id ((typed-egg-batch-extractor batch) regraph))
 
-  ; (Listof (Listof batchref))
-  (for/list ([id (in-list root-ids)]
-             [repr (in-list reprs)])
-    (regraph-extract-best regraph extract-id id repr)))
+     ; (Listof (Listof batchref))
+     (for/list ([id (in-list root-ids)]
+                [repr (in-list reprs)])
+       (regraph-extract-best regraph extract-id id repr))]))
 
 (define (egraph-variations runner batch)
   (define ctx (egg-runner-ctx runner))
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
 
-  (define regraph (make-regraph egg-graph ctx))
-  (define reprs (egg-runner-reprs runner))
-  (when (flag-set? 'dump 'egg)
-    (regraph-dump regraph root-ids reprs))
+  ; Return empty results if unsound
+  (cond
+    [(egraph-is-unsound-detected egg-graph) (map (const empty) root-ids)]
+    [else
+     (define regraph (make-regraph egg-graph ctx))
+     (define reprs (egg-runner-reprs runner))
+     (when (flag-set? 'dump 'egg)
+       (regraph-dump regraph root-ids reprs))
 
-  (define extract-id ((typed-egg-batch-extractor batch) regraph))
+     (define extract-id ((typed-egg-batch-extractor batch) regraph))
 
-  ; (Listof (Listof batchref))
-  (for/list ([id (in-list root-ids)]
-             [repr (in-list reprs)])
-    (regraph-extract-variants regraph extract-id id repr)))
+     ; (Listof (Listof batchref))
+     (for/list ([id (in-list root-ids)]
+                [repr (in-list reprs)])
+       (regraph-extract-variants regraph extract-id id repr))]))

@@ -2,6 +2,7 @@
 
 (require rackunit
          "egglog-herbie.rkt"
+         "egglog-subprocess.rkt"
          "../syntax/syntax.rkt")
 
 (define (test-e1->expr)
@@ -47,24 +48,26 @@
                 '(>= (/ r (+ s t)) (- 8/9 (* 1/3 u)))))
 
 (define (test-e2->expr)
-  (check-equal? (e2->expr '(Num (bigrat (from-string "5") (from-string "6")))) 5/6)
+  (check-equal? (e2->expr '(Numbinary64 (bigrat (from-string "5") (from-string "6"))))
+                '#s(literal 5/6 binary64))
 
-  (check-equal? (e2->expr '(Var "y")) 'y)
+  (check-equal? (e2->expr '(Varbinary64 "y")) 'y)
 
-  (check-equal? (e2->expr '(Iff64Ty (Var "y")
-                                    (Num (bigrat (from-string "1") (from-string "2")))
-                                    (Num (bigrat (from-string "0") (from-string "1")))))
-                '(if.f64 y 1/2 0))
+  (check-equal? (e2->expr '(Iff64Ty (Varbinary64 "y")
+                                    (Numbinary64 (bigrat (from-string "1") (from-string "2")))
+                                    (Numbinary64 (bigrat (from-string "0") (from-string "1")))))
+                '(if.f64 y #s(literal 1/2 binary64) #s(literal 0 binary64)))
 
-  (check-equal? (e2->expr '(Mulf64Ty (Num (bigrat (from-string "2") (from-string "1")))
-                                     (Num (bigrat (from-string "3") (from-string "1")))))
-                '(*.f64 2 3))
+  (check-equal? (e2->expr '(Mulf64Ty (Numbinary64 (bigrat (from-string "2") (from-string "1")))
+                                     (Numbinary64 (bigrat (from-string "3") (from-string "1")))))
+                '(*.f64 #s(literal 2 binary64) #s(literal 3 binary64)))
 
-  (check-equal? (e2->expr '(Approx (Add (Num (bigrat (from-string "1") (from-string "1")))
-                                        (Num (bigrat (from-string "2") (from-string "1"))))
-                                   (Mulf64Ty (Num (bigrat (from-string "3") (from-string "1")))
-                                             (Num (bigrat (from-string "1") (from-string "1"))))))
-                '#s(approx (+ 1 2) (*.f64 3 1)))
+  (check-equal?
+   (e2->expr '(Approx (Add (Num (bigrat (from-string "1") (from-string "1")))
+                           (Num (bigrat (from-string "2") (from-string "1"))))
+                      (Mulf64Ty (Numbinary64 (bigrat (from-string "3") (from-string "1")))
+                                (Numbinary64 (bigrat (from-string "1") (from-string "1"))))))
+   '#s(approx (+ 1 2) (*.f64 #s(literal 3 binary64) #s(literal 1 binary64))))
 
   ;; Complex 1
   (check-equal?
@@ -84,11 +87,12 @@
        (Mulf64Ty (Varbinary64 "eps") (Varbinary64 "eps"))
        (Mulf64Ty (Cosf64Ty (Varbinary64 "x")) (Varbinary64 "eps")))))
    '#s(approx (+ (sin (+ x eps)) (* -1 (sin x)))
-              (fma.f64 (fma.f64 (sin.f64 x)
-                                (fma.f64 (*.f64 eps 1/24) eps -1/2)
-                                (*.f64 (*.f64 eps -1/6) (cos.f64 x)))
-                       (*.f64 eps eps)
-                       (*.f64 (cos.f64 x) eps))))
+              (fma.f64
+               (fma.f64 (sin.f64 x)
+                        (fma.f64 (*.f64 eps #s(literal 1/24 binary64)) eps #s(literal -1/2 binary64))
+                        (*.f64 (*.f64 eps #s(literal -1/6 binary64)) (cos.f64 x)))
+               (*.f64 eps eps)
+               (*.f64 (cos.f64 x) eps))))
 
   ;; Complex 2
   (check-equal?
@@ -107,10 +111,13 @@
                            (Numbinary64 (bigrat (from-string "1") (from-string "1"))))
                  (Cosf64Ty (Varbinary64 "x"))))
       (Varbinary64 "eps")))
-   '(*.f64 (fma.f64 (*.f64 (fma.f64 (*.f64 eps 1/24) eps -1/2) (sin.f64 x))
-                    eps
-                    (*.f64 (fma.f64 (*.f64 eps -1/6) eps 1) (cos.f64 x)))
-           eps))
+   '(*.f64
+     (fma.f64 (*.f64 (fma.f64 (*.f64 eps #s(literal 1/24 binary64)) eps #s(literal -1/2 binary64))
+                     (sin.f64 x))
+              eps
+              (*.f64 (fma.f64 (*.f64 eps #s(literal -1/6 binary64)) eps #s(literal 1 binary64))
+                     (cos.f64 x)))
+     eps))
 
   ;; Complex 3
   (check-equal?
@@ -127,9 +134,10 @@
                           (Varbinary64 "eps")
                           (Numbinary64 (bigrat (from-string "1") (from-string "1"))))
                 (Cosf64Ty (Varbinary64 "x")))))
-   '(fma.f64 (*.f64 (fma.f64 (*.f64 eps 1/24) eps -1/2) (sin.f64 x))
-             eps
-             (*.f64 (fma.f64 (*.f64 eps -1/6) eps 1) (cos.f64 x))))
+   '(fma.f64
+     (*.f64 (fma.f64 (*.f64 eps #s(literal 1/24 binary64)) eps #s(literal -1/2 binary64)) (sin.f64 x))
+     eps
+     (*.f64 (fma.f64 (*.f64 eps #s(literal -1/6 binary64)) eps #s(literal 1 binary64)) (cos.f64 x))))
 
   ;; Complex 4
   (check-equal?
@@ -142,22 +150,26 @@
                (Mulf64Ty (Mulf64Ty (Varbinary64 "eps")
                                    (Numbinary64 (bigrat (from-string "-1") (from-string "6"))))
                          (Cosf64Ty (Varbinary64 "x")))))
-   '(fma.f64 (sin.f64 x) (fma.f64 (*.f64 eps 1/24) eps -1/2) (*.f64 (*.f64 eps -1/6) (cos.f64 x))))
+   '(fma.f64 (sin.f64 x)
+             (fma.f64 (*.f64 eps #s(literal 1/24 binary64)) eps #s(literal -1/2 binary64))
+             (*.f64 (*.f64 eps #s(literal -1/6 binary64)) (cos.f64 x))))
 
   (check-equal? (e2->expr '(Approx (Add (Sin (Add (Var "x") (Var "eps"))))
-                                   (Mulf64Ty (Num (bigrat (from-string "-1") (from-string "1")))
-                                             (Cosf64Ty (Var "x")))))
-                '#s(approx (+ (sin (+ x eps))) (*.f64 -1 (cos.f64 x))))
+                                   (Mulf64Ty (Numbinary64 (bigrat (from-string "-1")
+                                                                  (from-string "1")))
+                                             (Cosf64Ty (Varbinary64 "x")))))
+                '#s(approx (+ (sin (+ x eps))) (*.f64 #s(literal -1 binary64) (cos.f64 x))))
 
-  (check-equal? (e2->expr '(Mulf32Ty (Num (bigrat (from-string "3") (from-string "2")))
-                                     (Addf32Ty (Num (bigrat (from-string "4") (from-string "5")))
-                                               (Var "z"))))
-                '(*.f32 3/2 (+.f32 4/5 z)))
+  (check-equal? (e2->expr '(Mulf32Ty (Numbinary32 (bigrat (from-string "3") (from-string "2")))
+                                     (Addf32Ty (Numbinary32 (bigrat (from-string "4")
+                                                                    (from-string "5")))
+                                               (Varbinary32 "z"))))
+                '(*.f32 #s(literal 3/2 binary32) (+.f32 #s(literal 4/5 binary32) z)))
 
-  (check-equal? (e2->expr '(Iff32Ty (Var "cond")
-                                    (Num (bigrat (from-string "7") (from-string "8")))
-                                    (Num (bigrat (from-string "-2") (from-string "3")))))
-                '(if.f32 cond 7/8 -2/3)))
+  (check-equal? (e2->expr '(Iff32Ty (Varbinary32 "cond")
+                                    (Numbinary32 (bigrat (from-string "7") (from-string "8")))
+                                    (Numbinary32 (bigrat (from-string "-2") (from-string "3")))))
+                '(if.f32 cond #s(literal 7/8 binary32) #s(literal -2/3 binary32))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing API
@@ -368,11 +380,63 @@
 
   (define reprs (make-list (length brfs) (context-repr ctx)))
 
-  (define rules (*rules*))
-  (define schedule
-    `((lift . ((iteration . 1) (scheduler . simple)))
-      (,rules . ((node . ,(*node-limit*)) (scheduler . simple)))
-      (lower . ((iteration . 1) (scheduler . simple)))))
+  (define schedule '(lift rewrite lower))
 
   (when (find-executable-path "egglog")
-    (run-egglog-multi-extractor (egglog-runner batch brfs reprs schedule ctx) batch)))
+    (void (run-egglog (make-egglog-runner batch brfs reprs schedule ctx) batch #:extract 1000000))))
+
+(module+ test
+  (require rackunit)
+  (when (find-executable-path "egglog")
+    (define subproc (create-new-egglog-subprocess #f))
+
+    (define first-commands
+      (list '(datatype Expr (Var String :cost 150) (Add Expr Expr :cost 200))
+            '(constructor const1 () Expr :unextractable)
+            '(constructor const2 () Expr :unextractable)
+            '(constructor const3 () Expr :unextractable)
+            '(function unsound () bool :merge (or old new))
+            '(ruleset unsound-rule)
+            '(set (unsound) false)
+            '(rule ((= (Var c1) (Var c2)) (!= c1 c2)) ((set (unsound) true)) :ruleset unsound-rule)
+            '(ruleset init)
+            '(rule ()
+                   ((let a1 (Var
+                             "x")
+                      )
+                    (set (const1) a1)
+                    (let a2 (Var
+                             "y")
+                      )
+                    (set (const2) a2)
+                    (let b1 (Add
+                             a1
+                             a2)
+                      )
+                    (set (const3) b1))
+                   :ruleset
+                   init)
+            '(run init 1)))
+
+    ; Nothing to output
+    (apply egglog-send subproc first-commands)
+
+    ; Has extract 1 thing
+    (define lines1 (egglog-extract subproc '(extract (const1) 1)))
+    (check-equal? lines1 '((Var "x")))
+
+    ;; Print size
+
+    (define print-size-commands (list '(print-size) '(run unsound-rule 1) '(extract (unsound))))
+
+    (define-values (node-values unsound?) (egglog-send-unsound-detection subproc print-size-commands))
+    (check-equal? node-values
+                  '("unsound: 1" "const3: 1" "const2: 1" "const1: 1" "Var: 2" "Add: 1" ""))
+    (check-false unsound?)
+
+    ;; last two
+    (check-equal? '((Var "y")) (egglog-extract subproc '(extract (const2) 1)))
+    (check-equal? '((Add (Var "x") (Var "y"))) (egglog-extract subproc '(extract (const3) 1)))
+
+    (egglog-subprocess-close subproc)
+    (void)))

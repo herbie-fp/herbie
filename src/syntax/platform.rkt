@@ -256,7 +256,7 @@
   (define reprs (platform-representations platform))
   (define repr-costs (platform-representation-costs platform))
 
-  (printf "Representations:\n")
+  (displayln "Representations:")
   (define reprs-data
     (for/list ([repr (in-hash-values reprs)]
                [n (in-naturals)])
@@ -265,7 +265,7 @@
       (list n name type total-bits cost)))
   (write-table reprs-data (list "idx" "name" "type" "#bits" "cost"))
 
-  (printf "\nImplementations\n")
+  (displayln "\nImplementations")
   (define impls-data
     (for/list ([impl (in-hash-values impls)]
                [n (in-naturals)])
@@ -298,15 +298,15 @@
   (printf "~a" (~a (list-ref headers 0) #:width (vector-ref cell-widths 0)))
   (for ([i (in-range 1 row-length)])
     (printf "|~a" (~a (list-ref headers i) #:width (vector-ref cell-widths i))))
-  (printf "\n")
+  (newline)
   (printf "~a" (~a "" #:width (vector-ref cell-widths 0) #:right-pad-string "-"))
   (for ([i (in-range 1 row-length)])
     (printf "+~a" (~a "" #:width (vector-ref cell-widths i) #:right-pad-string "-")))
-  (printf "\n")
+  (newline)
 
   ; Content
   (for ([row data])
     (printf "~a" (~a (list-ref row 0) #:width (vector-ref cell-widths 0)))
     (for ([i (in-range 1 row-length)])
       (printf "|~a" (~a (list-ref row i) #:width (vector-ref cell-widths i))))
-    (printf "\n")))
+    (newline)))

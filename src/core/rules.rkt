@@ -6,8 +6,8 @@
          "../syntax/syntax.rkt")
 
 (provide *rules*
-         (struct-out rule)
-         add-sound)
+         *sound-removal-rules*
+         (struct-out rule))
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
 ;; are patterns, meaning that symbols represent pattern variables.
@@ -23,13 +23,6 @@
 
 (define (*rules*)
   (filter rule-enabled? *all-rules*))
-
-(define (add-sound expr)
-  (match expr
-    [(list (and (or '/ 'pow 'log) op) args ...)
-     `(,(sym-append "sound-" op) ,@(map add-sound args) ,(gensym))]
-    [(list op args ...) (cons op (map add-sound expr))]
-    [_ expr]))
 
 (define-syntax-rule (define-rule rname group input output)
   (set! *all-rules* (cons (rule 'rname 'input 'output '(group)) *all-rules*)))
@@ -162,8 +155,8 @@
 
 (define-rules polynomials
   #;[sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
-  [flip-+ (+ a b) (sound-/ (- (* a a) (* b b)) (- a b) (+ a b))]
-  [flip-- (- a b) (sound-/ (- (* a a) (* b b)) (+ a b) (- a b))])
+  [flip-+ (+ (sqrt a) (sqrt b)) (sound-/ (- a b) (- (sqrt a) (sqrt b)) (+ (sqrt a) (sqrt b)))]
+  [flip-- (- (sqrt a) (sqrt b)) (sound-/ (- a b) (+ (sqrt a) (sqrt b)) (- (sqrt a) (sqrt b)))])
 
 ; Difference of cubes
 (define-rules polynomials
@@ -173,8 +166,16 @@
   [sum-cubes-rev (* (+ (* a a) (- (* b b) (* a b))) (+ a b)) (+ (pow a 3) (pow b 3))])
 
 (define-rules polynomials
-  [flip3-+ (+ a b) (sound-/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b))) (+ a b))]
-  [flip3-- (- a b) (sound-/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b))) (- a b))])
+  [flip3-+
+   (+ (cbrt a) (cbrt b))
+   (sound-/ (+ a b)
+            (+ (* (cbrt a) (cbrt a)) (- (* (cbrt b) (cbrt b)) (* (cbrt a) (cbrt b))))
+            (+ (cbrt a) (cbrt b)))]
+  [flip3--
+   (- (cbrt a) (cbrt b))
+   (sound-/ (- a b)
+            (+ (* (cbrt a) (cbrt a)) (+ (* (cbrt b) (cbrt b)) (* (cbrt a) (cbrt b))))
+            (- (cbrt a) (cbrt b)))])
 
 ; Dealing with fractions
 (define-rules fractions
@@ -612,3 +613,9 @@
   [cosh-atanh-rev (/ 1 (sqrt (- 1 (* x x)))) (cosh (atanh x))]
   [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh (fabs x)))]
   [acosh-2-rev (* 2 (acosh x)) (acosh (- (* 2 (* x x)) 1))])
+
+; Sound-X removal rules: run these before lowering
+(define (*sound-removal-rules*)
+  (list (rule 'remove-sound-/ '(sound-/ a b fallback) '(/ a b) '(sound-removal))
+        (rule 'remove-sound-pow '(sound-pow a b fallback) '(pow a b) '(sound-removal))
+        (rule 'remove-sound-log '(sound-log a fallback) '(log a) '(sound-removal))))
