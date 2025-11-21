@@ -17,6 +17,8 @@
   (close-output-port (egglog-subprocess-input subproc))
   (close-input-port (egglog-subprocess-output subproc))
   (close-input-port (egglog-subprocess-error subproc))
+  (when (egglog-subprocess-dump-file subproc)
+    (close-output-port (egglog-subprocess-dump-file subproc)))
   (subprocess-wait (egglog-subprocess-process subproc))
   (unless (eq? (subprocess-status (egglog-subprocess-process subproc)) 'done)
     (subprocess-kill (egglog-subprocess-process subproc) #f)))
@@ -54,7 +56,8 @@
 
   (when dump-file
     (for ([expr commands])
-      (pretty-print expr dump-file 1)))
+      (pretty-print expr dump-file 1))
+    (flush-output dump-file))
 
   (with-handlers ([exn:fail? (lambda (exn)
                                (printf "Egglog command failed with exception:\n~a\n"
@@ -87,7 +90,8 @@
 
   (when dump-file
     (for ([expr commands])
-      (pretty-print expr dump-file 1)))
+      (pretty-print expr dump-file 1))
+    (flush-output dump-file))
 
   (with-handlers ([exn:fail? (lambda (exn)
                                (printf "Egglog command failed with exception:\n~a\n"
