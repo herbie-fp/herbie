@@ -72,7 +72,7 @@
   (*context* (max-ctx ctxs))
 
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
-    (define schedule '(lift rewrite unsound lower))
+    (define schedule '(lift rewrite lower))
 
   ; run egg
   (define-values (batch brfs)
