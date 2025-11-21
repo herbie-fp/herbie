@@ -10,7 +10,7 @@
                   core->julia
                   core->matlab
                   core->wls
-                  core->pvs
+                  core->reflow
                   core->tex
                   expr->tex
                   core->js
@@ -49,7 +49,7 @@
          core->julia
          core->matlab
          core->wls
-         core->pvs
+         core->reflow
          core->tex
          expr->tex
          core->js)
@@ -144,7 +144,7 @@
                                                       ("Julia" "jl" ,core->julia)
                                                       ("MATLAB" "mat" ,core->matlab)
                                                       ("Wolfram" "wl" ,core->wls)
-                                                      ("ReFlow" "pvs" ,core->pvs)
+                                                      ("ReFlow" "reflow" ,core->reflow)
                                                       ("TeX" "tex" ,(λ (c i) (core->tex c)))))
 
 (define (fpcore->tex fpcore #:loc [loc #f])
