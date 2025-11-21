@@ -1254,16 +1254,7 @@
     (let-values ([(egg-graph6 iter-data6)
                   (egraph-run-rules egg-graph3 (expand-rules (*rules*)) #:iter-limit 2)])
       (iteration-data-num-nodes (last (if (empty? iter-data6) iter-data3 iter-data6)))))
-
-  (printf "=== Iteration ~a: ~a -> ~a nodes ===\n" iter initial-size final-size)
-  (for ([(rule delta) (in-dict sorted-results)]
-        [_ (in-range 10)]
-        #:unless (= delta 0))
-    (printf "~a (~a%): ~a\n"
-             delta
-             (~r (/ (* 100.0 delta) final-size) #:precision '(= 1))
-             (rule-name rule)))
-  (newline))
+  (values initial-size final-size sorted-results))
 
 (define (egraph-run-schedule batch brfs schedule ctx)
   ; allocate the e-graph
