@@ -1249,12 +1249,11 @@
         (egraph-run-rules egg-graph3 (expand-rules (list rule)) #:iter-limit 2))
       (define size (iteration-data-num-nodes (last (if (empty? iter-data5) iter-data3 iter-data5))))
       (cons rule (- size initial-size))))
-  (define sorted-results (sort results > #:key cdr))
   (define final-size
     (let-values ([(egg-graph6 iter-data6)
                   (egraph-run-rules egg-graph3 (expand-rules (*rules*)) #:iter-limit 2)])
       (iteration-data-num-nodes (last (if (empty? iter-data6) iter-data3 iter-data6)))))
-  (values initial-size final-size sorted-results))
+  (values initial-size final-size results))
 
 (define (egraph-run-schedule batch brfs schedule ctx)
   ; allocate the e-graph
