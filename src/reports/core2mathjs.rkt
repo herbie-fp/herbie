@@ -7,8 +7,7 @@
          mathjs-supported)
 
 (define mathjs-supported
-  (supported-list (negate (curry set-member?
-                                 '(while while* array dim size ref for for* tensor tensor*)))
+  (supported-list (negate (curry set-member? '(array ref)))
                   (curry set-member? '(PI E TRUE FALSE))
                   (const #t)
                   ieee754-rounding-modes

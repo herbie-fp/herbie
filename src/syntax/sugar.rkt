@@ -6,7 +6,7 @@
 ;; FPCore: the input/output language
 ;;
 ;; - standardized interchange format with other tools
-;; - using loopless, tensorless subset
+;; - using a loopless subset with array literals
 ;; - operators denote real computations while rounding contexts decide format
 ;;
 ;;  <FPCore> ::= (FPCore (<var> ...) <props> ... <expr>)

@@ -56,96 +56,12 @@
       [#`(array #,elems ...)
        (for ([elem (in-list elems)])
          (loop elem vars))]
-      [#`(tensor ([#,idxs #,sizes] ...) #,body)
-       (for ([idx (in-list idxs)]
-             [size (in-list sizes)])
-         (unless (identifier? idx)
-           (error! idx "Invalid tensor index variable name ~a" idx))
-         (loop size vars))
-       (define tensor-vars (bound-id-set-union vars (immutable-bound-id-set idxs)))
-       (loop body tensor-vars)]
-      [#`(tensor* ([#,idxs #,sizes] ...) ([#,vars* #,inits #,updates] ...) #,body)
-       (for ([idx (in-list idxs)]
-             [size (in-list sizes)])
-         (unless (identifier? idx)
-           (error! idx "Invalid tensor* index variable name ~a" idx))
-         (loop size vars))
-       (define tensor-vars (bound-id-set-union vars (immutable-bound-id-set idxs)))
-       (for ([var vars*]
-             [init inits]
-             [update updates])
-         (unless (identifier? var)
-           (error! var "Invalid tensor* accumulator name ~a" var))
-         (loop init tensor-vars)
-         (loop update (bound-id-set-union tensor-vars (immutable-bound-id-set vars*))))
-       (loop body (bound-id-set-union tensor-vars (immutable-bound-id-set vars*)))]
       [#`(ref #,arr #,idxs ...)
        (when (null? idxs)
          (error! stx "Invalid `ref` expression, expected at least one index"))
        (loop arr vars)
        (for ([idx (in-list idxs)])
          (loop idx vars))]
-      [#`(size #,arr #,dims ...)
-       (when (null? dims)
-         (error! stx "Invalid `size` expression, expected a dimension index"))
-       (loop arr vars)
-       (for ([dim (in-list dims)])
-         (loop dim vars))]
-      [#`(dim #,arr) (loop arr vars)]
-      [#`(for ([#,idxs #,sizes] ...)
-           ([#,vars* #,inits #,updates] ...)
-           #,body)
-       (for ([idx (in-list idxs)]
-             [size (in-list sizes)])
-         (unless (identifier? idx)
-           (error! idx "Invalid for-loop index variable name ~a" idx))
-         (loop size vars))
-       (define loop-vars (bound-id-set-union vars (immutable-bound-id-set idxs)))
-       (for ([var (in-list vars*)]
-             [init (in-list inits)]
-             [update (in-list updates)])
-         (unless (identifier? var)
-           (error! var "Invalid for-loop accumulator name ~a" var))
-         (loop init loop-vars)
-         (loop update (bound-id-set-union loop-vars (immutable-bound-id-set vars*))))
-       (loop body (bound-id-set-union loop-vars (immutable-bound-id-set vars*)))]
-      [#`(for* ([#,idxs #,sizes] ...)
-           ([#,vars* #,inits #,updates] ...)
-           #,body)
-       (for ([idx (in-list idxs)]
-             [size (in-list sizes)])
-         (unless (identifier? idx)
-           (error! idx "Invalid for*-loop index variable name ~a" idx))
-         (loop size vars))
-       (define loop-vars (bound-id-set-union vars (immutable-bound-id-set idxs)))
-       (for ([var (in-list vars*)]
-             [init (in-list inits)]
-             [update (in-list updates)])
-         (unless (identifier? var)
-           (error! var "Invalid for*-loop accumulator name ~a" var))
-         (loop init loop-vars)
-         (loop update (bound-id-set-union loop-vars (immutable-bound-id-set vars*))))
-       (loop body (bound-id-set-union loop-vars (immutable-bound-id-set vars*)))]
-      [#`(while #,cond ([#,vars* #,inits #,updates] ...) #,body)
-       (for ([var vars*]
-             [init inits]
-             [update updates])
-         (unless (identifier? var)
-           (error! var "Invalid while-loop accumulator name ~a" var))
-         (loop init vars)
-         (loop update (bound-id-set-union vars (immutable-bound-id-set vars*))))
-       (loop cond (bound-id-set-union vars (immutable-bound-id-set vars*)))
-       (loop body (bound-id-set-union vars (immutable-bound-id-set vars*)))]
-      [#`(while* #,cond ([#,vars* #,inits #,updates] ...) #,body)
-       (for ([var vars*]
-             [init inits]
-             [update updates])
-         (unless (identifier? var)
-           (error! var "Invalid while*-loop accumulator name ~a" var))
-         (loop init vars)
-         (loop update (bound-id-set-union vars (immutable-bound-id-set vars*))))
-       (loop cond (bound-id-set-union vars (immutable-bound-id-set vars*)))
-       (loop body (bound-id-set-union vars (immutable-bound-id-set vars*)))]
       [#`(cast #,arg) (loop arg vars)]
       [#`(cast #,args ...)
        (error! stx "Invalid `cast` expression with ~a arguments (expects 1)" (length args))

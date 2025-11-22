@@ -5,7 +5,7 @@
          math/flonum)
 
 (provide (struct-out representation)
-         (struct-out tensor-type)
+         (struct-out array-type)
          repr->prop
          shift
          unshift
@@ -30,7 +30,7 @@
 
 (define-type real)
 (define-type bool)
-(define-type tensor)
+(define-type array)
 
 ;; Representations
 
@@ -48,9 +48,9 @@
      (match (representation-type repr)
        ['bool '()]
        ['real (list (cons ':precision (representation-name repr)))])]
-    [(tensor-type _ elem) (repr->prop elem)]))
+    [(array-type _ elem) (repr->prop elem)]))
 
-(struct tensor-type (dims elem) #:transparent)
+(struct array-type (dims elem) #:transparent)
 
 (define (make-representation #:name name
                              #:bf->repr bf->repr
