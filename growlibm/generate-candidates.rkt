@@ -18,7 +18,7 @@
   "../src/syntax/types.rkt")
 
 (activate-platform! "no-accelerators")
-(*node-limit* 50000)
+(*node-limit* 150000)
 (define (all-subexpressions* expr)
   (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
   (define (comparison-op? op)
