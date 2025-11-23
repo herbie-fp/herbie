@@ -21,6 +21,8 @@ jobs:
         with:
             toolchain: stable
             components: rustfmt, clippy
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
       - uses: actions/checkout@v5
       - name: "Install dependencies"
         run: make install

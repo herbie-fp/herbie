@@ -25,7 +25,8 @@
          egraph-equal?
          egraph-prove
          egraph-best
-         egraph-variations)
+         egraph-variations
+         egraph-analyze-rewrite-impact)
 
 (module+ test
   (require rackunit))
@@ -1229,6 +1230,40 @@
     (warn 'unsound-egraph #:url "faq.html#unsound-egraph" "unsoundness detected in the egraph"))
   (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
   (values egg-graph iteration-data))
+
+(define (egraph-analyze-rewrite-impact batch brfs ctx iter)
+  (define egg-graph (make-egraph-data))
+  (egraph-add-exprs egg-graph batch brfs ctx)
+  (define lifting-rules (expand-rules (platform-lifting-rules)))
+  (define-values (egg-graph1 _1)
+    (egraph-run-rules egg-graph lifting-rules #:iter-limit 1 #:scheduler 'simple))
+  (define-values (egg-graph2 iter-data2)
+    (if (> iter 0)
+        (egraph-run-rules egg-graph1 (expand-rules (*rules*)) #:iter-limit iter)
+        (values egg-graph1 _1)))
+  (define-values (egg-graph3 iter-data3) (egraph-run-rules egg-graph2 '()))
+  (define initial-size (iteration-data-num-nodes (last iter-data3)))
+  (define results
+    (for/list ([rule (in-list (*rules*))])
+      (define-values (egg-graph5 iter-data5)
+        (egraph-run-rules egg-graph3 (expand-rules (list rule)) #:iter-limit 2))
+      (define size (iteration-data-num-nodes (last (if (empty? iter-data5) iter-data3 iter-data5))))
+      (cons rule (- size initial-size))))
+  (define sorted-results (sort results > #:key cdr))
+  (define final-size
+    (let-values ([(egg-graph6 iter-data6)
+                  (egraph-run-rules egg-graph3 (expand-rules (*rules*)) #:iter-limit 2)])
+      (iteration-data-num-nodes (last (if (empty? iter-data6) iter-data3 iter-data6)))))
+
+  (printf "=== Iteration ~a: ~a -> ~a nodes ===\n" iter initial-size final-size)
+  (for ([(rule delta) (in-dict sorted-results)]
+        [_ (in-range 10)]
+        #:unless (= delta 0))
+    (eprintf "~a (~a%): ~a\n"
+             delta
+             (~r (/ (* 100.0 delta) final-size) #:precision '(= 1))
+             (rule-name rule)))
+  (newline))
 
 (define (egraph-run-schedule batch brfs schedule ctx)
   ; allocate the e-graph
