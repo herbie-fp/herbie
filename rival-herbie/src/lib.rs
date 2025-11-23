@@ -93,7 +93,10 @@ pub extern "C" fn rival_compile(
             .collect();
 
         let disc = RustDiscretization { target, types };
-        let machine = MachineBuilder::new(disc).build(exprs, vars);
+        // TODO: parameterize max precision
+        let machine = MachineBuilder::new(disc)
+            .slack_unit(512)
+            .build(exprs, vars);
         let wrapper = MachineWrapper {
             machine,
             arg_buf: Vec::new(),

@@ -129,7 +129,7 @@
 
   (real-compiler-clear! compiler) ; Clear profiling vector
   
-  (define batch-size 100)
+  (define batch-size 2500)
 
   (define-values (points exactss)
     (let loop ([sampled 0]
