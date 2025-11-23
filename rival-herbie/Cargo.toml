@@ -8,6 +8,7 @@ rival = { git = "https://github.com/herbie-fp/rival-rs" }
 libc = "0.2"
 rug = "1.19"
 lazy_static = "1.4"
+gmp-mpfr-sys = "1.6"
 
 [lib]
 crate-type = ["cdylib"]

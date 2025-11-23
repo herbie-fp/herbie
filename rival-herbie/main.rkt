@@ -4,6 +4,7 @@
          ffi/unsafe/define
          racket/runtime-path
          math/bigfloat
+         (only-in math/private/bigfloat/mpfr _mpfr-pointer)
          "ops.rkt")
 
 (provide rival-compile
@@ -61,7 +62,41 @@
 
 (define-rival rival_destroy (_fun _pointer -> _void))
 
-(define-rival rival_apply (_fun _pointer _string _bytes _size _size -> _pointer))
+(define-rival rival_apply (_fun _pointer _pointer _size _pointer _size _pointer _size _size -> _int32))
+
+(define (rival-apply machine pt [hints #f] [max-iterations (*rival-max-iterations*)])
+  (define n-args (vector-length pt))
+  (define arg-ptrs (machine-wrapper-arg-buf machine))
+  (for ([i (in-range n-args)]
+        [bf (in-vector pt)])
+    (ptr-set! arg-ptrs _pointer i bf))
+
+  (define n-outs (length (machine-wrapper-discs machine)))
+  (define outs (build-vector n-outs (lambda (_) (bf 0.0))))
+  (define out-ptrs (machine-wrapper-out-buf machine))
+  (for ([i (in-range n-outs)]
+        [bf (in-vector outs)])
+    (ptr-set! out-ptrs _pointer i bf))
+
+  (define hints-bytes (if hints (serialize-hints-binary hints) #""))
+  (define res-code (rival_apply (machine-wrapper-ptr machine)
+                                arg-ptrs n-args
+                                out-ptrs n-outs
+                                hints-bytes (bytes-length hints-bytes)
+                                max-iterations))
+
+  (match res-code
+    [0
+     (define discs (machine-wrapper-discs machine))
+     (list->vector
+      (for/list ([bf (in-vector outs)]
+                 [disc (in-list discs)])
+        ((discretization-convert disc) bf)))]
+    [-1 (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
+    [-2 (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
+    [-99 (error 'rival-apply "Rival panic")]
+    [else (error 'rival-apply "Unknown result code: ~a" res-code)]))
+
 
 (define-rival rival_analyze_with_hints (_fun _pointer _string _bytes _size -> _pointer))
 
@@ -70,7 +105,7 @@
 (define-rival rival_free_string (_fun _pointer -> _void))
 
 ;; Wrapper struct to hold callbacks and pointer
-(struct machine-wrapper (ptr convert-cb distance-cb free-cb discs)
+(struct machine-wrapper (ptr convert-cb distance-cb free-cb discs arg-buf out-buf)
   #:property prop:cpointer
   (struct-field-index ptr))
 
@@ -100,6 +135,11 @@
        [else (number->string x)])]
     [(boolean? x) (if x "1.0" "0.0")]
     [else "NaN"]))
+
+(define (machine-destroy wrapper)
+  (rival_destroy (machine-wrapper-ptr wrapper))
+  (free (machine-wrapper-arg-buf wrapper))
+  (free (machine-wrapper-out-buf wrapper)))
 
 (define (rival-compile exprs vars discs)
   (define exprs-str (format "~a" exprs))
@@ -148,8 +188,13 @@
   (if (not ptr)
       (error "rival-compile failed")
       (begin
-        (register-finalizer ptr rival_destroy)
-        (machine-wrapper ptr convert-cb distance-cb free-cb discs))))
+        (let ([n-args (length vars)]
+              [n-outs (length discs)])
+          (define arg-buf (malloc _pointer n-args 'raw))
+          (define out-buf (malloc _pointer n-outs 'raw))
+          (define wrapper (machine-wrapper ptr convert-cb distance-cb free-cb discs arg-buf out-buf))
+          (register-finalizer wrapper machine-destroy)
+          wrapper))))
 
 (define (serialize-hints-binary hints)
   (let ([out (open-output-bytes)])
@@ -169,32 +214,6 @@
         [_ (error "Unknown hint" h)]))
     (get-output-bytes out)))
 
-(define (rival-apply machine pt [hint #f])
-  (define pt-str (string-join (map bigfloat->string (vector->list pt)) " "))
-  (define hint-bytes (serialize-hints-binary hint))
-  (define hint-len (bytes-length hint-bytes))
-  (define max-iters (*rival-max-iterations*))
-  (define discs (machine-wrapper-discs machine))
-
-  (define res-ptr (rival_apply machine pt-str hint-bytes hint-len max-iters))
-  (define res-str (cast res-ptr _pointer _string))
-  (rival_free_string res-ptr)
-
-  (define res (read (open-input-string res-str)))
-  (match res
-    [(list 'valid vals ...)
-     (list->vector (map (lambda (x disc)
-                          (define val-bf
-                            (if (string? x)
-                                (bf x)
-                                (bf (format "~a" x))))
-                          ((discretization-convert disc) val-bf))
-                        vals
-                        discs))]
-    ['(invalid) (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
-    ['(unsamplable)
-     (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
-    [_ (error "rival-apply: unexpected result" res)]))
 
 (define (rival-analyze-with-hints machine rect [hint #f])
   (define rect-str

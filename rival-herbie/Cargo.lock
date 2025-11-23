@@ -177,6 +177,7 @@ dependencies = [
 name = "rival-herbie"
 version = "0.1.0"
 dependencies = [
+ "gmp-mpfr-sys",
  "lazy_static",
  "libc",
  "rival",
