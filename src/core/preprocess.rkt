@@ -123,9 +123,7 @@
      (define copysign (impl-info (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr)) 'fl))
      (define repr1 ((representation-bf->repr repr) 1.bf))
      (lambda (x y)
-       (define sign (copysign repr1 (vector-ref x index)))
-       (define y* (if (bigfloat? y) (bf* (bf sign) y) (mul sign y)))
-       (values (vector-update x index fabs) y*))]))
+       (values (vector-update x index fabs) (mul (copysign repr1 (vector-ref x index)) y)))]))
 
 ; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
 (define (remove-unnecessary-preprocessing expression

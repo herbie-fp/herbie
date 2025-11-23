@@ -1,7 +1,10 @@
 #lang racket
 
 (provide rival-functions
-         rival-type)
+         rival-type
+         rival-types)
+
+(define rival-types '(bool real))
 
 (define (make-op otype itypes)
   (cons otype itypes))

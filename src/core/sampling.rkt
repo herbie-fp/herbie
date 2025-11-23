@@ -100,7 +100,7 @@
   hyperrect-sampler)
 
 (define (make-sampler compiler)
-  (match-define (real-compiler pre vars var-reprs _ reprs _ _ _) compiler)
+  (match-define (real-compiler pre vars var-reprs _ reprs _ _) compiler)
   (cond
     [(and (flag-set? 'setup 'search)
           (not (vector-empty? var-reprs))

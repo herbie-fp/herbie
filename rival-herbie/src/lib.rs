@@ -1,38 +1,68 @@
 use rival::eval::machine::Hint;
-use rival::{Ival, Machine, MachineBuilder, RivalError};
-use rug::{Assign, Float};
+use rival::{Discretization, Ival, Machine, MachineBuilder, RivalError};
+use rug::Float;
 use std::ffi::{CStr, CString};
-use std::os::raw::{c_char, c_void};
+use std::os::raw::c_char;
 use std::panic;
 use std::ptr;
+use std::slice;
 
 mod discretization;
 mod parser;
 use discretization::{
-    CallbackDiscretization, ConvertCallback, DistanceCallback, Fp64Discretization,
-    FreeStringCallback,
+    CallbackDiscretization, ConvertCallback, DistanceCallback, FreeStringCallback,
 };
 use parser::{parse_expr, parse_sexpr, SExpr};
-
-enum RivalMachine {
-    Fp64(Machine<Fp64Discretization>),
-    Callback(Machine<CallbackDiscretization>),
-}
 
 fn return_string(s: String) -> *mut c_char {
     CString::new(s).unwrap().into_raw()
 }
 
+fn parse_hints_binary(data: &[u8]) -> Option<Vec<Hint>> {
+    if data.is_empty() {
+        return None;
+    }
+    let mut hints = Vec::with_capacity(data.len());
+    let mut i = 0;
+    while i < data.len() {
+        match data[i] {
+            0 => {
+                hints.push(Hint::Execute);
+                i += 1;
+            }
+            1 => {
+                hints.push(Hint::Skip);
+                i += 1;
+            }
+            2 => {
+                if i + 1 >= data.len() {
+                    return None;
+                }
+                hints.push(Hint::Alias(data[i + 1]));
+                i += 2;
+            }
+            3 => {
+                if i + 1 >= data.len() {
+                    return None;
+                }
+                hints.push(Hint::KnownBool(data[i + 1] != 0));
+                i += 2;
+            }
+            _ => return None,
+        }
+    }
+    Some(hints)
+}
+
 #[no_mangle]
-pub extern "C" fn rival_make_context(
+pub extern "C" fn rival_compile(
     exprs_str: *const c_char,
     vars_str: *const c_char,
-    use_callback: bool,
-    target_prec: u32,
+    target: u32,
     convert_cb: ConvertCallback,
     distance_cb: DistanceCallback,
     free_cb: FreeStringCallback,
-) -> *mut c_void {
+) -> *mut Machine<CallbackDiscretization> {
     let result = panic::catch_unwind(|| {
         let exprs_str = unsafe { CStr::from_ptr(exprs_str).to_string_lossy() };
         let vars_str = unsafe { CStr::from_ptr(vars_str).to_string_lossy() };
@@ -48,20 +78,14 @@ pub extern "C" fn rival_make_context(
             _ => panic!("Expected list of expressions"),
         };
 
-        if use_callback {
-            let disc = CallbackDiscretization {
-                target_prec,
-                convert_cb,
-                distance_cb,
-                free_cb,
-            };
-            let machine = MachineBuilder::new(disc).build(exprs, vars);
-            Box::into_raw(Box::new(RivalMachine::Callback(machine))) as *mut c_void
-        } else {
-            let disc = Fp64Discretization;
-            let machine = MachineBuilder::new(disc).build(exprs, vars);
-            Box::into_raw(Box::new(RivalMachine::Fp64(machine))) as *mut c_void
-        }
+        let disc = CallbackDiscretization {
+            target,
+            convert_cb,
+            distance_cb,
+            free_cb,
+        };
+        let machine = MachineBuilder::new(disc).build(exprs, vars);
+        Box::into_raw(Box::new(machine))
     });
 
     match result {
@@ -71,49 +95,40 @@ pub extern "C" fn rival_make_context(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn rival_destroy(ptr: *mut c_void) {
+pub unsafe extern "C" fn rival_destroy(ptr: *mut Machine<CallbackDiscretization>) {
     if ptr.is_null() {
         return;
     }
-    drop(Box::from_raw(ptr as *mut RivalMachine));
+    drop(Box::from_raw(ptr));
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn rival_eval(
-    ptr: *mut c_void,
+pub unsafe extern "C" fn rival_apply(
+    ptr: *mut Machine<CallbackDiscretization>,
     args_str: *const c_char,
-    hints_str: *const c_char,
+    hints_ptr: *const u8,
+    hints_len: usize,
+    max_iterations: usize,
 ) -> *mut c_char {
     let result = panic::catch_unwind(|| {
-        let machine_enum = &mut *(ptr as *mut RivalMachine);
+        let machine = &mut *ptr;
         let args_str = CStr::from_ptr(args_str).to_string_lossy();
-        let hints_str = CStr::from_ptr(hints_str).to_string_lossy();
 
+        let arg_prec = machine.disc.target().max(machine.state.min_precision);
         let args: Vec<Ival> = args_str
             .split_whitespace()
             .map(|s| {
                 let f_val = Float::parse(s).expect("Failed to parse float");
-                let f = Float::with_val(256, f_val);
+                let f = Float::with_val(arg_prec, f_val);
                 Ival::from_lo_hi(f.clone(), f)
             })
             .collect();
 
-        let hints = parse_hints(&hints_str);
-
-        let res = match machine_enum {
-            RivalMachine::Fp64(m) => m.apply(&args, hints.as_deref(), 5),
-            RivalMachine::Callback(m) => m.apply(&args, hints.as_deref(), 5),
-        };
+        let hints = parse_hints_binary(slice::from_raw_parts(hints_ptr, hints_len));
+        let res = machine.apply(&args, hints.as_deref(), max_iterations);
 
         match res {
             Ok(vals) => {
-                if !vals.is_empty() {
-                    let pre = &vals[0];
-                    if pre.hi.as_float().is_zero() {
-                        return String::from("(invalid)");
-                    }
-                }
-
                 let mut s = String::from("(valid");
                 for val in vals {
                     let f = val.lo.as_float();
@@ -133,7 +148,7 @@ pub unsafe extern "C" fn rival_eval(
                 s.push_str(")");
                 s
             }
-            Err(RivalError::InvalidInput) => String::from("(invalid)"), // RivalError::InvalidInput
+            Err(RivalError::InvalidInput) => String::from("(invalid)"),
             Err(RivalError::Unsamplable) => String::from("(unsamplable)"),
         }
     });
@@ -144,118 +159,35 @@ pub unsafe extern "C" fn rival_eval(
     }
 }
 
-fn parse_hints(s: &str) -> Option<Vec<Hint>> {
-    if s == "false" || s == "()" {
-        return None;
-    }
-    let sexpr = parse_sexpr(s).ok()?;
-    match sexpr {
-        SExpr::List(list) => {
-            let mut hints = Vec::new();
-            for item in list {
-                match item {
-                    SExpr::Atom(s) => match s.as_str() {
-                        "execute" => hints.push(Hint::Execute),
-                        "skip" => hints.push(Hint::Skip),
-                        _ => return None,
-                    },
-                    SExpr::List(sublist) => {
-                        if sublist.len() == 2 {
-                            if let SExpr::Atom(op) = &sublist[0] {
-                                match op.as_str() {
-                                    "alias" => {
-                                        if let SExpr::Atom(n_str) = &sublist[1] {
-                                            let n = n_str.parse::<u8>().ok()?;
-                                            hints.push(Hint::Alias(n));
-                                        } else {
-                                            return None;
-                                        }
-                                    }
-                                    "known-bool" => {
-                                        if let SExpr::Atom(b_str) = &sublist[1] {
-                                            let b = match b_str.as_str() {
-                                                "true" => true,
-                                                "false" => false,
-                                                _ => return None,
-                                            };
-                                            hints.push(Hint::KnownBool(b));
-                                        } else {
-                                            return None;
-                                        }
-                                    }
-                                    _ => return None,
-                                }
-                            } else {
-                                return None;
-                            }
-                        } else {
-                            return None;
-                        }
-                    }
-                }
-            }
-            Some(hints)
-        }
-        _ => None,
-    }
-}
-
 #[no_mangle]
-pub unsafe extern "C" fn rival_analyze(
-    ptr: *mut c_void,
-    args_str: *const c_char,
-    hints_str: *const c_char,
+pub unsafe extern "C" fn rival_analyze_with_hints(
+    ptr: *mut Machine<CallbackDiscretization>,
+    rect_str: *const c_char,
+    hints_ptr: *const u8,
+    hints_len: usize,
 ) -> *mut c_char {
     let result = panic::catch_unwind(|| {
-        let machine_enum = &mut *(ptr as *mut RivalMachine);
-        let args_str = CStr::from_ptr(args_str).to_string_lossy();
-        let hints_str = CStr::from_ptr(hints_str).to_string_lossy();
+        let machine = &mut *ptr;
+        let rect_str = CStr::from_ptr(rect_str).to_string_lossy();
 
         // Parse args: "lo1 hi1 lo2 hi2 ..."
-        let parts: Vec<&str> = args_str.split_whitespace().collect();
+        let parts: Vec<&str> = rect_str.split_whitespace().collect();
+        let arg_prec = machine.disc.target().max(machine.state.min_precision);
+
         let mut args = Vec::new();
         for chunk in parts.chunks(2) {
             if chunk.len() == 2 {
                 let lo_val = Float::parse(chunk[0]).expect("Failed to parse float");
                 let hi_val = Float::parse(chunk[1]).expect("Failed to parse float");
-                let lo = Float::with_val(256, lo_val);
-                let hi = Float::with_val(256, hi_val);
+                let lo = Float::with_val(arg_prec, lo_val);
+                let hi = Float::with_val(arg_prec, hi_val);
                 args.push(Ival::from_lo_hi(lo, hi));
             }
         }
 
-        let hints = parse_hints(&hints_str);
+        let hints = parse_hints_binary(slice::from_raw_parts(hints_ptr, hints_len));
 
-        let (status, next_hints, converged) = match machine_enum {
-            RivalMachine::Fp64(m) => {
-                let (mut s, h, c) = m.analyze_with_hints(args, hints.as_deref());
-                if !m.state.outputs.is_empty() {
-                    let pre_idx = m.state.outputs[0];
-                    let pre_val = &m.state.registers[pre_idx];
-                    if pre_val.hi.as_float().is_zero() {
-                        s.lo.as_float_mut().assign(1.0);
-                    }
-                    if pre_val.lo.as_float().is_zero() {
-                        s.hi.as_float_mut().assign(1.0);
-                    }
-                }
-                (s, h, c)
-            }
-            RivalMachine::Callback(m) => {
-                let (mut s, h, c) = m.analyze_with_hints(args, hints.as_deref());
-                if !m.state.outputs.is_empty() {
-                    let pre_idx = m.state.outputs[0];
-                    let pre_val = &m.state.registers[pre_idx];
-                    if pre_val.hi.as_float().is_zero() {
-                        s.lo.as_float_mut().assign(1.0);
-                    }
-                    if pre_val.lo.as_float().is_zero() {
-                        s.hi.as_float_mut().assign(1.0);
-                    }
-                }
-                (s, h, c)
-            }
-        };
+        let (status, next_hints, converged) = machine.analyze_with_hints(args, hints.as_deref());
 
         // Serialize output
         // (status_lo status_hi converged (hint ...))
@@ -267,7 +199,6 @@ pub unsafe extern "C" fn rival_analyze(
         s.push_str(if converged { "true" } else { "false" });
         s.push_str(" (");
         // Serialize hints
-        // We need a format for hints.
         // Hint::Execute -> "execute"
         // Hint::Skip -> "skip"
         // Hint::Alias(u8) -> "(alias n)"
@@ -290,6 +221,54 @@ pub unsafe extern "C" fn rival_analyze(
         }
         s.push_str("))");
         s
+    });
+
+    match result {
+        Ok(s) => return_string(s),
+        Err(_) => return_string(String::from("(error panic)")),
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rival_profile(
+    ptr: *mut Machine<CallbackDiscretization>,
+    param_str: *const c_char,
+) -> *mut c_char {
+    let result = panic::catch_unwind(|| {
+        let machine = &mut *ptr;
+        let param = CStr::from_ptr(param_str).to_string_lossy();
+
+        match param.as_ref() {
+            "instructions" => machine.state.instructions.len().to_string(),
+            "iterations" => machine.state.iteration.to_string(),
+            "bumps" => machine.state.bumps.to_string(),
+            "executions" => {
+                let mut s = String::from("(");
+                for exec in machine.state.profiler.iter() {
+                    s.push_str("(");
+                    s.push_str(exec.name);
+                    s.push_str(" ");
+                    s.push_str(&exec.number.to_string());
+                    s.push_str(" ");
+                    s.push_str(&exec.precision.to_string());
+                    s.push_str(" ");
+                    s.push_str(&exec.time_ms.to_string());
+                    s.push_str(" ");
+                    s.push_str("0"); // memory
+                    s.push_str(" ");
+                    s.push_str(&exec.iteration.to_string());
+                    s.push_str(") ");
+                }
+                machine.state.profiler.reset();
+
+                if s.ends_with(" ") {
+                    s.pop();
+                }
+                s.push_str(")");
+                s
+            }
+            _ => String::from(""),
+        }
     });
 
     match result {
