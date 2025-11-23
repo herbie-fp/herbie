@@ -25,6 +25,11 @@
                 [c real-compiler?])]
           [real-apply
            (->* (real-compiler? vector?) ((or/c (vectorof any/c) boolean?)) (values symbol? any/c))]
+          [real-apply-batch
+           (-> real-compiler?
+               (listof vector?)
+               (listof (or/c (vectorof any/c) boolean?))
+               (listof (cons/c symbol? any/c)))]
           [real-compiler-clear! (-> real-compiler-clear! void?)]
           [real-compiler-analyze
            (->* (real-compiler? (vectorof ival?))
@@ -154,6 +159,62 @@
                          (symbol->string status)
                          1)
   (values status value))
+
+(define (real-apply-batch compiler pts hints)
+  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file) compiler)
+  (define start (current-inexact-milliseconds))
+
+  (define pts*
+    (for/list ([pt (in-list pts)])
+      (for/vector #:length (vector-length vars)
+                  ([val (in-vector pt)]
+                   [repr (in-vector var-reprs)])
+        ((representation-repr->bf repr) val))))
+
+  (when dump-file
+    (for ([pt* (in-list pts*)])
+      (define args (map bigfloat->readable-string (vector->list pt*)))
+      (fprintf dump-file "(eval f ~a)\n" (string-join args " "))))
+
+  (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
+                 [*rival-max-iterations* 5])
+    (define results (rival-apply-batch machine pts* hints))
+
+    (define processed-results
+      (for/list ([res (in-list results)]
+                 [pt (in-list pts)])
+        (match res
+          [(vector vals ...) (cons 'valid (rest vals))] ; drop precondition
+          [(? exn:rival:invalid?) (cons 'invalid #f)]
+          [(? exn:rival:unsamplable?) (cons 'exit #f)]
+          [_ (error "Unexpected result from rival-apply-batch" res)])))
+
+    (when (> (rival-profile machine 'bumps) 0)
+      (warn 'ground-truth "Could not converge on a ground truth" #:extra '()))
+
+    (define executions (rival-profile machine 'executions))
+    (when (>= (vector-length executions) (*rival-profile-executions*))
+      (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
+
+    (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
+    (for ([execution (in-vector executions)])
+      (define name (symbol->string (execution-name execution)))
+      (define precision
+        (- (execution-precision execution)
+           (remainder (execution-precision execution) prec-threshold)))
+      (timeline-push!/unsafe 'mixsample
+                             (execution-time execution)
+                             name
+                             precision
+                             (execution-memory execution)))
+
+    (timeline-push!/unsafe 'outcomes
+                           (- (current-inexact-milliseconds) start)
+                           (rival-profile machine 'iterations)
+                           "batch"
+                           (length pts))
+
+    processed-results))
 
 ;; Clears profiling data.
 (define (real-compiler-clear! compiler)

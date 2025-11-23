@@ -195,6 +195,96 @@ pub unsafe extern "C" fn rival_apply(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn rival_apply_batch(
+    ptr: *mut MachineWrapper,
+    args_ptrs: *const *const mpfr_t,
+    n_points: usize,
+    n_args: usize,
+    out_ptrs: *const *mut mpfr_t,
+    n_outs: usize,
+    hints_ptrs: *const *const u8,
+    hints_lens: *const usize,
+    statuses: *mut i32,
+    max_iterations: usize,
+) {
+    let _ = panic::catch_unwind(|| {
+        let wrapper = &mut *ptr;
+        let machine = &mut wrapper.machine;
+        let arg_buf = &mut wrapper.arg_buf;
+
+        let arg_prec = machine.disc.target().max(machine.state.min_precision);
+
+        // Resize buffer if needed
+        if arg_buf.len() != n_args {
+            arg_buf.clear();
+            arg_buf.reserve(n_args);
+            for _ in 0..n_args {
+                arg_buf.push(Ival::from_lo_hi(Float::new(arg_prec), Float::new(arg_prec)));
+            }
+        }
+
+        let args_ptrs_slice = slice::from_raw_parts(args_ptrs, n_points * n_args);
+        let out_ptrs_slice = slice::from_raw_parts(out_ptrs, n_points * n_outs);
+        let hints_ptrs_slice = slice::from_raw_parts(hints_ptrs, n_points);
+        let hints_lens_slice = slice::from_raw_parts(hints_lens, n_points);
+        let statuses_slice = slice::from_raw_parts_mut(statuses, n_points);
+
+        for i in 0..n_points {
+            // Setup args
+            for (j, val) in arg_buf.iter_mut().enumerate() {
+                let raw_ptr = args_ptrs_slice[i * n_args + j];
+
+                // Update precision if needed
+                if val.lo.as_float().prec() != arg_prec {
+                    val.lo.as_float_mut().set_prec(arg_prec);
+                    val.hi.as_float_mut().set_prec(arg_prec);
+                }
+
+                // Copy value
+                mpfr::set(
+                    val.lo.as_float_mut().as_raw_mut(),
+                    raw_ptr,
+                    mpfr::rnd_t::RNDN,
+                );
+                mpfr::set(
+                    val.hi.as_float_mut().as_raw_mut(),
+                    raw_ptr,
+                    mpfr::rnd_t::RNDN,
+                );
+            }
+
+            // Parse hints
+            let hints_ptr = hints_ptrs_slice[i];
+            let hints_len = hints_lens_slice[i];
+            let hints = if !hints_ptr.is_null() && hints_len > 0 {
+                parse_hints_binary(slice::from_raw_parts(hints_ptr, hints_len))
+            } else {
+                None
+            };
+
+            // Apply
+            let res = machine.apply(arg_buf, hints.as_deref(), max_iterations);
+
+            match res {
+                Ok(vals) => {
+                    if vals.len() != n_outs {
+                        statuses_slice[i] = -99; // Should not happen
+                    } else {
+                        for (j, val) in vals.iter().enumerate() {
+                            let out_ptr = out_ptrs_slice[i * n_outs + j];
+                            mpfr::set(out_ptr, val.lo.as_float().as_raw(), mpfr::rnd_t::RNDN);
+                        }
+                        statuses_slice[i] = 0;
+                    }
+                }
+                Err(RivalError::InvalidInput) => statuses_slice[i] = -1,
+                Err(RivalError::Unsamplable) => statuses_slice[i] = -2,
+            }
+        }
+    });
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn rival_analyze_with_hints(
     ptr: *mut MachineWrapper,
     rect_str: *const c_char,

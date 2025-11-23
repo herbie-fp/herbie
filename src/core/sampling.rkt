@@ -128,44 +128,62 @@
   (define reprs (real-compiler-reprs compiler))
 
   (real-compiler-clear! compiler) ; Clear profiling vector
+  
+  (define batch-size 100)
+
   (define-values (points exactss)
     (let loop ([sampled 0]
                [skipped 0]
                [points '()]
                [exactss '()])
-      (define-values (pt hint) (sampler))
-      (define-values (status exs) (real-apply compiler pt hint))
-      (case status
-        [(exit)
-         (warn 'ground-truth
-               "could not determine a ground truth"
-               #:url "faq.html#ground-truth"
-               #:extra (vector->list (vector-map (curry format "~a = ~a") vars pt)))]
-        [(valid)
-         (for ([ex (in-list exs)]
-               [repr (in-vector reprs)])
-           ; The `bool` representation does not produce bigfloats
-           (define maybe-bf ((representation-repr->bf repr) ex))
-           (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
-             (set! status 'infinite)))])
-
-      (hash-update! outcomes status add1 0)
-
-      (define is-bad?
-        (for/or ([input (in-vector pt)]
-                 [repr (in-vector var-reprs)])
-          ((representation-special-value? repr) input)))
-
-      (cond
-        [(and (list? exs) (not is-bad?))
-         (if (>= (+ 1 sampled) (*num-points*))
-             (values (cons pt points) (cons exs exactss))
-             (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
-        [else
-         (when (>= skipped (*max-skipped-points*))
-           (raise-herbie-sampling-error "Cannot sample enough valid points."
-                                        #:url "faq.html#sample-valid-points"))
-         (loop sampled (+ 1 skipped) points exactss)])))
+      (if (>= sampled (*num-points*))
+          (values points exactss)
+          (let ()
+            (define-values (batch-pts batch-hints)
+              (for/lists (p h) ([i (in-range batch-size)])
+                (sampler)))
+            
+            (define results (real-apply-batch compiler batch-pts batch-hints))
+            
+            (define-values (new-sampled new-skipped new-points new-exactss)
+              (for/fold ([s sampled] [k skipped] [ps points] [es exactss])
+                        ([res (in-list results)]
+                         [pt (in-list batch-pts)]
+                         #:break (>= s (*num-points*)))
+                (match res
+                  [(cons status val)
+                   (define current-status status)
+                   (define exs val)
+                   
+                   (case current-status
+                     [(exit)
+                      (warn 'ground-truth
+                            "could not determine a ground truth"
+                            #:url "faq.html#ground-truth"
+                            #:extra (vector->list (vector-map (curry format "~a = ~a") vars pt)))]
+                     [(valid)
+                      (for ([ex (in-list exs)]
+                            [repr (in-vector reprs)])
+                        (define maybe-bf ((representation-repr->bf repr) ex))
+                        (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
+                          (set! current-status 'infinite)))])
+                          
+                   (hash-update! outcomes current-status add1 0)
+                   
+                   (define is-bad?
+                     (for/or ([input (in-vector pt)]
+                              [repr (in-vector var-reprs)])
+                       ((representation-special-value? repr) input)))
+                       
+                   (cond
+                     [(and (list? exs) (not is-bad?))
+                      (values (+ s 1) 0 (cons pt ps) (cons exs es))]
+                     [else
+                      (when (>= k (*max-skipped-points*))
+                        (raise-herbie-sampling-error "Cannot sample enough valid points."
+                                                     #:url "faq.html#sample-valid-points"))
+                      (values s (+ k 1) ps es)])])))
+            (loop new-sampled new-skipped new-points new-exactss)))))
   (values (cons points (flip-lists exactss)) outcomes))
 
 (define (combine-tables t1 t2)
