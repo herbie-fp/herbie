@@ -128,8 +128,6 @@
   (define reprs (real-compiler-reprs compiler))
 
   (real-compiler-clear! compiler) ; Clear profiling vector
-  
-  (define batch-size 2500)
 
   (define-values (points exactss)
     (let loop ([sampled 0]
@@ -139,8 +137,9 @@
       (if (>= sampled (*num-points*))
           (values points exactss)
           (let ()
+            (define current-batch-size (- (*num-points*) sampled))
             (define-values (batch-pts batch-hints)
-              (for/lists (p h) ([i (in-range batch-size)])
+              (for/lists (p h) ([i (in-range current-batch-size)])
                 (sampler)))
             
             (define results (real-apply-batch compiler batch-pts batch-hints))
