@@ -186,7 +186,6 @@ pub unsafe extern "C" fn rival_analyze_with_hints(
         }
 
         let hints = parse_hints_binary(slice::from_raw_parts(hints_ptr, hints_len));
-
         let (status, next_hints, converged) = machine.analyze_with_hints(args, hints.as_deref());
 
         // Serialize output
