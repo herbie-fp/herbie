@@ -29,10 +29,10 @@
 (struct exn:rival:invalid exn:rival (pt))
 (struct exn:rival:unsamplable exn:rival (pt))
 (struct execution (name number precision time memory iteration) #:prefab)
-(struct discretization (target convert distance))
+(struct discretization (target convert distance type))
 (struct ival (lo hi) #:transparent)
 
-(define boolean-discretization (discretization 53 values (lambda (x y) (if (eq? x y) 0 2))))
+(define boolean-discretization (discretization 53 values (lambda (x y) (if (eq? x y) 0 2)) 0))
 
 ;; Parameters
 (define *rival-max-precision* (make-parameter 256))
@@ -53,16 +53,12 @@
 (define (free p)
   (c-free p))
 
-(define _convert_cb (_fun _size _string -> _pointer))
-(define _distance_cb (_fun _size _string _string -> _size))
-(define _free_cb (_fun _pointer -> _void))
-
-(define-rival rival_compile
-              (_fun _string _string _uint32 _convert_cb _distance_cb _free_cb -> _pointer))
+(define-rival rival_compile (_fun _string _string _uint32 _pointer _uint32 -> _pointer))
 
 (define-rival rival_destroy (_fun _pointer -> _void))
 
-(define-rival rival_apply (_fun _pointer _pointer _size _pointer _size _pointer _size _size -> _int32))
+(define-rival rival_apply
+              (_fun _pointer _pointer _size _pointer _size _pointer _size _size -> _int32))
 
 (define (rival-apply machine pt [hints #f] [max-iterations (*rival-max-iterations*)])
   (define n-args (vector-length pt))
@@ -78,25 +74,30 @@
         [bf (in-vector outs)])
     (ptr-set! out-ptrs _pointer i bf))
 
-  (define hints-bytes (if hints (serialize-hints-binary hints) #""))
-  (define res-code (rival_apply (machine-wrapper-ptr machine)
-                                arg-ptrs n-args
-                                out-ptrs n-outs
-                                hints-bytes (bytes-length hints-bytes)
-                                max-iterations))
+  (define hints-bytes
+    (if hints
+        (serialize-hints-binary hints)
+        #""))
+  (define res-code
+    (rival_apply (machine-wrapper-ptr machine)
+                 arg-ptrs
+                 n-args
+                 out-ptrs
+                 n-outs
+                 hints-bytes
+                 (bytes-length hints-bytes)
+                 max-iterations))
 
   (match res-code
     [0
      (define discs (machine-wrapper-discs machine))
-     (list->vector
-      (for/list ([bf (in-vector outs)]
-                 [disc (in-list discs)])
-        ((discretization-convert disc) bf)))]
+     (list->vector (for/list ([bf (in-vector outs)]
+                              [disc (in-list discs)])
+                     ((discretization-convert disc) bf)))]
     [-1 (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
     [-2 (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
     [-99 (error 'rival-apply "Rival panic")]
     [else (error 'rival-apply "Unknown result code: ~a" res-code)]))
-
 
 (define-rival rival_analyze_with_hints (_fun _pointer _string _bytes _size -> _pointer))
 
@@ -105,9 +106,7 @@
 (define-rival rival_free_string (_fun _pointer -> _void))
 
 ;; Wrapper struct to hold callbacks and pointer
-(struct machine-wrapper (ptr convert-cb distance-cb free-cb discs arg-buf out-buf)
-  #:property prop:cpointer
-  (struct-field-index ptr))
+(struct machine-wrapper (ptr discs arg-buf out-buf) #:property prop:cpointer (struct-field-index ptr))
 
 (define rival-machine? machine-wrapper?)
 
@@ -145,45 +144,20 @@
   (define exprs-str (format "~a" exprs))
   (define vars-str (string-join (map symbol->string vars) " "))
 
-  ;; Callbacks
-  (define (convert-cb idx val-str)
-    (with-handlers ([exn:fail? (lambda (e)
-                                 (displayln (format "Error in convert-cb: ~a" (exn-message e)))
-                                 (string->c-pointer "NaN"))])
-      (define disc (list-ref discs idx))
-      (define val (bf val-str))
-      (define res ((discretization-convert disc) val))
-      (define res-str (bf->string-for-rust res))
-      (string->c-pointer res-str)))
-  (define (distance-cb idx lo-str hi-str)
-    (with-handlers ([exn:fail? (lambda (e)
-                                 (displayln (format "Error in distance-cb: ~a" (exn-message e)))
-                                 0)])
-      (define disc (list-ref discs idx))
-      (define lo (bf lo-str))
-      (define hi (bf hi-str))
-
-      (cond
-        [(eq? disc boolean-discretization)
-         ;; Special handling for boolean discretization
-         ;; Convert bigfloats to booleans (0.0 -> #f, anything else -> #t)
-         (define lo-bool (not (bfzero? lo)))
-         (define hi-bool (not (bfzero? hi)))
-         ((discretization-distance disc) lo-bool hi-bool)]
-        [else
-         ;; Standard handling
-         (define lo-conv ((discretization-convert disc) lo))
-         (define hi-conv ((discretization-convert disc) hi))
-         ((discretization-distance disc) lo-conv hi-conv)])))
-  (define (free-cb ptr)
-    (free ptr))
-
   (define target
     (if (null? discs)
         0
         (discretization-target (car discs))))
 
-  (define ptr (rival_compile exprs-str vars-str target convert-cb distance-cb free-cb))
+  (define num-types (length discs))
+  (define types-ptr (malloc _uint32 num-types 'raw))
+  (for ([i (in-naturals)]
+        [disc (in-list discs)])
+    (ptr-set! types-ptr _uint32 i (discretization-type disc)))
+
+  (define ptr (rival_compile exprs-str vars-str target types-ptr num-types))
+
+  (free types-ptr)
 
   (if (not ptr)
       (error "rival-compile failed")
@@ -192,7 +166,7 @@
               [n-outs (length discs)])
           (define arg-buf (malloc _pointer n-args 'raw))
           (define out-buf (malloc _pointer n-outs 'raw))
-          (define wrapper (machine-wrapper ptr convert-cb distance-cb free-cb discs arg-buf out-buf))
+          (define wrapper (machine-wrapper ptr discs arg-buf out-buf))
           (register-finalizer wrapper machine-destroy)
           wrapper))))
 
@@ -213,7 +187,6 @@
         [#f (void)]
         [_ (error "Unknown hint" h)]))
     (get-output-bytes out)))
-
 
 (define (rival-analyze-with-hints machine rect [hint #f])
   (define rect-str

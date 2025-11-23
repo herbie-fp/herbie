@@ -47,9 +47,16 @@
       1))
 
 (define (repr->discretization repr)
+  (define type
+    (match (representation-name repr)
+      ['bool 0]
+      ['binary32 1]
+      ['binary64 2]
+      [_ (error "Unknown representation for rival:" (representation-name repr))]))
   (discretization (representation-total-bits repr)
                   (representation-bf->repr repr)
-                  (lambda (x y) (- (ulp-difference x y repr) 1))))
+                  (lambda (x y) (- (ulp-difference x y repr) 1))
+                  type))
 
 ;; Herbie's wrapper around the Rival machine abstraction.
 (struct real-compiler (pre vars var-reprs exprs reprs machine dump-file))

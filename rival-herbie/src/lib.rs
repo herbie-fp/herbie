@@ -10,13 +10,11 @@ use std::slice;
 
 mod discretization;
 mod parser;
-use discretization::{
-    CallbackDiscretization, ConvertCallback, DistanceCallback, FreeStringCallback,
-};
+use discretization::{DiscretizationType, RustDiscretization};
 use parser::{parse_expr, parse_sexpr, SExpr};
 
 pub struct MachineWrapper {
-    machine: Machine<CallbackDiscretization>,
+    machine: Machine<RustDiscretization>,
     arg_buf: Vec<Ival>,
 }
 
@@ -65,9 +63,8 @@ pub extern "C" fn rival_compile(
     exprs_str: *const c_char,
     vars_str: *const c_char,
     target: u32,
-    convert_cb: ConvertCallback,
-    distance_cb: DistanceCallback,
-    free_cb: FreeStringCallback,
+    types_ptr: *const u32,
+    num_types: u32,
 ) -> *mut MachineWrapper {
     let result = panic::catch_unwind(|| {
         let exprs_str = unsafe { CStr::from_ptr(exprs_str).to_string_lossy() };
@@ -84,12 +81,18 @@ pub extern "C" fn rival_compile(
             _ => panic!("Expected list of expressions"),
         };
 
-        let disc = CallbackDiscretization {
-            target,
-            convert_cb,
-            distance_cb,
-            free_cb,
-        };
+        let types_slice = unsafe { slice::from_raw_parts(types_ptr, num_types as usize) };
+        let types = types_slice
+            .iter()
+            .map(|&t| match t {
+                0 => DiscretizationType::Bool,
+                1 => DiscretizationType::F32,
+                2 => DiscretizationType::F64,
+                _ => panic!("Unknown discretization type: {}", t),
+            })
+            .collect();
+
+        let disc = RustDiscretization { target, types };
         let machine = MachineBuilder::new(disc).build(exprs, vars);
         let wrapper = MachineWrapper {
             machine,
@@ -172,7 +175,7 @@ pub unsafe extern "C" fn rival_apply(
                     return 2;
                 }
                 let out_ptrs_slice = slice::from_raw_parts(out_ptrs, out_len);
-                
+
                 for (i, val) in vals.iter().enumerate() {
                     let out_ptr = out_ptrs_slice[i];
                     // Copy result from Rust's Float to Racket's mpfr_t
