@@ -589,15 +589,13 @@
   (define iter-limit (*default-egglog-iter-limit*))
 
   ;; Loop to check unsoundness
-  (let loop ([curr-iter 1] [prev-nodes -1])
+  (let loop ([curr-iter 1]
+             [prev-nodes -1])
     (cond
       [(> curr-iter iter-limit) (void)]
       [else
        ;; 1. Run rewrite rules
-       (define math-schedule
-         (list `(run-schedule (repeat 1 ,tag))
-               '(print-size)
-               '(extract "DONE")))
+       (define math-schedule (list `(run-schedule (repeat 1 ,tag)) '(print-size) '(extract "DONE")))
 
        (define-values (math-node-limit? math-total-nodes)
          (get-egglog-size math-schedule subproc node-limit))
@@ -608,9 +606,7 @@
          [else
           ;; 2. Run const-fold
           (define const-schedule
-            (list `(run-schedule (repeat 1 const-fold))
-                  '(print-size)
-                  '(extract "DONE")))
+            (list `(run-schedule (repeat 1 const-fold)) '(print-size) '(extract "DONE")))
 
           (define-values (const-node-limit? const-total-nodes)
             (get-egglog-size const-schedule subproc node-limit))
@@ -618,8 +614,7 @@
           (cond
             [const-node-limit? (void)]
             [(equal? const-total-nodes math-total-nodes) (void)]
-            [else
-             (loop (add1 curr-iter) const-total-nodes)])])])))
+            [else (loop (add1 curr-iter) const-total-nodes)])])])))
 
 (define (get-egglog-size curr-schedule subproc node-limit)
   (define node-values (egglog-send-and-read subproc curr-schedule))
