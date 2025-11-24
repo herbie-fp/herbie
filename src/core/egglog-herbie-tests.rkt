@@ -427,12 +427,11 @@
 
     ;; Print size
 
-    (define print-size-commands (list '(print-size) '(run unsound-rule 1) '(extract (unsound))))
+    (define print-size-commands (list '(print-size) '(run unsound-rule 1) '(extract "DONE")))
 
-    (define-values (node-values unsound?) (egglog-send-unsound-detection subproc print-size-commands))
+    (define node-values (egglog-send-and-read subproc print-size-commands))
     (check-equal? node-values
                   '("unsound: 1" "const3: 1" "const2: 1" "const1: 1" "Var: 2" "Add: 1" ""))
-    (check-false unsound?)
 
     ;; last two
     (check-equal? '((Var "y")) (egglog-extract subproc '(extract (const2) 1)))

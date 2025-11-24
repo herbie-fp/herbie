@@ -6,7 +6,7 @@
          create-new-egglog-subprocess
          egglog-send
          egglog-extract
-         egglog-send-unsound-detection
+         egglog-send-and-read
          egglog-subprocess-close)
 
 ;; Struct to hold egglog subprocess handles
@@ -17,6 +17,8 @@
   (close-output-port (egglog-subprocess-input subproc))
   (close-input-port (egglog-subprocess-output subproc))
   (close-input-port (egglog-subprocess-error subproc))
+  (when (egglog-subprocess-dump-file subproc)
+    (close-output-port (egglog-subprocess-dump-file subproc)))
   (subprocess-wait (egglog-subprocess-process subproc))
   (unless (eq? (subprocess-status (egglog-subprocess-process subproc)) 'done)
     (subprocess-kill (egglog-subprocess-process subproc) #f)))
@@ -54,7 +56,8 @@
 
   (when dump-file
     (for ([expr commands])
-      (pretty-print expr dump-file 1)))
+      (pretty-print expr dump-file 1))
+    (flush-output dump-file))
 
   (with-handlers ([exn:fail? (lambda (exn)
                                (printf "Egglog command failed with exception:\n~a\n"
@@ -80,14 +83,15 @@
   (egglog-send subproc extract-command)
   (read (egglog-subprocess-output subproc)))
 
-(define (egglog-send-unsound-detection subproc commands)
+(define (egglog-send-and-read subproc commands)
   (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
 
   (define egglog-program (apply ~s #:separator "\n" commands))
 
   (when dump-file
     (for ([expr commands])
-      (pretty-print expr dump-file 1)))
+      (pretty-print expr dump-file 1))
+    (flush-output dump-file))
 
   (with-handlers ([exn:fail? (lambda (exn)
                                (printf "Egglog command failed with exception:\n~a\n"
@@ -109,15 +113,13 @@
     (flush-output egglog-in)
 
     (define lines '())
-    (define unsound? #t)
 
     (let loop ()
       (define line (read-line egglog-output 'any))
       (cond
-        [(or (equal? line "true") (equal? line "false")) (set! unsound? (equal? line "true"))]
+        [(eof-object? line) lines]
+        [(equal? line "\"DONE\"") lines]
         [else
          (set! lines (cons line lines))
 
-         (loop)]))
-
-    (values lines unsound?)))
+         (loop)]))))
