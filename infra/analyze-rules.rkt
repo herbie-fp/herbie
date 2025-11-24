@@ -12,10 +12,10 @@
 (define *iters* (make-parameter 3))
 
 (module+ main
-  (command-line
-   #:once-each
-   [("--iters") iters "How many iterations to analyze" (*iters* (string->number iters))]
-   #:args ([dir "bench/"]) (run-analysis dir)))
+  (command-line #:once-each
+                [("--iters") iters "How many iterations to analyze" (*iters* (string->number iters))]
+                #:args ([dir "bench/"])
+                (run-analysis dir)))
 
 (define (run-analysis dir)
   (activate-platform! "c")
