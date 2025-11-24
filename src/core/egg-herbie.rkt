@@ -11,6 +11,7 @@
          json) ; for dumping
 
 (require "../utils/common.rkt"
+         "../utils/errors.rkt"
          "../utils/timeline.rkt"
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
@@ -24,7 +25,8 @@
          egraph-equal?
          egraph-prove
          egraph-best
-         egraph-variations)
+         egraph-variations
+         egraph-analyze-rewrite-impact)
 
 (module+ test
   (require rackunit))
@@ -56,13 +58,6 @@
 ; Makes a new egraph that is managed by Racket's GC
 (define (make-egraph-data)
   (egraph-data (egraph_create) (make-hash)))
-
-; Creates a new runner using an existing egraph.
-; Useful for multi-phased rule application
-(define (egraph-copy eg-data)
-  (struct-copy egraph-data
-               eg-data
-               [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
 
 ; Adds expressions returning the root ids
 (define (egraph-add-exprs egg-data batch brfs ctx)
@@ -1212,8 +1207,14 @@
 ;; A mini-interpreter for egraph "schedules" including running egg,
 ;; pruning certain kinds of nodes, extracting expressions, etc.
 
+; Creates a new runner using an existing egraph.
+; Useful for multi-phased rule application
+(define (egraph-copy eg-data)
+  (struct-copy egraph-data
+               eg-data
+               [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
+
 ;; Runs rules over the egraph with the given egg parameters.
-;; Invariant: the returned egraph is never unsound
 (define (egraph-run-rules egg-graph0
                           egg-rules
                           #:node-limit [node-limit #f]
@@ -1222,19 +1223,37 @@
   (define ffi-rules (map cdr egg-rules))
 
   ;; run the rules
-  (let loop ([iter-limit iter-limit])
-    (define egg-graph (egraph-copy egg-graph0))
-    (define iteration-data (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
+  (define egg-graph (egraph-copy egg-graph0))
+  (define iteration-data (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
 
-    (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
-    (cond
-      [(egraph-is-unsound-detected egg-graph)
-       ; unsoundness means run again with less iterations
-       (define num-iters (length iteration-data))
-       (if (<= num-iters 1) ; nothing to fall back on
-           (values egg-graph0 (list))
-           (loop (sub1 num-iters)))]
-      [else (values egg-graph iteration-data)])))
+  (when (egraph-is-unsound-detected egg-graph)
+    (warn 'unsound-egraph #:url "faq.html#unsound-egraph" "unsoundness detected in the egraph"))
+  (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
+  (values egg-graph iteration-data))
+
+(define (egraph-analyze-rewrite-impact batch brfs ctx iter)
+  (define egg-graph (make-egraph-data))
+  (egraph-add-exprs egg-graph batch brfs ctx)
+  (define lifting-rules (expand-rules (platform-lifting-rules)))
+  (define-values (egg-graph1 _1)
+    (egraph-run-rules egg-graph lifting-rules #:iter-limit 1 #:scheduler 'simple))
+  (define-values (egg-graph2 iter-data2)
+    (if (> iter 0)
+        (egraph-run-rules egg-graph1 (expand-rules (*rules*)) #:iter-limit iter)
+        (values egg-graph1 _1)))
+  (define-values (egg-graph3 iter-data3) (egraph-run-rules egg-graph2 '()))
+  (define initial-size (iteration-data-num-nodes (last iter-data3)))
+  (define results
+    (for/list ([rule (in-list (*rules*))])
+      (define-values (egg-graph5 iter-data5)
+        (egraph-run-rules egg-graph3 (expand-rules (list rule)) #:iter-limit 2))
+      (define size (iteration-data-num-nodes (last (if (empty? iter-data5) iter-data3 iter-data5))))
+      (cons rule (- size initial-size))))
+  (define final-size
+    (let-values ([(egg-graph6 iter-data6)
+                  (egraph-run-rules egg-graph3 (expand-rules (*rules*)) #:iter-limit 2)])
+      (iteration-data-num-nodes (last (if (empty? iter-data6) iter-data3 iter-data6)))))
+  (values initial-size final-size results))
 
 (define (egraph-run-schedule batch brfs schedule ctx)
   ; allocate the e-graph
@@ -1354,31 +1373,39 @@
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
 
-  (define regraph (make-regraph egg-graph ctx))
-  (define reprs (egg-runner-reprs runner))
-  (when (flag-set? 'dump 'egg)
-    (regraph-dump regraph root-ids reprs))
+  ; Return empty results if unsound
+  (cond
+    [(egraph-is-unsound-detected egg-graph) (map (const empty) root-ids)]
+    [else
+     (define regraph (make-regraph egg-graph ctx))
+     (define reprs (egg-runner-reprs runner))
+     (when (flag-set? 'dump 'egg)
+       (regraph-dump regraph root-ids reprs))
 
-  (define extract-id ((typed-egg-batch-extractor batch) regraph))
+     (define extract-id ((typed-egg-batch-extractor batch) regraph))
 
-  ; (Listof (Listof batchref))
-  (for/list ([id (in-list root-ids)]
-             [repr (in-list reprs)])
-    (regraph-extract-best regraph extract-id id repr)))
+     ; (Listof (Listof batchref))
+     (for/list ([id (in-list root-ids)]
+                [repr (in-list reprs)])
+       (regraph-extract-best regraph extract-id id repr))]))
 
 (define (egraph-variations runner batch)
   (define ctx (egg-runner-ctx runner))
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
 
-  (define regraph (make-regraph egg-graph ctx))
-  (define reprs (egg-runner-reprs runner))
-  (when (flag-set? 'dump 'egg)
-    (regraph-dump regraph root-ids reprs))
+  ; Return empty results if unsound
+  (cond
+    [(egraph-is-unsound-detected egg-graph) (map (const empty) root-ids)]
+    [else
+     (define regraph (make-regraph egg-graph ctx))
+     (define reprs (egg-runner-reprs runner))
+     (when (flag-set? 'dump 'egg)
+       (regraph-dump regraph root-ids reprs))
 
-  (define extract-id ((typed-egg-batch-extractor batch) regraph))
+     (define extract-id ((typed-egg-batch-extractor batch) regraph))
 
-  ; (Listof (Listof batchref))
-  (for/list ([id (in-list root-ids)]
-             [repr (in-list reprs)])
-    (regraph-extract-variants regraph extract-id id repr)))
+     ; (Listof (Listof batchref))
+     (for/list ([id (in-list root-ids)]
+                [repr (in-list reprs)])
+       (regraph-extract-variants regraph extract-id id repr))]))

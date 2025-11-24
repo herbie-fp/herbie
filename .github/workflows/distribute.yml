@@ -15,7 +15,7 @@ jobs:
         include:
           - os: macos-latest
             arch: aarch64
-          - os: macos-13
+          - os: macos-15-intel
             arch: x64
           - os: ubuntu-latest
             arch: x64
@@ -26,11 +26,10 @@ jobs:
 
     steps:
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v1.11
+        uses: Bogdanp/setup-racket@v1.14
         with:
-            version: "8.14"
+            version: "8.18"
             architecture: ${{ matrix.arch }}
-      # WARN: need to be careful with cargo paths
       - name: Cache Racket dependencies
         uses: actions/cache@v4
         with:
@@ -39,17 +38,15 @@ jobs:
             ~/.cache/racket
             ~/.local/share/racket
             ~/Library/Racket/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            egg-herbie/target/
             ${{ env.APPDATA }}/Racket
       - name: Install Rust compiler
         uses: dtolnay/rust-toolchain@stable
         with:
             toolchain: stable
             components: rustfmt, clippy
-      - uses: actions/checkout@master
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@v5
       - name: "Install dependencies"
         run: make install
       # Build executable and remove Herbie launcher
