@@ -15,7 +15,7 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Uninstalled old egg-herbie" || :
 
 update:
-	raco pkg install --skip-installed --no-docs --auto --name herbie src/
+	raco pkg install --update-deps --no-docs --auto --name herbie src/
 	raco pkg update --auto rival
 	raco pkg update --name herbie --deps search-auto src/
 
