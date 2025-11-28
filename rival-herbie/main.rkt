@@ -2,6 +2,7 @@
 
 (require ffi/unsafe
          ffi/unsafe/define
+         ffi/vector
          racket/runtime-path
          math/bigfloat
          (only-in math/private/bigfloat/mpfr _mpfr-pointer)
@@ -9,6 +10,7 @@
 
 (provide rival-compile
          rival-apply
+         rival-apply-batch
          rival-analyze-with-hints
          rival-profile
          (struct-out exn:rival)
@@ -60,6 +62,21 @@
 (define-rival rival_apply
               (_fun _pointer _pointer _size _pointer _size _pointer _size _size -> _int32))
 
+(define-rival rival_apply_batch
+              (_fun _pointer ; machine ptr
+                    _size ; batch_size
+                    _f64vector ; args_data (flattened f64 array)
+                    _size ; args_len (per point)
+                    _f64vector ; out_data (flattened f64 array)
+                    _size ; out_len (per point)
+                    _bytes ; hints_data
+                    (_vector i _size) ; hints_offsets
+                    (_vector i _size) ; hints_lens
+                    _s32vector ; result_codes
+                    _size ; max_iterations
+                    ->
+                    _int32))
+
 (define (rival-apply machine pt [hints #f] [max-iterations (*rival-max-iterations*)])
   (define n-args (vector-length pt))
   (define arg-ptrs (machine-wrapper-arg-buf machine))
@@ -98,6 +115,82 @@
     [-2 (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
     [-99 (error 'rival-apply "Rival panic")]
     [else (error 'rival-apply "Unknown result code: ~a" res-code)]))
+
+(define (rival-apply-batch machine pts hints-list [max-iterations (*rival-max-iterations*)])
+  (define batch-size (vector-length pts))
+  (when (= batch-size 0)
+    (error 'rival-apply-batch "Empty batch"))
+
+  (define n-args (vector-length (vector-ref pts 0)))
+  (define n-outs (length (machine-wrapper-discs machine)))
+
+  ;; Prepare arguments as flattened f64vector (zero allocation beyond the array itself)
+  (define args-data (make-f64vector (* batch-size n-args)))
+  (for ([i (in-range batch-size)])
+    (define pt (vector-ref pts i))
+    (for ([j (in-range n-args)])
+      (f64vector-set! args-data (+ (* i n-args) j) (vector-ref pt j))))
+
+  ;; Prepare output buffer as flattened f64vector
+  (define out-data (make-f64vector (* batch-size n-outs)))
+
+  ;; Prepare hints (flattened into single bytes buffer)
+  (define hints-bytes-list
+    (for/list ([h (in-list hints-list)])
+      (if h (serialize-hints-binary h) #"")))
+  (define total-hints-len (apply + (map bytes-length hints-bytes-list)))
+  (define hints-data (make-bytes total-hints-len))
+  (define hints-offsets (make-vector batch-size))
+  (define hints-lens (make-vector batch-size))
+  (let loop ([i 0] [offset 0] [hbs hints-bytes-list])
+    (unless (null? hbs)
+      (define hb (car hbs))
+      (define len (bytes-length hb))
+      (bytes-copy! hints-data offset hb)
+      (vector-set! hints-offsets i offset)
+      (vector-set! hints-lens i len)
+      (loop (add1 i) (+ offset len) (cdr hbs))))
+
+  ;; Allocate result codes
+  (define result-codes (make-s32vector batch-size))
+
+  ;; Call batch function
+  (define overall-status
+    (rival_apply_batch (machine-wrapper-ptr machine)
+                       batch-size
+                       args-data
+                       n-args
+                       out-data
+                       n-outs
+                       hints-data
+                       hints-offsets
+                       hints-lens
+                       result-codes
+                       max-iterations))
+
+  (when (= overall-status -99)
+    (error 'rival-apply-batch "Rival panic"))
+
+  ;; Extract results - outputs are already f64, just read them
+  (define discs (machine-wrapper-discs machine))
+  (for/vector ([i (in-range batch-size)])
+    (define code (s32vector-ref result-codes i))
+    (cond
+      [(= code 0) ; Valid
+       ;; Read outputs directly from f64vector, skip first (precondition)
+       (define base-idx (* i n-outs))
+       (define outs
+         (for/vector ([j (in-range 1 n-outs)]) ; skip index 0 (precondition)
+           (define raw-val (f64vector-ref out-data (+ base-idx j)))
+           (define disc (list-ref discs j))
+           ;; Apply discretization convert for booleans
+           (if (= (discretization-type disc) 0) ; bool type
+               (not (zero? raw-val))
+               raw-val)))
+       (cons 'valid outs)]
+      [(= code -1) (cons 'invalid #f)]
+      [(= code -2) (cons 'exit #f)]
+      [else (cons 'unknown #f)])))
 
 (define-rival rival_analyze_with_hints (_fun _pointer _string _bytes _size -> _pointer))
 

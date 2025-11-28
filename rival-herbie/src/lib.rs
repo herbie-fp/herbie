@@ -1,7 +1,7 @@
 use gmp_mpfr_sys::mpfr::{self, mpfr_t};
 use rival::eval::machine::Hint;
 use rival::{Discretization, Ival, Machine, MachineBuilder, RivalError};
-use rug::Float;
+use rug::{Assign, Float};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::panic;
@@ -93,7 +93,7 @@ pub extern "C" fn rival_compile(
             .collect();
 
         let disc = RustDiscretization { target, types };
-        let machine = MachineBuilder::new(disc).build(exprs, vars);
+        let machine = MachineBuilder::new(disc).slack_unit(512).build(exprs, vars);
         let wrapper = MachineWrapper {
             machine,
             arg_buf: Vec::new(),
@@ -186,6 +186,102 @@ pub unsafe extern "C" fn rival_apply(
             Err(RivalError::InvalidInput) => -1,
             Err(RivalError::Unsamplable) => -2,
         }
+    });
+
+    match result {
+        Ok(code) => code,
+        Err(_) => -99, // Panic
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rival_apply_batch(
+    ptr: *mut MachineWrapper,
+    batch_size: usize,
+    args_data: *const f64,
+    args_len: usize,
+    out_data: *mut f64,
+    out_len: usize,
+    hints_data: *const u8,
+    hints_offsets: *const usize,
+    hints_lens: *const usize,
+    result_codes: *mut i32,
+    max_iterations: usize,
+) -> i32 {
+    let result = panic::catch_unwind(|| {
+        let wrapper = &mut *ptr;
+        let machine = &mut wrapper.machine;
+        let arg_buf = &mut wrapper.arg_buf;
+
+        let arg_prec = machine.disc.target().max(machine.state.min_precision);
+
+        // Resize arg_buf if needed (amortized allocation)
+        if arg_buf.len() != args_len {
+            arg_buf.clear();
+            arg_buf.reserve(args_len);
+            for _ in 0..args_len {
+                arg_buf.push(Ival::from_lo_hi(Float::new(arg_prec), Float::new(arg_prec)));
+            }
+        }
+
+        let args_slice = slice::from_raw_parts(args_data, batch_size * args_len);
+        let hints_offsets_slice = slice::from_raw_parts(hints_offsets, batch_size);
+        let hints_lens_slice = slice::from_raw_parts(hints_lens, batch_size);
+        let result_codes_slice = slice::from_raw_parts_mut(result_codes, batch_size);
+        let out_slice = slice::from_raw_parts_mut(out_data, batch_size * out_len);
+
+        // Process each point in the batch
+        for batch_idx in 0..batch_size {
+            // Copy args for this point into arg_buf
+            let base_arg_idx = batch_idx * args_len;
+            for i in 0..args_len {
+                let val = &mut arg_buf[i];
+                let f64_val = args_slice[base_arg_idx + i];
+
+                // Update precision if needed
+                if val.lo.as_float().prec() != arg_prec {
+                    val.lo.as_float_mut().set_prec(arg_prec);
+                    val.hi.as_float_mut().set_prec(arg_prec);
+                }
+
+                // Set value from f64 (lossless for 53-bit precision)
+                val.lo.as_float_mut().assign(f64_val);
+                val.hi.as_float_mut().assign(f64_val);
+            }
+
+            // Parse hints for this point
+            let len = hints_lens_slice[batch_idx];
+            let hint_data = if len > 0 {
+                let offset = hints_offsets_slice[batch_idx];
+                let hint_bytes = slice::from_raw_parts(hints_data.add(offset), len);
+                parse_hints_binary(hint_bytes)
+            } else {
+                None
+            };
+
+            // Apply machine
+            let res = machine.apply(arg_buf, hint_data.as_deref(), max_iterations);
+
+            match res {
+                Ok(vals) => {
+                    if vals.len() != out_len {
+                        result_codes_slice[batch_idx] = 2;
+                        continue;
+                    }
+
+                    // Copy outputs as f64
+                    let base_out_idx = batch_idx * out_len;
+                    for (i, val) in vals.iter().enumerate() {
+                        out_slice[base_out_idx + i] = val.lo.as_float().to_f64();
+                    }
+                    result_codes_slice[batch_idx] = 0; // Success
+                }
+                Err(RivalError::InvalidInput) => result_codes_slice[batch_idx] = -1,
+                Err(RivalError::Unsamplable) => result_codes_slice[batch_idx] = -2,
+            }
+        }
+
+        0 // Overall success
     });
 
     match result {

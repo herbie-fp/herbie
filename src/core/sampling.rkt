@@ -126,46 +126,96 @@
   (define vars (real-compiler-vars compiler))
   (define var-reprs (real-compiler-var-reprs compiler))
   (define reprs (real-compiler-reprs compiler))
+  (define machine (real-compiler-machine compiler))
 
   (real-compiler-clear! compiler) ; Clear profiling vector
+
+  (define max-batch-size 1024)
+
   (define-values (points exactss)
     (let loop ([sampled 0]
                [skipped 0]
                [points '()]
                [exactss '()])
-      (define-values (pt hint) (sampler))
-      (define-values (status exs) (real-apply compiler pt hint))
-      (case status
-        [(exit)
-         (warn 'ground-truth
-               "could not determine a ground truth"
-               #:url "faq.html#ground-truth"
-               #:extra (vector->list (vector-map (curry format "~a = ~a") vars pt)))]
-        [(valid)
-         (for ([ex (in-list exs)]
-               [repr (in-vector reprs)])
-           ; The `bool` representation does not produce bigfloats
-           (define maybe-bf ((representation-repr->bf repr) ex))
-           (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
-             (set! status 'infinite)))])
-
-      (hash-update! outcomes status add1 0)
-
-      (define is-bad?
-        (for/or ([input (in-vector pt)]
-                 [repr (in-vector var-reprs)])
-          ((representation-special-value? repr) input)))
-
       (cond
-        [(and (list? exs) (not is-bad?))
-         (if (>= (+ 1 sampled) (*num-points*))
-             (values (cons pt points) (cons exs exactss))
-             (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
+        [(>= sampled (*num-points*)) (values points exactss)]
         [else
-         (when (>= skipped (*max-skipped-points*))
-           (raise-herbie-sampling-error "Cannot sample enough valid points."
-                                        #:url "faq.html#sample-valid-points"))
-         (loop sampled (+ 1 skipped) points exactss)])))
+         ;; ADAPTIVE BATCH SIZE: Never sample more than we need
+         (define remaining (- (*num-points*) sampled))
+         (define batch-size (min max-batch-size remaining))
+
+         ;; Sample exactly batch-size points (preserves exact RNG sequence!)
+         (define-values (batch-pts batch-hints)
+           (for/lists (pts hints) ([_ (in-range batch-size)]) (sampler)))
+
+         ;; Convert points to f64 vectors for FFI (no bigfloat allocation!)
+         (define batch-pts-f64
+           (for/vector ([pt (in-list batch-pts)])
+             (for/vector ([val (in-vector pt)]
+                          [repr (in-vector var-reprs)])
+               (real->double-flonum (repr->real val repr)))))
+
+         ;; Single batched FFI call for entire batch
+         (define results
+           (with-handlers ([exn:rival:invalid? (lambda (e) #f)]
+                           [exn:rival:unsamplable? (lambda (e) #f)])
+             (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
+                            [*rival-max-iterations* 5])
+               (rival-apply-batch machine batch-pts-f64 batch-hints))))
+
+         ;; Process ALL results in batch (no early stopping within batch)
+         (define-values (new-sampled new-skipped new-points new-exactss)
+           (for/fold ([sampled sampled]
+                      [skipped skipped]
+                      [points points]
+                      [exactss exactss])
+                     ([i (in-range batch-size)])
+             (define pt (list-ref batch-pts i))
+
+             ;; Handle batch failure
+             (when (not results)
+               (raise-herbie-sampling-error "Batch processing failed" #:url "faq.html#ground-truth"))
+
+             (define result (vector-ref results i))
+             (match-define (cons status exs) result)
+
+             ;; Handle exit status (same as original)
+             (when (eq? status 'exit)
+               (warn 'ground-truth
+                     "could not determine a ground truth"
+                     #:url "faq.html#ground-truth"
+                     #:extra (vector->list (vector-map (curry format "~a = ~a") vars pt))))
+
+             ;; Check for infinites (same as original)
+             (when (and (eq? status 'valid) (vector? exs))
+               (for ([ex (in-vector exs)]
+                     [repr (in-vector reprs)])
+                 (define maybe-bf ((representation-repr->bf repr) ex))
+                 (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
+                   (set! status 'infinite))))
+
+             ;; Update outcomes (same as original)
+             (hash-update! outcomes status add1 0)
+
+             ;; Check for bad inputs (same as original)
+             (define is-bad?
+               (for/or ([input (in-vector pt)]
+                        [repr (in-vector var-reprs)])
+                 ((representation-special-value? repr) input)))
+
+             ;; Process exactly as original
+             (cond
+               [(and (vector? exs) (not is-bad?))
+                (values (+ sampled 1) 0 (cons pt points) (cons (vector->list exs) exactss))]
+               [else
+                (when (>= skipped (*max-skipped-points*))
+                  (raise-herbie-sampling-error "Cannot sample enough valid points."
+                                               #:url "faq.html#sample-valid-points"))
+                (values sampled (+ skipped 1) points exactss)])))
+
+         ;; Loop continues if we haven't reached target yet
+         (loop new-sampled new-skipped new-points new-exactss)])))
+
   (values (cons points (flip-lists exactss)) outcomes))
 
 (define (combine-tables t1 t2)
