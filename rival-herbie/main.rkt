@@ -36,6 +36,18 @@
 
 (define boolean-discretization (discretization 53 values (lambda (x y) (if (eq? x y) 0 2)) 0))
 
+;; Status codes (must match Rust constants)
+(define STATUS-SUCCESS 0)
+(define STATUS-INVALID-INPUT -1)
+(define STATUS-UNSAMPLABLE -2)
+(define STATUS-LENGTH-MISMATCH 2)
+(define STATUS-PANIC -99)
+
+;; Discretization type codes (must match Rust DiscretizationType enum)
+(define DISC-TYPE-BOOL 0)
+(define DISC-TYPE-F32 1)
+(define DISC-TYPE-F64 2)
+
 ;; Parameters
 (define *rival-max-precision* (make-parameter 256))
 (define *rival-max-iterations* (make-parameter 5))
@@ -77,6 +89,13 @@
                     ->
                     _int32))
 
+;; Apply discretization-convert to all outputs (used by both rival-apply and rival-apply-batch)
+(define (apply-discretizations outputs discs)
+  (list->vector
+   (for/list ([output (in-vector outputs)]
+              [disc (in-list discs)])
+     ((discretization-convert disc) output))))
+
 (define (rival-apply machine pt [hints #f] [max-iterations (*rival-max-iterations*)])
   (define n-args (vector-length pt))
   (define arg-ptrs (machine-wrapper-arg-buf machine))
@@ -106,14 +125,14 @@
                  max-iterations))
 
   (match res-code
-    [0
-     (define discs (machine-wrapper-discs machine))
-     (list->vector (for/list ([bf (in-vector outs)]
-                              [disc (in-list discs)])
-                     ((discretization-convert disc) bf)))]
-    [-1 (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
-    [-2 (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
-    [-99 (error 'rival-apply "Rival panic")]
+    [(== STATUS-SUCCESS)
+     (apply-discretizations outs (machine-wrapper-discs machine))]
+    [(== STATUS-INVALID-INPUT)
+     (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
+    [(== STATUS-UNSAMPLABLE)
+     (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
+    [(== STATUS-PANIC)
+     (error 'rival-apply "Rival panic")]
     [else (error 'rival-apply "Unknown result code: ~a" res-code)]))
 
 (define (rival-apply-batch machine pts hints-list [max-iterations (*rival-max-iterations*)])
@@ -168,28 +187,30 @@
                        result-codes
                        max-iterations))
 
-  (when (= overall-status -99)
+  (when (= overall-status STATUS-PANIC)
     (error 'rival-apply-batch "Rival panic"))
 
-  ;; Extract results - outputs are already f64, just read them
+  ;; Extract results - convert status codes to tuples for batch processing
   (define discs (machine-wrapper-discs machine))
   (for/vector ([i (in-range batch-size)])
     (define code (s32vector-ref result-codes i))
-    (cond
-      [(= code 0) ; Valid
-       ;; Read outputs directly from f64vector, skip first (precondition)
+    (match code
+      [(== STATUS-SUCCESS) ; Valid - read outputs (skip index 0 precondition)
        (define base-idx (* i n-outs))
+       ;; Read and convert outputs, skipping index 0 (precondition)
        (define outs
-         (for/vector ([j (in-range 1 n-outs)]) ; skip index 0 (precondition)
+         (for/vector ([j (in-range 1 n-outs)])
            (define raw-val (f64vector-ref out-data (+ base-idx j)))
            (define disc (list-ref discs j))
-           ;; Apply discretization convert for booleans
-           (if (= (discretization-type disc) 0) ; bool type
-               (not (zero? raw-val))
-               raw-val)))
+           ;; Apply discretization convert
+           (cond
+             [(= (discretization-type disc) DISC-TYPE-BOOL) ; Bool: convert f64 to boolean
+              (not (zero? raw-val))]
+             [else ; F32/F64: return f64 value as-is
+              raw-val])))
        (cons 'valid outs)]
-      [(= code -1) (cons 'invalid #f)]
-      [(= code -2) (cons 'exit #f)]
+      [(== STATUS-INVALID-INPUT) (cons 'invalid #f)]
+      [(== STATUS-UNSAMPLABLE) (cons 'exit #f)]
       [else (cons 'unknown #f)])))
 
 (define-rival rival_analyze_with_hints (_fun _pointer _string _bytes _size -> _pointer))
@@ -202,31 +223,6 @@
 (struct machine-wrapper (ptr discs arg-buf out-buf) #:property prop:cpointer (struct-field-index ptr))
 
 (define rival-machine? machine-wrapper?)
-
-(define (string->c-pointer s)
-  (define b (string->bytes/utf-8 s))
-  (define n (bytes-length b))
-  (define p (malloc (add1 n) 'raw))
-  (memcpy p b n)
-  (ptr-set! p _byte n 0)
-  p)
-
-(define (bf->string-for-rust x)
-  (cond
-    [(bigfloat? x)
-     (define s (bigfloat->string x))
-     (cond
-       [(or (string-contains? s "nan") (string-contains? s "NaN")) "NaN"]
-       [(or (string-contains? s "inf") (string-contains? s "Inf"))
-        (if (string-prefix? s "-") "-inf" "inf")]
-       [else (string-replace s ".bf" "")])]
-    [(real? x)
-     (cond
-       [(nan? x) "NaN"]
-       [(infinite? x) (if (positive? x) "inf" "-inf")]
-       [else (number->string x)])]
-    [(boolean? x) (if x "1.0" "0.0")]
-    [else "NaN"]))
 
 (define (machine-destroy wrapper)
   (rival_destroy (machine-wrapper-ptr wrapper))

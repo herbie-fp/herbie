@@ -163,6 +163,10 @@
                             [*rival-max-iterations* 5])
                (rival-apply-batch machine batch-pts-f64 batch-hints))))
 
+         ;; Handle batch failure (check once before processing)
+         (when (not results)
+           (raise-herbie-sampling-error "Batch processing failed" #:url "faq.html#ground-truth"))
+
          ;; Process ALL results in batch (no early stopping within batch)
          (define-values (new-sampled new-skipped new-points new-exactss)
            (for/fold ([sampled sampled]
@@ -171,20 +175,8 @@
                       [exactss exactss])
                      ([i (in-range batch-size)])
              (define pt (list-ref batch-pts i))
-
-             ;; Handle batch failure
-             (when (not results)
-               (raise-herbie-sampling-error "Batch processing failed" #:url "faq.html#ground-truth"))
-
              (define result (vector-ref results i))
              (match-define (cons status exs) result)
-
-             ;; Handle exit status (same as original)
-             (when (eq? status 'exit)
-               (warn 'ground-truth
-                     "could not determine a ground truth"
-                     #:url "faq.html#ground-truth"
-                     #:extra (vector->list (vector-map (curry format "~a = ~a") vars pt))))
 
              ;; Check for infinites (same as original)
              (when (and (eq? status 'valid) (vector? exs))
@@ -194,16 +186,16 @@
                  (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
                    (set! status 'infinite))))
 
-             ;; Update outcomes (same as original)
+             ;; Update outcomes
              (hash-update! outcomes status add1 0)
 
-             ;; Check for bad inputs (same as original)
+             ;; Check for bad inputs
              (define is-bad?
                (for/or ([input (in-vector pt)]
                         [repr (in-vector var-reprs)])
                  ((representation-special-value? repr) input)))
 
-             ;; Process exactly as original
+             ;; Process point
              (cond
                [(and (vector? exs) (not is-bad?))
                 (values (+ sampled 1) 0 (cons pt points) (cons (vector->list exs) exactss))]
