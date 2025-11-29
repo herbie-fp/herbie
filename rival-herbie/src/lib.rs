@@ -1,7 +1,7 @@
 use gmp_mpfr_sys::mpfr::{self, mpfr_t};
 use rival::eval::machine::Hint;
 use rival::{Discretization, Ival, Machine, MachineBuilder, RivalError};
-use rug::Float;
+use rug::{Assign, Float};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::panic;
@@ -13,13 +13,46 @@ mod parser;
 use discretization::{DiscretizationType, RustDiscretization};
 use parser::{parse_expr, parse_sexpr, SExpr};
 
+// Status code constants (must match Racket side)
+const STATUS_SUCCESS: i32 = 0;
+const STATUS_INVALID_INPUT: i32 = -1;
+const STATUS_UNSAMPLABLE: i32 = -2;
+const STATUS_LENGTH_MISMATCH: i32 = 2;
+const STATUS_PANIC: i32 = -99;
+
 pub struct MachineWrapper {
     machine: Machine<RustDiscretization>,
     arg_buf: Vec<Ival>,
 }
 
-fn return_string(s: String) -> *mut c_char {
-    CString::new(s).unwrap().into_raw()
+/// Ensures arg_buf has the correct size and precision for the current machine state.
+/// Returns the precision being used.
+fn ensure_arg_buf(
+    arg_buf: &mut Vec<Ival>,
+    required_len: usize,
+    target_prec: u32,
+    min_prec: u32,
+) -> u32 {
+    let arg_prec = target_prec.max(min_prec);
+
+    // Resize buffer if needed
+    if arg_buf.len() != required_len {
+        arg_buf.clear();
+        arg_buf.reserve(required_len);
+        for _ in 0..required_len {
+            arg_buf.push(Ival::from_lo_hi(Float::new(arg_prec), Float::new(arg_prec)));
+        }
+    }
+
+    arg_prec
+}
+
+/// Updates the precision of an Ival if it doesn't match the required precision.
+fn update_ival_precision(val: &mut Ival, required_prec: u32) {
+    if val.lo.as_float().prec() != required_prec {
+        val.lo.as_float_mut().set_prec(required_prec);
+        val.hi.as_float_mut().set_prec(required_prec);
+    }
 }
 
 fn parse_hints_binary(data: &[u8]) -> Option<Vec<Hint>> {
@@ -93,10 +126,7 @@ pub extern "C" fn rival_compile(
             .collect();
 
         let disc = RustDiscretization { target, types };
-        // TODO: parameterize max precision
-        let machine = MachineBuilder::new(disc)
-            .slack_unit(512)
-            .build(exprs, vars);
+        let machine = MachineBuilder::new(disc).slack_unit(512).build(exprs, vars);
         let wrapper = MachineWrapper {
             machine,
             arg_buf: Vec::new(),
@@ -134,26 +164,18 @@ pub unsafe extern "C" fn rival_apply(
         let machine = &mut wrapper.machine;
         let arg_buf = &mut wrapper.arg_buf;
 
-        let arg_prec = machine.disc.target().max(machine.state.min_precision);
-
-        // Resize buffer if needed
-        if arg_buf.len() != args_len {
-            arg_buf.clear();
-            arg_buf.reserve(args_len);
-            for _ in 0..args_len {
-                arg_buf.push(Ival::from_lo_hi(Float::new(arg_prec), Float::new(arg_prec)));
-            }
-        }
+        let arg_prec = ensure_arg_buf(
+            arg_buf,
+            args_len,
+            machine.disc.target(),
+            machine.state.min_precision,
+        );
 
         let arg_ptrs_slice = slice::from_raw_parts(args_ptrs, args_len);
 
         for (i, &raw_ptr) in arg_ptrs_slice.iter().enumerate() {
             let val = &mut arg_buf[i];
-            // Update precision if needed
-            if val.lo.as_float().prec() != arg_prec {
-                val.lo.as_float_mut().set_prec(arg_prec);
-                val.hi.as_float_mut().set_prec(arg_prec);
-            }
+            update_ival_precision(val, arg_prec);
 
             // Copy value
             mpfr::set(
@@ -174,117 +196,113 @@ pub unsafe extern "C" fn rival_apply(
         match res {
             Ok(vals) => {
                 if vals.len() != out_len {
-                    // This should not happen if caller is correct
-                    return 2;
+                    return STATUS_LENGTH_MISMATCH;
                 }
                 let out_ptrs_slice = slice::from_raw_parts(out_ptrs, out_len);
 
                 for (i, val) in vals.iter().enumerate() {
                     let out_ptr = out_ptrs_slice[i];
-                    // Copy result from Rust's Float to Racket's mpfr_t
                     mpfr::set(out_ptr, val.lo.as_float().as_raw(), mpfr::rnd_t::RNDN);
                 }
-                0 // Success
+                STATUS_SUCCESS
             }
-            Err(RivalError::InvalidInput) => -1,
-            Err(RivalError::Unsamplable) => -2,
+            Err(RivalError::InvalidInput) => STATUS_INVALID_INPUT,
+            Err(RivalError::Unsamplable) => STATUS_UNSAMPLABLE,
         }
     });
 
     match result {
         Ok(code) => code,
-        Err(_) => -99, // Panic
+        Err(_) => STATUS_PANIC,
     }
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn rival_apply_batch(
     ptr: *mut MachineWrapper,
-    args_ptrs: *const *const mpfr_t,
-    n_points: usize,
-    n_args: usize,
-    out_ptrs: *const *mut mpfr_t,
-    n_outs: usize,
-    hints_ptrs: *const *const u8,
+    batch_size: usize,
+    args_data: *const f64,
+    args_len: usize,
+    out_data: *mut f64,
+    out_len: usize,
+    hints_data: *const u8,
+    hints_offsets: *const usize,
     hints_lens: *const usize,
-    statuses: *mut i32,
+    result_codes: *mut i32,
     max_iterations: usize,
-) {
-    let _ = panic::catch_unwind(|| {
+) -> i32 {
+    let result = panic::catch_unwind(|| {
         let wrapper = &mut *ptr;
         let machine = &mut wrapper.machine;
         let arg_buf = &mut wrapper.arg_buf;
 
-        let arg_prec = machine.disc.target().max(machine.state.min_precision);
+        let arg_prec = ensure_arg_buf(
+            arg_buf,
+            args_len,
+            machine.disc.target(),
+            machine.state.min_precision,
+        );
 
-        // Resize buffer if needed
-        if arg_buf.len() != n_args {
-            arg_buf.clear();
-            arg_buf.reserve(n_args);
-            for _ in 0..n_args {
-                arg_buf.push(Ival::from_lo_hi(Float::new(arg_prec), Float::new(arg_prec)));
-            }
-        }
+        let args_slice = slice::from_raw_parts(args_data, batch_size * args_len);
+        let hints_offsets_slice = slice::from_raw_parts(hints_offsets, batch_size);
+        let hints_lens_slice = slice::from_raw_parts(hints_lens, batch_size);
+        let result_codes_slice = slice::from_raw_parts_mut(result_codes, batch_size);
+        let out_slice = slice::from_raw_parts_mut(out_data, batch_size * out_len);
 
-        let args_ptrs_slice = slice::from_raw_parts(args_ptrs, n_points * n_args);
-        let out_ptrs_slice = slice::from_raw_parts(out_ptrs, n_points * n_outs);
-        let hints_ptrs_slice = slice::from_raw_parts(hints_ptrs, n_points);
-        let hints_lens_slice = slice::from_raw_parts(hints_lens, n_points);
-        let statuses_slice = slice::from_raw_parts_mut(statuses, n_points);
+        // Process each point in the batch
+        for batch_idx in 0..batch_size {
+            // Copy args for this point into arg_buf
+            let base_arg_idx = batch_idx * args_len;
+            for i in 0..args_len {
+                let val = &mut arg_buf[i];
+                let f64_val = args_slice[base_arg_idx + i];
 
-        for i in 0..n_points {
-            // Setup args
-            for (j, val) in arg_buf.iter_mut().enumerate() {
-                let raw_ptr = args_ptrs_slice[i * n_args + j];
+                update_ival_precision(val, arg_prec);
 
-                // Update precision if needed
-                if val.lo.as_float().prec() != arg_prec {
-                    val.lo.as_float_mut().set_prec(arg_prec);
-                    val.hi.as_float_mut().set_prec(arg_prec);
-                }
-
-                // Copy value
-                mpfr::set(
-                    val.lo.as_float_mut().as_raw_mut(),
-                    raw_ptr,
-                    mpfr::rnd_t::RNDN,
-                );
-                mpfr::set(
-                    val.hi.as_float_mut().as_raw_mut(),
-                    raw_ptr,
-                    mpfr::rnd_t::RNDN,
-                );
+                // Set value from f64 (lossless for 53-bit precision)
+                val.lo.as_float_mut().assign(f64_val);
+                val.hi.as_float_mut().assign(f64_val);
             }
 
-            // Parse hints
-            let hints_ptr = hints_ptrs_slice[i];
-            let hints_len = hints_lens_slice[i];
-            let hints = if !hints_ptr.is_null() && hints_len > 0 {
-                parse_hints_binary(slice::from_raw_parts(hints_ptr, hints_len))
+            // Parse hints for this point
+            let len = hints_lens_slice[batch_idx];
+            let hint_data = if len > 0 {
+                let offset = hints_offsets_slice[batch_idx];
+                let hint_bytes = slice::from_raw_parts(hints_data.add(offset), len);
+                parse_hints_binary(hint_bytes)
             } else {
                 None
             };
 
-            // Apply
-            let res = machine.apply(arg_buf, hints.as_deref(), max_iterations);
+            // Apply machine
+            let res = machine.apply(arg_buf, hint_data.as_deref(), max_iterations);
 
             match res {
                 Ok(vals) => {
-                    if vals.len() != n_outs {
-                        statuses_slice[i] = -99; // Should not happen
-                    } else {
-                        for (j, val) in vals.iter().enumerate() {
-                            let out_ptr = out_ptrs_slice[i * n_outs + j];
-                            mpfr::set(out_ptr, val.lo.as_float().as_raw(), mpfr::rnd_t::RNDN);
-                        }
-                        statuses_slice[i] = 0;
+                    if vals.len() != out_len {
+                        result_codes_slice[batch_idx] = STATUS_LENGTH_MISMATCH;
+                        continue;
                     }
+
+                    // Copy outputs as f64
+                    let base_out_idx = batch_idx * out_len;
+                    for (i, val) in vals.iter().enumerate() {
+                        out_slice[base_out_idx + i] = val.lo.as_float().to_f64();
+                    }
+                    result_codes_slice[batch_idx] = STATUS_SUCCESS;
                 }
-                Err(RivalError::InvalidInput) => statuses_slice[i] = -1,
-                Err(RivalError::Unsamplable) => statuses_slice[i] = -2,
+                Err(RivalError::InvalidInput) => result_codes_slice[batch_idx] = STATUS_INVALID_INPUT,
+                Err(RivalError::Unsamplable) => result_codes_slice[batch_idx] = STATUS_UNSAMPLABLE,
             }
         }
+
+        STATUS_SUCCESS // Overall success
     });
+
+    match result {
+        Ok(code) => code,
+        Err(_) => STATUS_PANIC,
+    }
 }
 
 #[no_mangle]
@@ -317,43 +335,30 @@ pub unsafe extern "C" fn rival_analyze_with_hints(
         let hints = parse_hints_binary(slice::from_raw_parts(hints_ptr, hints_len));
         let (status, next_hints, converged) = machine.analyze_with_hints(args, hints.as_deref());
 
-        // Serialize output
-        // (status_lo status_hi converged (hint ...))
-        let mut s = String::from("(");
-        s.push_str(&status.lo.as_float().to_string_radix(10, None));
-        s.push_str(" ");
-        s.push_str(&status.hi.as_float().to_string_radix(10, None));
-        s.push_str(" ");
-        s.push_str(if converged { "true" } else { "false" });
-        s.push_str(" (");
-        // Serialize hints
-        // Hint::Execute -> "execute"
-        // Hint::Skip -> "skip"
-        // Hint::Alias(u8) -> "(alias n)"
-        // Hint::KnownBool(bool) -> "(known-bool b)"
-        for hint in next_hints {
-            match hint {
-                Hint::Execute => s.push_str(" execute"),
-                Hint::Skip => s.push_str(" skip"),
-                Hint::Alias(n) => {
-                    s.push_str(" (alias ");
-                    s.push_str(&n.to_string());
-                    s.push_str(")");
-                }
-                Hint::KnownBool(b) => {
-                    s.push_str(" (known-bool ");
-                    s.push_str(if b { "true" } else { "false" });
-                    s.push_str(")");
-                }
-            }
-        }
-        s.push_str("))");
-        s
+        // Serialize output: (status_lo status_hi converged (hint ...))
+        let hints_str = next_hints
+            .iter()
+            .map(|hint| match hint {
+                Hint::Execute => "execute".to_string(),
+                Hint::Skip => "skip".to_string(),
+                Hint::Alias(n) => format!("(alias {})", n),
+                Hint::KnownBool(b) => format!("(known-bool {})", if *b { "true" } else { "false" }),
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        format!(
+            "({} {} {} ({}))",
+            status.lo.as_float().to_string_radix(10, None),
+            status.hi.as_float().to_string_radix(10, None),
+            if converged { "true" } else { "false" },
+            hints_str
+        )
     });
 
     match result {
-        Ok(s) => return_string(s),
-        Err(_) => return_string(String::from("(error panic)")),
+        Ok(s) => CString::new(s).unwrap().into_raw(),
+        Err(_) => CString::new(String::from("(error panic)")).unwrap().into_raw(),
     }
 }
 
@@ -372,37 +377,27 @@ pub unsafe extern "C" fn rival_profile(
             "iterations" => machine.state.iteration.to_string(),
             "bumps" => machine.state.bumps.to_string(),
             "executions" => {
-                let mut s = String::from("(");
-                for exec in machine.state.profiler.iter() {
-                    s.push_str("(");
-                    s.push_str(exec.name);
-                    s.push_str(" ");
-                    s.push_str(&exec.number.to_string());
-                    s.push_str(" ");
-                    s.push_str(&exec.precision.to_string());
-                    s.push_str(" ");
-                    s.push_str(&exec.time_ms.to_string());
-                    s.push_str(" ");
-                    s.push_str("0"); // memory
-                    s.push_str(" ");
-                    s.push_str(&exec.iteration.to_string());
-                    s.push_str(") ");
-                }
+                let exec_strings: Vec<String> = machine
+                    .state
+                    .profiler
+                    .iter()
+                    .map(|exec| {
+                        format!(
+                            "({} {} {} {} 0 {})",
+                            exec.name, exec.number, exec.precision, exec.time_ms, exec.iteration
+                        )
+                    })
+                    .collect();
                 machine.state.profiler.reset();
-
-                if s.ends_with(" ") {
-                    s.pop();
-                }
-                s.push_str(")");
-                s
+                format!("({})", exec_strings.join(" "))
             }
             _ => String::from(""),
         }
     });
 
     match result {
-        Ok(s) => return_string(s),
-        Err(_) => return_string(String::from("(error panic)")),
+        Ok(s) => CString::new(s).unwrap().into_raw(),
+        Err(_) => CString::new(String::from("(error panic)")).unwrap().into_raw(),
     }
 }
 
