@@ -54,30 +54,15 @@
     (for ([expr commands])
       (pretty-print expr dump-file 1)))
 
-  (with-handlers ([exn:fail? (lambda (exn)
-                               (printf "Egglog command failed with exception:\n~a\n"
-                                       (exn-message exn))
+  (for/list ([command (in-list commands)])
+    (writeln command egglog-in)
+    (flush-output egglog-in)
 
-                               (define stdout-output (port->string egglog-output))
-                               (define stderr-output (port->string err))
-
-                               (printf "Stdout:\n~a\n" stdout-output)
-                               (printf "Stderr:\n~a\n" stderr-output)
-
-                               (unless (subprocess-status egglog-process)
-                                 (subprocess-kill egglog-process #t))
-
-                               ; Reraise the exception
-                               (raise exn))])
-
-    (for/list ([command (in-list commands)])
-      (writeln command egglog-in)
-      (flush-output egglog-in)
-      (let loop ([out '()])
-        (define next (read-line egglog-output))
-        (if (equal? next "(done)")
-            (reverse out)
-            (loop (cons next out)))))))
+    (let loop ([out '()])
+      (define next (read-line egglog-output))
+      (if (equal? next "(done)")
+          (reverse out)
+          (loop (cons next out))))))
 
 ;; Send extract commands and read results
 (define (egglog-extract subproc extract-command)
