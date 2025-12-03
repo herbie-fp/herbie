@@ -86,6 +86,14 @@
     (read (open-input-string result))))
 
 (define (egglog-send-unsound-detection subproc commands)
+  (match commands
+    [`((push)
+       (run-schedule (repeat 1 ,(or 'rewrite 'const-fold)))
+       (print-size)
+       (run bad-merge-rule 1)
+       (extract (bad-merge?)))
+     (void)])
+
   (match-define
     (list
      (list)
