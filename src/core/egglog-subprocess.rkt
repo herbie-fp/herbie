@@ -16,7 +16,6 @@
 (define (egglog-subprocess-close subproc)
   (close-output-port (egglog-subprocess-input subproc))
   (close-input-port (egglog-subprocess-output subproc))
-  (close-input-port (egglog-subprocess-error subproc))
   (subprocess-wait (egglog-subprocess-process subproc))
   (unless (eq? (subprocess-status (egglog-subprocess-process subproc)) 'done)
     (subprocess-kill (egglog-subprocess-process subproc) #f)))
@@ -29,7 +28,7 @@
     (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
 
   (define-values (egglog-process egglog-output egglog-in err)
-    (subprocess #f #f #f egglog-path "--mode=interactive"))
+    (subprocess #f #f (current-error-port) egglog-path "--mode=interactive"))
 
   ;; Create dump file if flag is set
   (define dump-file

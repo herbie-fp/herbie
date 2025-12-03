@@ -81,11 +81,6 @@
   ;;;; SUBPROCESS START ;;;;
   (define subproc (create-new-egglog-subprocess label))
 
-  (thread (lambda ()
-            (with-handlers ([exn:fail? (lambda (_) (void))])
-              (for ([line (in-lines (egglog-subprocess-error subproc))])
-                (void)))))
-
   ;; 1. Add the Prelude (includes all rules) - send directly to egglog
   (prelude subproc #:mixed-egraph? #t)
 
@@ -211,35 +206,35 @@
 
 (define (const-fold-rules)
   `((ruleset const-fold)
-    (let ?0 ,(real->bigrat 0)
+    (let $0 ,(real->bigrat 0)
       )
-    (let ?1 ,(real->bigrat 1)
+    (let $1 ,(real->bigrat 1)
       )
     (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
     (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
     (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
     ; TODO : Non-total operator
-    (rule ((= e (Div (Num x) (Num y))) (!= ?0 y)) ((union e (Num (/ x y)))) :ruleset const-fold)
+    (rule ((= e (Div (Num x) (Num y))) (!= $0 y)) ((union e (Num (/ x y)))) :ruleset const-fold)
     (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
     ;; Power rules -> only case missing is 0^0 making it non-total
     ;; 0^y where y > 0
-    (rule ((= e (Pow (Num x) (Num y))) (= ?0 x) (> y ?0)) ((union e (Num ?0))) :ruleset const-fold)
+    (rule ((= e (Pow (Num x) (Num y))) (= $0 x) (> y $0)) ((union e (Num $0))) :ruleset const-fold)
     ;; x^0 where x != 0
-    (rule ((= e (Pow (Num x) (Num y))) (= ?0 y) (!= ?0 x)) ((union e (Num ?1))) :ruleset const-fold)
+    (rule ((= e (Pow (Num x) (Num y))) (= $0 y) (!= $0 x)) ((union e (Num $1))) :ruleset const-fold)
     ;; x^y when y is a whole number and y > 0 and x != 0
-    (rule ((= e (Pow (Num x) (Num y))) (> y ?0) (!= ?0 x) (= y (round y)))
+    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (= y (round y)))
           ((union e (Num (pow x y))))
           :ruleset
           const-fold)
     ;; New rule according to Rust : x^y where y is not a whole number
-    (rule ((= e (Pow (Num x) (Num y))) (> y ?0) (!= ?0 x) (!= y (round y)))
+    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (!= y (round y)))
           ((union e (Num (pow x (round y)))))
           :ruleset
           const-fold)
     ;; Sqrt rules -> Non-total but egglog implementation handles it
     (rule ((= e (Sqrt (Num n))) (sqrt n)) ((union e (Num (sqrt n)))) :ruleset const-fold)
-    (rewrite (Log (Num ?1)) (Num ?0) :ruleset const-fold)
-    (rewrite (Cbrt (Num ?1)) (Num ?1) :ruleset const-fold)
+    (rewrite (Log (Num $1)) (Num $0) :ruleset const-fold)
+    (rewrite (Cbrt (Num $1)) (Num $1) :ruleset const-fold)
     (rewrite (Fabs (Num x)) (Num (abs x)) :ruleset const-fold)
     (rewrite (Floor (Num x)) (Num (floor x)) :ruleset const-fold)
     (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
