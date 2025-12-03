@@ -72,19 +72,12 @@
 
 (define (egglog-send-unsound-detection subproc commands)
   (match commands
-    [`((push)
-       (run-schedule (repeat 1 ,(or 'rewrite 'const-fold)))
-       (print-size)
-       (run bad-merge-rule 1)
-       (extract (bad-merge?)))
+    [`((push) (run-schedule (repeat 1 ,(or 'rewrite 'const-fold)))
+              (print-size)
+              (run bad-merge-rule 1)
+              (extract (bad-merge?)))
      (void)])
 
-  (match-define
-    (list
-     (list)
-     (list)
-     (list lines ...)
-     (list)
-     (list unsound?))
+  (match-define (list (list) (list) (list lines ...) (list) (list unsound?))
     (apply egglog-send subproc commands))
   (values lines unsound?))
