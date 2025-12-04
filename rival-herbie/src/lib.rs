@@ -291,7 +291,9 @@ pub unsafe extern "C" fn rival_apply_batch(
                     }
                     result_codes_slice[batch_idx] = STATUS_SUCCESS;
                 }
-                Err(RivalError::InvalidInput) => result_codes_slice[batch_idx] = STATUS_INVALID_INPUT,
+                Err(RivalError::InvalidInput) => {
+                    result_codes_slice[batch_idx] = STATUS_INVALID_INPUT
+                }
                 Err(RivalError::Unsamplable) => result_codes_slice[batch_idx] = STATUS_UNSAMPLABLE,
             }
         }
@@ -308,58 +310,79 @@ pub unsafe extern "C" fn rival_apply_batch(
 #[no_mangle]
 pub unsafe extern "C" fn rival_analyze_with_hints(
     ptr: *mut MachineWrapper,
-    rect_str: *const c_char,
+    rect_ptrs: *const *const mpfr_t,
+    rect_len: usize,
     hints_ptr: *const u8,
     hints_len: usize,
-) -> *mut c_char {
+    out_lo: *mut mpfr_t,
+    out_hi: *mut mpfr_t,
+    out_converged: *mut i32,
+    out_hints_len: *mut usize,
+) -> *mut u8 {
     let result = panic::catch_unwind(|| {
         let wrapper = &mut *ptr;
         let machine = &mut wrapper.machine;
-        let rect_str = CStr::from_ptr(rect_str).to_string_lossy();
 
-        // Parse args: "lo1 hi1 lo2 hi2 ..."
-        let parts: Vec<&str> = rect_str.split_whitespace().collect();
         let arg_prec = machine.disc.target().max(machine.state.min_precision);
+        let rect_ptrs_slice = slice::from_raw_parts(rect_ptrs, rect_len * 2);
 
-        let mut args = Vec::new();
-        for chunk in parts.chunks(2) {
-            if chunk.len() == 2 {
-                let lo_val = Float::parse(chunk[0]).expect("Failed to parse float");
-                let hi_val = Float::parse(chunk[1]).expect("Failed to parse float");
-                let lo = Float::with_val(arg_prec, lo_val);
-                let hi = Float::with_val(arg_prec, hi_val);
-                args.push(Ival::from_lo_hi(lo, hi));
-            }
+        let mut args = Vec::with_capacity(rect_len);
+        for chunk in rect_ptrs_slice.chunks(2) {
+            let lo_ptr = chunk[0];
+            let hi_ptr = chunk[1];
+
+            let mut lo = Float::new(arg_prec);
+            let mut hi = Float::new(arg_prec);
+
+            mpfr::set(lo.as_raw_mut(), lo_ptr, mpfr::rnd_t::RNDN);
+            mpfr::set(hi.as_raw_mut(), hi_ptr, mpfr::rnd_t::RNDN);
+
+            args.push(Ival::from_lo_hi(lo, hi));
         }
 
         let hints = parse_hints_binary(slice::from_raw_parts(hints_ptr, hints_len));
         let (status, next_hints, converged) = machine.analyze_with_hints(args, hints.as_deref());
 
-        // Serialize output: (status_lo status_hi converged (hint ...))
-        let hints_str = next_hints
-            .iter()
-            .map(|hint| match hint {
-                Hint::Execute => "execute".to_string(),
-                Hint::Skip => "skip".to_string(),
-                Hint::Alias(n) => format!("(alias {})", n),
-                Hint::KnownBool(b) => format!("(known-bool {})", if *b { "true" } else { "false" }),
-            })
-            .collect::<Vec<_>>()
-            .join(" ");
+        mpfr::set(out_lo, status.lo.as_float().as_raw(), mpfr::rnd_t::RNDN);
+        mpfr::set(out_hi, status.hi.as_float().as_raw(), mpfr::rnd_t::RNDN);
+        *out_converged = if converged { 1 } else { 0 };
 
-        format!(
-            "({} {} {} ({}))",
-            status.lo.as_float().to_string_radix(10, None),
-            status.hi.as_float().to_string_radix(10, None),
-            if converged { "true" } else { "false" },
-            hints_str
-        )
+        let mut hints_bytes = Vec::new();
+        for hint in next_hints {
+            match hint {
+                Hint::Execute => hints_bytes.push(0),
+                Hint::Skip => hints_bytes.push(1),
+                Hint::Alias(n) => {
+                    hints_bytes.push(2);
+                    hints_bytes.push(n);
+                }
+                Hint::KnownBool(b) => {
+                    hints_bytes.push(3);
+                    hints_bytes.push(if b { 1 } else { 0 });
+                }
+            }
+        }
+
+        *out_hints_len = hints_bytes.len();
+
+        let mut buf = hints_bytes.into_boxed_slice();
+        let ptr = buf.as_mut_ptr();
+        std::mem::forget(buf);
+        ptr
     });
 
     match result {
-        Ok(s) => CString::new(s).unwrap().into_raw(),
-        Err(_) => CString::new(String::from("(error panic)")).unwrap().into_raw(),
+        Ok(ptr) => ptr,
+        Err(_) => ptr::null_mut(),
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rival_free_bytes(ptr: *mut u8, len: usize) {
+    if ptr.is_null() || len == 0 {
+        return;
+    }
+    let _ = Box::from_raw(slice::from_raw_parts_mut(ptr, len));
 }
 
 #[no_mangle]
@@ -397,7 +420,9 @@ pub unsafe extern "C" fn rival_profile(
 
     match result {
         Ok(s) => CString::new(s).unwrap().into_raw(),
-        Err(_) => CString::new(String::from("(error panic)")).unwrap().into_raw(),
+        Err(_) => CString::new(String::from("(error panic)"))
+            .unwrap()
+            .into_raw(),
     }
 }
 

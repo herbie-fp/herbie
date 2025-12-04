@@ -5,7 +5,6 @@
          ffi/vector
          racket/runtime-path
          math/bigfloat
-         (only-in math/private/bigfloat/mpfr _mpfr-pointer)
          "ops.rkt")
 
 (provide rival-compile
@@ -62,10 +61,6 @@
                                                 (bytes->string/utf-8 (system-type 'so-suffix)))))
 
 (define-ffi-definer define-rival (ffi-lib librival-path))
-
-(define c-free (get-ffi-obj "free" #f (_fun _pointer -> _void)))
-(define (free p)
-  (c-free p))
 
 (define-rival rival_compile (_fun _string _string _uint32 _pointer _uint32 -> _pointer))
 
@@ -214,11 +209,17 @@
       [(== STATUS-UNSAMPLABLE) (cons 'exit #f)]
       [else (cons 'unknown #f)])))
 
-(define-rival rival_analyze_with_hints (_fun _pointer _string _bytes _size -> _pointer))
+(define-rival
+ rival_analyze_with_hints
+ (_fun _pointer _pointer _size _bytes _size _pointer _pointer _pointer _pointer -> _pointer))
+
+(define-rival rival_free_bytes (_fun _pointer _size -> _void))
 
 (define-rival rival_profile (_fun _pointer _string -> _pointer))
 
 (define-rival rival_free_string (_fun _pointer -> _void))
+
+(define memcpy (get-ffi-obj "memcpy" #f (_fun _pointer _pointer _size -> _pointer)))
 
 ;; Wrapper struct to hold callbacks and pointer
 (struct machine-wrapper (ptr discs arg-buf out-buf) #:property prop:cpointer (struct-field-index ptr))
@@ -226,9 +227,7 @@
 (define rival-machine? machine-wrapper?)
 
 (define (machine-destroy wrapper)
-  (rival_destroy (machine-wrapper-ptr wrapper))
-  (free (machine-wrapper-arg-buf wrapper))
-  (free (machine-wrapper-out-buf wrapper)))
+  (rival_destroy (machine-wrapper-ptr wrapper)))
 
 (define (rival-compile exprs vars discs)
   (define exprs-str (format "~a" exprs))
@@ -240,22 +239,20 @@
         (discretization-target (car discs))))
 
   (define num-types (length discs))
-  (define types-ptr (malloc _uint32 num-types 'raw))
+  (define types-ptr (malloc _uint32 num-types))
   (for ([i (in-naturals)]
         [disc (in-list discs)])
     (ptr-set! types-ptr _uint32 i (discretization-type disc)))
 
   (define ptr (rival_compile exprs-str vars-str target types-ptr num-types))
 
-  (free types-ptr)
-
   (if (not ptr)
       (error "rival-compile failed")
       (begin
         (let ([n-args (length vars)]
               [n-outs (length discs)])
-          (define arg-buf (malloc _pointer n-args 'raw))
-          (define out-buf (malloc _pointer n-outs 'raw))
+          (define arg-buf (malloc _pointer n-args))
+          (define out-buf (malloc _pointer n-outs))
           (define wrapper (machine-wrapper ptr discs arg-buf out-buf))
           (register-finalizer wrapper machine-destroy)
           wrapper))))
@@ -278,28 +275,59 @@
         [_ (error "Unknown hint" h)]))
     (get-output-bytes out)))
 
+(define (deserialize-hints-binary bytes)
+  (define len (bytes-length bytes))
+  (let loop ([i 0])
+    (if (>= i len)
+        '()
+        (match (bytes-ref bytes i)
+          [0 (cons 'execute (loop (add1 i)))]
+          [1 (cons 'skip (loop (add1 i)))]
+          [2 (cons (list 'alias (bytes-ref bytes (add1 i))) (loop (+ i 2)))]
+          [3 (cons (list 'known-bool (not (zero? (bytes-ref bytes (add1 i))))) (loop (+ i 2)))]
+          [_ (error "Unknown hint byte" (bytes-ref bytes i))]))))
+
 (define (rival-analyze-with-hints machine rect [hint #f])
-  (define rect-str
-    (string-join (for/list ([i (in-vector rect)])
-                   (format "~a ~a" (bigfloat->string (ival-lo i)) (bigfloat->string (ival-hi i))))
-                 " "))
+  (define n-dims (vector-length rect))
+  (define rect-ptrs (malloc _pointer (* 2 n-dims)))
+  (for ([i (in-range n-dims)])
+    (define iv (vector-ref rect i))
+    (ptr-set! rect-ptrs _pointer (* 2 i) (ival-lo iv))
+    (ptr-set! rect-ptrs _pointer (+ (* 2 i) 1) (ival-hi iv)))
+
   (define hint-bytes (serialize-hints-binary hint))
   (define hint-len (bytes-length hint-bytes))
 
-  (define res-ptr (rival_analyze_with_hints machine rect-str hint-bytes hint-len))
-  (define res-str (cast res-ptr _pointer _string))
-  (rival_free_string res-ptr)
+  (define out-lo (bf 0.0))
+  (define out-hi (bf 0.0))
+  (define out-converged (malloc _int32))
+  (define out-hints-len (malloc _size))
 
-  (define res (read (open-input-string res-str)))
-  ;; (status-lo status-hi converged (hint ...))
-  (match res
-    [(list lo hi converged hints)
-     (define lo-bf (bf lo))
-     (define hi-bf (bf hi))
-     (define lo-bool (not (bfzero? lo-bf)))
-     (define hi-bool (not (bfzero? hi-bf)))
-     (list (ival lo-bool hi-bool) (list->vector hints) (equal? converged 'true))]
-    [_ (error "rival-analyze-with-hints: unexpected result" res)]))
+  (define res-hints-ptr
+    (rival_analyze_with_hints machine
+                              rect-ptrs
+                              n-dims
+                              hint-bytes
+                              hint-len
+                              out-lo
+                              out-hi
+                              out-converged
+                              out-hints-len))
+
+  (define hints-len (ptr-ref out-hints-len _size))
+  (define hints-bytes (make-bytes hints-len))
+  (when (> hints-len 0)
+    (memcpy hints-bytes res-hints-ptr hints-len)
+    (rival_free_bytes res-hints-ptr hints-len))
+
+  (define converged (not (zero? (ptr-ref out-converged _int32))))
+
+  (define hints (deserialize-hints-binary hints-bytes))
+
+  (define lo-bool (not (bfzero? out-lo)))
+  (define hi-bool (not (bfzero? out-hi)))
+
+  (list (ival lo-bool hi-bool) (list->vector hints) converged))
 
 (define (rival-profile machine param)
   (define param-str (symbol->string param))
