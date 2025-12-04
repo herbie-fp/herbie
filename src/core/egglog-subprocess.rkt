@@ -52,7 +52,8 @@
 
   (when dump-file
     (for ([expr commands])
-      (pretty-print expr dump-file 1)))
+      (pretty-print expr dump-file 1))
+    (flush-output dump-file))
 
   (for/list ([command (in-list commands)])
     (writeln command egglog-in)
@@ -72,7 +73,7 @@
 
 (define (egglog-send-unsound-detection subproc commands)
   (match commands
-    [`((push) (run-schedule (repeat 1 ,(or 'rewrite 'const-fold)))
+    [`((push) (run-schedule (repeat 1 rewrite const-fold))
               (print-size)
               (run bad-merge-rule 1)
               (extract (bad-merge?)))
