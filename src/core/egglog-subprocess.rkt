@@ -6,7 +6,6 @@
          create-new-egglog-subprocess
          egglog-send
          egglog-extract
-         egglog-send-unsound-detection
          egglog-subprocess-close)
 
 ;; Struct to hold egglog subprocess handles
@@ -70,18 +69,3 @@
   (match-define (list "(" results ... ")") (first (egglog-send subproc extract-command)))
   (for/list ([result (in-list results)])
     (read (open-input-string result))))
-
-(define (egglog-send-unsound-detection subproc commands)
-  (match commands
-    [`((push) (run-schedule (repeat 1 rewrite const-fold))
-              (print-size)
-              (run bad-merge-rule 1)
-              (extract (bad-merge?)))
-     (void)])
-
-  (match-define (list (list) (list) (list lines ...) (list) (list unsound?))
-    (apply egglog-send subproc commands))
-  (values lines
-          (match unsound?
-            ["false" #f]
-            ["true" #t])))
