@@ -80,4 +80,7 @@
 
   (match-define (list (list) (list) (list lines ...) (list) (list unsound?))
     (apply egglog-send subproc commands))
-  (values lines (match unsound? ["false" #f] ["true" #t])))
+  (values lines
+          (match unsound?
+            ["false" #f]
+            ["true" #t])))
