@@ -29,7 +29,7 @@ egg-herbie:
 	raco pkg install ./egg-herbie
 
 egglog-herbie:
-	cargo install egglog --version 1.0.0
+	cargo install --git "https://github.com/egraphs-good/egglog" --rev "33f79948ca25ec170b585515fb47809368ad2897" egglog
 
 
 distribution: minimal-distribution
