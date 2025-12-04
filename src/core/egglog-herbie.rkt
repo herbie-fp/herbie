@@ -604,17 +604,16 @@
       [(> curr-iter iter-limit) (values iter-limit #f)]
       [else
 
-       ;; Run the ruleset once more
-       (define math-schedule
-         (list '(push)
-               `(run-schedule (repeat 1 ,tag))
-               '(print-size)
-               '(run bad-merge-rule 1)
-               '(extract (bad-merge?))))
-
-       ;; Get egglog output
-       (define-values (math-unsound? math-node-limit? math-total-nodes)
-         (get-egglog-output math-schedule subproc node-limit))
+       ;; Run the ruleset once more, with const-fold
+       (egglog-send subproc '(push))
+       (egglog-send subproc `(run-schedule (repeat 1 ,tag const-fold)))
+       (define math-total-nodes (calculate-nodes (first (egglog-send subproc '(print-size)))))
+       (egglog-send subproc '(run bad-merge-rule 1))
+       (define math-unsound?
+         (match (first (egglog-send subproc '(extract (bad-merge?))))
+           ['("false") #f]
+           ['("true") #t]))
+       (define math-node-limit? (>= math-total-nodes node-limit))
 
        (cond
          ;;  There are two condiitons where we exit unsoundness dteection WITHOUT running (pop)
@@ -655,51 +654,9 @@
 
          ;; Continue to next iteration of the math rules
          [else
-          ;; set for the constant folding iteration
+          ;; Update state for the next iteration
           (set! prev-number-nodes math-total-nodes)
-
-          ;; 3. Run const-fold
-          (define const-schedule
-            (list '(push)
-                  `(run-schedule (repeat 1 const-fold))
-                  '(print-size)
-                  '(run bad-merge-rule 1)
-                  '(extract (bad-merge?))))
-
-          (define-values (const-unsound? const-node-limit? const-total-nodes)
-            (get-egglog-output const-schedule subproc node-limit))
-
-          (cond
-            ;; TODO:  See the TODO from above
-            [(equal? const-total-nodes prev-number-nodes) (values curr-iter #f)]
-            [const-node-limit?
-             (egglog-send subproc '(pop))
-             (values (sub1 curr-iter) #t)]
-
-            [const-unsound?
-             (egglog-send subproc '(pop))
-             (values (sub1 curr-iter) #t)]
-
-            [else
-             ;; Update state for the next iteration
-             (set! prev-number-nodes const-total-nodes)
-
-             (loop (add1 curr-iter))])])])))
-
-(define (get-egglog-output curr-schedule subproc node-limit)
-  (define-values (node-values unsound?) (egglog-send-unsound-detection subproc curr-schedule))
-
-  ;  (when unsound?
-  ;    (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
-
-  (define total_nodes (calculate-nodes node-values))
-
-  ;; There are 3 cases when we can exit the unsound detection
-  ;;  1. Unsoundness is detected in the egraph
-  ;;  2. We have reached or exceeded the set node limit
-  ;;  3. Saturation check which is done in parent function
-
-  (values unsound? (>= total_nodes node-limit) total_nodes))
+          (loop (add1 curr-iter))])])))
 
 (define (calculate-nodes lines)
   ;; Don't start from last index, but previous to last index - as last has current unsoundness result
