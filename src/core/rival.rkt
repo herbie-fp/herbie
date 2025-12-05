@@ -61,6 +61,8 @@
 (define (make-real-compiler specs ctxs #:pre [pre '(TRUE)])
   (define vars (context-vars (first ctxs)))
   (define reprs (map context-repr ctxs))
+  (when (ormap (lambda (r) (eq? (representation-type r) 'array)) reprs)
+    (raise-herbie-error "Array representations are not supported in Rival evaluation yet"))
   ; create the machine
   (define exprs (cons `(assert ,pre) specs))
   (define discs (cons boolean-discretization (map repr->discretization reprs)))

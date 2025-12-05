@@ -17,17 +17,28 @@
                             (~a d))
                           " ")
              (type->string (array-type-elem t)))]
+    [(array-representation? t)
+     (format "array[~a] of ~a"
+             (string-join (for/list ([d (array-representation-dims t)])
+                            (~a d))
+                          " ")
+             (type->string (array-representation-elem t)))]
     [else (~a t)]))
 
 (define (flatten-type t)
-  (if (array-type? t)
-      (values (array-type-elem t) (array-type-dims t))
-      (values t '())))
+  (cond
+    [(array-type? t) (values (array-type-elem t) (array-type-dims t))]
+    [(array-representation? t) (values (array-representation-elem t) (array-representation-dims t))]
+    [else (values t '())]))
 
 (define (array-of dims elem)
   (unless (and (list? dims) (andmap (lambda (d) (equal? d 2)) dims))
     (error 'array-of "Arrays must have fixed dimension 2, got ~a" dims))
-  (array-type dims elem))
+  (define name
+    (string->symbol (format "array~a-~a" (representation-name elem) (string-join (map ~a dims) "x"))))
+  (if (repr-exists? name)
+      (get-representation name)
+      (make-array-representation #:name name #:elem elem #:dims dims)))
 
 (define (assert-program-typed! stx)
   (define-values (vars props body)
@@ -72,13 +83,16 @@
         (match arg
           [(? representation?) (representation-name arg)]
           [(? array-type?) (type->string arg)]
+          [(? array-representation?) (type->string arg)]
           [_ arg])))
     (set! errs (cons (cons stx (apply format fmt args*)) errs)))
 
   (define repr (expression->type stx props ctx error!))
   (define expected (context-repr ctx))
   (define (comparable? a b)
-    (or (and (representation? a) (representation? b)) (and (array-type? a) (array-type? b))))
+    (or (and (representation? a) (representation? b))
+        (and (array-type? a) (array-type? b))
+        (and (array-representation? a) (array-representation? b))))
   (when (and expected (comparable? repr expected) (not (equal? repr expected)))
     (error! stx
             "Expected program of type ~a, got type ~a"
@@ -208,6 +222,15 @@
           (if (null? remaining)
               elem
               (array-of remaining elem))]
+         [(? array-representation?)
+          (define dims (array-representation-dims arr-type))
+          (unless (= (length idxs) (length dims))
+            (error! stx "Reference expected ~a indices, got ~a" (length dims) (length idxs)))
+          (define remaining (drop dims (length idxs)))
+          (define elem (array-representation-elem arr-type))
+          (if (null? remaining)
+              elem
+              (array-of remaining elem))]
          [_
           (error! stx "ref expects an array, got ~a" (type->string arr-type))
           (current-repr prop-dict)])]
@@ -281,7 +304,10 @@
     (define (check-types env-type rtype expr #:env [env '()])
       (define ctx (context (map car env) env-type (map cdr env)))
       (define repr (expression->type expr (repr->prop env-type) ctx fail!))
-      (check-equal? repr rtype))
+      (cond
+        [(and (representation? repr) (representation? rtype))
+         (check-equal? (representation-name repr) (representation-name rtype))]
+        [else (check-equal? repr rtype)]))
 
     (define (check-fails type expr #:env [env '()])
       (define fail? #f)
@@ -301,8 +327,8 @@
     (check-types <b64> <b64> #'(let ([a 1]) a) #:env `((a . ,<bool>)))
 
     ;; Array-aware typing
-    (define vec-type (array-type '(2) <b64>))
-    (define mat-type (array-type '(2 2) <b64>))
+    (define vec-type (array-of '(2) <b64>))
+    (define mat-type (array-of '(2 2) <b64>))
     (check-types <b64> vec-type #'(array 1 2))
     (define wrong-size #f)
     (expression->type #'(array 1 2 3)

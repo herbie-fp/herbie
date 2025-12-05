@@ -119,9 +119,17 @@
 
 (define (real->repr x repr)
   (parameterize ([bf-precision (representation-total-bits repr)])
-    ((representation-bf->repr repr) (bf x))))
+    (match (representation-type repr)
+      ['array
+       (unless (list? x)
+         (raise-herbie-error "Expected list for array conversion, got ~a" x))
+       ((representation-bf->repr repr) (map bf x))]
+      [_ ((representation-bf->repr repr) (bf x))])))
 
 (define (repr->real x repr)
   (match x
     [(? boolean?) x]
-    [_ (bigfloat->real ((representation-repr->bf repr) x))]))
+    [_
+     (match (representation-type repr)
+       ['array (map bigfloat->real ((representation-repr->bf repr) x))]
+       [_ (bigfloat->real ((representation-repr->bf repr) x))])]))

@@ -29,7 +29,7 @@
   #:spec (if c t f) #:impl if-impl
   #:cost (if-cost 1))
 
-(define <array64> (make-array-representation #:name 'array64 #:elem <binary64> #:dims '(2)))
+(define <array64> (make-array-representation #:name 'arraybinary64 #:elem <binary64> #:dims '(2)))
 (define-representation <array64> #:cost 2)
 
 (define-operations () <binary64>

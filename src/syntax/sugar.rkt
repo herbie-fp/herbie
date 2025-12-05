@@ -233,7 +233,7 @@
 
 ;; Translates from FPCore to an LImpl.
 (define (fpcore->prog prog ctx)
-  (let loop ([expr (lower-arrays (expand-expr prog))]
+  (let loop ([expr (expand-expr prog)]
              [prop-dict (repr->prop (context-repr ctx))])
     (match expr
       [(? number? n)

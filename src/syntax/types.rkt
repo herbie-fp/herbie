@@ -72,9 +72,14 @@
     (raise-herbie-error "Arrays must use fixed dimension 2, got ~a" dims))
   (define len (apply * dims))
   (define (ensure-len xs who)
-    (unless (and (list? xs) (= (length xs) len))
-      (raise-herbie-error "~a expected list of length ~a, got ~a" who len xs))
-    xs)
+    (define lst
+      (cond
+        [(vector? xs) (vector->list xs)]
+        [(list? xs) xs]
+        [else (raise-herbie-error "~a expected list/vector of length ~a, got ~a" who len xs)]))
+    (unless (= (length lst) len)
+      (raise-herbie-error "~a expected sequence of length ~a, got ~a" who len xs))
+    lst)
   (define elem-bf->repr (representation-bf->repr elem-repr))
   (define elem-repr->bf (representation-repr->bf elem-repr))
   (define elem-ordinal->repr (representation-ordinal->repr elem-repr))
