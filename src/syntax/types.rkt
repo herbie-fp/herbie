@@ -19,7 +19,8 @@
          context-extend
          context-lookup
          define-type
-         make-representation)
+         make-representation
+         make-array-representation)
 
 ;; Types
 

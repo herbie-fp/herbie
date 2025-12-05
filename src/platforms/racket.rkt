@@ -29,6 +29,9 @@
   #:spec (if c t f) #:impl if-impl
   #:cost (if-cost 1))
 
+(define <array64> (make-array-representation #:name 'array64 #:elem <binary64> #:dims '(2)))
+(define-representation <array64> #:cost 2)
+
 (define-operations () <binary64>
   [PI.rkt       #:spec (PI)       #:impl (const pi)       #:fpcore PI       #:cost 1]
   [INFINITY.rkt #:spec (INFINITY) #:impl (const +inf.0)   #:fpcore INFINITY #:cost 1]
@@ -62,13 +65,25 @@
  [abs       #:spec (fabs  x) #:impl abs                #:cost 1]
  [floor     #:spec (floor x) #:impl floor              #:cost 1]
  [log       #:spec (log   x) #:impl (no-complex log)   #:cost 1]
- [round     #:spec (round x) #:impl round              #:cost 1]
- [sin       #:spec (sin   x) #:impl sin                #:cost 1]
- [sinh      #:spec (sinh  x) #:impl sinh               #:cost 1]
- [sqrt      #:spec (sqrt  x) #:impl (no-complex sqrt)  #:cost 1]
- [tan       #:spec (tan   x) #:impl tan                #:cost 1]
- [tanh      #:spec (tanh  x) #:impl tanh               #:cost 1]
- [truncate  #:spec (trunc x) #:impl truncate           #:cost 1])
+[round     #:spec (round x) #:impl round              #:cost 1]
+[sin       #:spec (sin   x) #:impl sin                #:cost 1]
+[sinh      #:spec (sinh  x) #:impl sinh               #:cost 1]
+[sqrt      #:spec (sqrt  x) #:impl (no-complex sqrt)  #:cost 1]
+[tan       #:spec (tan   x) #:impl tan                #:cost 1]
+[tanh      #:spec (tanh  x) #:impl tanh               #:cost 1]
+[truncate  #:spec (trunc x) #:impl truncate           #:cost 1])
+
+(define-operation (array2 [x <binary64>] [y <binary64>]) <array64>
+  #:spec (array x y)
+  #:impl (lambda (a b) (vector a b))
+  #:fpcore (array x y)
+  #:cost 1)
+
+(define-operation (ref2 [arr <array64>] [idx <binary64>]) <binary64>
+  #:spec (ref arr idx)
+  #:impl (lambda (arr idx) (vector-ref arr (inexact->exact (round idx))))
+  #:fpcore (ref arr idx)
+  #:cost 1)
 
 (define-operations ([x <binary64>] [y <binary64>]) <binary64>
  [+         #:spec (+ x y)         #:impl +                 #:cost 1]
