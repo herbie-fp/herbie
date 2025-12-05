@@ -54,6 +54,8 @@
        (check-properties* props '() error!)
        (loop body vars)]
       [#`(array #,elems ...)
+       (unless (= (length elems) 2)
+         (error! stx "Array literal must have exactly 2 elements"))
        (for ([elem (in-list elems)])
          (loop elem vars))]
       [#`(ref #,arr #,idxs ...)
@@ -167,9 +169,10 @@
     (error! stx "Invalid arguments list ~a; must be a list" stx))
   (define (check-dimension dim)
     (cond
-      [(identifier? dim) (void)]
-      [(number? (syntax-e dim)) (void)]
-      [else (error! dim "Invalid dimension ~a; must be an identifier or number" dim)]))
+      [(and (number? (syntax-e dim)) (= 2 (syntax-e dim))) (void)]
+      [(identifier? dim) (error! dim "Dimension names are unsupported; arrays are fixed-size 2")]
+      [(number? (syntax-e dim)) (error! dim "Invalid dimension ~a; arrays must be of size 2" dim)]
+      [else (error! dim "Invalid dimension ~a; must be the number 2" dim)]))
   (define args-info
     (reap [sow]
           (when (list? vars)

@@ -1,7 +1,7 @@
 ; -*- mode: scheme -*-
 
-(FPCore first-element ((v 3))
- :name "First element from vector input"
+(FPCore first-element ((v 2))
+ :name "First element from 2-element vector input"
  (ref v 0))
 
 (FPCore nested-literal ()

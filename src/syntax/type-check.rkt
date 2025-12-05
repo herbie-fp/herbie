@@ -25,6 +25,8 @@
       (values t '())))
 
 (define (array-of dims elem)
+  (unless (and (list? dims) (andmap (lambda (d) (equal? d 2)) dims))
+    (error 'array-of "Arrays must have fixed dimension 2, got ~a" dims))
   (array-type dims elem))
 
 (define (assert-program-typed! stx)
@@ -39,8 +41,8 @@
   (define prop-dict (apply dict-set* default-dict (map syntax->datum props)))
   (define prec (dict-ref prop-dict ':precision))
 
-  (define-values (var-names var-types dim-names)
-    (for/lists (var-names var-types dim-names)
+  (define-values (var-names var-types)
+    (for/lists (var-names var-types)
                ([var (in-list vars)])
                (match (syntax->datum var)
                  [(list '! props ... name dims ...)
@@ -50,22 +52,16 @@
                   (values name
                           (if (null? dims)
                               repr
-                              (array-of dims repr))
-                          (filter symbol? dims))]
+                              (array-of dims repr)))]
                  [(list (? symbol? name) dims ...)
                   (define repr (get-representation prec))
                   (values name
                           (if (null? dims)
                               repr
-                              (array-of dims repr))
-                          (filter symbol? dims))]
-                 [(? symbol? name) (values name (get-representation prec) '())])))
+                              (array-of dims repr)))]
+                 [(? symbol? name) (values name (get-representation prec))])))
 
-  (define unique-dim-names (remove-duplicates (apply append dim-names)))
-  (define ctx
-    (context (append var-names unique-dim-names)
-             (get-representation prec)
-             (append var-types (make-list (length unique-dim-names) (get-representation prec)))))
+  (define ctx (context var-names (get-representation prec) var-types))
   (assert-expression-type! body prop-dict ctx))
 
 (define (assert-expression-type! stx props ctx)
@@ -116,7 +112,10 @@
     (cond
       [(null? elem-types)
        (error! stx "Array literal must have at least one element")
-       (array-of '(0) (current-repr current-dict))]
+       (array-of '(2) (current-repr current-dict))]
+      [(not (= (length elem-types) 2))
+       (error! stx "Array literal must have exactly 2 elements")
+       (array-of '(2) (current-repr current-dict))]
       [else
        (define-values (base base-dims) (flatten-type (first elem-types)))
        (for ([t (in-list (rest elem-types))])
@@ -126,7 +125,7 @@
                    "Array elements have mismatched types: ~a vs ~a"
                    (type->string base)
                    (type->string t))))
-       (array-of (cons (length elem-types) base-dims) base)]))
+       (array-of (cons 2 base-dims) base)]))
   (define (types-match? a b)
     (equal? a b))
   (define (id->sym x)
@@ -298,9 +297,15 @@
     (check-types <b64> <b64> #'(let ([a 1]) a) #:env `((a . ,<bool>)))
 
     ;; Array-aware typing
-    (define vec-type (array-type '(3) <b64>))
+    (define vec-type (array-type '(2) <b64>))
     (define mat-type (array-type '(2 2) <b64>))
-    (check-types <b64> vec-type #'(array 1 2 3))
+    (check-types <b64> vec-type #'(array 1 2))
+    (define wrong-size #f)
+    (expression->type #'(array 1 2 3)
+                      (repr->prop <b64>)
+                      (context '() <b64> '())
+                      (lambda _ (set! wrong-size #t)))
+    (check-true wrong-size)
     (define ragged-fail #f)
     (expression->type #'(array (array 1) (array 1 2))
                       (repr->prop <b64>)

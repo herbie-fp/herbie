@@ -155,24 +155,20 @@
 
   (define default-prec (dict-ref prop-dict ':precision (*default-precision*)))
 
-  (define-values (var-names var-precs dim-names)
-    (for/lists (var-names var-precs dim-names)
+  (define-values (var-names var-precs)
+    (for/lists (var-names var-precs)
                ([var (in-list args)])
                (match var
                  [(list '! props ... name dims ...)
                   (define prop-dict (props->dict props))
                   (define arg-prec (dict-ref prop-dict ':precision default-prec))
-                  (values name arg-prec (filter symbol? dims))]
-                 [(list (? symbol? name) dims ...) (values name default-prec (filter symbol? dims))]
-                 [(? symbol? name) (values name default-prec '())])))
-  (define unique-dim-names (remove-duplicates (apply append dim-names)))
+                  (values name arg-prec)]
+                 [(list (? symbol? name) dims ...) (values name default-prec)]
+                 [(? symbol? name) (values name default-prec)])))
 
   (define default-repr (get-representation default-prec))
   (define var-reprs (map get-representation var-precs))
-  (define ctx
-    (context (append var-names unique-dim-names)
-             default-repr
-             (append var-reprs (make-list (length unique-dim-names) default-repr))))
+  (define ctx (context var-names default-repr var-reprs))
 
   ;; Named fpcores need to be added to function table
   (when func-name
