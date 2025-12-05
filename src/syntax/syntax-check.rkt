@@ -61,6 +61,10 @@
       [#`(ref #,arr #,idxs ...)
        (when (null? idxs)
          (error! stx "Invalid `ref` expression, expected at least one index"))
+       (for ([idx (in-list idxs)])
+         (define val (syntax-e idx))
+         (unless (and (integer? val) (<= 0 val 1))
+           (error! idx "Array index must be literal 0 or 1, got ~a" idx)))
        (loop arr vars)
        (for ([idx (in-list idxs)])
          (loop idx vars))]

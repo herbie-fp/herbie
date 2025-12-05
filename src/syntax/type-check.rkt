@@ -194,6 +194,10 @@
        (define idx-types (map (lambda (i) (loop i prop-dict ctx)) idxs))
        (for ([itype (in-list idx-types)])
          (assert-scalar arr itype "Reference index must be scalar, got ~a"))
+       (for ([idx (in-list idxs)])
+         (define raw (syntax-e idx))
+         (unless (and (integer? raw) (<= 0 raw 1))
+           (error! idx "Array index must be literal 0 or 1, got ~a" idx)))
        (match arr-type
          [(? array-type?)
           (define dims (array-type-dims arr-type))
