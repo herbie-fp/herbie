@@ -147,6 +147,69 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FPCore -> LImpl
 
+(define (lower-arrays expr)
+  ;; Returns either '(scalar e) or '(array a b), with arrays eliminated from expr.
+  (define (scalar-expr v who)
+    (match v
+      [`(scalar ,e) e]
+      [`(array ,_ ,_) (error who "Expected scalar expression, got array")]))
+  (define (strip v)
+    (match v
+      [`(scalar ,e) e]
+      [`(array ,a ,b) `(array ,a ,b)]))
+  (define (select-component arr idx who)
+    (unless (and (integer? idx) (<= 0 idx 1))
+      (error who "Array index must be literal 0 or 1, got ~a" idx))
+    (match arr
+      [`(array ,a ,b) (if (zero? idx) a b)]
+      [_ (error who "ref expects an array value, got ~a" arr)]))
+  (define (lower expr env)
+    (match expr
+      [(? number?) `(scalar ,expr)]
+      [(? symbol? s) (hash-ref env s `(scalar ,s))]
+      [`(array ,a ,b) `(array ,(strip (lower a env)) ,(strip (lower b env)))]
+      [`(ref ,arr ,idx ,rest ...)
+       (define arr* (lower arr env))
+       (define selected
+         (for/fold ([current arr*]) ([i (in-list (cons idx rest))])
+           (select-component current
+                             (if (syntax? i)
+                                 (syntax-e i)
+                                 i)
+                             'ref)))
+       `(scalar ,selected)]
+      [`(let ([,ids ,vals] ...) ,body)
+       (define env* env)
+       (for ([id (in-list ids)]
+             [val (in-list vals)])
+         (define lowered (lower val env*))
+         (set! env* (hash-set env* id lowered)))
+       (lower body env*)]
+      [`(let* ([,ids ,vals] ...) ,body)
+       (define env* env)
+       (for ([id (in-list ids)]
+             [val (in-list vals)])
+         (define lowered (lower val env*))
+         (set! env* (hash-set env* id lowered)))
+       (lower body env*)]
+      [`(if ,c ,t ,f)
+       (let* ([c* (scalar-expr (lower c env) 'if)]
+              [t* (lower t env)]
+              [f* (lower f env)]
+              [t-expr (match t*
+                        [`(scalar ,t**) t**]
+                        [_ (error 'if "If branches must be scalars")])]
+              [f-expr (match f*
+                        [`(scalar ,f**) f**]
+                        [_ (error 'if "If branches must be scalars")])])
+         `(scalar (if ,c* ,t-expr ,f-expr)))]
+      [`(! ,props ... ,body) `(scalar (! ,@props ,(scalar-expr (lower body env) '!)))]
+      [`(,op ,args ...)
+       (define lowered-args (map (lambda (a) (scalar-expr (lower a env) op)) args))
+       `(scalar (,op ,@lowered-args))]
+      [_ `(scalar ,expr)]))
+  (scalar-expr (lower expr (make-immutable-hash)) 'program))
+
 (define (assert-fpcore-impl op prop-dict ireprs)
   (or (get-fpcore-impl op prop-dict ireprs)
       (raise-herbie-missing-error
@@ -170,7 +233,7 @@
 
 ;; Translates from FPCore to an LImpl.
 (define (fpcore->prog prog ctx)
-  (let loop ([expr (expand-expr prog)]
+  (let loop ([expr (lower-arrays (expand-expr prog))]
              [prop-dict (repr->prop (context-repr ctx))])
     (match expr
       [(? number? n)
@@ -197,6 +260,14 @@
       [(list op args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
        (fpcore->impl-app op prop-dict args* ctx)])))
+
+(module+ test
+  (require rackunit)
+  (check-equal? (lower-arrays '(ref (array 1 2) 0)) 1)
+  (check-equal? (lower-arrays '(ref (array 1 2) 1)) 2)
+  (check-equal? (lower-arrays '(ref (array (array 1 2) (array 3 4)) 0 1)) 2)
+  (check-equal? (lower-arrays '(let ([b (array 5 6)]) (ref b 1))) 6)
+  (check-equal? (lower-arrays '(let ([b (array 5 6)]) (+ (ref b 0) (ref b 1)))) '(+ 5 6)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> FPCore
