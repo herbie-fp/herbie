@@ -2,7 +2,7 @@
 
 (require math/flonum
          math/bigfloat
-         ffi/unsafe)
+         (except-in ffi/unsafe array-type))
 
 (require "../core/rival.rkt"
          "../config.rkt"

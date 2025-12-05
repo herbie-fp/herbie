@@ -316,7 +316,7 @@
                       (context '() <b64> '())
                       (lambda _ (set! ragged-fail #t)))
     (check-true ragged-fail)
-    (check-types <b64> (array-type '(2) <b64>) #'(ref (array 5 6) 0))
+    (check-types <b64> <b64> #'(ref (array 5 6) 0))
     (check-types <b64> <b64> #'(ref A 0 1) #:env `((A . ,mat-type)))
     (check-fails <b64> #'(ref x 0) #:env `((x . ,<b64>)))
     (check-fails <b64> #'(ref A 0) #:env `((A . ,mat-type))))) ; wrong number of indices
