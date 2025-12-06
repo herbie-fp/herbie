@@ -58,16 +58,12 @@
          (error! stx "Array literal must have exactly 2 elements"))
        (for ([elem (in-list elems)])
          (loop elem vars))]
-      [#`(ref #,arr #,idxs ...)
-       (when (null? idxs)
-         (error! stx "Invalid `ref` expression, expected at least one index"))
-       (for ([idx (in-list idxs)])
-         (define val (syntax-e idx))
-         (unless (and (integer? val) (<= 0 val 1))
-           (error! idx "Array index must be literal 0 or 1, got ~a" idx)))
+      [#`(ref #,arr #,idx)
+       (define val (syntax-e idx))
+       (unless (and (integer? val) (<= 0 val 1))
+         (error! idx "Array index must be literal 0 or 1, got ~a" idx))
        (loop arr vars)
-       (for ([idx (in-list idxs)])
-         (loop idx vars))]
+       (loop idx vars)]
       [#`(cast #,arg) (loop arg vars)]
       [#`(cast #,args ...)
        (error! stx "Invalid `cast` expression with ~a arguments (expects 1)" (length args))
