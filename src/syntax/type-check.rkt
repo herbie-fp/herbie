@@ -34,11 +34,16 @@
 (define (array-of dims elem)
   (unless (and (list? dims) (andmap (lambda (d) (equal? d 2)) dims))
     (error 'array-of "Arrays must have fixed dimension 2, got ~a" dims))
-  (define name
-    (string->symbol (format "array~a-~a" (representation-name elem) (string-join (map ~a dims) "x"))))
-  (if (repr-exists? name)
-      (get-representation name)
-      (make-array-representation #:name name #:elem elem #:dims dims)))
+  (define candidate-names
+    (list (string->symbol (format "array~a" (representation-name elem)))
+          (string->symbol
+           (format "array~a-~a" (representation-name elem) (string-join (map ~a dims) "x")))))
+  (define existing
+    (for/or ([n (in-list candidate-names)])
+      (and (repr-exists? n)
+           (let ([r (get-representation n)])
+             (and (array-representation? r) (equal? (array-representation-dims r) dims) r)))))
+  (or existing (make-array-representation #:name (first candidate-names) #:elem elem #:dims dims)))
 
 (define (assert-program-typed! stx)
   (define-values (vars props body)
@@ -215,8 +220,8 @@
        (match arr-type
          [(? array-type?)
           (define dims (array-type-dims arr-type))
-          (unless (= (length idxs) (length dims))
-            (error! stx "Reference expected ~a indices, got ~a" (length dims) (length idxs)))
+          (when (> (length idxs) (length dims))
+            (error! stx "Reference expected at most ~a indices, got ~a" (length dims) (length idxs)))
           (define remaining (drop dims (length idxs)))
           (define elem (array-type-elem arr-type))
           (if (null? remaining)
@@ -224,8 +229,8 @@
               (array-of remaining elem))]
          [(? array-representation?)
           (define dims (array-representation-dims arr-type))
-          (unless (= (length idxs) (length dims))
-            (error! stx "Reference expected ~a indices, got ~a" (length dims) (length idxs)))
+          (when (> (length idxs) (length dims))
+            (error! stx "Reference expected at most ~a indices, got ~a" (length dims) (length idxs)))
           (define remaining (drop dims (length idxs)))
           (define elem (array-representation-elem arr-type))
           (if (null? remaining)
@@ -343,6 +348,6 @@
                       (lambda _ (set! ragged-fail #t)))
     (check-true ragged-fail)
     (check-types <b64> <b64> #'(ref (array 5 6) 0))
+    (check-types <b64> (array-of '(2) <b64>) #'(ref A 0) #:env `((A . ,mat-type)))
     (check-types <b64> <b64> #'(ref A 0 1) #:env `((A . ,mat-type)))
-    (check-fails <b64> #'(ref x 0) #:env `((x . ,<b64>)))
-    (check-fails <b64> #'(ref A 0) #:env `((A . ,mat-type))))) ; wrong number of indices
+    (check-fails <b64> #'(ref x 0) #:env `((x . ,<b64>))))) ; wrong target type

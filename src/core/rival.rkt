@@ -8,7 +8,8 @@
 #lang racket
 
 (require math/bigfloat
-         rival)
+         rival
+         racket/hash)
 
 (require "../config.rkt"
          "../utils/errors.rkt"
@@ -58,17 +59,129 @@
 ;; Takes a context to encode input variables and their representations,
 ;; a list of expressions, and a list of output representations
 ;; for each expression. Optionally, takes a precondition.
+(define (flatten-arrays-for-rival specs ctxs pre)
+  ;; Flatten array representations into multiple scalar vars/outputs without involving Rival arrays.
+  (define (scalar-expr v who)
+    (match v
+      [`(scalar ,e) e]
+      [`(array ,_ ,_) (error who "Expected scalar expression, got array")]))
+  (define (select-component arr idx who)
+    (unless (and (integer? idx) (<= 0 idx 1))
+      (error who "Array index must be literal 0 or 1, got ~a" idx))
+    (match arr
+      [`(array ,a ,b) (if (zero? idx) a b)]
+      [_ (error who "ref expects an array value, got ~a" arr)]))
+  (define (lower-arr expr env)
+    (match expr
+      [(? number?) `(scalar ,expr)]
+      [(? symbol? s) (hash-ref env s `(scalar ,s))]
+      [`(array ,a ,b)
+       `(array ,(scalar-expr (lower-arr a env) 'array) ,(scalar-expr (lower-arr b env) 'array))]
+      [`(ref ,arr ,idx ,rest ...)
+       (define arr* (lower-arr arr env))
+       (define selected
+         (for/fold ([current arr*]) ([i (in-list (cons idx rest))])
+           (select-component current
+                             (if (syntax? i)
+                                 (syntax-e i)
+                                 i)
+                             'ref)))
+       `(scalar ,selected)]
+      [`(let ([,ids ,vals] ...) ,body)
+       (define env* env)
+       (for ([id (in-list ids)]
+             [val (in-list vals)])
+         (define lowered (lower-arr val env*))
+         (set! env* (hash-set env* id lowered)))
+       (lower-arr body env*)]
+      [`(let* ([,ids ,vals] ...) ,body)
+       (define env* env)
+       (for ([id (in-list ids)]
+             [val (in-list vals)])
+         (define lowered (lower-arr val env*))
+         (set! env* (hash-set env* id lowered)))
+       (lower-arr body env*)]
+      [`(if ,c ,t ,f)
+       (let* ([c* (scalar-expr (lower-arr c env) 'if)]
+              [t* (lower-arr t env)]
+              [f* (lower-arr f env)]
+              [t-expr (match t*
+                        [`(scalar ,t**) t**]
+                        [_ (error 'if "If branches must be scalars")])]
+              [f-expr (match f*
+                        [`(scalar ,f**) f**]
+                        [_ (error 'if "If branches must be scalars")])])
+         `(scalar (if ,c* ,t-expr ,f-expr)))]
+      [`(! ,props ... ,body) `(scalar (! ,@props ,(scalar-expr (lower-arr body env) '!)))]
+      [`(,op ,args ...)
+       (define lowered-args (map (lambda (a) (scalar-expr (lower-arr a env) op)) args))
+       `(scalar (,op ,@lowered-args))]
+      [_ `(scalar ,expr)]))
+  (define orig-vars (context-vars (first ctxs)))
+  (define orig-reprs (map context-repr ctxs))
+  (define var-reprs (context-var-reprs (first ctxs)))
+  (define taken (list->seteq orig-vars))
+  (define (fresh base)
+    (let loop ([i 0])
+      (define candidate (string->symbol (format "~a_~a" base i)))
+      (if (set-member? taken candidate)
+          (loop (add1 i))
+          candidate)))
+  (define env (make-hasheq))
+  (define new-vars '())
+  (define new-var-reprs '())
+  (for ([v orig-vars]
+        [r var-reprs])
+    (cond
+      [(eq? (representation-type r) 'array)
+       (define base (symbol->string v))
+       (define v0 (fresh base))
+       (set! taken (set-add taken v0))
+       (define v1 (fresh base))
+       (set! taken (set-add taken v1))
+       (hash-set! env v `(array ,v0 ,v1))
+       (set! new-vars (append new-vars (list v0 v1)))
+       (set! new-var-reprs
+             (append new-var-reprs
+                     (list (array-representation-elem r) (array-representation-elem r))))]
+      [else
+       (hash-set! env v `(scalar ,v))
+       (set! new-vars (append new-vars (list v)))
+       (set! new-var-reprs (append new-var-reprs (list r)))]))
+  (define env-immutable env)
+  (define (lower-scalar expr)
+    (scalar-expr (lower-arr expr env-immutable) 'program))
+  (define (lower-any expr)
+    (lower-arr expr env-immutable))
+  (define new-specs
+    (append* (for/list ([spec (in-list specs)]
+                        [repr orig-reprs])
+               (cond
+                 [(eq? (representation-type repr) 'array)
+                  (define lowered (lower-any spec))
+                  (list (select-component lowered 0 'flatten-arrays-for-rival)
+                        (select-component lowered 1 'flatten-arrays-for-rival))]
+                 [else (list (lower-scalar spec))]))))
+  (define new-pre (lower-scalar pre))
+  (define ctxs*
+    (for/list ([ctx (in-list ctxs)])
+      (define repr*
+        (match (representation-type (context-repr ctx))
+          ['array (array-representation-elem (context-repr ctx))]
+          [_ (context-repr ctx)]))
+      (context new-vars repr* new-var-reprs)))
+  (values new-specs ctxs* new-pre))
+
 (define (make-real-compiler specs ctxs #:pre [pre '(TRUE)])
-  (define vars (context-vars (first ctxs)))
-  (define reprs (map context-repr ctxs))
-  (when (ormap (lambda (r) (eq? (representation-type r) 'array)) reprs)
-    (raise-herbie-error "Array representations are not supported in Rival evaluation yet"))
+  (define-values (vars reprs specs* ctxs* pre*)
+    (let-values ([(specs* ctxs* pre*) (flatten-arrays-for-rival specs ctxs pre)])
+      (values (context-vars (first ctxs*)) (map context-repr ctxs*) specs* ctxs* pre*)))
   ; create the machine
-  (define exprs (cons `(assert ,pre) specs))
+  (define exprs (cons `(assert ,pre*) specs*))
   (define discs (cons boolean-discretization (map repr->discretization reprs)))
   (define machine (rival-compile exprs vars discs))
   (timeline-push! 'compiler
-                  (apply + 1 (expr-size pre) (map expr-size specs))
+                  (apply + 1 (expr-size pre*) (map expr-size specs*))
                   (+ (length vars) (rival-profile machine 'instructions)))
 
   (define dump-file
@@ -83,7 +196,7 @@
            (build-path dump-dir (format "~a.rival" i))))
        (define dump-file (open-output-file name #:exists 'replace))
        (pretty-print `(define (f ,@vars)
-                        ,@specs)
+                        ,@specs*)
                      dump-file
                      1)
        dump-file]
@@ -160,3 +273,14 @@
 ;; how certain the result is: no, maybe, yes.
 (define (real-compiler-analyze compiler input-ranges [hint #f])
   (rival-analyze-with-hints (real-compiler-machine compiler) input-ranges hint))
+
+(module+ test
+  (require rackunit)
+  (define <b64> <binary64>)
+  (define arr-repr (make-array-representation #:name 'arraybinary64 #:elem <b64> #:dims '(2)))
+  (define arr-ctx (context '(v) arr-repr (list arr-repr)))
+  (define-values (specs* ctxs* pre*) (flatten-arrays-for-rival (list 'v) (list arr-ctx) 'TRUE))
+  (check-equal? specs* '(v_0 v_1))
+  (check-equal? (map context-vars ctxs*) '((v_0 v_1)))
+  (check-equal? (map context-var-reprs ctxs*) (list (list <b64> <b64>)))
+  (check-equal? pre* 'TRUE))
