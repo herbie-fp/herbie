@@ -29,3 +29,6 @@ herbie-compiled/
 .env/
 .worktrees
 
+report/
+sampled-points/
+sampled-points-main/

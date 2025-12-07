@@ -12,6 +12,7 @@
          "../api/sandbox.rkt")
 
 (provide make-points-json
+         make-all-points-json
          regime-var
          regime-splitpoints
          real->ordinal
@@ -193,3 +194,7 @@
   (-> alt? (or/c expr? #f))
   (define info (regime-info altn))
   (and info (sp-bexpr (car info))))
+
+(define (make-all-points-json result-hash)
+  (define backend (hash-ref result-hash 'backend))
+  (hash-ref backend 'all-points))

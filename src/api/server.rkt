@@ -555,8 +555,11 @@
 (define (backend-improve-result-hash-table backend test errcache)
   (define repr (context-repr (test-context test)))
   (define pcontext (improve-result-pcontext backend))
+  (define all-pcontext (improve-result-all-pcontext backend))
   (hasheq 'pcontext
           (pcontext->json pcontext repr)
+          'all-points
+          (pcontext->json all-pcontext repr)
           'start
           (analysis->json (improve-result-start backend) pcontext test errcache)
           'target

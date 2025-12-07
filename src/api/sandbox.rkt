@@ -29,12 +29,13 @@
 (provide run-herbie
          get-table-data-from-hash
          *reeval-pts*
+         dump-points
          (struct-out job-result)
          (struct-out improve-result)
          (struct-out alt-analysis))
 
 (struct job-result (command test status time timeline profile warnings backend))
-(struct improve-result (pcontext start target end))
+(struct improve-result (pcontext all-pcontext start target end))
 (struct alt-analysis (alt errors) #:prefab)
 
 ;; API users can supply their own, weird set of points, in which case
@@ -88,7 +89,7 @@
   (define end-errs (map cdr sorted-end-exprs))
   (define end-data (map alt-analysis alternatives end-errs))
 
-  (improve-result test-pcontext start-alt-data target-alt-data end-data))
+  (improve-result test-pcontext joint-pcontext start-alt-data target-alt-data end-data))
 
 (define (get-cost test)
   (define cost-proc (platform-cost-proc (*active-platform*)))
@@ -138,6 +139,17 @@
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (sample-points precondition (list specification) (list (*context*)))))
   (apply mk-pcontext sample))
+
+;; Dump sampled points to JSON file for comparing sampling algorithms
+(define (dump-points test pctx file)
+  (define data
+    (hasheq 'test-name (test-name test)
+            'variables (map ~a (test-vars test))
+            'points (for/list ([(pt ex) (in-pcontext pctx)]) (vector->list pt))
+            'exacts (for/list ([(pt ex) (in-pcontext pctx)]) ex)))
+  (if (port? file)
+      (write-json data file)
+      (call-with-atomic-output-file file (λ (p _) (write-json data p)))))
 
 ;;
 ;;  Public interface
