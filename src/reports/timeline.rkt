@@ -81,7 +81,8 @@
             ,@(dict-call curr render-phase-outcomes 'outcomes)
             ,@(dict-call curr render-phase-compiler 'compiler)
             ,@(dict-call curr render-phase-mixed-sampling 'mixsample)
-            ,@(dict-call curr render-phase-bogosity 'bogosity))))
+            ,@(dict-call curr render-phase-bogosity 'bogosity)
+            ,@(dict-call curr render-phase-allocations 'allocations))))
 
 (define/reset id-counter 0)
 
@@ -404,6 +405,17 @@
                                    (table (thead (tr (th "Outputs")))
                                           ,@(for/list ([out output])
                                               `(tr (td (pre ,(~a out)))))))))))
+
+(define (render-phase-allocations allocations)
+  (define sorted (sort allocations > #:key second))
+  `((dt "Allocations") (dd (table ((class "times"))
+                                  (thead (tr (th "Phase") (th "Allocated") (th "Percent")))
+                                  ,@(for/list ([rec (in-list sorted)])
+                                      (match-define (list type alloc pct) rec)
+                                      `(tr (td ,(~a type))
+                                           (td ,(~r (/ alloc (expt 2 20)) #:precision '(= 1))
+                                               " MiB")
+                                           (td ,(format-percent pct 1))))))))
 
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
