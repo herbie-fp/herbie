@@ -16,6 +16,7 @@ use parser::{parse_expr, parse_sexpr, SExpr};
 pub struct MachineWrapper {
     machine: Machine<RustDiscretization>,
     arg_buf: Vec<Ival>,
+    hint_buf: Vec<u8>,
 }
 
 fn return_string(s: String) -> *mut c_char {
@@ -58,6 +59,25 @@ fn parse_hints_binary(data: &[u8]) -> Option<Vec<Hint>> {
     Some(hints)
 }
 
+fn serialize_hints_binary(hints: &[Hint], out: &mut Vec<u8>) {
+    out.clear();
+    out.reserve(hints.len() * 2);
+    for hint in hints {
+        match hint {
+            Hint::Execute => out.push(0),
+            Hint::Skip => out.push(1),
+            Hint::Alias(n) => {
+                out.push(2);
+                out.push(*n);
+            }
+            Hint::KnownBool(b) => {
+                out.push(3);
+                out.push(if *b { 1 } else { 0 });
+            }
+        }
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn rival_compile(
     exprs_str: *const c_char,
@@ -97,6 +117,7 @@ pub extern "C" fn rival_compile(
         let wrapper = MachineWrapper {
             machine,
             arg_buf: Vec::new(),
+            hint_buf: Vec::new(),
         };
         Box::into_raw(Box::new(wrapper))
     });
@@ -131,7 +152,7 @@ pub unsafe extern "C" fn rival_apply(
         let machine = &mut wrapper.machine;
         let arg_buf = &mut wrapper.arg_buf;
 
-        let arg_prec = machine.disc.target().max(machine.state.min_precision);
+        let arg_prec = machine.disc.target().max(machine.min_precision);
 
         // Resize buffer if needed
         if arg_buf.len() != args_len {
@@ -195,72 +216,191 @@ pub unsafe extern "C" fn rival_apply(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn rival_analyze_with_hints(
+pub unsafe extern "C" fn rival_apply_batch(
     ptr: *mut MachineWrapper,
-    rect_str: *const c_char,
-    hints_ptr: *const u8,
-    hints_len: usize,
-) -> *mut c_char {
+    batch_size: usize,
+    args_ptrs: *const *const mpfr_t,
+    args_len: usize,
+    out_ptrs: *const *mut mpfr_t,
+    out_len: usize,
+    hints_ptrs: *const *const u8,
+    hints_lens: *const usize,
+    max_iterations: usize,
+    status_out: *mut i32,
+) -> i32 {
+    // Single catch_unwind for the whole batch - fast path when no panics
     let result = panic::catch_unwind(|| {
         let wrapper = &mut *ptr;
         let machine = &mut wrapper.machine;
-        let rect_str = CStr::from_ptr(rect_str).to_string_lossy();
+        let arg_buf = &mut wrapper.arg_buf;
+        let arg_prec = machine.disc.target().max(machine.min_precision);
 
-        // Parse args: "lo1 hi1 lo2 hi2 ..."
-        let parts: Vec<&str> = rect_str.split_whitespace().collect();
-        let arg_prec = machine.disc.target().max(machine.state.min_precision);
-
-        let mut args = Vec::new();
-        for chunk in parts.chunks(2) {
-            if chunk.len() == 2 {
-                let lo_val = Float::parse(chunk[0]).expect("Failed to parse float");
-                let hi_val = Float::parse(chunk[1]).expect("Failed to parse float");
-                let lo = Float::with_val(arg_prec, lo_val);
-                let hi = Float::with_val(arg_prec, hi_val);
-                args.push(Ival::from_lo_hi(lo, hi));
+        // Resize argument buffer if needed
+        if arg_buf.len() != args_len {
+            arg_buf.clear();
+            arg_buf.reserve(args_len);
+            for _ in 0..args_len {
+                arg_buf.push(Ival::from_lo_hi(Float::new(arg_prec), Float::new(arg_prec)));
             }
         }
 
-        let hints = parse_hints_binary(slice::from_raw_parts(hints_ptr, hints_len));
-        let (status, next_hints, converged) = machine.analyze_with_hints(args, hints.as_deref());
+        let all_args = slice::from_raw_parts(args_ptrs, batch_size * args_len);
+        let all_outs = slice::from_raw_parts(out_ptrs, batch_size * out_len);
+        let hints_ptrs_slice = slice::from_raw_parts(hints_ptrs, batch_size);
+        let hints_lens_slice = slice::from_raw_parts(hints_lens, batch_size);
+        let status_slice = slice::from_raw_parts_mut(status_out, batch_size);
 
-        // Serialize output
-        // (status_lo status_hi converged (hint ...))
-        let mut s = String::from("(");
-        s.push_str(&status.lo.as_float().to_string_radix(10, None));
-        s.push_str(" ");
-        s.push_str(&status.hi.as_float().to_string_radix(10, None));
-        s.push_str(" ");
-        s.push_str(if converged { "true" } else { "false" });
-        s.push_str(" (");
-        // Serialize hints
-        // Hint::Execute -> "execute"
-        // Hint::Skip -> "skip"
-        // Hint::Alias(u8) -> "(alias n)"
-        // Hint::KnownBool(bool) -> "(known-bool b)"
-        for hint in next_hints {
-            match hint {
-                Hint::Execute => s.push_str(" execute"),
-                Hint::Skip => s.push_str(" skip"),
-                Hint::Alias(n) => {
-                    s.push_str(" (alias ");
-                    s.push_str(&n.to_string());
-                    s.push_str(")");
+        for batch_idx in 0..batch_size {
+            // Load arguments for this point
+            let args_offset = batch_idx * args_len;
+            for i in 0..args_len {
+                let raw_ptr = all_args[args_offset + i];
+                let val = &mut arg_buf[i];
+
+                // Update precision if needed
+                if val.lo.as_float().prec() != arg_prec {
+                    val.lo.as_float_mut().set_prec(arg_prec);
+                    val.hi.as_float_mut().set_prec(arg_prec);
                 }
-                Hint::KnownBool(b) => {
-                    s.push_str(" (known-bool ");
-                    s.push_str(if b { "true" } else { "false" });
-                    s.push_str(")");
+
+                // Copy value
+                mpfr::set(
+                    val.lo.as_float_mut().as_raw_mut(),
+                    raw_ptr,
+                    mpfr::rnd_t::RNDN,
+                );
+                mpfr::set(
+                    val.hi.as_float_mut().as_raw_mut(),
+                    raw_ptr,
+                    mpfr::rnd_t::RNDN,
+                );
+            }
+
+            // Parse hints for this point
+            let hints = if hints_lens_slice[batch_idx] > 0 {
+                parse_hints_binary(slice::from_raw_parts(
+                    hints_ptrs_slice[batch_idx],
+                    hints_lens_slice[batch_idx],
+                ))
+            } else {
+                None
+            };
+
+            // Apply the machine
+            let res = machine.apply(arg_buf, hints.as_deref(), max_iterations);
+
+            // Handle result
+            match res {
+                Ok(vals) => {
+                    if vals.len() != out_len {
+                        status_slice[batch_idx] = 2;
+                        continue;
+                    }
+                    let outs_offset = batch_idx * out_len;
+                    for (i, val) in vals.iter().enumerate() {
+                        let out_ptr = all_outs[outs_offset + i];
+                        mpfr::set(out_ptr, val.lo.as_float().as_raw(), mpfr::rnd_t::RNDN);
+                    }
+                    status_slice[batch_idx] = 0;
+                }
+                Err(RivalError::InvalidInput) => {
+                    status_slice[batch_idx] = -1;
+                }
+                Err(RivalError::Unsamplable) => {
+                    status_slice[batch_idx] = -2;
                 }
             }
         }
-        s.push_str("))");
-        s
     });
 
     match result {
-        Ok(s) => return_string(s),
-        Err(_) => return_string(String::from("(error panic)")),
+        Ok(()) => 0,
+        Err(_) => -99, // Panic occurred - caller should fall back to per-point evaluation
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rival_analyze_with_hints(
+    ptr: *mut MachineWrapper,
+    lo_ptrs: *const *const mpfr_t,
+    hi_ptrs: *const *const mpfr_t,
+    rect_len: usize,
+    hints_ptr: *const u8,
+    hints_len: usize,
+    status_lo_out: *mut mpfr_t,
+    status_hi_out: *mut mpfr_t,
+    converged_out: *mut u8,
+    next_hints_out: *mut u8,
+    next_hints_capacity: usize,
+    next_hints_len_out: *mut usize,
+) -> i32 {
+    let result = panic::catch_unwind(|| {
+        let wrapper = &mut *ptr;
+        let machine = &mut wrapper.machine;
+        let arg_prec = machine.disc.target().max(machine.min_precision);
+        if wrapper.arg_buf.len() != rect_len {
+            wrapper.arg_buf.clear();
+            wrapper.arg_buf.reserve(rect_len);
+            for _ in 0..rect_len {
+                wrapper
+                    .arg_buf
+                    .push(Ival::from_lo_hi(Float::new(arg_prec), Float::new(arg_prec)));
+            }
+        }
+
+        let lo_slice = slice::from_raw_parts(lo_ptrs, rect_len);
+        let hi_slice = slice::from_raw_parts(hi_ptrs, rect_len);
+
+        for i in 0..rect_len {
+            let val = &mut wrapper.arg_buf[i];
+            if val.lo.as_float().prec() != arg_prec {
+                val.lo.as_float_mut().set_prec(arg_prec);
+                val.hi.as_float_mut().set_prec(arg_prec);
+            }
+
+            mpfr::set(
+                val.lo.as_float_mut().as_raw_mut(),
+                lo_slice[i],
+                mpfr::rnd_t::RNDN,
+            );
+            mpfr::set(
+                val.hi.as_float_mut().as_raw_mut(),
+                hi_slice[i],
+                mpfr::rnd_t::RNDN,
+            );
+        }
+
+        let hints = parse_hints_binary(slice::from_raw_parts(hints_ptr, hints_len));
+        let (status, next_hints, converged) =
+            machine.analyze_with_hints(&wrapper.arg_buf[..rect_len], hints.as_deref());
+
+        mpfr::set(
+            status_lo_out,
+            status.lo.as_float().as_raw(),
+            mpfr::rnd_t::RNDN,
+        );
+        mpfr::set(
+            status_hi_out,
+            status.hi.as_float().as_raw(),
+            mpfr::rnd_t::RNDN,
+        );
+        ptr::write(converged_out, if converged { 1 } else { 0 });
+
+        serialize_hints_binary(&next_hints, &mut wrapper.hint_buf);
+        let needed = wrapper.hint_buf.len();
+        ptr::write(next_hints_len_out, needed);
+        if needed > next_hints_capacity {
+            return 1;
+        }
+        if needed > 0 {
+            ptr::copy_nonoverlapping(wrapper.hint_buf.as_ptr(), next_hints_out, needed);
+        }
+        0
+    });
+
+    match result {
+        Ok(code) => code,
+        Err(_) => -99,
     }
 }
 
@@ -275,12 +415,12 @@ pub unsafe extern "C" fn rival_profile(
         let param = CStr::from_ptr(param_str).to_string_lossy();
 
         match param.as_ref() {
-            "instructions" => machine.state.instructions.len().to_string(),
-            "iterations" => machine.state.iteration.to_string(),
-            "bumps" => machine.state.bumps.to_string(),
+            "instructions" => machine.instructions.len().to_string(),
+            "iterations" => machine.iteration.to_string(),
+            "bumps" => machine.bumps.to_string(),
             "executions" => {
                 let mut s = String::from("(");
-                for exec in machine.state.profiler.iter() {
+                for exec in machine.profiler.records().iter() {
                     s.push_str("(");
                     s.push_str(exec.name);
                     s.push_str(" ");
@@ -295,7 +435,7 @@ pub unsafe extern "C" fn rival_profile(
                     s.push_str(&exec.iteration.to_string());
                     s.push_str(") ");
                 }
-                machine.state.profiler.reset();
+                machine.profiler.reset();
 
                 if s.ends_with(" ") {
                     s.pop();

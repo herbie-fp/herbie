@@ -120,52 +120,92 @@
 ;; Returns an evaluator for a list of expressions.
 ;; Part 3: compute exact values using Rival's algorithm
 
+;; Batch size for batched sampling (amortizes FFI overhead)
+(define *batch-size* 32)
+
 (define (batch-prepare-points compiler sampler)
-  ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
   (define vars (real-compiler-vars compiler))
   (define var-reprs (real-compiler-var-reprs compiler))
   (define reprs (real-compiler-reprs compiler))
 
   (real-compiler-clear! compiler) ; Clear profiling vector
+
+  (define (check-point! pt status exs)
+    (define final-status status)
+    (case status
+      [(exit)
+       (warn 'ground-truth
+             "could not determine a ground truth"
+             #:url "faq.html#ground-truth"
+             #:extra (vector->list (vector-map (curry format "~a = ~a") vars pt)))]
+      [(valid)
+       ;; Check for infinite outputs
+       (for ([ex (in-list exs)]
+             [repr (in-vector reprs)])
+         (define maybe-bf ((representation-repr->bf repr) ex))
+         (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
+           (set! final-status 'infinite)))])
+
+    (hash-update! outcomes final-status add1 0)
+
+    (define is-bad?
+      (for/or ([input (in-vector pt)]
+               [repr (in-vector var-reprs)])
+        ((representation-special-value? repr) input)))
+
+    (and (list? exs) (not is-bad?)))
+
   (define-values (points exactss)
     (let loop ([sampled 0]
                [skipped 0]
                [points '()]
                [exactss '()])
-      (define-values (pt hint) (sampler))
-      (define-values (status exs) (real-apply compiler pt hint))
-      (case status
-        [(exit)
-         (warn 'ground-truth
-               "could not determine a ground truth"
-               #:url "faq.html#ground-truth"
-               #:extra (vector->list (vector-map (curry format "~a = ~a") vars pt)))]
-        [(valid)
-         (for ([ex (in-list exs)]
-               [repr (in-vector reprs)])
-           ; The `bool` representation does not produce bigfloats
-           (define maybe-bf ((representation-repr->bf repr) ex))
-           (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
-             (set! status 'infinite)))])
-
-      (hash-update! outcomes status add1 0)
-
-      (define is-bad?
-        (for/or ([input (in-vector pt)]
-                 [repr (in-vector var-reprs)])
-          ((representation-special-value? repr) input)))
+      ;; Determine how many points we still need
+      (define needed (- (*num-points*) sampled))
 
       (cond
-        [(and (list? exs) (not is-bad?))
-         (if (>= (+ 1 sampled) (*num-points*))
-             (values (cons pt points) (cons exs exactss))
-             (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
+        [(<= needed 0) (values points exactss)]
         [else
-         (when (>= skipped (*max-skipped-points*))
-           (raise-herbie-sampling-error "Cannot sample enough valid points."
-                                        #:url "faq.html#sample-valid-points"))
-         (loop sampled (+ 1 skipped) points exactss)])))
+         ;; Sample a batch of points
+         (define batch-to-sample (min *batch-size* needed))
+         (define pts-and-hints
+           (for/vector #:length batch-to-sample
+                       ([_ (in-range batch-to-sample)])
+             (define-values (pt hint) (sampler))
+             (cons pt hint)))
+
+         ;; Evaluate all points in one FFI call
+         (define results (real-apply-batch compiler pts-and-hints))
+
+         ;; Process results in order
+         (let process ([i 0]
+                       [sampled sampled]
+                       [skipped skipped]
+                       [points points]
+                       [exactss exactss])
+           (cond
+             ;; Done with batch
+             [(>= i batch-to-sample) (loop sampled skipped points exactss)]
+
+             ;; Have enough points (global check)
+             [(>= sampled (*num-points*)) (values points exactss)]
+
+             [else
+              (define pt-hint (vector-ref pts-and-hints i))
+              (define pt (car pt-hint))
+              (define result (vector-ref results i))
+              (define status (car result))
+              (define exs (cdr result))
+
+              (if (check-point! pt status exs)
+                  (process (+ i 1) (+ sampled 1) 0 (cons pt points) (cons exs exactss))
+                  (begin
+                    (when (>= skipped (*max-skipped-points*))
+                      (raise-herbie-sampling-error "Cannot sample enough valid points."
+                                                   #:url "faq.html#sample-valid-points"))
+                    (process (+ i 1) sampled (+ skipped 1) points exactss)))]))])))
+
   (values (cons points (flip-lists exactss)) outcomes))
 
 (define (combine-tables t1 t2)

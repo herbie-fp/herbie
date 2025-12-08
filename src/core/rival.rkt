@@ -25,6 +25,8 @@
                 [c real-compiler?])]
           [real-apply
            (->* (real-compiler? vector?) ((or/c (vectorof any/c) boolean?)) (values symbol? any/c))]
+          [real-apply-batch
+           (-> real-compiler? (vectorof (cons/c vector? any/c)) (vectorof (cons/c symbol? any/c)))]
           [real-compiler-clear! (-> real-compiler-clear! void?)]
           [real-compiler-analyze
            (->* (real-compiler? (vectorof ival?))
@@ -154,6 +156,56 @@
                          (symbol->string status)
                          1)
   (values status value))
+
+(define (real-apply-batch compiler pts-and-hints)
+  (match-define (real-compiler _ vars var-reprs _ _ machine _) compiler)
+  (define batch-size (vector-length pts-and-hints))
+
+  (if (zero? batch-size)
+      (vector)
+      (let ()
+        ;; Convert all points from representation to bigfloat
+        (define bf-pts-and-hints
+          (for/vector #:length batch-size
+                      ([pt-hint (in-vector pts-and-hints)])
+            (define pt (car pt-hint))
+            (define hint (cdr pt-hint))
+            (define pt*
+              (for/vector #:length (vector-length vars)
+                          ([val (in-vector pt)]
+                           [repr (in-vector var-reprs)])
+                ((representation-repr->bf repr) val)))
+            (cons pt* hint)))
+
+        ;; Call batch apply
+        (define results
+          (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
+                         [*rival-max-iterations* 5])
+            (rival-apply-batch machine bf-pts-and-hints)))
+
+        ;; If batch panicked, fall back to per-point evaluation
+        (if (not results)
+            (for/vector #:length batch-size
+                        ([bf-pt-hint (in-vector bf-pts-and-hints)])
+              (define pt* (car bf-pt-hint))
+              (define hint (cdr bf-pt-hint))
+              (with-handlers ([exn:rival:invalid? (lambda (e) (cons 'invalid #f))]
+                              [exn:rival:unsamplable? (lambda (e) (cons 'exit #f))]
+                              [exn:fail? (lambda (e) (cons 'exit #f))]) ; catch panics
+                (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
+                               [*rival-max-iterations* 5])
+                  (define value (rest (vector->list (rival-apply machine pt* hint))))
+                  (cons 'valid value))))
+            ;; Convert results to (status . value) format
+            (for/vector #:length batch-size
+                        ([result (in-vector results)])
+              (define status-code (car result))
+              (define value (cdr result))
+              (match status-code
+                [0 (cons 'valid (rest (vector->list value)))] ; drop precondition
+                [-1 (cons 'invalid #f)]
+                [-2 (cons 'exit #f)]
+                [_ (cons 'invalid #f)]))))))
 
 ;; Clears profiling data.
 (define (real-compiler-clear! compiler)

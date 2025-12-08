@@ -143,10 +143,16 @@
 ;; Dump sampled points to JSON file for comparing sampling algorithms
 (define (dump-points test pctx file)
   (define data
-    (hasheq 'test-name (test-name test)
-            'variables (map ~a (test-vars test))
-            'points (for/list ([(pt ex) (in-pcontext pctx)]) (vector->list pt))
-            'exacts (for/list ([(pt ex) (in-pcontext pctx)]) ex)))
+    (hasheq 'test-name
+            (test-name test)
+            'variables
+            (map ~a (test-vars test))
+            'points
+            (for/list ([(pt ex) (in-pcontext pctx)])
+              (vector->list pt))
+            'exacts
+            (for/list ([(pt ex) (in-pcontext pctx)])
+              ex)))
   (if (port? file)
       (write-json data file)
       (call-with-atomic-output-file file (λ (p _) (write-json data p)))))
