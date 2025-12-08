@@ -121,7 +121,7 @@
 ;; Part 3: compute exact values using Rival's algorithm
 
 ;; Batch size for batched sampling (amortizes FFI overhead)
-(define *batch-size* 32)
+(define *batch-size* 8)
 
 (define (batch-prepare-points compiler sampler)
   (define outcomes (make-hash))
