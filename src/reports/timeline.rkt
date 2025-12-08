@@ -19,7 +19,8 @@
 (define (make-timeline name timeline #:info [info #f] #:path [path "."])
   (define total-memory
     (apply +
-           (for/list ([phase (in-list timeline)])
+           (for/list ([phase (in-list timeline)]
+                      #:when (dict-has-key? phase 'memory))
              (second (first (dict-ref phase 'memory))))))
   `(html (head (meta ([charset "utf-8"]))
                (title "Metrics for " ,(~a name))
@@ -413,8 +414,7 @@
                                   ,@(for/list ([rec (in-list sorted)])
                                       (match-define (list type alloc pct) rec)
                                       `(tr (td ,(~a type))
-                                           (td ,(~r (/ alloc (expt 2 20)) #:precision '(= 1))
-                                               " MiB")
+                                           (td ,(~r (/ alloc (expt 2 20)) #:precision '(= 1)) " MiB")
                                            (td ,(format-percent pct 1))))))))
 
 ;; This next part handles summarizing several timelines into one details section for the report page.

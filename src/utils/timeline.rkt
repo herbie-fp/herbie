@@ -181,11 +181,26 @@
       [(l1* '()) (cons rec (loop l1* (list (list (+ n2 1) t2))))]
       [(l1* l2*) (cons rec (loop l1* l2*))])))
 
+(define (merge-allocations a1 a2)
+  (define by-type (make-hash))
+  (for ([rec (append a1 a2)])
+    (define type (first rec))
+    (define bytes (second rec))
+    (hash-update! by-type type (curry + bytes) 0))
+  (define total (apply + (hash-values by-type)))
+  (for/list ([(type bytes) (in-hash by-type)])
+    (list type
+          bytes
+          (if (zero? total)
+              0.0
+              (* 1.0 (/ bytes total))))))
+
 (define-timeline type #:custom (λ (a b) a))
 (define-timeline time #:custom +)
-(define-timeline gc-time #:custom +)
+;; Handled with separate GC phase
+(define-timeline gc-time #:unmergable)
+(define-timeline memory #:unmergable)
 
-(define-timeline memory [live +] [alloc +])
 (define-timeline method [method])
 (define-timeline mixsample [time +] [function false] [precision false] [memory +])
 (define-timeline times [time +] [input false])
@@ -208,11 +223,14 @@
 (define-timeline egraph #:unmergable)
 (define-timeline stop [reason false] [count +])
 (define-timeline branch #:unmergable)
+(define-timeline allocations #:custom merge-allocations)
 
 (define (timeline-merge . timelines)
+  ;; Apply GC reattribution to each timeline before merging
+  (define reattributed (map timeline-reattribute-gc timelines))
   ;; The timelines in this case are JSON objects, as above
   (define types (make-hash))
-  (for* ([tl (in-list timelines)]
+  (for* ([tl (in-list reattributed)]
          [event tl])
     (define data (hash-ref! types (hash-ref event 'type) (make-hash)))
     (for ([(k v) (in-dict event)]
@@ -221,7 +239,7 @@
           (hash-update! data k (λ (old) ((hash-ref timeline-types k) v old)))
           (hash-set! data k v))))
 
-  (sort (timeline-reattribute-gc (hash-values types)) > #:key (curryr hash-ref 'time)))
+  (sort (hash-values types) > #:key (curryr hash-ref 'time)))
 
 (define (timeline-compact! key)
   (unless (*timeline-disabled*)
