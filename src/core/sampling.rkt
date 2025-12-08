@@ -168,6 +168,7 @@
         [(<= needed 0) (values points exactss)]
         [else
          ;; Sample a batch of points
+         (collect-garbage 'minor)
          (define batch-to-sample (min *batch-size* needed))
          (define pts-and-hints
            (for/vector #:length batch-to-sample
