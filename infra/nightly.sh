@@ -10,7 +10,7 @@ rustup update
 make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
-SEED=2025339
+SEED=$(date "+%Y%j")
 BENCHDIR="$1"; shift
 REPORTDIR="$1"; shift
 
