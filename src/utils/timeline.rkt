@@ -250,7 +250,6 @@
       (hash-remove! phase* 'memory)
       phase*))
   (define gc-phase
-    (make-hasheq (list (cons 'type "gc")
-                       (cons 'time total-gc-time)
-                       (cons 'allocations allocation-table))))
+    (make-hasheq
+     (list (cons 'type "gc") (cons 'time total-gc-time) (cons 'allocations allocation-table))))
   (append adjusted-phases (list gc-phase)))

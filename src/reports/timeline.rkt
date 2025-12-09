@@ -405,13 +405,14 @@
 (define (render-phase-allocations allocations)
   (define sorted (sort allocations > #:key second))
   (define total (apply + (map second sorted)))
-  `((dt "Allocations") (dd (table ((class "times"))
-                                  (thead (tr (th "Phase") (th "Allocated") (th "Percent")))
-                                  ,@(for/list ([rec (in-list sorted)])
-                                      (match-define (list type alloc) rec)
-                                      `(tr (td ,(~a type))
-                                           (td ,(~r (/ alloc (expt 2 20)) #:group-sep " " #:precision '(= 1)) " MiB")
-                                           (td ,(format-percent alloc total))))))))
+  `((dt "Allocations")
+    (dd (table ((class "times"))
+               (thead (tr (th "Phase") (th "Allocated") (th "Percent")))
+               ,@(for/list ([rec (in-list sorted)])
+                   (match-define (list type alloc) rec)
+                   `(tr (td ,(~a type))
+                        (td ,(~r (/ alloc (expt 2 20)) #:group-sep " " #:precision '(= 1)) " MiB")
+                        (td ,(format-percent alloc total))))))))
 
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
