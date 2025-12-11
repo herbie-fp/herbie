@@ -19,6 +19,16 @@ pub struct MachineWrapper {
     hint_buf: Vec<u8>,
 }
 
+#[repr(C)]
+pub struct ProfileRecord {
+    pub name_ptr: *const u8,
+    pub name_len: usize,
+    pub number: i32,
+    pub precision: u32,
+    pub time_ms: f64,
+    pub iteration: usize,
+}
+
 fn return_string(s: String) -> *mut c_char {
     CString::new(s).unwrap().into_raw()
 }
@@ -113,7 +123,9 @@ pub extern "C" fn rival_compile(
             .collect();
 
         let disc = RustDiscretization { target, types };
-        let machine = MachineBuilder::new(disc).build(exprs, vars);
+        let machine = MachineBuilder::new(disc)
+            .profile_capacity(100_000)
+            .build(exprs, vars);
         let wrapper = MachineWrapper {
             machine,
             arg_buf: Vec::new(),
@@ -459,4 +471,47 @@ pub unsafe extern "C" fn rival_free_string(ptr: *mut c_char) {
         return;
     }
     drop(CString::from_raw(ptr));
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rival_profile_get_len(ptr: *mut MachineWrapper) -> usize {
+    let wrapper = &*ptr;
+    wrapper.machine.profiler.len()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rival_profile_get_records(
+    ptr: *mut MachineWrapper,
+    out_ptr: *mut ProfileRecord,
+    capacity: usize,
+) -> usize {
+    let wrapper = &mut *ptr;
+    let records = wrapper.machine.profiler.records();
+    let count = records.len().min(capacity);
+
+    let out_slice = slice::from_raw_parts_mut(out_ptr, count);
+    for (i, rec) in records.iter().take(count).enumerate() {
+        out_slice[i] = ProfileRecord {
+            name_ptr: rec.name.as_ptr(),
+            name_len: rec.name.len(),
+            number: rec.number,
+            precision: rec.precision,
+            time_ms: rec.time_ms,
+            iteration: rec.iteration,
+        };
+    }
+
+    wrapper.machine.profiler.reset();
+    count
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rival_get_metric(ptr: *mut MachineWrapper, metric: u32) -> usize {
+    let wrapper = &*ptr;
+    match metric {
+        0 => wrapper.machine.instructions.len(),
+        1 => wrapper.machine.iteration,
+        2 => wrapper.machine.bumps,
+        _ => 0,
+    }
 }

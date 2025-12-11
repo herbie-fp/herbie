@@ -33,6 +33,13 @@
 (struct discretization (target convert distance type))
 (struct ival (lo hi) #:transparent)
 
+(define-cstruct _profile-record
+                ([name-ptr _pointer] [name-len _size]
+                                     [number _int32]
+                                     [precision _uint32]
+                                     [time-ms _double]
+                                     [iteration _size]))
+
 (define boolean-discretization (discretization 53 values (lambda (x y) (if (eq? x y) 0 2)) 0))
 
 ;; Parameters
@@ -61,8 +68,9 @@
 (define-rival rival_apply
               (_fun _pointer _pointer _size _pointer _size _pointer _size _size -> _int32))
 
-(define-rival rival_apply_batch
-              (_fun _pointer _size _pointer _size _pointer _size _pointer _pointer _size _pointer -> _int32))
+(define-rival
+ rival_apply_batch
+ (_fun _pointer _size _pointer _size _pointer _size _pointer _pointer _size _pointer -> _int32))
 
 (define (rival-apply machine pt [hints #f] [max-iterations (*rival-max-iterations*)])
   (define n-args (vector-length pt))
@@ -141,6 +149,14 @@
     (set-machine-wrapper-analyze-hints-buf! machine (malloc _byte init-capacity 'raw))
     (set-machine-wrapper-analyze-hints-capacity! machine init-capacity)))
 
+(define (ensure-profile-buffers! machine profile-count)
+  (when (or (not (machine-wrapper-profile-buf machine))
+            (> profile-count (machine-wrapper-profile-size machine)))
+    (when (machine-wrapper-profile-buf machine)
+      (free (machine-wrapper-profile-buf machine)))
+    (set-machine-wrapper-profile-buf! machine (malloc _profile-record profile-count 'raw))
+    (set-machine-wrapper-profile-size! machine profile-count)))
+
 (define (rival-apply-batch machine pts-and-hints [max-iterations (*rival-max-iterations*)])
   (define batch-size (vector-length pts-and-hints))
   (when (zero? batch-size)
@@ -182,7 +198,10 @@
       (ptr-set! all-outs-ptr _pointer (+ (* i n-outs) j) (vector-ref all-outs (+ (* i n-outs) j))))
 
     ;; Serialize hints and copy to malloc'd memory
-    (define hb (if hint (serialize-hints-binary hint) #""))
+    (define hb
+      (if hint
+          (serialize-hints-binary hint)
+          #""))
     (define hb-len (bytes-length hb))
     (cond
       [(> hb-len 0)
@@ -210,7 +229,8 @@
 
   ;; Free malloc'd hint buffers
   (for ([ptr (in-vector hints-malloc-ptrs)])
-    (when ptr (free ptr)))
+    (when ptr
+      (free ptr)))
 
   ;; If panic occurred, return #f to signal caller to fall back
   (cond
@@ -222,38 +242,61 @@
        (define status (ptr-ref status-out _int32 i))
        (cons status
              (if (= status 0)
-                 (list->vector
-                  (for/list ([j (in-range n-outs)]
-                             [disc (in-list discs)])
-                    ((discretization-convert disc) (vector-ref all-outs (+ (* i n-outs) j)))))
+                 (list->vector (for/list ([j (in-range n-outs)]
+                                          [disc (in-list discs)])
+                                 ((discretization-convert disc) (vector-ref all-outs
+                                                                            (+ (* i n-outs) j)))))
                  #f)))]))
 
 (define-rival rival_analyze_with_hints
-  (_fun _pointer _pointer _pointer _size _bytes _size _pointer _pointer _pointer _pointer _size _pointer -> _int32))
+              (_fun _pointer
+                    _pointer
+                    _pointer
+                    _size
+                    _bytes
+                    _size
+                    _pointer
+                    _pointer
+                    _pointer
+                    _pointer
+                    _size
+                    _pointer
+                    ->
+                    _int32))
 
 (define-rival rival_profile (_fun _pointer _string -> _pointer))
+
+(define-rival rival_profile_get_len (_fun _pointer -> _size))
+(define-rival rival_profile_get_records (_fun _pointer _pointer _size -> _size))
+(define-rival rival_get_metric (_fun _pointer _uint32 -> _size))
 
 (define-rival rival_free_string (_fun _pointer -> _void))
 
 ;; Wrapper struct to hold callbacks and pointer
 ;; Includes batch buffers for efficient batched evaluation
-(struct machine-wrapper (ptr discs arg-buf out-buf
-                         [batch-args-buf #:mutable]
-                         [batch-outs-buf #:mutable]
-                         [batch-hints-buf #:mutable]
-                         [batch-lens-buf #:mutable]
-                         [batch-status-buf #:mutable]
-                         [batch-size #:mutable]
-                         [analyze-lo-buf #:mutable]
-                         [analyze-hi-buf #:mutable]
-                         [analyze-status-lo #:mutable]
-                         [analyze-status-hi #:mutable]
-                         [analyze-converged-buf #:mutable]
-                         [analyze-hints-buf #:mutable]
-                         [analyze-hints-len-buf #:mutable]
-                         [analyze-hints-capacity #:mutable]
-                         [analyze-size #:mutable])
-  #:property prop:cpointer (struct-field-index ptr))
+(struct machine-wrapper
+        (ptr discs
+             arg-buf
+             out-buf
+             [batch-args-buf #:mutable]
+             [batch-outs-buf #:mutable]
+             [batch-hints-buf #:mutable]
+             [batch-lens-buf #:mutable]
+             [batch-status-buf #:mutable]
+             [batch-size #:mutable]
+             [analyze-lo-buf #:mutable]
+             [analyze-hi-buf #:mutable]
+             [analyze-status-lo #:mutable]
+             [analyze-status-hi #:mutable]
+             [analyze-converged-buf #:mutable]
+             [analyze-hints-buf #:mutable]
+             [analyze-hints-len-buf #:mutable]
+             [analyze-hints-capacity #:mutable]
+             [analyze-size #:mutable]
+             [profile-buf #:mutable]
+             [profile-size #:mutable])
+  #:property prop:cpointer
+  (struct-field-index ptr))
 
 (define rival-machine? machine-wrapper?)
 
@@ -306,7 +349,9 @@
   (when (machine-wrapper-analyze-hints-buf wrapper)
     (free (machine-wrapper-analyze-hints-buf wrapper)))
   (when (machine-wrapper-analyze-hints-len-buf wrapper)
-    (free (machine-wrapper-analyze-hints-len-buf wrapper))))
+    (free (machine-wrapper-analyze-hints-len-buf wrapper)))
+  (when (machine-wrapper-profile-buf wrapper)
+    (free (machine-wrapper-profile-buf wrapper))))
 
 (define (rival-compile exprs vars discs)
   (define exprs-str (format "~a" exprs))
@@ -334,9 +379,8 @@
               [n-outs (length discs)])
           (define arg-buf (malloc _pointer n-args 'raw))
           (define out-buf (malloc _pointer n-outs 'raw))
-          (define wrapper (machine-wrapper ptr discs arg-buf out-buf
-                                           #f #f #f #f #f 0
-                                           #f #f #f #f #f #f #f 0 0))
+          (define wrapper
+            (machine-wrapper ptr discs arg-buf out-buf #f #f #f #f #f 0 #f #f #f #f #f #f #f 0 0 #f 0))
           (register-finalizer wrapper machine-destroy)
           wrapper))))
 
@@ -359,18 +403,21 @@
     (get-output-bytes out)))
 
 (define (deserialize-hints len ref)
-  (let loop ([idx 0] [acc '()])
+  (let loop ([idx 0]
+             [acc '()])
     (if (>= idx len)
         (list->vector (reverse acc))
         (match (ref idx)
           [0 (loop (add1 idx) (cons 'execute acc))]
           [1 (loop (add1 idx) (cons 'skip acc))]
-          [2 (if (>= (+ idx 1) len)
-                 (error 'deserialize-hints "Incomplete alias")
-                 (loop (+ idx 2) (cons (list 'alias (ref (add1 idx))) acc)))]
-          [3 (if (>= (+ idx 1) len)
-                 (error 'deserialize-hints "Incomplete known-bool")
-                 (loop (+ idx 2) (cons (list 'known-bool (not (zero? (ref (add1 idx))))) acc)))]
+          [2
+           (if (>= (+ idx 1) len)
+               (error 'deserialize-hints "Incomplete alias")
+               (loop (+ idx 2) (cons (list 'alias (ref (add1 idx))) acc)))]
+          [3
+           (if (>= (+ idx 1) len)
+               (error 'deserialize-hints "Incomplete known-bool")
+               (loop (+ idx 2) (cons (list 'known-bool (not (zero? (ref (add1 idx))))) acc)))]
           [_ (error 'deserialize-hints (format "Unknown hint tag ~a" (ref idx)))]))))
 
 (define (deserialize-hints-binary b len)
@@ -437,17 +484,47 @@
     [else (error 'rival-analyze-with-hints (format "Unknown result code: ~a" res-code))]))
 
 (define (rival-profile machine param)
-  (define param-str (symbol->string param))
-  (define res-ptr (rival_profile machine param-str))
-  (define res-str (cast res-ptr _pointer _string))
-  (rival_free_string res-ptr)
-
-  (define res (read (open-input-string res-str)))
   (match param
     ['executions
-     (list->vector (map (lambda (x)
-                          (match x
-                            [(list name number precision time memory iteration)
-                             (execution name number precision time memory iteration)]))
-                        res))]
-    [_ res]))
+     (define len (rival_profile_get_len (machine-wrapper-ptr machine)))
+     (if (zero? len)
+         (vector)
+         (let ((buf (begin
+                      (ensure-profile-buffers! machine len)
+                      (machine-wrapper-profile-buf machine))))
+           (define count (rival_profile_get_records (machine-wrapper-ptr machine) buf len))
+           (define vec (make-vector count))
+           (for ([i (in-range count)])
+             (define rec (ptr-ref buf _profile-record i))
+             (define name-ptr (profile-record-name-ptr rec))
+             (define name-len (profile-record-name-len rec))
+             (define name-bytes (make-bytes name-len))
+             (memcpy name-bytes name-ptr name-len)
+             (define name (bytes->string/utf-8 name-bytes))
+             (vector-set! vec
+                          i
+                          (execution name
+                                     (profile-record-number rec)
+                                     (profile-record-precision rec)
+                                     (profile-record-time-ms rec)
+                                     0
+                                     (profile-record-iteration rec))))
+           vec))]
+    ['instructions (rival_get_metric (machine-wrapper-ptr machine) 0)]
+    ['iterations (rival_get_metric (machine-wrapper-ptr machine) 1)]
+    ['bumps (rival_get_metric (machine-wrapper-ptr machine) 2)]
+    [_
+     (define param-str (symbol->string param))
+     (define res-ptr (rival_profile machine param-str))
+     (define res-str (cast res-ptr _pointer _string))
+     (rival_free_string res-ptr)
+
+     (define res (read (open-input-string res-str)))
+     (match param
+       ['executions
+        (list->vector (map (lambda (x)
+                             (match x
+                               [(list name number precision time memory iteration)
+                                (execution name number precision time memory iteration)]))
+                           res))]
+       [_ res])]))

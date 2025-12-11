@@ -142,7 +142,7 @@
     (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
   (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
   (for ([execution (in-vector executions)])
-    (define name (symbol->string (execution-name execution)))
+    (define name (execution-name execution))
     (define precision
       (- (execution-precision execution) (remainder (execution-precision execution) prec-threshold)))
     (timeline-push!/unsafe 'mixsample
@@ -183,26 +183,31 @@
                          [*rival-max-iterations* 5])
             (rival-apply-batch machine bf-pts-and-hints)))
 
-        ;; If batch panicked, fall back to per-point evaluation
+        (define executions (rival-profile machine 'executions))
+        (when (>= (vector-length executions) (*rival-profile-executions*))
+          (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
+        (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
+        (for ([execution (in-vector executions)])
+          (define name (execution-name execution))
+          (define precision
+            (- (execution-precision execution)
+               (remainder (execution-precision execution) prec-threshold)))
+          (timeline-push!/unsafe 'mixsample
+                                 (execution-time execution)
+                                 name
+                                 precision
+                                 (execution-memory execution)))
+
         (if (not results)
-            (for/vector #:length batch-size
-                        ([bf-pt-hint (in-vector bf-pts-and-hints)])
-              (define pt* (car bf-pt-hint))
-              (define hint (cdr bf-pt-hint))
-              (with-handlers ([exn:rival:invalid? (lambda (e) (cons 'invalid #f))]
-                              [exn:rival:unsamplable? (lambda (e) (cons 'exit #f))]
-                              [exn:fail? (lambda (e) (cons 'exit #f))]) ; catch panics
-                (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
-                               [*rival-max-iterations* 5])
-                  (define value (rest (vector->list (rival-apply machine pt* hint))))
-                  (cons 'valid value))))
-            ;; Convert results to (status . value) format
+            (begin
+              (printf "[ERROR]: rival-apply-batch panicked\n")
+              (vector))
             (for/vector #:length batch-size
                         ([result (in-vector results)])
               (define status-code (car result))
               (define value (cdr result))
               (match status-code
-                [0 (cons 'valid (rest (vector->list value)))] ; drop precondition
+                [0 (cons 'valid (rest (vector->list value)))]
                 [-1 (cons 'invalid #f)]
                 [-2 (cons 'exit #f)]
                 [_ (cons 'invalid #f)]))))))
