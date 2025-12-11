@@ -24,7 +24,9 @@
 ;; If the flag is set to dump the egglog file, creates a new dump file in dump-egglog/ directory
 (define (create-new-egglog-subprocess [label #f])
   (define egglog-path
-    (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
+    (or (find-executable-path "egglog-experimental")
+        (find-executable-path "egglog")
+        (error "egglog-experimental executable not found in PATH")))
 
   (define-values (egglog-process egglog-output egglog-in err)
     (subprocess #f #f (current-error-port) egglog-path "--mode=interactive"))
