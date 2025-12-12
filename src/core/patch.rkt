@@ -130,28 +130,54 @@
   (define specs (batch->progs global-batch spec-brfs))
   (define-values (status pts)
     (if (null? specs)
-        (values 'invalid #f)
+        (values 'invalid '())
         (let ([real-compiler (make-real-compiler specs contexts)])
           (real-apply real-compiler (vector)))))
+
+  (define (take-values remaining n who)
+    (when (< (length remaining) n)
+      (error 'run-evaluate "Expected ~a outputs for ~a, got ~a" n who (length remaining)))
+    (values (take remaining n) (drop remaining n)))
+
   (define literals
-    (for/list ([pt (in-list (if (equal? status 'valid)
-                                pts
-                                '()))]
-               [ctx (in-list contexts)]
-               #:when (equal? status 'valid))
-      (define repr (context-repr ctx))
-      (match (representation-type repr)
-        ['bool
-         (if pt
-             '(TRUE)
-             '(FALSE))]
-        ['real (literal (repr->real pt repr) (representation-name repr))])))
+    (if (equal? status 'valid)
+        (let loop ([remaining pts]
+                   [reprs reprs]
+                   [out '()])
+          (cond
+            [(null? reprs)
+             (unless (null? remaining)
+               (error 'run-evaluate "Unexpected extra outputs: ~a" remaining))
+             (reverse out)]
+            [else
+             (define repr (car reprs))
+             (define type (representation-type repr))
+             (define name (representation-name repr))
+             (define-values (vals rest)
+               (match type
+                 ['array
+                  (define expected (apply * (array-representation-dims repr)))
+                  (take-values remaining expected type)]
+                 [_ (take-values remaining 1 type)]))
+             (define literal*
+               (match type
+                 ['bool
+                  (if (car vals)
+                      '(TRUE)
+                      '(FALSE))]
+                 ['real (literal (repr->real (car vals) repr) name)]
+                 ['array
+                  (define elem-repr (array-representation-elem repr))
+                  (define elems (map (lambda (x) (repr->real x elem-repr)) vals))
+                  (literal elems name)]))
+             (loop rest (cdr reprs) (cons literal* out))]))
+        '()))
 
   (define final-altns
-    (for/list ([literal (in-list literals)]
+    (for/list ([lit (in-list literals)]
                [altn (in-list real-altns)]
                #:when (equal? status 'valid))
-      (define brf (batch-add! global-batch literal))
+      (define brf (batch-add! global-batch lit))
       (alt brf '(evaluate) (list altn))))
 
   (timeline-push! 'inputs (map ~a specs))
@@ -195,6 +221,28 @@
   (timeline-push! 'count (length altns) (length rewritten))
 
   rewritten)
+
+(module+ test
+  (require rackunit
+           "../syntax/load-platform.rkt")
+
+  (activate-platform! "c")
+
+  (define test-batch (batch-empty))
+  (define array-expr `(array.f64 ,(literal 1 'binary64) ,(literal 2 'binary64)))
+  (define array-brf (batch-add! test-batch array-expr))
+  (define array-altn (alt array-brf 'patch '()))
+
+  (define evaluated (run-evaluate (list array-altn) test-batch))
+
+  (check-equal? (length evaluated) 1)
+
+  (define result-expr (deref (alt-expr (first evaluated))))
+  (match result-expr
+    [(literal vals prec)
+     (check-equal? prec 'arraybinary64)
+     (check-equal? (map exact->inexact vals) '(1.0 2.0))]
+    [else (fail "Expected literal output, got ~a" result-expr)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

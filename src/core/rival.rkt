@@ -163,6 +163,14 @@
                   (list (select-component lowered 0 'flatten-arrays-for-rival)
                         (select-component lowered 1 'flatten-arrays-for-rival))]
                  [else (list (lower-scalar spec))]))))
+  (define new-reprs
+    (append* (for/list ([repr (in-list orig-reprs)])
+               (match (representation-type repr)
+                 ['array
+                  (define len (apply * (array-representation-dims repr)))
+                  (for/list ([i (in-range len)])
+                    (array-representation-elem repr))]
+                 [_ (list repr)]))))
   (define new-pre (lower-scalar pre))
   (define ctxs*
     (for/list ([ctx (in-list ctxs)])
@@ -187,12 +195,12 @@
                        (define val (vector-ref pt idx))
                        (set! idx (add1 idx))
                        val]))))
-  (values new-specs ctxs* new-pre assemble-point))
+  (values new-specs ctxs* new-pre assemble-point new-reprs))
 
 (define (make-real-compiler specs ctxs #:pre [pre '(TRUE)])
   (define-values (vars reprs specs* ctxs* pre* assemble)
-    (let-values ([(specs* ctxs* pre* assemble) (flatten-arrays-for-rival specs ctxs pre)])
-      (values (context-vars (first ctxs*)) (map context-repr ctxs*) specs* ctxs* pre* assemble)))
+    (let-values ([(specs* ctxs* pre* assemble reprs*) (flatten-arrays-for-rival specs ctxs pre)])
+      (values (context-vars (first ctxs*)) reprs* specs* ctxs* pre* assemble)))
   ; create the machine
   (define exprs (cons `(assert ,pre*) specs*))
   (define discs (cons boolean-discretization (map repr->discretization reprs)))
@@ -297,8 +305,10 @@
   (define <b64> <binary64>)
   (define arr-repr (make-array-representation #:name 'arraybinary64 #:elem <b64> #:dims '(2)))
   (define arr-ctx (context '(v) arr-repr (list arr-repr)))
-  (define-values (specs* ctxs* pre*) (flatten-arrays-for-rival (list 'v) (list arr-ctx) 'TRUE))
+  (define-values (specs* ctxs* pre* _assemble reprs*)
+    (flatten-arrays-for-rival (list 'v) (list arr-ctx) 'TRUE))
   (check-equal? specs* '(v_0 v_1))
   (check-equal? (map context-vars ctxs*) '((v_0 v_1)))
   (check-equal? (map context-var-reprs ctxs*) (list (list <b64> <b64>)))
+  (check-equal? reprs* (list <b64> <b64>))
   (check-equal? pre* 'TRUE))
