@@ -116,7 +116,7 @@
                                    (recurse spec)
                                    (lambda ()
                                      (define spec* (normalize-spec (batch-pull spec)))
-                                     (define type (reprs impl))
+                                     (define type (representation-type (reprs impl)))
                                      (cons spec* type)))
                         (insert-node! (list '$approx (recurse spec) (recurse impl)))]
                        [(list op (app recurse args) ...) (insert-node! (cons op args))]))))
