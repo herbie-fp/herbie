@@ -27,6 +27,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary32> #:cost 32bit-move-cost)
+(define <array32> (make-array-representation #:name 'arraybinary32 #:elem <binary32> #:dims '(2)))
 
 (define-operation (if.f32 [c <bool>] [t <binary32>] [f <binary32>]) <binary32>
   #:spec (if c t f) #:impl if-impl
@@ -86,6 +87,20 @@
   [tanh.f32   #:spec (tanh x)   #:impl (from-libm 'tanhf)   #:cost 1.000]
   [tgamma.f32 #:spec (tgamma x) #:impl (from-libm 'tgammaf) #:cost 2.625]
   [trunc.f32  #:spec (trunc x)  #:impl (from-libm 'truncf)  #:cost 0.275])
+
+(define-representation <array32> #:cost (* 2 32bit-move-cost))
+
+(define-operation (array.f32 [x <binary32>] [y <binary32>]) <array32>
+  #:spec (array x y)
+  #:impl (lambda (a b) (vector a b))
+  #:fpcore (! :precision binary32 (array x y))
+  #:cost 0.25)
+
+(define-operation (ref.f32 [arr <array32>] [idx <binary32>]) <binary32>
+  #:spec (ref arr idx)
+  #:impl (lambda (arr idx) (vector-ref arr (inexact->exact (round idx))))
+  #:fpcore (! :precision binary32 (ref arr idx))
+  #:cost 0.2)
 
 (define-operations ([x <binary32>] [y <binary32>]) <binary32> #:fpcore (! :precision binary32 _)
   [pow.f32       #:spec (pow x y)       #:impl (from-libm 'powf)       #:cost 2.000]
@@ -175,13 +190,13 @@
 
 (define-representation <array64> #:cost (* 2 64bit-move-cost))
 
-(define-operation (array [x <binary64>] [y <binary64>]) <array64>
+(define-operation (array.f64 [x <binary64>] [y <binary64>]) <array64>
   #:spec (array x y)
   #:impl (lambda (a b) (vector a b))
   #:fpcore (! :precision binary64 (array x y))
   #:cost 0.25)
 
-(define-operation (ref [arr <array64>] [idx <binary64>]) <binary64>
+(define-operation (ref.f64 [arr <array64>] [idx <binary64>]) <binary64>
   #:spec (ref arr idx)
   #:impl (lambda (arr idx) (vector-ref arr (inexact->exact (round idx))))
   #:fpcore (! :precision binary64 (ref arr idx))
