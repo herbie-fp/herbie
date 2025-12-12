@@ -50,8 +50,16 @@
   (real->double-flonum (log x 2)))
 
 (define (random-generate repr)
-  (define bits (sub1 (representation-total-bits repr)))
-  ((representation-ordinal->repr repr) (random-integer (- (expt 2 bits)) (expt 2 bits))))
+  (match (representation-type repr)
+    ['array
+     (define elem-repr (array-representation-elem repr))
+     (define bits (sub1 (representation-total-bits elem-repr)))
+     (define len (apply * (array-representation-dims repr)))
+     ((representation-ordinal->repr repr) (for/list ([i (in-range len)])
+                                            (random-integer (- (expt 2 bits)) (expt 2 bits))))]
+    [_
+     (define bits (sub1 (representation-total-bits repr)))
+     ((representation-ordinal->repr repr) (random-integer (- (expt 2 bits)) (expt 2 bits)))]))
 
 (define (=/total x1 x2 repr)
   (define ->ordinal (representation-repr->ordinal repr))

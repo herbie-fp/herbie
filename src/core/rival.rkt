@@ -205,8 +205,8 @@
   ; wrap it with useful information for Herbie
   (real-compiler pre
                  (list->vector vars)
-                 (list->vector (context-var-reprs (first ctxs)))
-                 specs
+                 (list->vector (context-var-reprs (first ctxs*)))
+                 specs*
                  (list->vector reprs)
                  machine
                  dump-file))
