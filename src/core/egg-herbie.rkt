@@ -116,7 +116,7 @@
                                    (recurse spec)
                                    (lambda ()
                                      (define spec* (normalize-spec (batch-pull spec)))
-                                     (define type (representation-type (reprs impl)))
+                                     (define type (reprs impl))
                                      (cons spec* type)))
                         (insert-node! (list '$approx (recurse spec) (recurse impl)))]
                        [(list op (app recurse args) ...) (insert-node! (cons op args))]))))
@@ -1077,13 +1077,14 @@
                  enode)]
             [(list '$approx spec (app eggref impl))
              (define spec* (vector-ref id->spec spec))
-             (unless spec*
-               (error 'regraph-extract-variants "no initial approx node in eclass"))
              (define spec-type
                (if (representation? type)
                    (representation-type type)
                    type))
-             (define final-spec (egg-parsed->expr spec* spec-type))
+             (define final-spec
+               (cond
+                 [spec* (egg-parsed->expr spec* spec-type)]
+                 [else (loop (eggref spec) spec-type)]))
              (define final-spec-idx (batchref-idx (batch-add! batch final-spec)))
              (approx final-spec-idx (loop impl type))]
             [(list impl (app eggref args) ...)

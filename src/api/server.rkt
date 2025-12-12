@@ -475,8 +475,8 @@
 (define (make-sample-result herbie-result job-id)
   (define test (job-result-test herbie-result))
   (define pctx (job-result-backend herbie-result))
-  (define repr (context-repr (test-context test)))
-  (hasheq 'points (pcontext->json pctx repr)))
+  (define ctx (test-context test))
+  (hasheq 'points (pcontext->json pctx ctx)))
 
 (define (make-cost-result herbie-result job-id)
   (hasheq 'cost (job-result-backend herbie-result)))
@@ -553,10 +553,10 @@
           backend-hash))
 
 (define (backend-improve-result-hash-table backend test errcache)
-  (define repr (context-repr (test-context test)))
+  (define ctx (test-context test))
   (define pcontext (improve-result-pcontext backend))
   (hasheq 'pcontext
-          (pcontext->json pcontext repr)
+          (pcontext->json pcontext ctx)
           'start
           (analysis->json (improve-result-start backend) pcontext test errcache)
           'target
@@ -564,9 +564,14 @@
           'end
           (map (curryr analysis->json pcontext test errcache) (improve-result-end backend))))
 
-(define (pcontext->json pcontext repr)
+(define (pcontext->json pcontext ctx)
+  (define var-reprs (context-var-reprs ctx))
+  (define out-repr (context-repr ctx))
   (for/list ([(pt ex) (in-pcontext pcontext)])
-    (list (map (curryr value->json repr) (vector->list pt)) (value->json ex repr))))
+    (list (for/list ([val (in-vector pt)]
+                     [repr (in-list var-reprs)])
+            (value->json val repr))
+          (value->json ex out-repr))))
 
 (define (analysis->json analysis pcontext test errcache)
   (define repr (context-repr (test-context test)))

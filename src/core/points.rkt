@@ -55,7 +55,10 @@
 ;; all points in a pcontext.
 
 (define (average . s)
-  (/ (apply + s) (length s)))
+  (define flat (flatten s))
+  (unless (and (list? flat) (not (null? flat)))
+    (error 'average "Cannot average empty list ~a" s))
+  (/ (apply + flat) (length flat)))
 
 (define (errors-score e)
   (apply average (map ulps->bits e)))
@@ -116,4 +119,5 @@
           (if (special? out-val)
               max-error
               (ulp-difference out-val exact-val repr*))))
-      (append elem-errors rest))))
+      (define aggregated-error (average elem-errors))
+      (cons aggregated-error rest))))

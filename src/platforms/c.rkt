@@ -98,7 +98,9 @@
 
 (define-operation (ref.f32 [arr <array32>] [idx <binary32>]) <binary32>
   #:spec (ref arr idx)
-  #:impl (lambda (arr idx) (vector-ref arr (inexact->exact (round idx))))
+  #:impl (lambda (arr idx)
+           (define vec (if (vector? arr) arr (list->vector arr)))
+           (vector-ref vec (inexact->exact (round idx))))
   #:fpcore (! :precision binary32 (ref arr idx))
   #:cost 0.2)
 
@@ -198,7 +200,9 @@
 
 (define-operation (ref.f64 [arr <array64>] [idx <binary64>]) <binary64>
   #:spec (ref arr idx)
-  #:impl (lambda (arr idx) (vector-ref arr (inexact->exact (round idx))))
+  #:impl (lambda (arr idx)
+           (define vec (if (vector? arr) arr (list->vector arr)))
+           (vector-ref vec (inexact->exact (round idx))))
   #:fpcore (! :precision binary64 (ref arr idx))
   #:cost 0.2)
 

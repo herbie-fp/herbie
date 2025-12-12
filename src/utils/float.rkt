@@ -129,9 +129,13 @@
   (parameterize ([bf-precision (representation-total-bits repr)])
     (match (representation-type repr)
       ['array
-       (unless (list? x)
-         (raise-herbie-error "Expected list for array conversion, got ~a" x))
-       ((representation-bf->repr repr) (map bf x))]
+       (define len (apply * (array-representation-dims repr)))
+       (define lst
+         (cond
+           [(vector? x) (vector->list x)]
+           [(list? x) x]
+           [else (make-list len x)]))
+       ((representation-bf->repr repr) (map bf lst))]
       [_ ((representation-bf->repr repr) (bf x))])))
 
 (define (repr->real x repr)
