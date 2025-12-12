@@ -53,12 +53,13 @@
                   (lambda (x y) (- (ulp-difference x y repr) 1))))
 
 ;; Herbie's wrapper around the Rival machine abstraction.
-(struct real-compiler (pre vars var-reprs exprs reprs machine dump-file))
+(struct real-compiler (pre vars var-reprs exprs reprs machine dump-file assemble))
 
 ;; Creates a Rival machine.
 ;; Takes a context to encode input variables and their representations,
 ;; a list of expressions, and a list of output representations
 ;; for each expression. Optionally, takes a precondition.
+;; Returns flattened specs/contexts for Rival plus a reassembler for points.
 (define (flatten-arrays-for-rival specs ctxs pre)
   ;; Flatten array representations into multiple scalar vars/outputs without involving Rival arrays.
   (define (scalar-expr v who)
@@ -119,7 +120,7 @@
       [_ `(scalar ,expr)]))
   (define orig-vars (context-vars (first ctxs)))
   (define orig-reprs (map context-repr ctxs))
-  (define var-reprs (context-var-reprs (first ctxs)))
+  (define orig-var-reprs (context-var-reprs (first ctxs)))
   (define taken (list->seteq orig-vars))
   (define (fresh base)
     (let loop ([i 0])
@@ -131,7 +132,7 @@
   (define new-vars '())
   (define new-var-reprs '())
   (for ([v orig-vars]
-        [r var-reprs])
+        [r orig-var-reprs])
     (cond
       [(eq? (representation-type r) 'array)
        (define base (symbol->string v))
@@ -170,12 +171,28 @@
           ['array (array-representation-elem (context-repr ctx))]
           [_ (context-repr ctx)]))
       (context new-vars repr* new-var-reprs)))
-  (values new-specs ctxs* new-pre))
+  (define (assemble-point pt)
+    (define idx 0)
+    (list->vector (for/list ([r (in-list orig-var-reprs)])
+                    (match (representation-type r)
+                      ['array
+                       (define len (apply * (array-representation-dims r)))
+                       (define elems
+                         (for/list ([i (in-range len)])
+                           (define val (vector-ref pt idx))
+                           (set! idx (add1 idx))
+                           val))
+                       (list->vector elems)]
+                      [_
+                       (define val (vector-ref pt idx))
+                       (set! idx (add1 idx))
+                       val]))))
+  (values new-specs ctxs* new-pre assemble-point))
 
 (define (make-real-compiler specs ctxs #:pre [pre '(TRUE)])
-  (define-values (vars reprs specs* ctxs* pre*)
-    (let-values ([(specs* ctxs* pre*) (flatten-arrays-for-rival specs ctxs pre)])
-      (values (context-vars (first ctxs*)) (map context-repr ctxs*) specs* ctxs* pre*)))
+  (define-values (vars reprs specs* ctxs* pre* assemble)
+    (let-values ([(specs* ctxs* pre* assemble) (flatten-arrays-for-rival specs ctxs pre)])
+      (values (context-vars (first ctxs*)) (map context-repr ctxs*) specs* ctxs* pre* assemble)))
   ; create the machine
   (define exprs (cons `(assert ,pre*) specs*))
   (define discs (cons boolean-discretization (map repr->discretization reprs)))
@@ -209,7 +226,8 @@
                  specs*
                  (list->vector reprs)
                  machine
-                 dump-file))
+                 dump-file
+                 assemble))
 
 (define (bigfloat->readable-string x)
   (define real (bigfloat->real x)) ; Exact rational unless inf/nan
@@ -220,7 +238,7 @@
 
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
-  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file) compiler)
+  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file _) compiler)
   (define start (current-inexact-milliseconds))
   (define pt*
     (for/vector #:length (vector-length vars)

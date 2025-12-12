@@ -100,7 +100,7 @@
   hyperrect-sampler)
 
 (define (make-sampler compiler)
-  (match-define (real-compiler pre vars var-reprs _ reprs _ _) compiler)
+  (match-define (real-compiler pre vars var-reprs _ reprs _ _ _) compiler)
   (cond
     [(and (flag-set? 'setup 'search)
           (not (vector-empty? var-reprs))
@@ -126,6 +126,7 @@
   (define vars (real-compiler-vars compiler))
   (define var-reprs (real-compiler-var-reprs compiler))
   (define reprs (real-compiler-reprs compiler))
+  (define assemble (real-compiler-assemble compiler))
 
   (real-compiler-clear! compiler) ; Clear profiling vector
   (define-values (points exactss)
@@ -159,8 +160,8 @@
       (cond
         [(and (list? exs) (not is-bad?))
          (if (>= (+ 1 sampled) (*num-points*))
-             (values (cons pt points) (cons exs exactss))
-             (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
+             (values (cons (assemble pt) points) (cons exs exactss))
+             (loop (+ 1 sampled) 0 (cons (assemble pt) points) (cons exs exactss)))]
         [else
          (when (>= skipped (*max-skipped-points*))
            (raise-herbie-sampling-error "Cannot sample enough valid points."
