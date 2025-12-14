@@ -17,10 +17,6 @@
 ;; This first part handles timelines for a single Herbie run
 
 (define (make-timeline name timeline #:info [info #f] #:path [path "."])
-  (define total-memory
-    (apply +
-           (for/list ([phase (in-list timeline)])
-             (second (first (dict-ref phase 'memory))))))
   `(html (head (meta ([charset "utf-8"]))
                (title "Metrics for " ,(~a name))
                (link ([rel "stylesheet"] [type "text/css"]
@@ -32,7 +28,7 @@
                                  `(("Report" . "index.html"))
                                  `(("Details" . "graph.html"))))
                ,(if info
-                    (render-about info total-memory)
+                    (render-about info)
                     "")
                ,(render-timeline timeline)
                ,(render-profile))))
@@ -81,7 +77,8 @@
             ,@(dict-call curr render-phase-outcomes 'outcomes)
             ,@(dict-call curr render-phase-compiler 'compiler)
             ,@(dict-call curr render-phase-mixed-sampling 'mixsample)
-            ,@(dict-call curr render-phase-bogosity 'bogosity))))
+            ,@(dict-call curr render-phase-bogosity 'bogosity)
+            ,@(dict-call curr render-phase-allocations 'allocations))))
 
 (define/reset id-counter 0)
 
@@ -405,9 +402,21 @@
                                           ,@(for/list ([out output])
                                               `(tr (td (pre ,(~a out)))))))))))
 
+(define (render-phase-allocations allocations)
+  (define sorted (sort allocations > #:key second))
+  (define total (apply + (map second sorted)))
+  `((dt "Allocations")
+    (dd (table ((class "times"))
+               (thead (tr (th "Phase") (th "Allocated") (th "Percent")))
+               ,@(for/list ([rec (in-list sorted)])
+                   (match-define (list type alloc) rec)
+                   `(tr (td ,(~a type))
+                        (td ,(~r (/ alloc (expt 2 20)) #:group-sep " " #:precision '(= 1)) " MiB")
+                        (td ,(format-percent alloc total))))))))
+
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
-(define (render-about info total-memory)
+(define (render-about info)
   (match-define (report-info date
                              commit
                              branch
@@ -447,9 +456,7 @@
                                      " "
                                      ,(~a class)
                                      ":"
-                                     ,(~a flag)))))))
-          (tr (th "Memory:")
-              (td ,(~r (/ total-memory (expt 2 20)) #:group-sep " " #:precision '(= 1)) " MB"))))
+                                     ,(~a flag)))))))))
 
 (define (render-profile)
   `(section ([id "profile"]) (h1 "Profiling") (p ((class "load-text")) "Loading profile data...")))
