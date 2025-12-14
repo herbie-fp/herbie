@@ -124,7 +124,7 @@ pub extern "C" fn rival_compile(
 
         let disc = RustDiscretization { target, types };
         let machine = MachineBuilder::new(disc)
-            .profile_capacity(100_000)
+            .profile_capacity(1000)
             .max_precision(10000)
             .build(exprs, vars);
         let wrapper = MachineWrapper {
