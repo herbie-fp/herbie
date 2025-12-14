@@ -19,74 +19,56 @@ impl Discretization for RustDiscretization {
         self.target
     }
 
-    fn convert(&self, idx: usize, v: &Float) -> Float {
-        match self.types[idx] {
-            DiscretizationType::Bool => {
-                if v.is_zero() {
-                    Float::with_val(v.prec(), 0.0)
-                } else {
-                    Float::with_val(v.prec(), 1.0)
-                }
-            }
-            DiscretizationType::F32 => {
-                let f = v.to_f32();
-                Float::with_val(v.prec(), f)
-            }
-            DiscretizationType::F64 => {
-                let f = v.to_f64();
-                Float::with_val(v.prec(), f)
-            }
-        }
+    fn convert(&self, _idx: usize, v: &Float) -> Float {
+        v.clone()
     }
 
     fn distance(&self, idx: usize, lo: &Float, hi: &Float) -> usize {
-        match self.types[idx] {
+        let disc = self.types.get(idx).unwrap_or(&DiscretizationType::F64);
+        match disc {
             DiscretizationType::Bool => {
-                let lo_bool = !lo.is_zero();
-                let hi_bool = !hi.is_zero();
-                if lo_bool == hi_bool {
+                if lo.to_f64() == hi.to_f64() {
                     0
                 } else {
                     2
                 }
             }
             DiscretizationType::F32 => {
-                let lo_f = lo.to_f32();
-                let hi_f = hi.to_f32();
-                let lo_ord = f32_ordinal(lo_f);
-                let hi_ord = f32_ordinal(hi_f);
-                (hi_ord - lo_ord).abs() as usize
+                let x = lo.to_f32();
+                let y = hi.to_f32();
+                if x == y {
+                    return 0;
+                }
+                let to_ordinal = |v: f32| -> i32 {
+                    let bits = v.to_bits() as i32;
+                    if bits < 0 {
+                        !bits
+                    } else {
+                        bits
+                    }
+                };
+                let ox = to_ordinal(x);
+                let oy = to_ordinal(y);
+                oy.wrapping_sub(ox).unsigned_abs() as usize
             }
             DiscretizationType::F64 => {
-                let lo_f = lo.to_f64();
-                let hi_f = hi.to_f64();
-                let lo_ord = f64_ordinal(lo_f);
-                let hi_ord = f64_ordinal(hi_f);
-                let diff = (hi_ord - lo_ord).abs();
-                if diff > (usize::MAX as i128) {
-                    usize::MAX
-                } else {
-                    diff as usize
+                let x = lo.to_f64();
+                let y = hi.to_f64();
+                if x == y {
+                    return 0;
                 }
+                let to_ordinal = |v: f64| -> i64 {
+                    let bits = v.to_bits() as i64;
+                    if bits < 0 {
+                        !bits
+                    } else {
+                        bits
+                    }
+                };
+                let ox = to_ordinal(x);
+                let oy = to_ordinal(y);
+                oy.wrapping_sub(ox).unsigned_abs() as usize
             }
         }
-    }
-}
-
-fn f32_ordinal(x: f32) -> i64 {
-    let u = x.abs().to_bits() as i64;
-    if x.is_sign_negative() {
-        -u
-    } else {
-        u
-    }
-}
-
-fn f64_ordinal(x: f64) -> i128 {
-    let u = x.abs().to_bits() as i128;
-    if x.is_sign_negative() {
-        -u
-    } else {
-        u
     }
 }

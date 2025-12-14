@@ -307,7 +307,7 @@ pub fn parse_expr(sexpr: &SExpr) -> Result<Expr, String> {
                         Ok(expr)
                     }
                 }
-                ("assert", 1) => Ok(args[0].clone()),
+                ("assert", 1) => Ok(Expr::Assert(Box::new(args[0].clone()))),
                 ("TRUE", 0) => Ok(Expr::Literal(Float::with_val(1024, 1.0))),
                 ("FALSE", 0) => Ok(Expr::Literal(Float::with_val(1024, 0.0))),
                 ("PI", 0) => Ok(Expr::Pi),
