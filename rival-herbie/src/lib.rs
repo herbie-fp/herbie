@@ -93,7 +93,7 @@ pub extern "C" fn rival_compile(
             .collect();
 
         let disc = RustDiscretization { target, types };
-        let machine = MachineBuilder::new(disc).build(exprs, vars);
+        let machine = MachineBuilder::new(disc).profile_capacity(1000).max_precision(10000).build(exprs, vars);
         let wrapper = MachineWrapper {
             machine,
             arg_buf: Vec::new(),
@@ -131,7 +131,7 @@ pub unsafe extern "C" fn rival_apply(
         let machine = &mut wrapper.machine;
         let arg_buf = &mut wrapper.arg_buf;
 
-        let arg_prec = machine.disc.target().max(machine.state.min_precision);
+        let arg_prec = machine.disc.target().max(machine.min_precision);
 
         // Resize buffer if needed
         if arg_buf.len() != args_len {
@@ -208,7 +208,7 @@ pub unsafe extern "C" fn rival_analyze_with_hints(
 
         // Parse args: "lo1 hi1 lo2 hi2 ..."
         let parts: Vec<&str> = rect_str.split_whitespace().collect();
-        let arg_prec = machine.disc.target().max(machine.state.min_precision);
+        let arg_prec = machine.disc.target().max(machine.min_precision);
 
         let mut args = Vec::new();
         for chunk in parts.chunks(2) {
@@ -222,7 +222,7 @@ pub unsafe extern "C" fn rival_analyze_with_hints(
         }
 
         let hints = parse_hints_binary(slice::from_raw_parts(hints_ptr, hints_len));
-        let (status, next_hints, converged) = machine.analyze_with_hints(args, hints.as_deref());
+        let (status, next_hints, converged) = machine.analyze_with_hints(&args, hints.as_deref());
 
         // Serialize output
         // (status_lo status_hi converged (hint ...))
@@ -275,12 +275,12 @@ pub unsafe extern "C" fn rival_profile(
         let param = CStr::from_ptr(param_str).to_string_lossy();
 
         match param.as_ref() {
-            "instructions" => machine.state.instructions.len().to_string(),
-            "iterations" => machine.state.iteration.to_string(),
-            "bumps" => machine.state.bumps.to_string(),
+            "instructions" => machine.instructions.len().to_string(),
+            "iterations" => machine.iteration.to_string(),
+            "bumps" => machine.bumps.to_string(),
             "executions" => {
                 let mut s = String::from("(");
-                for exec in machine.state.profiler.iter() {
+                for exec in machine.profiler.records().iter() {
                     s.push_str("(");
                     s.push_str(exec.name);
                     s.push_str(" ");
@@ -295,7 +295,7 @@ pub unsafe extern "C" fn rival_profile(
                     s.push_str(&exec.iteration.to_string());
                     s.push_str(") ");
                 }
-                machine.state.profiler.reset();
+                machine.profiler.reset();
 
                 if s.ends_with(" ") {
                     s.pop();
