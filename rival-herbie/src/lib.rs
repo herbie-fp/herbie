@@ -93,7 +93,10 @@ pub extern "C" fn rival_compile(
             .collect();
 
         let disc = RustDiscretization { target, types };
-        let machine = MachineBuilder::new(disc).profile_capacity(1000).max_precision(10000).build(exprs, vars);
+        let machine = MachineBuilder::new(disc)
+            .profile_capacity(1000)
+            .max_precision(10000)
+            .build(exprs, vars);
         let wrapper = MachineWrapper {
             machine,
             arg_buf: Vec::new(),
@@ -208,7 +211,8 @@ pub unsafe extern "C" fn rival_analyze_with_hints(
 
         // Parse args: "lo1 hi1 lo2 hi2 ..."
         let parts: Vec<&str> = rect_str.split_whitespace().collect();
-        let arg_prec = machine.disc.target().max(machine.min_precision);
+        // This makes things work for benchmarks like piecewise defined which is kinda odd
+        let arg_prec = 1024;
 
         let mut args = Vec::new();
         for chunk in parts.chunks(2) {

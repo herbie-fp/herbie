@@ -40,6 +40,9 @@ impl Discretization for RustDiscretization {
                     return 0;
                 }
                 let to_ordinal = |v: f32| -> i32 {
+                    if v == 0.0 {
+                        return 0;
+                    }
                     let bits = v.to_bits() as i32;
                     if bits < 0 {
                         !bits
@@ -58,6 +61,9 @@ impl Discretization for RustDiscretization {
                     return 0;
                 }
                 let to_ordinal = |v: f64| -> i64 {
+                    if v == 0.0 {
+                        return 0;
+                    }
                     let bits = v.to_bits() as i64;
                     if bits < 0 {
                         !bits
@@ -65,6 +71,7 @@ impl Discretization for RustDiscretization {
                         bits
                     }
                 };
+
                 let ox = to_ordinal(x);
                 let oy = to_ordinal(y);
                 oy.wrapping_sub(ox).unsigned_abs() as usize
