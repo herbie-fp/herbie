@@ -62,7 +62,6 @@
 ; Adds expressions returning the root ids
 (define (egraph-add-exprs egg-data batch brfs ctx)
   (match-define (egraph-data ptr id->spec) egg-data)
-
   ; normalizes an approx spec
   (define (normalize-spec expr)
     (match expr
@@ -299,7 +298,8 @@
                          (impl-info op 'itype)
                          (operator-info op 'itype))]
                     [(impl-exists? op) (impl-info op 'itype)]
-                    [(operator-exists? op) (operator-info op 'itype)])))])))
+                    [(operator-exists? op) (operator-info op 'itype)]
+                    [else (make-list (length args) 'real)])))])))
 
 ;; Parses a string from egg into a single S-expr.
 (define (egg-expr->expr egg-expr ctx)
@@ -571,9 +571,12 @@
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(string-prefix? (symbol->string f) "sound-") (list 'real)]
        [else
-        (filter values
-                (list (and (impl-exists? f) (impl-info f 'otype))
-                      (and (operator-exists? f) (operator-info f 'otype))))])]))
+        (let ([types (filter values
+                             (list (and (impl-exists? f) (impl-info f 'otype))
+                                   (and (operator-exists? f) (operator-info f 'otype))))])
+          (if (null? types)
+              (list 'real)
+              types))])]))
 
 ;; Rebuilds an e-node using typed e-classes
 (define (rebuild-enode enode type lookup)
@@ -594,8 +597,10 @@
        [else
         (define itypes
           (cond
-            [(representation? type) (impl-info f 'itype)]
-            [else (operator-info f 'itype)]))
+            [(representation? type) (and (impl-exists? f) (impl-info f 'itype))]
+            [(impl-exists? f) (impl-info f 'itype)]
+            [(operator-exists? f) (operator-info f 'itype)]
+            [else '()]))
         ; unsafe since we don't check that |itypes| = |ids|
         ; optimize for common cases to avoid extra allocations
         (cons
@@ -1051,12 +1056,13 @@
                type))
          (approx (loop spec spec-type) (loop impl type))]
         [(list op args ...)
-         (cons op
-               (map loop
-                    args
-                    (if (representation? type)
-                        (impl-info op 'itype)
-                        (operator-info op 'itype))))])))
+         (define itypes
+           (cond
+             [(representation? type) (and (impl-exists? op) (impl-info op 'itype))]
+             [(impl-exists? op) (impl-info op 'itype)]
+             [(operator-exists? op) (operator-info op 'itype)]
+             [else (make-list (length args) 'real)]))
+         (cons op (map loop args itypes))])))
 
   (define (eggref id)
     (cdr (vector-ref egg-nodes id)))
@@ -1077,22 +1083,29 @@
                  enode)]
             [(list '$approx spec (app eggref impl))
              (define spec* (vector-ref id->spec spec))
+             (unless spec*
+               (error 'regraph-extract-variants "no initial approx node in eclass"))
              (define spec-type
                (if (representation? type)
                    (representation-type type)
                    type))
-             (define final-spec
-               (cond
-                 [spec* (egg-parsed->expr spec* spec-type)]
-                 [else (loop (eggref spec) spec-type)]))
+             (define final-spec (egg-parsed->expr spec* spec-type))
+             #;(define final-spec
+                 (cond
+                   [spec* (egg-parsed->expr spec* spec-type)]
+                   [else (loop (eggref spec) spec-type)]))
              (define final-spec-idx (batchref-idx (batch-add! batch final-spec)))
              (approx final-spec-idx (loop impl type))]
             [(list impl (app eggref args) ...)
+             (define itypes
+               (cond
+                 [(representation? type) (and (impl-exists? impl) (impl-info impl 'itype))]
+                 [(impl-exists? impl) (impl-info impl 'itype)]
+                 [(operator-exists? impl) (operator-info impl 'itype)]
+                 [else (make-list (length args) 'real)]))
              (define args*
                (for/list ([arg (in-list args)]
-                          [type (in-list (if (representation? type)
-                                             (impl-info impl 'itype)
-                                             (operator-info impl 'itype)))])
+                          [type (in-list itypes)])
                  (loop arg type)))
              (cons impl args*)]))
         (batchref-idx (batch-push! batch enode*))))
