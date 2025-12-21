@@ -22,10 +22,14 @@
 
 (define *timeline-active-key* #f)
 (define *timeline-active-value* #f)
+(define *timeline-active-count* 0)
 
 (define *timeline-disabled* (make-parameter true))
 
 (define always-compact '(mixsample outcomes))
+
+;; Threshold for incremental compaction during push
+(define *compact-threshold* 10000)
 
 (define (timeline-event! type)
   (when (and *timeline-active-key* (pair? (unbox (*timeline*))))
@@ -33,7 +37,8 @@
                   *timeline-active-key*
                   (curry append *timeline-active-value*)
                   '())
-    (set! *timeline-active-key* #f))
+    (set! *timeline-active-key* #f)
+    (set! *timeline-active-count* 0))
 
   (unless (*timeline-disabled*)
     (when (pair? (unbox (*timeline*)))
@@ -57,20 +62,33 @@
           values))
     (cond
       [(eq? *timeline-active-key* key)
-       (set! *timeline-active-value* (cons val *timeline-active-value*))]
+       (set! *timeline-active-value* (cons val *timeline-active-value*))
+       (set! *timeline-active-count* (add1 *timeline-active-count*))
+       ;; Incremental compaction for high-volume keys
+       (when (and (memq key always-compact) (>= *timeline-active-count* *compact-threshold*))
+         (hash-update! (car (unbox (*timeline*))) key (curry append *timeline-active-value*) '())
+         (timeline-compact! key)
+         (set! *timeline-active-key* #f)
+         (set! *timeline-active-value* #f)
+         (set! *timeline-active-count* 0))]
       [(not *timeline-active-key*)
        (unless (pair? (unbox (*timeline*)))
          (error 'timeline "Cannot push '~a to an empty timeline." key))
        (set! *timeline-active-key* key)
-       (set! *timeline-active-value* (list val))]
+       (set! *timeline-active-value* (list val))
+       (set! *timeline-active-count* 1)]
       [else
        (when *timeline-active-key*
          (hash-update! (car (unbox (*timeline*)))
                        *timeline-active-key*
                        (curry append *timeline-active-value*)
-                       '()))
+                       '())
+         ;; Compact high-volume keys when flushing
+         (when (memq *timeline-active-key* always-compact)
+           (timeline-compact! *timeline-active-key*)))
        (set! *timeline-active-key* key)
-       (set! *timeline-active-value* (list val))])))
+       (set! *timeline-active-value* (list val))
+       (set! *timeline-active-count* 1)])))
 
 (define *timeline-1st-timer* #f)
 (define *timeline-2nd-timer* #f)
