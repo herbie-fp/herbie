@@ -25,11 +25,23 @@
 ;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
 (define (unbatchify-alts batch altns)
   (define exprs (batch-exprs batch))
+  (define (unmunge-event event)
+    (match event
+      [(list 'evaluate (? batchref? start-expr)) (list 'evaluate (exprs start-expr))]
+      [(list 'taylor (? batchref? start-expr) name var) (list 'taylor (exprs start-expr) name var)]
+      [(list 'rr (? batchref? start-expr) (? batchref? end-expr) input proof)
+       (list 'rr (exprs start-expr) (exprs end-expr) input proof)]
+      [_ event]))
   (define (unmunge altn)
     (define expr (alt-expr altn))
+    (define event (alt-event altn))
+    (define event* (unmunge-event event))
     (match expr
       [(? batchref? brf)
        (define expr* (exprs brf))
-       (struct-copy alt altn [expr expr*])]
-      [_ altn]))
+       (struct-copy alt altn [expr expr*] [event event*])]
+      [_
+       (if (equal? event event*)
+           altn
+           (struct-copy alt altn [event event*]))]))
   (map (curry alt-map unmunge) altns))
