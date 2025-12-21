@@ -11,6 +11,7 @@
          timeline-load!
          timeline-extract
          timeline-merge
+         timeline-reattribute-gc
          *timeline-disabled*)
 (module+ debug
   (provide *timeline*))
@@ -198,11 +199,15 @@
       [(l1* '()) (cons rec (loop l1* (list (list (+ n2 1) t2))))]
       [(l1* l2*) (cons rec (loop l1* l2*))])))
 
+;; Generic & universal
 (define-timeline type #:custom (λ (a b) a))
 (define-timeline time #:custom +)
-(define-timeline gc-time #:custom +)
 
+;; Handled with separate GC phase
+(define-timeline gc-time #:custom +)
 (define-timeline memory [live +] [alloc +])
+(define-timeline allocations [phase false] [memory +])
+
 (define-timeline method [method])
 (define-timeline mixsample [time +] [function false] [precision false] [memory +])
 (define-timeline times [time +] [input false])
@@ -238,10 +243,31 @@
           (hash-update! data k (λ (old) ((hash-ref timeline-types k) v old)))
           (hash-set! data k v))))
 
-  (sort (hash-values types) > #:key (curryr hash-ref 'time)))
+  (sort (timeline-reattribute-gc (hash-values types)) > #:key (curryr hash-ref 'time)))
 
 (define (timeline-compact! key)
   (unless (*timeline-disabled*)
     (define fn (hash-ref timeline-types key #f))
     (when fn
       (hash-update! (car (unbox (*timeline*))) key (curryr fn '()) '()))))
+
+(define (timeline-reattribute-gc timeline)
+  (define total-gc-time (for/sum ([phase (in-list timeline)]) (hash-ref phase 'gc-time 0)))
+  (define allocation-table
+    (for/list ([phase (in-list timeline)])
+      (define type (hash-ref phase 'type "unknown"))
+      (define alloc (second (first (hash-ref phase 'memory '((0 0))))))
+      (list type alloc)))
+  (define adjusted-phases
+    (for/list ([phase (in-list timeline)])
+      (define gc-time (hash-ref phase 'gc-time 0))
+      (define new-time (- (hash-ref phase 'time 0) gc-time))
+      (define phase* (hash-copy phase))
+      (hash-set! phase* 'time new-time)
+      (hash-remove! phase* 'gc-time)
+      (hash-remove! phase* 'memory)
+      phase*))
+  (define gc-phase
+    (make-hasheq
+     (list (cons 'type "gc") (cons 'time total-gc-time) (cons 'allocations allocation-table))))
+  (append adjusted-phases (list gc-phase)))
