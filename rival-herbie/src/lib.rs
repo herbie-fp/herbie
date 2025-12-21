@@ -65,6 +65,8 @@ pub extern "C" fn rival_compile(
     target: u32,
     types_ptr: *const u32,
     num_types: u32,
+    max_precision: u32,
+    profile_capacity: usize,
 ) -> *mut MachineWrapper {
     let result = panic::catch_unwind(|| {
         let exprs_str = unsafe { CStr::from_ptr(exprs_str).to_string_lossy() };
@@ -94,8 +96,8 @@ pub extern "C" fn rival_compile(
 
         let disc = RustDiscretization { target, types };
         let machine = MachineBuilder::new(disc)
-            .profile_capacity(1000)
-            .max_precision(10000)
+            .profile_capacity(profile_capacity)
+            .max_precision(max_precision)
             .build(exprs, vars);
         let wrapper = MachineWrapper {
             machine,

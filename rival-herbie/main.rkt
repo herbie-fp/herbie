@@ -53,7 +53,7 @@
 (define (free p)
   (c-free p))
 
-(define-rival rival_compile (_fun _string _string _uint32 _pointer _uint32 -> _pointer))
+(define-rival rival_compile (_fun _string _string _uint32 _pointer _uint32 _uint32 _uint32 -> _pointer))
 
 (define-rival rival_destroy (_fun _pointer -> _void))
 
@@ -155,7 +155,7 @@
         [disc (in-list discs)])
     (ptr-set! types-ptr _uint32 i (discretization-type disc)))
 
-  (define ptr (rival_compile exprs-str vars-str target types-ptr num-types))
+  (define ptr (rival_compile exprs-str vars-str target types-ptr num-types (*rival-max-precision*) (*rival-profile-executions*)))
 
   (free types-ptr)
 
