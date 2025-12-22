@@ -24,12 +24,10 @@
                 (#:pre [pre any/c])
                 [c real-compiler?])]
           [real-apply
-           (->* (real-compiler? vector?) ((or/c (vectorof any/c) boolean?)) (values symbol? any/c))]
+           (->* (real-compiler? vector?) ((or/c rival-hints? boolean?)) (values symbol? any/c))]
           [real-compiler-clear! (-> real-compiler-clear! void?)]
           [real-compiler-analyze
-           (->* (real-compiler? (vectorof ival?))
-                ((or/c (vectorof any/c) boolean?))
-                (listof any/c))]))
+           (->* (real-compiler? (vectorof ival?)) ((or/c rival-hints? boolean?)) (listof any/c))]))
 
 (define (unified-contexts? ctxs)
   (cond

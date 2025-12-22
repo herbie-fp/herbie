@@ -2,7 +2,7 @@ use gmp_mpfr_sys::mpfr::{self, mpfr_t};
 use rival::eval::machine::Hint;
 use rival::{Discretization, ErrorFlags, Ival, Machine, MachineBuilder, RivalError};
 use rug::Float;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::panic;
 use std::ptr;
@@ -12,6 +12,17 @@ mod discretization;
 mod parser;
 use discretization::{DiscretizationType, RustDiscretization};
 use parser::{parse_expr, parse_sexpr, SExpr};
+
+pub struct MachineWrapper {
+    machine: Machine<RustDiscretization>,
+    arg_buf: Vec<Ival>,
+    /// Cached execution records for FFI transfer
+    execution_cache: Vec<ExecutionRecord>,
+}
+
+pub struct HintsHandle {
+    hints: Vec<Hint>,
+}
 
 #[repr(C)]
 pub struct ExecutionRecord {
@@ -32,59 +43,23 @@ pub struct ProfileData {
     pub executions_len: usize,
 }
 
+#[repr(C)]
+pub struct AnalyzeResult {
+    /// 0 = success, -1 = panic
+    pub status_code: i32,
+    pub is_error: bool,
+    pub maybe_error: bool,
+    pub converged: bool,
+    /// Caller must free with rival_hints_destroy
+    pub hints: *mut HintsHandle,
+}
+
 #[repr(u32)]
 pub enum ProfileField {
     Instructions = 0,
     Iterations = 1,
     Bumps = 2,
     Executions = 3,
-}
-
-pub struct MachineWrapper {
-    machine: Machine<RustDiscretization>,
-    arg_buf: Vec<Ival>,
-    /// Cached execution records for FFI transfer
-    execution_cache: Vec<ExecutionRecord>,
-}
-
-fn return_string(s: String) -> *mut c_char {
-    CString::new(s).unwrap().into_raw()
-}
-
-fn parse_hints_binary(data: &[u8]) -> Option<Vec<Hint>> {
-    if data.is_empty() {
-        return None;
-    }
-    let mut hints = Vec::with_capacity(data.len());
-    let mut i = 0;
-    while i < data.len() {
-        match data[i] {
-            0 => {
-                hints.push(Hint::Execute);
-                i += 1;
-            }
-            1 => {
-                hints.push(Hint::Skip);
-                i += 1;
-            }
-            2 => {
-                if i + 1 >= data.len() {
-                    return None;
-                }
-                hints.push(Hint::Alias(data[i + 1]));
-                i += 2;
-            }
-            3 => {
-                if i + 1 >= data.len() {
-                    return None;
-                }
-                hints.push(Hint::KnownBool(data[i + 1] != 0));
-                i += 2;
-            }
-            _ => return None,
-        }
-    }
-    Some(hints)
 }
 
 #[no_mangle]
@@ -143,22 +118,13 @@ pub extern "C" fn rival_compile(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn rival_destroy(ptr: *mut MachineWrapper) {
-    if ptr.is_null() {
-        return;
-    }
-    drop(Box::from_raw(ptr));
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn rival_apply(
     ptr: *mut MachineWrapper,
     args_ptrs: *const *const mpfr_t,
     args_len: usize,
     out_ptrs: *const *mut mpfr_t,
     out_len: usize,
-    hints_ptr: *const u8,
-    hints_len: usize,
+    hints_ptr: *const HintsHandle,
     max_iterations: usize,
     max_precision: u32,
 ) -> i32 {
@@ -213,9 +179,13 @@ pub unsafe extern "C" fn rival_apply(
             };
         }
 
-        let hints = parse_hints_binary(slice::from_raw_parts(hints_ptr, hints_len));
+        let hints = if hints_ptr.is_null() {
+            None
+        } else {
+            Some((&*hints_ptr).hints.as_slice())
+        };
 
-        let res = machine.apply(arg_buf, hints.as_deref(), max_iterations);
+        let res = machine.apply(arg_buf, hints, max_iterations);
         match res {
             Ok(vals) => {
                 if vals.len() != out_len {
@@ -246,9 +216,8 @@ pub unsafe extern "C" fn rival_apply(
 pub unsafe extern "C" fn rival_analyze_with_hints(
     ptr: *mut MachineWrapper,
     rect_str: *const c_char,
-    hints_ptr: *const u8,
-    hints_len: usize,
-) -> *mut c_char {
+    hints_ptr: *const HintsHandle,
+) -> AnalyzeResult {
     let result = panic::catch_unwind(|| {
         let wrapper = &mut *ptr;
         let machine = &mut wrapper.machine;
@@ -270,46 +239,36 @@ pub unsafe extern "C" fn rival_analyze_with_hints(
             }
         }
 
-        let hints = parse_hints_binary(slice::from_raw_parts(hints_ptr, hints_len));
-        let (status, next_hints, converged) = machine.analyze_with_hints(&args, hints.as_deref());
+        let hints = if hints_ptr.is_null() {
+            None
+        } else {
+            Some((&*hints_ptr).hints.as_slice())
+        };
 
-        // Serialize output
-        // (status_lo status_hi converged (hint ...))
-        let mut s = String::from("(");
-        s.push_str(&status.lo.as_float().to_string_radix(10, None));
-        s.push_str(" ");
-        s.push_str(&status.hi.as_float().to_string_radix(10, None));
-        s.push_str(" ");
-        s.push_str(if converged { "true" } else { "false" });
-        s.push_str(" (");
-        // Serialize hints
-        // Hint::Execute -> "execute"
-        // Hint::Skip -> "skip"
-        // Hint::Alias(u8) -> "(alias n)"
-        // Hint::KnownBool(bool) -> "(known-bool b)"
-        for hint in next_hints {
-            match hint {
-                Hint::Execute => s.push_str(" execute"),
-                Hint::Skip => s.push_str(" skip"),
-                Hint::Alias(n) => {
-                    s.push_str(" (alias ");
-                    s.push_str(&n.to_string());
-                    s.push_str(")");
-                }
-                Hint::KnownBool(b) => {
-                    s.push_str(" (known-bool ");
-                    s.push_str(if b { "true" } else { "false" });
-                    s.push_str(")");
-                }
-            }
+        let (status, next_hints, converged) = machine.analyze_with_hints(&args, hints);
+
+        let is_error = !status.lo.as_float().is_zero();
+        let maybe_error = !status.hi.as_float().is_zero();
+        let hints_handle = Box::into_raw(Box::new(HintsHandle { hints: next_hints }));
+
+        AnalyzeResult {
+            status_code: 0,
+            is_error,
+            maybe_error,
+            converged,
+            hints: hints_handle,
         }
-        s.push_str("))");
-        s
     });
 
     match result {
-        Ok(s) => return_string(s),
-        Err(_) => return_string(String::from("(error panic)")),
+        Ok(res) => res,
+        Err(_) => AnalyzeResult {
+            status_code: -1,
+            is_error: true,
+            maybe_error: true,
+            converged: false,
+            hints: ptr::null_mut(),
+        },
     }
 }
 
@@ -345,9 +304,19 @@ pub unsafe extern "C" fn rival_profile(ptr: *mut MachineWrapper, field: u32) -> 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn rival_free_string(ptr: *mut c_char) {
+pub extern "C" fn rival_hints_destroy(ptr: *mut HintsHandle) {
     if ptr.is_null() {
         return;
     }
-    drop(CString::from_raw(ptr));
+    unsafe {
+        drop(Box::from_raw(ptr));
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rival_destroy(ptr: *mut MachineWrapper) {
+    if ptr.is_null() {
+        return;
+    }
+    drop(Box::from_raw(ptr));
 }
