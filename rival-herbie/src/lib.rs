@@ -19,6 +19,8 @@ pub struct MachineWrapper {
     rect_buf: Vec<Ival>,
     /// Cached execution records for FFI transfer
     execution_cache: Vec<ExecutionRecord>,
+    /// Cached null-separated instruction names for FFI transfer
+    instruction_names_cache: Vec<u8>,
 }
 
 pub struct HintsHandle {
@@ -120,6 +122,7 @@ pub extern "C" fn rival_compile(
             arg_buf,
             rect_buf,
             execution_cache: Vec::new(),
+            instruction_names_cache: Vec::new(),
         };
         Box::into_raw(Box::new(wrapper))
     });
@@ -279,16 +282,18 @@ pub unsafe extern "C" fn rival_profile(ptr: *mut MachineWrapper, field: u32) -> 
     let machine = &mut wrapper.machine;
 
     // Build execution cache from profiler records
-    wrapper.execution_cache.clear();
-    for exec in machine.profiler.records().iter() {
-        wrapper.execution_cache.push(ExecutionRecord {
-            name_ptr: exec.name.as_ptr(),
-            name_len: exec.name.len(),
-            number: exec.number,
-            precision: exec.precision,
-            time_ms: exec.time_ms,
-            iteration: exec.iteration,
-        });
+    if field == ProfileField::Executions as u32 {
+        wrapper.execution_cache.clear();
+        for exec in machine.profiler.records().iter() {
+            wrapper.execution_cache.push(ExecutionRecord {
+                name_ptr: exec.name.as_ptr(),
+                name_len: exec.name.len(),
+                number: exec.number,
+                precision: exec.precision,
+                time_ms: exec.time_ms,
+                iteration: exec.iteration,
+            });
+        }
     }
 
     if field == ProfileField::Executions as u32 {
@@ -302,6 +307,29 @@ pub unsafe extern "C" fn rival_profile(ptr: *mut MachineWrapper, field: u32) -> 
         executions_ptr: wrapper.execution_cache.as_ptr(),
         executions_len: wrapper.execution_cache.len(),
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rival_instruction_names(
+    ptr: *mut MachineWrapper,
+    out_len: *mut usize,
+) -> *const u8 {
+    let wrapper = &mut *ptr;
+
+    // Build cache if empty (only on first call)
+    if wrapper.instruction_names_cache.is_empty() {
+        let names: Vec<&str> = wrapper
+            .machine
+            .instructions
+            .iter()
+            .map(|instr| instr.data.name_static())
+            .collect();
+        // Null-separated for easy parsing in Racket
+        wrapper.instruction_names_cache = names.join("\0").into_bytes();
+    }
+
+    *out_len = wrapper.instruction_names_cache.len();
+    wrapper.instruction_names_cache.as_ptr()
 }
 
 #[no_mangle]

@@ -90,8 +90,11 @@
 
 (define-rival rival_profile (_fun _pointer _profile-field -> _profile-data))
 
+(define-rival rival_instruction_names
+              (_fun _pointer (len : (_ptr o _size)) -> (ptr : _pointer) -> (values ptr len)))
+
 ;; Wrapper struct for machine
-(struct machine-wrapper (ptr discs arg-buf out-buf rect-buf)
+(struct machine-wrapper (ptr discs arg-buf out-buf rect-buf name-table)
   #:property prop:cpointer (struct-field-index ptr))
 
 ;; Wrapper struct for hints
@@ -133,7 +136,15 @@
         (define arg-buf (malloc _pointer n-args 'raw))
         (define out-buf (malloc _pointer n-outs 'raw))
         (define rect-buf (malloc _pointer (* 2 n-args) 'raw))
-        (define wrapper (machine-wrapper ptr discs arg-buf out-buf rect-buf))
+        ;; Fetch instruction names once and cache as vector of symbols
+        (define-values (names-ptr names-len) (rival_instruction_names ptr))
+        (define names-bytes (make-bytes names-len))
+        (memcpy names-bytes names-ptr names-len)
+        (define name-table
+          (list->vector
+            (map string->symbol
+                 (string-split (bytes->string/utf-8 names-bytes) "\0"))))
+        (define wrapper (machine-wrapper ptr discs arg-buf out-buf rect-buf name-table))
         (register-finalizer wrapper machine-destroy)
         wrapper)))
 
@@ -211,22 +222,26 @@
     (rival_profile machine param))
   (match param
     ['executions
+     (define name-table (machine-wrapper-name-table machine))
      (for/vector #:length executions-len
                  ([i (in-range executions-len)])
-       (read-execution-at executions-ptr i))]
+       (read-execution-at executions-ptr i name-table))]
     ['instructions instructions-len]
     ['iterations iterations]
     ['bumps bumps]))
 
-;; Read execution record directly to avoid cast operation (much more efficient)
-(define (read-execution-at base-ptr i)
+;; Read execution record using pre-cached name table (avoids FFI string overhead)
+(define (read-execution-at base-ptr i name-table)
   (define p (ptr-add base-ptr (* i execution-record-size)))
-  (define name-ptr (ptr-ref p _pointer))
-  (define name-len (ptr-ref (ptr-add p 8) _size))
-  (define name-bytes (make-bytes name-len))
-  (memcpy name-bytes name-ptr name-len)
-  (execution (string->symbol (bytes->string/utf-8 name-bytes))
-             (ptr-ref (ptr-add p 16) _int32) ; number
+  (define number (ptr-ref (ptr-add p 16) _int32))
+  ;; For regular instructions (number >= 0), use cached name table
+  ;; For special records (number = -1), fall back to reading name from FFI
+  (define name
+    (if (>= number 0)
+        (vector-ref name-table number) ; Fast vector lookup!
+        'adjust))
+  (execution name
+             number
              (ptr-ref (ptr-add p 20) _uint32) ; precision
              (ptr-ref (ptr-add p 24) _double) ; time_ms
              0 ; memory
