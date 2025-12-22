@@ -132,15 +132,18 @@
   (when (>= (vector-length executions) (*rival-profile-executions*))
     (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
   (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
+  (define mixsample-table (make-hash))
   (for ([execution (in-vector executions)])
     (define name (symbol->string (execution-name execution)))
     (define precision
       (- (execution-precision execution) (remainder (execution-precision execution) prec-threshold)))
-    (timeline-push!/unsafe 'mixsample
-                           (execution-time execution)
-                           name
-                           precision
-                           (execution-memory execution)))
+    (define key (cons name precision))
+    ;; Uses vectors to avoid allocation; this is really allocation-heavy
+    (define data (hash-ref! mixsample-table key (lambda () (make-vector 2 0))))
+    (vector-set! data 0 (+ (vector-ref data 0) (execution-time execution)))
+    (vector-set! data 1 (+ (vector-ref data 1) (execution-memory execution))))
+  (for ([(key val) (in-hash mixsample-table)])
+    (timeline-push!/unsafe 'mixsample (vector-ref val 0) (car key) (cdr key) (vector-ref val 1)))
   (timeline-push!/unsafe 'outcomes
                          (- (current-inexact-milliseconds) start)
                          (rival-profile machine 'iterations)
