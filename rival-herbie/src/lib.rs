@@ -16,6 +16,7 @@ use parser::{parse_expr, parse_sexpr, SExpr};
 pub struct MachineWrapper {
     machine: Machine<RustDiscretization>,
     arg_buf: Vec<Ival>,
+    rect_buf: Vec<Ival>,
     /// Cached execution records for FFI transfer
     execution_cache: Vec<ExecutionRecord>,
 }
@@ -99,13 +100,25 @@ pub extern "C" fn rival_compile(
             .collect();
 
         let disc = RustDiscretization { target, types };
+        let num_args = vars.len();
         let machine = MachineBuilder::new(disc)
             .profile_capacity(profile_capacity)
             .max_precision(max_precision)
             .build(exprs, vars);
+
+        let arg_prec = machine.disc.target().max(machine.min_precision);
+
+        let arg_buf = (0..num_args)
+            .map(|_| Ival::from_lo_hi(Float::new(arg_prec), Float::new(arg_prec)))
+            .collect();
+        let rect_buf = (0..num_args)
+            .map(|_| Ival::from_lo_hi(Float::new(arg_prec), Float::new(arg_prec)))
+            .collect();
+
         let wrapper = MachineWrapper {
             machine,
-            arg_buf: Vec::new(),
+            arg_buf,
+            rect_buf,
             execution_cache: Vec::new(),
         };
         Box::into_raw(Box::new(wrapper))
@@ -135,28 +148,11 @@ pub unsafe extern "C" fn rival_apply(
 
         machine.max_precision = max_precision;
 
-        let arg_prec = machine.disc.target().max(machine.min_precision);
-
-        // Resize buffer if needed
-        if arg_buf.len() != args_len {
-            arg_buf.clear();
-            arg_buf.reserve(args_len);
-            for _ in 0..args_len {
-                arg_buf.push(Ival::from_lo_hi(Float::new(arg_prec), Float::new(arg_prec)));
-            }
-        }
-
         let arg_ptrs_slice = slice::from_raw_parts(args_ptrs, args_len);
 
         for (i, &raw_ptr) in arg_ptrs_slice.iter().enumerate() {
             let val = &mut arg_buf[i];
-            // Update precision if needed
-            if val.lo.as_float().prec() != arg_prec {
-                val.lo.as_float_mut().set_prec(arg_prec);
-                val.hi.as_float_mut().set_prec(arg_prec);
-            }
 
-            // Copy value
             mpfr::set(
                 val.lo.as_float_mut().as_raw_mut(),
                 raw_ptr,
@@ -215,28 +211,33 @@ pub unsafe extern "C" fn rival_apply(
 #[no_mangle]
 pub unsafe extern "C" fn rival_analyze_with_hints(
     ptr: *mut MachineWrapper,
-    rect_str: *const c_char,
+    rect_ptrs: *const *const mpfr_t,
+    rect_len: usize,
     hints_ptr: *const HintsHandle,
 ) -> AnalyzeResult {
     let result = panic::catch_unwind(|| {
         let wrapper = &mut *ptr;
         let machine = &mut wrapper.machine;
-        let rect_str = CStr::from_ptr(rect_str).to_string_lossy();
+        let rect_buf = &mut wrapper.rect_buf;
 
-        // Parse args: "lo1 hi1 lo2 hi2 ..."
-        let parts: Vec<&str> = rect_str.split_whitespace().collect();
-        // This makes things work for benchmarks like piecewise defined which is kinda odd
-        let arg_prec = 1024;
+        let rect_ptrs_slice = slice::from_raw_parts(rect_ptrs, rect_len * 2);
 
-        let mut args = Vec::new();
-        for chunk in parts.chunks(2) {
-            if chunk.len() == 2 {
-                let lo_val = Float::parse(chunk[0]).expect("Failed to parse float");
-                let hi_val = Float::parse(chunk[1]).expect("Failed to parse float");
-                let lo = Float::with_val(arg_prec, lo_val);
-                let hi = Float::with_val(arg_prec, hi_val);
-                args.push(Ival::from_lo_hi(lo, hi));
-            }
+        for i in 0..rect_len {
+            let lo_ptr = rect_ptrs_slice[2 * i];
+            let hi_ptr = rect_ptrs_slice[2 * i + 1];
+
+            let ival = &mut rect_buf[i];
+
+            mpfr::set(
+                ival.lo.as_float_mut().as_raw_mut(),
+                lo_ptr,
+                mpfr::rnd_t::RNDN,
+            );
+            mpfr::set(
+                ival.hi.as_float_mut().as_raw_mut(),
+                hi_ptr,
+                mpfr::rnd_t::RNDN,
+            );
         }
 
         let hints = if hints_ptr.is_null() {
@@ -245,7 +246,7 @@ pub unsafe extern "C" fn rival_analyze_with_hints(
             Some((&*hints_ptr).hints.as_slice())
         };
 
-        let (status, next_hints, converged) = machine.analyze_with_hints(&args, hints);
+        let (status, next_hints, converged) = machine.analyze_with_hints(rect_buf, hints);
 
         let is_error = !status.lo.as_float().is_zero();
         let maybe_error = !status.hi.as_float().is_zero();

@@ -86,12 +86,13 @@
 (define-rival rival_apply
               (_fun _pointer _pointer _size _pointer _size _pointer _size _uint32 -> _int32))
 
-(define-rival rival_analyze_with_hints (_fun _pointer _string _pointer -> _analyze-result))
+(define-rival rival_analyze_with_hints (_fun _pointer _pointer _size _pointer -> _analyze-result))
 
 (define-rival rival_profile (_fun _pointer _profile-field -> _profile-data))
 
 ;; Wrapper struct for machine
-(struct machine-wrapper (ptr discs arg-buf out-buf) #:property prop:cpointer (struct-field-index ptr))
+(struct machine-wrapper (ptr discs arg-buf out-buf rect-buf)
+  #:property prop:cpointer (struct-field-index ptr))
 
 ;; Wrapper struct for hints
 (struct hints-wrapper (ptr) #:property prop:cpointer (struct-field-index ptr))
@@ -131,7 +132,8 @@
             [n-outs (length discs)])
         (define arg-buf (malloc _pointer n-args 'raw))
         (define out-buf (malloc _pointer n-outs 'raw))
-        (define wrapper (machine-wrapper ptr discs arg-buf out-buf))
+        (define rect-buf (malloc _pointer (* 2 n-args) 'raw))
+        (define wrapper (machine-wrapper ptr discs arg-buf out-buf rect-buf))
         (register-finalizer wrapper machine-destroy)
         wrapper)))
 
@@ -176,10 +178,12 @@
     [else (error 'rival-apply "Unknown result code: ~a" res-code)]))
 
 (define (rival-analyze-with-hints machine rect [hint #f])
-  (define rect-str
-    (string-join (for/list ([i (in-vector rect)])
-                   (format "~a ~a" (bigfloat->string (ival-lo i)) (bigfloat->string (ival-hi i))))
-                 " "))
+  (define n-args (vector-length rect))
+  (define rect-ptrs (machine-wrapper-rect-buf machine))
+  (for ([i (in-range n-args)]
+        [iv (in-vector rect)])
+    (ptr-set! rect-ptrs _pointer (* 2 i) (ival-lo iv))
+    (ptr-set! rect-ptrs _pointer (+ (* 2 i) 1) (ival-hi iv)))
 
   (define hint-ptr
     (if hint
@@ -187,7 +191,7 @@
         #f))
 
   (match-define (list status-code is-error maybe-error converged hints-ptr)
-    (rival_analyze_with_hints machine rect-str hint-ptr))
+    (rival_analyze_with_hints machine rect-ptrs n-args hint-ptr))
 
   (when (= status-code -1)
     (error 'rival-analyze-with-hints "Rival panic"))
@@ -235,4 +239,5 @@
 (define (machine-destroy wrapper)
   (rival_destroy (machine-wrapper-ptr wrapper))
   (free (machine-wrapper-arg-buf wrapper))
-  (free (machine-wrapper-out-buf wrapper)))
+  (free (machine-wrapper-out-buf wrapper))
+  (free (machine-wrapper-rect-buf wrapper)))
