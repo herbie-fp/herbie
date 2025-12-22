@@ -171,7 +171,7 @@
 (define (prelude subproc #:mixed-egraph? [mixed-egraph? #t])
   (define pform (*active-platform*))
 
-  (egglog-send subproc `(datatype M ,@(platform-spec-nodes)))
+  (egglog-send subproc `(datatype M ,@(platform-spec-nodes pform)))
 
   (apply egglog-send
          subproc
@@ -240,17 +240,43 @@
     (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
     (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
 
-(define (platform-spec-nodes)
+(define (collect-spec-ops pform)
+  (define arities (make-hasheq))
+  (define (record expr)
+    (match expr
+      [(? number?) (void)]
+      [(? symbol?) (void)]
+      [(list op args ...)
+       (define arity (length args))
+       (define existing (hash-ref arities op #f))
+       (when existing
+         (unless (= existing arity)
+           (error 'platform-spec-nodes "spec operator ~a has arities ~a and ~a" op existing arity)))
+       (hash-set! arities op arity)
+       (for ([arg (in-list args)])
+         (record arg))]))
+  (for ([impl (in-list (platform-impls pform))])
+    (record (impl-info impl 'spec)))
+  arities)
+
+(define (platform-spec-nodes [pform (*active-platform*)])
+  (define spec-op-arities (collect-spec-ops pform))
   (for ([op '(sound-/ sound-log sound-pow)])
     (hash-set! (id->e1) op (serialize-op op))
     (hash-set! (e1->id) (serialize-op op) op))
+  (define base-ops (all-operators))
+  (define additional-ops
+    (sort (filter (lambda (op) (not (member op base-ops))) (hash-keys spec-op-arities)) symbol<?))
   (list* '(Num BigRat :cost 4294967295)
          '(Var String :cost 4294967295)
          '(Sound-/ M M M :cost 4294967295)
          '(Sound-Log M M :cost 4294967295)
          '(Sound-Pow M M M :cost 4294967295)
-         (for/list ([op (in-list (all-operators))])
-           (define arity (length (operator-info op 'itype)))
+         (for/list ([op (in-list (append base-ops additional-ops))])
+           (define arity
+             (if (hash-has-key? spec-op-arities op)
+                 (hash-ref spec-op-arities op)
+                 (length (operator-info op 'itype))))
            (hash-set! (id->e1) op (serialize-op op))
            (hash-set! (e1->id) (serialize-op op) op)
            `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295))))

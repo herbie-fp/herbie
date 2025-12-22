@@ -26,10 +26,13 @@
   (define env (map cons vars (map representation-type var-reprs)))
   (define otype (representation-type repr))
 
-  (match (rival-type spec env)
-    [(== otype) (void)]
-    [#f (error name "expression ~a is ill-typed, expected `~a`" spec otype)]
-    [actual-ty (error name "expression ~a has type `~a`, expected `~a`" spec actual-ty otype)]))
+  (define has-array? (or (equal? otype 'array) (ormap (lambda (p) (eq? (cdr p) 'array)) env)))
+  (if has-array?
+      (void) ; Rival does not know about arrays; skip spec type checking for arrays
+      (match (rival-type spec env)
+        [(== otype) (void)]
+        [#f (error name "expression ~a is ill-typed, expected `~a`" spec otype)]
+        [actual-ty (error name "expression ~a has type `~a`, expected `~a`" spec actual-ty otype)])))
 
 (define (check-fpcore! name fpcore)
   (match (fpcore-parameterize fpcore)

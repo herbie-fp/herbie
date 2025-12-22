@@ -50,8 +50,16 @@
   (real->double-flonum (log x 2)))
 
 (define (random-generate repr)
-  (define bits (sub1 (representation-total-bits repr)))
-  ((representation-ordinal->repr repr) (random-integer (- (expt 2 bits)) (expt 2 bits))))
+  (match (representation-type repr)
+    ['array
+     (define elem-repr (array-representation-elem repr))
+     (define bits (sub1 (representation-total-bits elem-repr)))
+     (define len (apply * (array-representation-dims repr)))
+     ((representation-ordinal->repr repr) (for/list ([i (in-range len)])
+                                            (random-integer (- (expt 2 bits)) (expt 2 bits))))]
+    [_
+     (define bits (sub1 (representation-total-bits repr)))
+     ((representation-ordinal->repr repr) (random-integer (- (expt 2 bits)) (expt 2 bits)))]))
 
 (define (=/total x1 x2 repr)
   (define ->ordinal (representation-repr->ordinal repr))
@@ -119,9 +127,21 @@
 
 (define (real->repr x repr)
   (parameterize ([bf-precision (representation-total-bits repr)])
-    ((representation-bf->repr repr) (bf x))))
+    (match (representation-type repr)
+      ['array
+       (define len (apply * (array-representation-dims repr)))
+       (define lst
+         (cond
+           [(vector? x) (vector->list x)]
+           [(list? x) x]
+           [else (make-list len x)]))
+       ((representation-bf->repr repr) (map bf lst))]
+      [_ ((representation-bf->repr repr) (bf x))])))
 
 (define (repr->real x repr)
   (match x
     [(? boolean?) x]
-    [_ (bigfloat->real ((representation-repr->bf repr) x))]))
+    [_
+     (match (representation-type repr)
+       ['array (map bigfloat->real ((representation-repr->bf repr) x))]
+       [_ (bigfloat->real ((representation-repr->bf repr) x))])]))
