@@ -1,6 +1,6 @@
 use gmp_mpfr_sys::mpfr::{self, mpfr_t};
 use rival::eval::machine::Hint;
-use rival::{Discretization, Ival, Machine, MachineBuilder, RivalError};
+use rival::{Discretization, ErrorFlags, Ival, Machine, MachineBuilder, RivalError};
 use rug::Float;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -171,6 +171,16 @@ pub unsafe extern "C" fn rival_apply(
                 raw_ptr,
                 mpfr::rnd_t::RNDN,
             );
+
+            // Might be redundant, but let's stay safe for now cus why not
+            val.lo.immovable = true;
+            val.hi.immovable = true;
+            // Error if not rational
+            val.err = if val.lo.as_float().is_finite() {
+                ErrorFlags::none()
+            } else {
+                ErrorFlags::error()
+            };
         }
 
         let hints = parse_hints_binary(slice::from_raw_parts(hints_ptr, hints_len));
