@@ -62,6 +62,21 @@
 ;; Analyze result layout: status_code, is_error, maybe_error, converged, hints
 (define _analyze-result (_list-struct _int32 _stdbool _stdbool _stdbool _pointer))
 
+;; Apply result layout:
+;; - status_code: i32 (4 bytes)
+;; - bumps: size_t (8 bytes)
+;; - iterations: size_t (8 bytes)
+;; - profile_ptr: pointer (8 bytes)
+;; - profile_len: size_t (8 bytes)
+(define _apply-result (_list-struct _int32 _size _size _pointer _size))
+
+;; Aggregated profile entry layout:
+;; - instruction_index: i32 (4 bytes)
+;; - precision_bucket: u32 (4 bytes)
+;; - total_time_ms: f64 (8 bytes)
+;; - total_memory: size_t (8 bytes)
+(define aggregated-entry-size 24)
+
 ;; FFI
 (define-runtime-path librival-path
                      (build-path "target/release"
@@ -84,7 +99,7 @@
 (define-rival rival_hints_destroy (_fun _pointer -> _void))
 
 (define-rival rival_apply
-              (_fun _pointer _pointer _size _pointer _size _pointer _size _uint32 -> _int32))
+              (_fun _pointer _pointer _size _pointer _size _pointer _size _uint32 -> _apply-result))
 
 (define-rival rival_analyze_with_hints (_fun _pointer _pointer _size _pointer -> _analyze-result))
 
@@ -167,7 +182,7 @@
         (hints-wrapper-ptr hints)
         #f))
 
-  (define res-code
+  (match-define (list status-code bumps iterations profile-ptr profile-len)
     (rival_apply (machine-wrapper-ptr machine)
                  arg-ptrs
                  n-args
@@ -177,16 +192,22 @@
                  max-iterations
                  (*rival-max-precision*)))
 
-  (match res-code
+  (define name-table (machine-wrapper-name-table machine))
+  (define aggregated-profile
+    (read-aggregated-profile-entries profile-ptr profile-len name-table))
+
+  (match status-code
     [0
      (define discs (machine-wrapper-discs machine))
-     (list->vector (for/list ([bf (in-vector outs)]
-                              [disc (in-list discs)])
-                     ((discretization-convert disc) bf)))]
+     (define result
+       (list->vector (for/list ([bf (in-vector outs)]
+                                [disc (in-list discs)])
+                       ((discretization-convert disc) bf))))
+     (values result bumps iterations aggregated-profile)]
     [-1 (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
     [-2 (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
     [-99 (error 'rival-apply "Rival panic")]
-    [else (error 'rival-apply "Unknown result code: ~a" res-code)]))
+    [else (error 'rival-apply "Unknown result code: ~a" status-code)]))
 
 (define (rival-analyze-with-hints machine rect [hint #f])
   (define n-args (vector-length rect))
@@ -246,6 +267,19 @@
              (ptr-ref (ptr-add p 24) _double) ; time_ms
              0 ; memory
              (ptr-ref (ptr-add p 32) _size))) ; iteration
+
+;; Returns vector of (list name precision time memory)
+(define (read-aggregated-profile-entries base-ptr len name-table)
+  (if (or (not base-ptr) (= len 0))
+      (vector)
+      (for/vector #:length len ([i (in-range len)])
+        (define p (ptr-add base-ptr (* i aggregated-entry-size)))
+        (define idx (ptr-ref p _int32))
+        (define name (if (>= idx 0) (vector-ref name-table idx) 'adjust))
+        (list name
+              (ptr-ref (ptr-add p 4) _uint32)   ; precision_bucket
+              (ptr-ref (ptr-add p 8) _double)   ; total_time_ms
+              (ptr-ref (ptr-add p 16) _size))))) ; total_memory
 
 (define (hints-destroy wrapper)
   (when (hints-wrapper-ptr wrapper)

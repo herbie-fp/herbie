@@ -2,6 +2,7 @@ use gmp_mpfr_sys::mpfr::{self, mpfr_t};
 use rival::eval::machine::Hint;
 use rival::{Discretization, ErrorFlags, Ival, Machine, MachineBuilder, RivalError};
 use rug::Float;
+use std::collections::HashMap;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::panic;
@@ -21,6 +22,10 @@ pub struct MachineWrapper {
     execution_cache: Vec<ExecutionRecord>,
     /// Cached null-separated instruction names for FFI transfer
     instruction_names_cache: Vec<u8>,
+    /// Cached aggregated profile entries
+    aggregated_profile_cache: Vec<AggregatedProfileEntry>,
+    /// Precision bucket size for aggregation (max_precision / 25)
+    precision_bucket_size: u32,
 }
 
 pub struct HintsHandle {
@@ -35,6 +40,33 @@ pub struct ExecutionRecord {
     pub precision: u32,
     pub time_ms: f64,
     pub iteration: usize,
+}
+
+#[repr(C)]
+pub struct AggregatedProfileEntry {
+    /// Instruction index (>= 0) or -1 for adjust
+    pub instruction_index: i32,
+    /// Precision rounded to bucket
+    pub precision_bucket: u32,
+    /// Sum of time_ms for all executions in this bucket
+    pub total_time_ms: f64,
+    /// Sum of memory for all executions in this bucket
+    pub total_memory: usize,
+}
+
+/// Result of rival_apply with all profiling data bundled
+#[repr(C)]
+pub struct ApplyResult {
+    /// 0 = success, -1 = invalid, -2 = unsamplable, -99 = panic
+    pub status_code: i32,
+    /// Number of precision bumps during evaluation
+    pub bumps: usize,
+    /// Number of iterations used
+    pub iterations: usize,
+    /// Pointer to aggregated profile entries
+    pub profile_ptr: *const AggregatedProfileEntry,
+    /// Number of aggregated profile entries
+    pub profile_len: usize,
 }
 
 #[repr(C)]
@@ -117,12 +149,15 @@ pub extern "C" fn rival_compile(
             .map(|_| Ival::from_lo_hi(Float::new(arg_prec), Float::new(arg_prec)))
             .collect();
 
+        let precision_bucket_size = max_precision / 25;
         let wrapper = MachineWrapper {
             machine,
             arg_buf,
             rect_buf,
             execution_cache: Vec::new(),
             instruction_names_cache: Vec::new(),
+            aggregated_profile_cache: Vec::new(),
+            precision_bucket_size: if precision_bucket_size > 0 { precision_bucket_size } else { 1 },
         };
         Box::into_raw(Box::new(wrapper))
     });
@@ -143,11 +178,12 @@ pub unsafe extern "C" fn rival_apply(
     hints_ptr: *const HintsHandle,
     max_iterations: usize,
     max_precision: u32,
-) -> i32 {
+) -> ApplyResult {
     let result = panic::catch_unwind(|| {
         let wrapper = &mut *ptr;
         let machine = &mut wrapper.machine;
         let arg_buf = &mut wrapper.arg_buf;
+        let precision_bucket_size = wrapper.precision_bucket_size;
 
         machine.max_precision = max_precision;
 
@@ -185,29 +221,70 @@ pub unsafe extern "C" fn rival_apply(
         };
 
         let res = machine.apply(arg_buf, hints, max_iterations);
-        match res {
+        let status_code = match &res {
             Ok(vals) => {
                 if vals.len() != out_len {
                     // This should not happen if caller is correct
-                    return 2;
+                    2
+                } else {
+                    let out_ptrs_slice = slice::from_raw_parts(out_ptrs, out_len);
+                    for (i, val) in vals.iter().enumerate() {
+                        let out_ptr = out_ptrs_slice[i];
+                        mpfr::set(out_ptr, val.lo.as_float().as_raw(), mpfr::rnd_t::RNDN);
+                    }
+                    0 // Success
                 }
-                let out_ptrs_slice = slice::from_raw_parts(out_ptrs, out_len);
-
-                for (i, val) in vals.iter().enumerate() {
-                    let out_ptr = out_ptrs_slice[i];
-                    // Copy result from Rust's Float to Racket's mpfr_t
-                    mpfr::set(out_ptr, val.lo.as_float().as_raw(), mpfr::rnd_t::RNDN);
-                }
-                0 // Success
             }
             Err(RivalError::InvalidInput) => -1,
             Err(RivalError::Unsamplable) => -2,
+        };
+
+        // Aggregate profiler records in rust so that we dont have to pay the cost in racket
+        let mut aggregation: HashMap<(i32, u32), (f64, usize)> = HashMap::new();
+        for exec in machine.profiler.records().iter() {
+            let precision_bucket = exec.precision - (exec.precision % precision_bucket_size);
+            let key = (exec.number, precision_bucket);
+            let entry = aggregation.entry(key).or_insert((0.0, 0));
+            entry.0 += exec.time_ms;
+            entry.1 += 0;
+        }
+
+        // Store aggregated results in cache
+        wrapper.aggregated_profile_cache.clear();
+        for ((instruction_index, precision_bucket), (total_time_ms, total_memory)) in aggregation {
+            wrapper.aggregated_profile_cache.push(AggregatedProfileEntry {
+                instruction_index,
+                precision_bucket,
+                total_time_ms,
+                total_memory,
+            });
+        }
+
+        // Get bumps and iterations before reset
+        let bumps = machine.bumps;
+        let iterations = machine.iteration;
+
+        // Reset profiler for next call
+        machine.profiler.reset();
+
+        ApplyResult {
+            status_code,
+            bumps,
+            iterations,
+            profile_ptr: wrapper.aggregated_profile_cache.as_ptr(),
+            profile_len: wrapper.aggregated_profile_cache.len(),
         }
     });
 
     match result {
-        Ok(code) => code,
-        Err(_) => -99, // Panic
+        Ok(apply_result) => apply_result,
+        Err(_) => ApplyResult {
+            status_code: -99, // Panic
+            bumps: 0,
+            iterations: 0,
+            profile_ptr: ptr::null(),
+            profile_len: 0,
+        },
     }
 }
 

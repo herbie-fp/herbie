@@ -120,45 +120,31 @@
   (when dump-file
     (define args (map bigfloat->readable-string (vector->list pt*)))
     (fprintf dump-file "(eval f ~a)\n" (string-join args " ")))
-  (define-values (status value)
-    (with-handlers ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
-                    [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
+  (define-values (status value bumps iterations aggregated-profile)
+    (with-handlers ([exn:rival:invalid? (lambda (e) (values 'invalid #f 0 0 (vector)))]
+                    [exn:rival:unsamplable? (lambda (e) (values 'exit #f 0 0 (vector)))])
       (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
                      [*rival-max-iterations* 5])
-        (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
-        (values 'valid value))))
-  (when (> (rival-profile machine 'bumps) 0)
+        (define-values (result bumps iterations aggregated-profile) (rival-apply machine pt* hint))
+        (values 'valid (rest (vector->list result)) bumps iterations aggregated-profile))))
+  (when (> bumps 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"
           #:extra (for/list ([var (in-vector vars)]
                              [val (in-vector pt)])
                     (format "~a = ~a" var val))))
-  (define executions (rival-profile machine 'executions))
-  (when (>= (vector-length executions) (*rival-profile-executions*))
-    (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
-  (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
-  (define mixsample-table (make-hash))
-  (for ([execution (in-vector executions)])
-    (define name (symbol->string (execution-name execution)))
-    (define precision
-      (- (execution-precision execution) (remainder (execution-precision execution) prec-threshold)))
-    (define key (cons name precision))
-    ;; Uses vectors to avoid allocation; this is really allocation-heavy
-    (define data (hash-ref! mixsample-table key (lambda () (make-vector 2 0))))
-    (vector-set! data 0 (+ (vector-ref data 0) (execution-time execution)))
-    (vector-set! data 1 (+ (vector-ref data 1) (execution-memory execution))))
-  (for ([(key val) (in-hash mixsample-table)])
-    (timeline-push!/unsafe 'mixsample (vector-ref val 0) (car key) (cdr key) (vector-ref val 1)))
+  (for ([entry (in-vector aggregated-profile)])
+    (match-define (list name precision time memory) entry)
+    (timeline-push!/unsafe 'mixsample time (symbol->string name) precision memory))
   (timeline-push!/unsafe 'outcomes
                          (- (current-inexact-milliseconds) start)
-                         (rival-profile machine 'iterations)
+                         iterations
                          (symbol->string status)
                          1)
   (values status value))
 
 ;; Clears profiling data.
 (define (real-compiler-clear! compiler)
-  (rival-profile (real-compiler-machine compiler) 'executions)
   (void))
 
 ;; Returns whether the machine is guaranteed to raise an exception
