@@ -130,11 +130,14 @@ pub unsafe extern "C" fn rival_apply(
     hints_ptr: *const u8,
     hints_len: usize,
     max_iterations: usize,
+    max_precision: u32,
 ) -> i32 {
     let result = panic::catch_unwind(|| {
         let wrapper = &mut *ptr;
         let machine = &mut wrapper.machine;
         let arg_buf = &mut wrapper.arg_buf;
+
+        machine.max_precision = max_precision;
 
         let arg_prec = machine.disc.target().max(machine.min_precision);
 

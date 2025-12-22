@@ -58,7 +58,7 @@
 (define-rival rival_destroy (_fun _pointer -> _void))
 
 (define-rival rival_apply
-              (_fun _pointer _pointer _size _pointer _size _pointer _size _size -> _int32))
+              (_fun _pointer _pointer _size _pointer _size _pointer _size _size _uint32 -> _int32))
 
 (define (rival-apply machine pt [hints #f] [max-iterations (*rival-max-iterations*)])
   (define n-args (vector-length pt))
@@ -86,7 +86,8 @@
                  n-outs
                  hints-bytes
                  (bytes-length hints-bytes)
-                 max-iterations))
+                 max-iterations
+                 (*rival-max-precision*)))
 
   (match res-code
     [0
