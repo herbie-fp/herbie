@@ -34,10 +34,29 @@
 
 (define boolean-discretization (discretization 53 values (lambda (x y) (if (eq? x y) 0 2)) 0))
 
+(define _profile-field (_enum '(instructions = 0 iterations = 1 bumps = 2 executions = 3) _uint32))
+
 ;; Parameters
 (define *rival-max-precision* (make-parameter 256))
 (define *rival-max-iterations* (make-parameter 5))
 (define *rival-profile-executions* (make-parameter 1000))
+
+;; Execution record layout:
+;; - name_ptr: pointer (8 bytes)
+;; - name_len: size_t (8 bytes)
+;; - number: i32 (4 bytes)
+;; - precision: u32 (4 bytes)
+;; - time_ms: f64 (8 bytes)
+;; - iteration: size_t (8 bytes)
+(define execution-record-size 40)
+
+;; Profile data layout:
+;; - instructions_len: size_t (8 bytes)
+;; - iterations: size_t (8 bytes)
+;; - bumps: size_t (8 bytes)
+;; - executions_ptr: pointer (8 bytes)
+;; - executions_len: size_t (8 bytes)
+(define _profile-data (_list-struct _size _size _size _pointer _size))
 
 ;; FFI
 (define-runtime-path librival-path
@@ -53,7 +72,8 @@
 (define (free p)
   (c-free p))
 
-(define-rival rival_compile (_fun _string _string _uint32 _pointer _uint32 _uint32 _uint32 -> _pointer))
+(define-rival rival_compile
+              (_fun _string _string _uint32 _pointer _uint32 _uint32 _uint32 -> _pointer))
 
 (define-rival rival_destroy (_fun _pointer -> _void))
 
@@ -102,7 +122,7 @@
 
 (define-rival rival_analyze_with_hints (_fun _pointer _string _bytes _size -> _pointer))
 
-(define-rival rival_profile (_fun _pointer _string -> _pointer))
+(define-rival rival_profile (_fun _pointer _profile-field -> _profile-data))
 
 (define-rival rival_free_string (_fun _pointer -> _void))
 
@@ -156,7 +176,14 @@
         [disc (in-list discs)])
     (ptr-set! types-ptr _uint32 i (discretization-type disc)))
 
-  (define ptr (rival_compile exprs-str vars-str target types-ptr num-types (*rival-max-precision*) (*rival-profile-executions*)))
+  (define ptr
+    (rival_compile exprs-str
+                   vars-str
+                   target
+                   types-ptr
+                   num-types
+                   (*rival-max-precision*)
+                   (*rival-profile-executions*)))
 
   (free types-ptr)
 
@@ -212,18 +239,28 @@
      (list (ival lo-bool hi-bool) (list->vector hints) (equal? converged 'true))]
     [_ (error "rival-analyze-with-hints: unexpected result" res)]))
 
-(define (rival-profile machine param)
-  (define param-str (symbol->string param))
-  (define res-ptr (rival_profile machine param-str))
-  (define res-str (cast res-ptr _pointer _string))
-  (rival_free_string res-ptr)
+;; Read execution record directly to avoid cast operation (much more efficient)
+(define (read-execution-at base-ptr i)
+  (define p (ptr-add base-ptr (* i execution-record-size)))
+  (define name-ptr (ptr-ref p _pointer))
+  (define name-len (ptr-ref (ptr-add p 8) _size))
+  (define name-bytes (make-bytes name-len))
+  (memcpy name-bytes name-ptr name-len)
+  (execution (string->symbol (bytes->string/utf-8 name-bytes))
+             (ptr-ref (ptr-add p 16) _int32) ; number
+             (ptr-ref (ptr-add p 20) _uint32) ; precision
+             (ptr-ref (ptr-add p 24) _double) ; time_ms
+             0 ; memory
+             (ptr-ref (ptr-add p 32) _size))) ; iteration
 
-  (define res (read (open-input-string res-str)))
+(define (rival-profile machine param)
+  (match-define (list instructions-len iterations bumps executions-ptr executions-len)
+    (rival_profile machine param))
   (match param
     ['executions
-     (list->vector (map (lambda (x)
-                          (match x
-                            [(list name number precision time memory iteration)
-                             (execution name number precision time memory iteration)]))
-                        res))]
-    [_ res]))
+     (for/vector #:length executions-len
+                 ([i (in-range executions-len)])
+       (read-execution-at executions-ptr i))]
+    ['instructions instructions-len]
+    ['iterations iterations]
+    ['bumps bumps]))

@@ -13,9 +13,38 @@ mod parser;
 use discretization::{DiscretizationType, RustDiscretization};
 use parser::{parse_expr, parse_sexpr, SExpr};
 
+#[repr(C)]
+pub struct ExecutionRecord {
+    pub name_ptr: *const u8,
+    pub name_len: usize,
+    pub number: i32,
+    pub precision: u32,
+    pub time_ms: f64,
+    pub iteration: usize,
+}
+
+#[repr(C)]
+pub struct ProfileData {
+    pub instructions_len: usize,
+    pub iterations: usize,
+    pub bumps: usize,
+    pub executions_ptr: *const ExecutionRecord,
+    pub executions_len: usize,
+}
+
+#[repr(u32)]
+pub enum ProfileField {
+    Instructions = 0,
+    Iterations = 1,
+    Bumps = 2,
+    Executions = 3,
+}
+
 pub struct MachineWrapper {
     machine: Machine<RustDiscretization>,
     arg_buf: Vec<Ival>,
+    /// Cached execution records for FFI transfer
+    execution_cache: Vec<ExecutionRecord>,
 }
 
 fn return_string(s: String) -> *mut c_char {
@@ -102,6 +131,7 @@ pub extern "C" fn rival_compile(
         let wrapper = MachineWrapper {
             machine,
             arg_buf: Vec::new(),
+            execution_cache: Vec::new(),
         };
         Box::into_raw(Box::new(wrapper))
     });
@@ -284,51 +314,33 @@ pub unsafe extern "C" fn rival_analyze_with_hints(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn rival_profile(
-    ptr: *mut MachineWrapper,
-    param_str: *const c_char,
-) -> *mut c_char {
-    let result = panic::catch_unwind(|| {
-        let wrapper = &mut *ptr;
-        let machine = &mut wrapper.machine;
-        let param = CStr::from_ptr(param_str).to_string_lossy();
+pub unsafe extern "C" fn rival_profile(ptr: *mut MachineWrapper, field: u32) -> ProfileData {
+    let wrapper = &mut *ptr;
+    let machine = &mut wrapper.machine;
 
-        match param.as_ref() {
-            "instructions" => machine.instructions.len().to_string(),
-            "iterations" => machine.iteration.to_string(),
-            "bumps" => machine.bumps.to_string(),
-            "executions" => {
-                let mut s = String::from("(");
-                for exec in machine.profiler.records().iter() {
-                    s.push_str("(");
-                    s.push_str(exec.name);
-                    s.push_str(" ");
-                    s.push_str(&exec.number.to_string());
-                    s.push_str(" ");
-                    s.push_str(&exec.precision.to_string());
-                    s.push_str(" ");
-                    s.push_str(&exec.time_ms.to_string());
-                    s.push_str(" ");
-                    s.push_str("0"); // memory
-                    s.push_str(" ");
-                    s.push_str(&exec.iteration.to_string());
-                    s.push_str(") ");
-                }
-                machine.profiler.reset();
+    // Build execution cache from profiler records
+    wrapper.execution_cache.clear();
+    for exec in machine.profiler.records().iter() {
+        wrapper.execution_cache.push(ExecutionRecord {
+            name_ptr: exec.name.as_ptr(),
+            name_len: exec.name.len(),
+            number: exec.number,
+            precision: exec.precision,
+            time_ms: exec.time_ms,
+            iteration: exec.iteration,
+        });
+    }
 
-                if s.ends_with(" ") {
-                    s.pop();
-                }
-                s.push_str(")");
-                s
-            }
-            _ => String::from(""),
-        }
-    });
+    if field == ProfileField::Executions as u32 {
+        machine.profiler.reset();
+    }
 
-    match result {
-        Ok(s) => return_string(s),
-        Err(_) => return_string(String::from("(error panic)")),
+    ProfileData {
+        instructions_len: machine.instructions.len(),
+        iterations: machine.iteration,
+        bumps: machine.bumps,
+        executions_ptr: wrapper.execution_cache.as_ptr(),
+        executions_len: wrapper.execution_cache.len(),
     }
 }
 
