@@ -118,10 +118,11 @@
 (define-rival rival_instruction_names
               (_fun _pointer (len : (_ptr o _size)) -> (ptr : _pointer) -> (values ptr len)))
 
-(define *batch-size* 10)
+(define *batch-size* 12)
 
-(struct machine-wrapper (ptr discs arg-buf out-buf rect-buf name-table
-                         batch-arg-buf batch-out-buf batch-hints-buf)
+(struct machine-wrapper (ptr discs n-args n-outs name-table
+                         arg-buf-box out-buf-box rect-buf-box
+                         batch-arg-buf-box batch-out-buf-box batch-hints-buf-box)
   #:property prop:cpointer (struct-field-index ptr))
 
 ;; Wrapper struct for hints
@@ -129,6 +130,48 @@
 
 (define rival-machine? machine-wrapper?)
 (define rival-hints? hints-wrapper?)
+
+(define (machine-wrapper-arg-buf m)
+  (define box (machine-wrapper-arg-buf-box m))
+  (or (unbox box)
+      (let ([buf (malloc _pointer (machine-wrapper-n-args m) 'raw)])
+        (set-box! box buf)
+        buf)))
+
+(define (machine-wrapper-out-buf m)
+  (define box (machine-wrapper-out-buf-box m))
+  (or (unbox box)
+      (let ([buf (malloc _pointer (machine-wrapper-n-outs m) 'raw)])
+        (set-box! box buf)
+        buf)))
+
+(define (machine-wrapper-rect-buf m)
+  (define box (machine-wrapper-rect-buf-box m))
+  (or (unbox box)
+      (let ([buf (malloc _pointer (* 2 (machine-wrapper-n-args m)) 'raw)])
+        (set-box! box buf)
+        buf)))
+
+(define (machine-wrapper-batch-arg-buf m)
+  (define box (machine-wrapper-batch-arg-buf-box m))
+  (or (unbox box)
+      (let ([buf (malloc _pointer (* *batch-size* (machine-wrapper-n-args m)) 'raw)])
+        (set-box! box buf)
+        buf)))
+
+(define (machine-wrapper-batch-out-buf m)
+  (define box (machine-wrapper-batch-out-buf-box m))
+  (or (unbox box)
+      (let ([buf (malloc _pointer (* *batch-size* (machine-wrapper-n-outs m)) 'raw)])
+        (set-box! box buf)
+        buf)))
+
+(define (machine-wrapper-batch-hints-buf m)
+  (define box (machine-wrapper-batch-hints-buf-box m))
+  (or (unbox box)
+      (let ([buf (malloc _pointer *batch-size* 'raw)])
+        (set-box! box buf)
+        buf)))
 
 (define (rival-compile exprs vars discs)
   (define exprs-str (format "~a" exprs))
@@ -160,12 +203,7 @@
       (error "rival-compile failed")
       (let ([n-args (length vars)]
             [n-outs (length discs)])
-        (define arg-buf (malloc _pointer n-args 'raw))
-        (define out-buf (malloc _pointer n-outs 'raw))
-        (define rect-buf (malloc _pointer (* 2 n-args) 'raw))
-        (define batch-arg-buf (malloc _pointer (* *batch-size* n-args) 'raw))
-        (define batch-out-buf (malloc _pointer (* *batch-size* n-outs) 'raw))
-        (define batch-hints-buf (malloc _pointer *batch-size* 'raw))
+        ;; Build name table (always needed)
         (define-values (names-ptr names-len) (rival_instruction_names ptr))
         (define names-bytes (make-bytes names-len))
         (memcpy names-bytes names-ptr names-len)
@@ -173,8 +211,10 @@
           (list->vector
             (map string->symbol
                  (string-split (bytes->string/utf-8 names-bytes) "\0"))))
-        (define wrapper (machine-wrapper ptr discs arg-buf out-buf rect-buf name-table
-                                         batch-arg-buf batch-out-buf batch-hints-buf))
+        ;; Create wrapper with lazy buffer boxes (all start as #f)
+        (define wrapper (machine-wrapper ptr discs n-args n-outs name-table
+                                         (box #f) (box #f) (box #f)
+                                         (box #f) (box #f) (box #f)))
         (register-finalizer wrapper machine-destroy)
         wrapper)))
 
@@ -364,9 +404,13 @@
 
 (define (machine-destroy wrapper)
   (rival_destroy (machine-wrapper-ptr wrapper))
-  (free (machine-wrapper-arg-buf wrapper))
-  (free (machine-wrapper-out-buf wrapper))
-  (free (machine-wrapper-rect-buf wrapper))
-  (free (machine-wrapper-batch-arg-buf wrapper))
-  (free (machine-wrapper-batch-out-buf wrapper))
-  (free (machine-wrapper-batch-hints-buf wrapper)))
+  ;; Only free buffers that were actually allocated (non-#f in box)
+  (define (free-if-allocated box)
+    (define buf (unbox box))
+    (when buf (free buf)))
+  (free-if-allocated (machine-wrapper-arg-buf-box wrapper))
+  (free-if-allocated (machine-wrapper-out-buf-box wrapper))
+  (free-if-allocated (machine-wrapper-rect-buf-box wrapper))
+  (free-if-allocated (machine-wrapper-batch-arg-buf-box wrapper))
+  (free-if-allocated (machine-wrapper-batch-out-buf-box wrapper))
+  (free-if-allocated (machine-wrapper-batch-hints-buf-box wrapper)))
