@@ -119,7 +119,7 @@
 (define-rival rival_instruction_names
               (_fun _pointer (len : (_ptr o _size)) -> (ptr : _pointer) -> (values ptr len)))
 
-(define *batch-size* (make-parameter 32))
+(define *batch-size* (make-parameter 16))
 
 (struct machine-wrapper (ptr discs n-args n-outs name-table
                          arg-buf-box out-buf-box rect-buf-box
