@@ -127,8 +127,6 @@
   (define reprs (real-compiler-reprs compiler))
   (define target (*num-points*))
 
-  (real-compiler-clear! compiler)
-
   (define (check-point pt status exs)
     (define final-status
       (cond
@@ -162,7 +160,7 @@
                                       #:url "faq.html#sample-valid-points")]
         [else
          (define remaining (- target collected-count))
-         (define batch-sz (min *batch-size* remaining))
+         (define batch-sz (min (*batch-size*) remaining))
          (define-values (pts-list hints-list)
            (for/lists (ps hs) ([_ (in-range batch-sz)]) (sampler)))
          (define pts-vec (list->vector pts-list))
@@ -182,6 +180,8 @@
                (append new-exs collected-exs)
                (+ collected-count valid-count)
                (if (> valid-count 0) 0 (+ consecutive-skips batch-skips)))])))
+
+  (real-compiler-clear! compiler)
 
   (values (cons points (flip-lists exactss)) outcomes))
 

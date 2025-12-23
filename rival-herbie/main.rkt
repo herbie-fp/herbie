@@ -25,6 +25,7 @@
          *rival-max-iterations*
          *rival-profile-executions*
          *batch-size*
+         rival-clear-batch-cache!
          (all-from-out "ops.rkt"))
 
 ;; Structs
@@ -118,11 +119,13 @@
 (define-rival rival_instruction_names
               (_fun _pointer (len : (_ptr o _size)) -> (ptr : _pointer) -> (values ptr len)))
 
-(define *batch-size* 12)
+(define *batch-size* (make-parameter 32))
 
 (struct machine-wrapper (ptr discs n-args n-outs name-table
                          arg-buf-box out-buf-box rect-buf-box
-                         batch-arg-buf-box batch-out-buf-box batch-hints-buf-box)
+                         batch-arg-buf-box batch-out-buf-box batch-hints-buf-box
+                         [batch-capacity #:mutable]
+                         [batch-outs-cache #:mutable])
   #:property prop:cpointer (struct-field-index ptr))
 
 ;; Wrapper struct for hints
@@ -152,26 +155,39 @@
         (set-box! box buf)
         buf)))
 
-(define (machine-wrapper-batch-arg-buf m)
-  (define box (machine-wrapper-batch-arg-buf-box m))
-  (or (unbox box)
-      (let ([buf (malloc _pointer (* *batch-size* (machine-wrapper-n-args m)) 'raw)])
-        (set-box! box buf)
-        buf)))
+(define (ensure-batch-buffers! m batch-size)
+  (define current-cap (machine-wrapper-batch-capacity m))
+  (when (or (not current-cap) (> batch-size current-cap))
+    (define n-args (machine-wrapper-n-args m))
+    (define n-outs (machine-wrapper-n-outs m))
+    (define arg-box (machine-wrapper-batch-arg-buf-box m))
+    (define out-box (machine-wrapper-batch-out-buf-box m))
+    (define hints-box (machine-wrapper-batch-hints-buf-box m))
+    (when (unbox arg-box) (free (unbox arg-box)))
+    (when (unbox out-box) (free (unbox out-box)))
+    (when (unbox hints-box) (free (unbox hints-box)))
+    (set-box! arg-box (malloc _pointer (* batch-size n-args) 'raw))
+    (set-box! out-box (malloc _pointer (* batch-size n-outs) 'raw))
+    (set-box! hints-box (malloc _pointer batch-size 'raw))
+    (set-machine-wrapper-batch-capacity! m batch-size)
+    (set-machine-wrapper-batch-outs-cache! m #f)))
 
-(define (machine-wrapper-batch-out-buf m)
-  (define box (machine-wrapper-batch-out-buf-box m))
-  (or (unbox box)
-      (let ([buf (malloc _pointer (* *batch-size* (machine-wrapper-n-outs m)) 'raw)])
-        (set-box! box buf)
-        buf)))
+(define (ensure-batch-outs-cache! m batch-size)
+  (define cache (machine-wrapper-batch-outs-cache m))
+  (define n-outs (machine-wrapper-n-outs m))
+  (cond
+    [(and cache (>= (vector-length cache) batch-size)) cache]
+    [else
+     (define new-cache
+       (for/vector #:length batch-size ([_ (in-range batch-size)])
+         (for/vector #:length n-outs ([_ (in-range n-outs)])
+           (bf 0.0))))
+     (set-machine-wrapper-batch-outs-cache! m new-cache)
+     new-cache]))
 
-(define (machine-wrapper-batch-hints-buf m)
-  (define box (machine-wrapper-batch-hints-buf-box m))
-  (or (unbox box)
-      (let ([buf (malloc _pointer *batch-size* 'raw)])
-        (set-box! box buf)
-        buf)))
+;; Clears the batch outputs cache to release bigfloat memory (GC run?)
+(define (rival-clear-batch-cache! machine)
+  (set-machine-wrapper-batch-outs-cache! machine #f))
 
 (define (rival-compile exprs vars discs)
   (define exprs-str (format "~a" exprs))
@@ -214,7 +230,8 @@
         ;; Create wrapper with lazy buffer boxes (all start as #f)
         (define wrapper (machine-wrapper ptr discs n-args n-outs name-table
                                          (box #f) (box #f) (box #f)
-                                         (box #f) (box #f) (box #f)))
+                                         (box #f) (box #f) (box #f)
+                                         #f #f))
         (register-finalizer wrapper machine-destroy)
         wrapper)))
 
@@ -247,6 +264,10 @@
                  max-iterations
                  (*rival-max-precision*)))
 
+  ;; Don't let the gc go to town
+  (void (vector-length pt))
+  (void hints)
+
   (define name-table (machine-wrapper-name-table machine))
   (define aggregated-profile
     (read-aggregated-profile-entries profile-ptr profile-len name-table))
@@ -270,24 +291,22 @@
   (define discs (machine-wrapper-discs machine))
   (define n-outs (length discs))
 
-  (define outs-vec
-    (for/vector #:length batch-size ([_ (in-range batch-size)])
-      (for/vector #:length n-outs ([_ (in-range n-outs)])
-        (bf 0.0))))
+  (ensure-batch-buffers! machine batch-size)
+  (define outs-vec (ensure-batch-outs-cache! machine batch-size))
 
-  (define batch-arg-buf (machine-wrapper-batch-arg-buf machine))
+  (define batch-arg-buf (unbox (machine-wrapper-batch-arg-buf-box machine)))
   (for ([pt-idx (in-range batch-size)])
     (define pt (vector-ref pts pt-idx))
     (for ([arg-idx (in-range n-args)])
       (ptr-set! batch-arg-buf _pointer (+ (* pt-idx n-args) arg-idx) (vector-ref pt arg-idx))))
 
-  (define batch-out-buf (machine-wrapper-batch-out-buf machine))
+  (define batch-out-buf (unbox (machine-wrapper-batch-out-buf-box machine)))
   (for ([pt-idx (in-range batch-size)])
     (define outs (vector-ref outs-vec pt-idx))
     (for ([out-idx (in-range n-outs)])
       (ptr-set! batch-out-buf _pointer (+ (* pt-idx n-outs) out-idx) (vector-ref outs out-idx))))
 
-  (define batch-hints-buf (machine-wrapper-batch-hints-buf machine))
+  (define batch-hints-buf (unbox (machine-wrapper-batch-hints-buf-box machine)))
   (for ([pt-idx (in-range batch-size)])
     (define h (and hints-vec (vector-ref hints-vec pt-idx)))
     (ptr-set! batch-hints-buf _pointer pt-idx (if h (hints-wrapper-ptr h) #f)))
@@ -300,6 +319,10 @@
                        batch-hints-buf
                        max-iterations
                        (*rival-max-precision*)))
+
+  ;; Don't let the gc go to town
+  (void (vector-length pts))
+  (void (and hints-vec (vector-length hints-vec)))
 
   (define statuses
     (for/vector #:length batch-size ([i (in-range batch-size)])

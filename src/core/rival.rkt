@@ -27,7 +27,7 @@
                 [c real-compiler?])]
           [real-apply
            (->* (real-compiler? vector?) ((or/c rival-hints? boolean?)) (values symbol? any/c))]
-          [real-compiler-clear! (-> real-compiler-clear! void?)]
+          [real-compiler-clear! (-> real-compiler? void?)]
           [real-compiler-analyze
            (->* (real-compiler? (vectorof ival?)) ((or/c rival-hints? boolean?)) (listof any/c))]))
 
@@ -176,9 +176,9 @@
       [(cons 'valid vals) (cons 'valid (rest vals))]
       [(cons status _) (cons status #f)])))
 
-;; Clears profiling data.
+;; Reduces memory pressure on subsequent phases by clearing the batch outputs cache
 (define (real-compiler-clear! compiler)
-  (void))
+  (rival-clear-batch-cache! (real-compiler-machine compiler)))
 
 ;; Returns whether the machine is guaranteed to raise an exception
 ;; for the given inputs range. The result is an interval representing
