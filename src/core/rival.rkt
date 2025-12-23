@@ -121,8 +121,10 @@
     (define args (map bigfloat->readable-string (vector->list pt*)))
     (fprintf dump-file "(eval f ~a)\n" (string-join args " ")))
   (define-values (status value bumps iterations aggregated-profile)
-    (with-handlers ([exn:rival:invalid? (lambda (e) (values 'invalid #f 0 0 (vector)))]
-                    [exn:rival:unsamplable? (lambda (e) (values 'exit #f 0 0 (vector)))])
+    (with-handlers ([exn:rival:invalid? 
+                     (lambda (e) (values 'invalid #f 0 0 (exn:rival:invalid-aggregated-profile e)))]
+                    [exn:rival:unsamplable? 
+                     (lambda (e) (values 'exit #f 0 0 (exn:rival:unsamplable-aggregated-profile e)))])
       (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
                      [*rival-max-iterations* 5])
         (define-values (result bumps iterations aggregated-profile) (rival-apply machine pt* hint))

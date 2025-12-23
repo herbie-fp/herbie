@@ -27,8 +27,8 @@
 
 ;; Structs
 (struct exn:rival exn:fail ())
-(struct exn:rival:invalid exn:rival (pt))
-(struct exn:rival:unsamplable exn:rival (pt))
+(struct exn:rival:invalid exn:rival (pt aggregated-profile))
+(struct exn:rival:unsamplable exn:rival (pt aggregated-profile))
 (struct execution (name number precision time memory iteration) #:prefab)
 (struct discretization (target convert distance type))
 (struct ival (lo hi) #:transparent)
@@ -204,8 +204,8 @@
                                 [disc (in-list discs)])
                        ((discretization-convert disc) bf))))
      (values result bumps iterations aggregated-profile)]
-    [-1 (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
-    [-2 (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
+    [-1 (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt aggregated-profile))]
+    [-2 (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt aggregated-profile))]
     [-99 (error 'rival-apply "Rival panic")]
     [else (error 'rival-apply "Unknown result code: ~a" status-code)]))
 
