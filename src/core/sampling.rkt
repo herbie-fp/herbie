@@ -162,7 +162,7 @@
                                       #:url "faq.html#sample-valid-points")]
         [else
          (define remaining (- target collected-count))
-         (define batch-sz (min *batch-size* (+ remaining 16)))
+         (define batch-sz (min *batch-size* remaining))
          (define-values (pts-list hints-list)
            (for/lists (ps hs) ([_ (in-range batch-sz)]) (sampler)))
          (define pts-vec (list->vector pts-list))
