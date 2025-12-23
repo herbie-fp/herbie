@@ -118,10 +118,10 @@
 (define-rival rival_instruction_names
               (_fun _pointer (len : (_ptr o _size)) -> (ptr : _pointer) -> (values ptr len)))
 
-(define *batch-size* 10)
+(define *batch-size* 64)
 
 (struct machine-wrapper (ptr discs arg-buf out-buf rect-buf name-table
-                         batch-arg-buf batch-out-buf batch-hints-buf)
+                         batch-arg-buf batch-out-buf batch-hints-buf batch-outs-cache)
   #:property prop:cpointer (struct-field-index ptr))
 
 ;; Wrapper struct for hints
@@ -166,6 +166,12 @@
         (define batch-arg-buf (malloc _pointer (* *batch-size* n-args) 'raw))
         (define batch-out-buf (malloc _pointer (* *batch-size* n-outs) 'raw))
         (define batch-hints-buf (malloc _pointer *batch-size* 'raw))
+        (define batch-outs-cache
+          (for/vector #:length *batch-size* ([_ (in-range *batch-size*)])
+            (for/vector #:length n-outs ([_ (in-range n-outs)])
+              ; TODO: maybe we can do something with reducing precision idk
+              (parameterize ([bf-precision (*rival-max-precision*)])
+                (bf 0.0)))))
         (define-values (names-ptr names-len) (rival_instruction_names ptr))
         (define names-bytes (make-bytes names-len))
         (memcpy names-bytes names-ptr names-len)
@@ -174,7 +180,7 @@
             (map string->symbol
                  (string-split (bytes->string/utf-8 names-bytes) "\0"))))
         (define wrapper (machine-wrapper ptr discs arg-buf out-buf rect-buf name-table
-                                         batch-arg-buf batch-out-buf batch-hints-buf))
+                                         batch-arg-buf batch-out-buf batch-hints-buf batch-outs-cache))
         (register-finalizer wrapper machine-destroy)
         wrapper)))
 
@@ -229,11 +235,7 @@
   (define n-args (if (> batch-size 0) (vector-length (vector-ref pts 0)) 0))
   (define discs (machine-wrapper-discs machine))
   (define n-outs (length discs))
-
-  (define outs-vec
-    (for/vector #:length batch-size ([_ (in-range batch-size)])
-      (for/vector #:length n-outs ([_ (in-range n-outs)])
-        (bf 0.0))))
+  (define outs-cache (machine-wrapper-batch-outs-cache machine))
 
   (define batch-arg-buf (machine-wrapper-batch-arg-buf machine))
   (for ([pt-idx (in-range batch-size)])
@@ -243,7 +245,7 @@
 
   (define batch-out-buf (machine-wrapper-batch-out-buf machine))
   (for ([pt-idx (in-range batch-size)])
-    (define outs (vector-ref outs-vec pt-idx))
+    (define outs (vector-ref outs-cache pt-idx))
     (for ([out-idx (in-range n-outs)])
       (ptr-set! batch-out-buf _pointer (+ (* pt-idx n-outs) out-idx) (vector-ref outs out-idx))))
 
@@ -272,7 +274,7 @@
   (define results
     (for/vector #:length batch-size ([pt-idx (in-range batch-size)])
       (define status (vector-ref statuses pt-idx))
-      (define outs-bf (vector-ref outs-vec pt-idx))
+      (define outs-bf (vector-ref outs-cache pt-idx))
       (cond
         [(= status 0)
          (define vals

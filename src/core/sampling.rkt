@@ -149,40 +149,44 @@
         ((representation-special-value? repr) input)))
     (and (list? exs) (not is-bad?)))
 
-  (define-values (points exactss)
-    (let loop ([collected-pts '()]
-               [collected-exs '()]
-               [collected-count 0]
-               [consecutive-skips 0])
+  (define points-vec (make-vector target))
+  (define exactss-vec (make-vector target))
+
+  (define-values (final-count _)
+    (let loop ([write-idx 0] [consecutive-skips 0])
       (cond
-        [(>= collected-count target)
-         (values (take collected-pts target) (take collected-exs target))]
+        [(>= write-idx target)
+         (values write-idx consecutive-skips)]
         [(>= consecutive-skips (*max-skipped-points*))
          (raise-herbie-sampling-error "Cannot sample enough valid points."
                                       #:url "faq.html#sample-valid-points")]
         [else
-         (define remaining (- target collected-count))
+         (define remaining (- target write-idx))
          (define batch-sz (min *batch-size* remaining))
          (define-values (pts-list hints-list)
            (for/lists (ps hs) ([_ (in-range batch-sz)]) (sampler)))
-         (define pts-vec (list->vector pts-list))
+         (define pts-vec-batch (list->vector pts-list))
          (define hints-vec (list->vector hints-list))
 
-         (define results (real-apply-batch compiler pts-vec hints-vec))
+         (define results (real-apply-batch compiler pts-vec-batch hints-vec))
 
-         (define-values (new-pts new-exs valid-count batch-skips)
-           (for/fold ([pts '()] [exs '()] [valid 0] [skips 0])
-                     ([pt (in-vector pts-vec)] [res (in-vector results)])
+         (define-values (new-write-idx batch-skips)
+           (for/fold ([idx write-idx] [skips 0])
+                     ([pt (in-vector pts-vec-batch)] [res (in-vector results)])
              (match-define (cons status vals) res)
              (if (check-point pt status vals)
-                 (values (cons pt pts) (cons vals exs) (+ valid 1) skips)
-                 (values pts exs valid (+ skips 1)))))
+                 (begin
+                   (vector-set! points-vec idx pt)
+                   (vector-set! exactss-vec idx vals)
+                   (values (+ idx 1) skips))
+                 (values idx (+ skips 1)))))
 
-         (loop (append new-pts collected-pts)
-               (append new-exs collected-exs)
-               (+ collected-count valid-count)
+         (define valid-count (- new-write-idx write-idx))
+         (loop new-write-idx
                (if (> valid-count 0) 0 (+ consecutive-skips batch-skips)))])))
 
+  (define points (vector->list points-vec))
+  (define exactss (vector->list exactss-vec))
   (values (cons points (flip-lists exactss)) outcomes))
 
 (define (combine-tables t1 t2)
