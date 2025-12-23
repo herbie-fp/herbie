@@ -9,6 +9,7 @@
 
 (provide rival-compile
          rival-apply
+         rival-apply-batch
          rival-analyze-with-hints
          rival-profile
          (struct-out exn:rival)
@@ -23,6 +24,7 @@
          *rival-max-precision*
          *rival-max-iterations*
          *rival-profile-executions*
+         *batch-size*
          (all-from-out "ops.rkt"))
 
 ;; Structs
@@ -77,6 +79,10 @@
 ;; - total_memory: size_t (8 bytes)
 (define aggregated-entry-size 24)
 
+;; Batch apply result layout
+(define _batch-apply-result
+  (_list-struct _size _pointer _size _size _pointer _size))
+
 ;; FFI
 (define-runtime-path librival-path
                      (build-path "target/release"
@@ -101,6 +107,10 @@
 (define-rival rival_apply
               (_fun _pointer _pointer _size _pointer _size _pointer _size _uint32 -> _apply-result))
 
+(define-rival rival_apply_batch
+              (_fun _pointer _size _pointer _size _pointer _size _pointer _size _uint32
+                    -> _batch-apply-result))
+
 (define-rival rival_analyze_with_hints (_fun _pointer _pointer _size _pointer -> _analyze-result))
 
 (define-rival rival_profile (_fun _pointer _profile-field -> _profile-data))
@@ -108,8 +118,10 @@
 (define-rival rival_instruction_names
               (_fun _pointer (len : (_ptr o _size)) -> (ptr : _pointer) -> (values ptr len)))
 
-;; Wrapper struct for machine
-(struct machine-wrapper (ptr discs arg-buf out-buf rect-buf name-table)
+(define *batch-size* 64)
+
+(struct machine-wrapper (ptr discs arg-buf out-buf rect-buf name-table
+                         batch-arg-buf batch-out-buf batch-hints-buf)
   #:property prop:cpointer (struct-field-index ptr))
 
 ;; Wrapper struct for hints
@@ -151,7 +163,9 @@
         (define arg-buf (malloc _pointer n-args 'raw))
         (define out-buf (malloc _pointer n-outs 'raw))
         (define rect-buf (malloc _pointer (* 2 n-args) 'raw))
-        ;; Fetch instruction names once and cache as vector of symbols
+        (define batch-arg-buf (malloc _pointer (* *batch-size* n-args) 'raw))
+        (define batch-out-buf (malloc _pointer (* *batch-size* n-outs) 'raw))
+        (define batch-hints-buf (malloc _pointer *batch-size* 'raw))
         (define-values (names-ptr names-len) (rival_instruction_names ptr))
         (define names-bytes (make-bytes names-len))
         (memcpy names-bytes names-ptr names-len)
@@ -159,7 +173,8 @@
           (list->vector
             (map string->symbol
                  (string-split (bytes->string/utf-8 names-bytes) "\0"))))
-        (define wrapper (machine-wrapper ptr discs arg-buf out-buf rect-buf name-table))
+        (define wrapper (machine-wrapper ptr discs arg-buf out-buf rect-buf name-table
+                                         batch-arg-buf batch-out-buf batch-hints-buf))
         (register-finalizer wrapper machine-destroy)
         wrapper)))
 
@@ -208,6 +223,68 @@
     [-2 (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt aggregated-profile))]
     [-99 (error 'rival-apply "Rival panic")]
     [else (error 'rival-apply "Unknown result code: ~a" status-code)]))
+
+(define (rival-apply-batch machine pts hints-vec [max-iterations (*rival-max-iterations*)])
+  (define batch-size (vector-length pts))
+  (define n-args (if (> batch-size 0) (vector-length (vector-ref pts 0)) 0))
+  (define discs (machine-wrapper-discs machine))
+  (define n-outs (length discs))
+
+  (define outs-vec
+    (for/vector #:length batch-size ([_ (in-range batch-size)])
+      (for/vector #:length n-outs ([_ (in-range n-outs)])
+        (bf 0.0))))
+
+  (define batch-arg-buf (machine-wrapper-batch-arg-buf machine))
+  (for ([pt-idx (in-range batch-size)])
+    (define pt (vector-ref pts pt-idx))
+    (for ([arg-idx (in-range n-args)])
+      (ptr-set! batch-arg-buf _pointer (+ (* pt-idx n-args) arg-idx) (vector-ref pt arg-idx))))
+
+  (define batch-out-buf (machine-wrapper-batch-out-buf machine))
+  (for ([pt-idx (in-range batch-size)])
+    (define outs (vector-ref outs-vec pt-idx))
+    (for ([out-idx (in-range n-outs)])
+      (ptr-set! batch-out-buf _pointer (+ (* pt-idx n-outs) out-idx) (vector-ref outs out-idx))))
+
+  (define batch-hints-buf (machine-wrapper-batch-hints-buf machine))
+  (for ([pt-idx (in-range batch-size)])
+    (define h (and hints-vec (vector-ref hints-vec pt-idx)))
+    (ptr-set! batch-hints-buf _pointer pt-idx (if h (hints-wrapper-ptr h) #f)))
+
+  (match-define (list num-results status-ptr total-bumps total-iters profile-ptr profile-len)
+    (rival_apply_batch (machine-wrapper-ptr machine)
+                       batch-size
+                       batch-arg-buf n-args
+                       batch-out-buf n-outs
+                       batch-hints-buf
+                       max-iterations
+                       (*rival-max-precision*)))
+
+  (define statuses
+    (for/vector #:length batch-size ([i (in-range batch-size)])
+      (ptr-ref status-ptr _int32 i)))
+
+  (define name-table (machine-wrapper-name-table machine))
+  (define aggregated-profile
+    (read-aggregated-profile-entries profile-ptr profile-len name-table))
+
+  (define results
+    (for/vector #:length batch-size ([pt-idx (in-range batch-size)])
+      (define status (vector-ref statuses pt-idx))
+      (define outs-bf (vector-ref outs-vec pt-idx))
+      (cond
+        [(= status 0)
+         (define vals
+           (for/list ([bf (in-vector outs-bf)]
+                      [disc (in-list discs)])
+             ((discretization-convert disc) bf)))
+         (cons 'valid vals)]
+        [(= status -1) (cons 'invalid #f)]
+        [(= status -2) (cons 'exit #f)]
+        [else (cons 'panic #f)])))
+
+  (values results total-bumps total-iters aggregated-profile))
 
 (define (rival-analyze-with-hints machine rect [hint #f])
   (define n-args (vector-length rect))
@@ -289,4 +366,7 @@
   (rival_destroy (machine-wrapper-ptr wrapper))
   (free (machine-wrapper-arg-buf wrapper))
   (free (machine-wrapper-out-buf wrapper))
-  (free (machine-wrapper-rect-buf wrapper)))
+  (free (machine-wrapper-rect-buf wrapper))
+  (free (machine-wrapper-batch-arg-buf wrapper))
+  (free (machine-wrapper-batch-out-buf wrapper))
+  (free (machine-wrapper-batch-hints-buf wrapper)))

@@ -17,6 +17,8 @@
          "../syntax/types.rkt")
 
 (provide (struct-out real-compiler)
+         real-apply-batch
+         *batch-size*
          (contract-out
           [make-real-compiler
            (->i ([es (listof any/c)]
@@ -144,6 +146,35 @@
                          (symbol->string status)
                          1)
   (values status value))
+
+(define (real-apply-batch compiler pts-raw hints-vec)
+  (match-define (real-compiler _ vars var-reprs _ _ machine _) compiler)
+  (define batch-size (vector-length pts-raw))
+  (define n-vars (vector-length vars))
+
+  (define pts-bf
+    (for/vector #:length batch-size ([pt (in-vector pts-raw)])
+      (for/vector #:length n-vars ([val (in-vector pt)] [repr (in-vector var-reprs)])
+        ((representation-repr->bf repr) val))))
+
+  (define hints-vec* (or hints-vec (make-vector batch-size #f)))
+
+  (define-values (results total-bumps total-iters aggregated-profile)
+    (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
+                   [*rival-max-iterations* 5])
+      (rival-apply-batch machine pts-bf hints-vec*)))
+
+  (for ([entry (in-vector aggregated-profile)])
+    (match-define (list name precision time memory) entry)
+    (timeline-push!/unsafe 'mixsample time (symbol->string name) precision memory))
+
+  (when (> total-bumps 0)
+    (warn 'ground-truth "Could not converge on ground truth for some batch points"))
+
+  (for/vector #:length batch-size ([res (in-vector results)])
+    (match res
+      [(cons 'valid vals) (cons 'valid (rest vals))]
+      [(cons status _) (cons status #f)])))
 
 ;; Clears profiling data.
 (define (real-compiler-clear! compiler)

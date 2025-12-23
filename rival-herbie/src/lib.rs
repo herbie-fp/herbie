@@ -18,14 +18,11 @@ pub struct MachineWrapper {
     machine: Machine<RustDiscretization>,
     arg_buf: Vec<Ival>,
     rect_buf: Vec<Ival>,
-    /// Cached execution records for FFI transfer
     execution_cache: Vec<ExecutionRecord>,
-    /// Cached null-separated instruction names for FFI transfer
     instruction_names_cache: Vec<u8>,
-    /// Cached aggregated profile entries
     aggregated_profile_cache: Vec<AggregatedProfileEntry>,
-    /// Precision bucket size for aggregation (max_precision / 25)
     precision_bucket_size: u32,
+    batch_status_cache: Vec<i32>,
 }
 
 pub struct HintsHandle {
@@ -66,6 +63,16 @@ pub struct ApplyResult {
     /// Pointer to aggregated profile entries
     pub profile_ptr: *const AggregatedProfileEntry,
     /// Number of aggregated profile entries
+    pub profile_len: usize,
+}
+
+#[repr(C)]
+pub struct BatchApplyResult {
+    pub num_results: usize,
+    pub status_codes: *const i32,
+    pub total_bumps: usize,
+    pub total_iterations: usize,
+    pub profile_ptr: *const AggregatedProfileEntry,
     pub profile_len: usize,
 }
 
@@ -158,6 +165,7 @@ pub extern "C" fn rival_compile(
             instruction_names_cache: Vec::new(),
             aggregated_profile_cache: Vec::new(),
             precision_bucket_size: if precision_bucket_size > 0 { precision_bucket_size } else { 1 },
+            batch_status_cache: Vec::with_capacity(64),
         };
         Box::into_raw(Box::new(wrapper))
     });
@@ -282,6 +290,129 @@ pub unsafe extern "C" fn rival_apply(
             status_code: -99, // Panic
             bumps: 0,
             iterations: 0,
+            profile_ptr: ptr::null(),
+            profile_len: 0,
+        },
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rival_apply_batch(
+    ptr: *mut MachineWrapper,
+    batch_size: usize,
+    args_ptrs: *const *const mpfr_t,
+    num_args: usize,
+    out_ptrs: *const *mut mpfr_t,
+    num_outs: usize,
+    hints_ptrs: *const *const HintsHandle,
+    max_iterations: usize,
+    max_precision: u32,
+) -> BatchApplyResult {
+    let result = panic::catch_unwind(|| {
+        let wrapper = &mut *ptr;
+        let machine = &mut wrapper.machine;
+        let arg_buf = &mut wrapper.arg_buf;
+        let precision_bucket_size = wrapper.precision_bucket_size;
+
+        machine.max_precision = max_precision;
+
+        if wrapper.batch_status_cache.len() < batch_size {
+            wrapper.batch_status_cache.resize(batch_size, 0);
+        }
+
+        let args_slice = slice::from_raw_parts(args_ptrs, batch_size * num_args);
+        let outs_slice = slice::from_raw_parts(out_ptrs, batch_size * num_outs);
+        let hints_slice = if hints_ptrs.is_null() {
+            None
+        } else {
+            Some(slice::from_raw_parts(hints_ptrs, batch_size))
+        };
+
+        let mut total_bumps = 0usize;
+        let mut total_iterations = 0usize;
+        let mut aggregation: HashMap<(i32, u32), (f64, usize)> = HashMap::new();
+
+        for pt_idx in 0..batch_size {
+            for (i, &raw_ptr) in args_slice[pt_idx * num_args..(pt_idx + 1) * num_args]
+                .iter()
+                .enumerate()
+            {
+                let val = &mut arg_buf[i];
+                mpfr::set(val.lo.as_float_mut().as_raw_mut(), raw_ptr, mpfr::rnd_t::RNDN);
+                mpfr::set(val.hi.as_float_mut().as_raw_mut(), raw_ptr, mpfr::rnd_t::RNDN);
+                val.lo.immovable = true;
+                val.hi.immovable = true;
+                val.err = if val.lo.as_float().is_finite() {
+                    ErrorFlags::none()
+                } else {
+                    ErrorFlags::error()
+                };
+            }
+
+            let hints = hints_slice.and_then(|hs| {
+                let h = hs[pt_idx];
+                if h.is_null() {
+                    None
+                } else {
+                    Some((&*h).hints.as_slice())
+                }
+            });
+
+            let res = machine.apply(arg_buf, hints, max_iterations);
+
+            let status_code = match &res {
+                Ok(vals) => {
+                    for (i, val) in vals.iter().enumerate() {
+                        let out_ptr = outs_slice[pt_idx * num_outs + i];
+                        mpfr::set(out_ptr, val.lo.as_float().as_raw(), mpfr::rnd_t::RNDN);
+                    }
+                    0
+                }
+                Err(RivalError::InvalidInput) => -1,
+                Err(RivalError::Unsamplable) => -2,
+            };
+
+            wrapper.batch_status_cache[pt_idx] = status_code;
+            total_bumps += machine.bumps;
+            total_iterations += machine.iteration;
+
+            for exec in machine.profiler.records().iter() {
+                let precision_bucket = exec.precision - (exec.precision % precision_bucket_size);
+                let key = (exec.number, precision_bucket);
+                let entry = aggregation.entry(key).or_insert((0.0, 0));
+                entry.0 += exec.time_ms;
+            }
+
+            machine.profiler.reset();
+        }
+
+        wrapper.aggregated_profile_cache.clear();
+        for ((instruction_index, precision_bucket), (total_time_ms, total_memory)) in aggregation {
+            wrapper.aggregated_profile_cache.push(AggregatedProfileEntry {
+                instruction_index,
+                precision_bucket,
+                total_time_ms,
+                total_memory,
+            });
+        }
+
+        BatchApplyResult {
+            num_results: batch_size,
+            status_codes: wrapper.batch_status_cache.as_ptr(),
+            total_bumps,
+            total_iterations,
+            profile_ptr: wrapper.aggregated_profile_cache.as_ptr(),
+            profile_len: wrapper.aggregated_profile_cache.len(),
+        }
+    });
+
+    match result {
+        Ok(r) => r,
+        Err(_) => BatchApplyResult {
+            num_results: 0,
+            status_codes: ptr::null(),
+            total_bumps: 0,
+            total_iterations: 0,
             profile_ptr: ptr::null(),
             profile_len: 0,
         },

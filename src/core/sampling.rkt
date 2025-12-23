@@ -121,51 +121,68 @@
 ;; Part 3: compute exact values using Rival's algorithm
 
 (define (batch-prepare-points compiler sampler)
-  ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
   (define vars (real-compiler-vars compiler))
   (define var-reprs (real-compiler-var-reprs compiler))
   (define reprs (real-compiler-reprs compiler))
+  (define target (*num-points*))
 
-  (real-compiler-clear! compiler) ; Clear profiling vector
-  (define-values (points exactss)
-    (let loop ([sampled 0]
-               [skipped 0]
-               [points '()]
-               [exactss '()])
-      (define-values (pt hint) (sampler))
-      (define-values (status exs) (real-apply compiler pt hint))
-      (case status
-        [(exit)
+  (real-compiler-clear! compiler)
+
+  (define (check-point pt status exs)
+    (define final-status
+      (cond
+        [(eq? status 'exit)
          (warn 'ground-truth
                "could not determine a ground truth"
                #:url "faq.html#ground-truth"
-               #:extra (vector->list (vector-map (curry format "~a = ~a") vars pt)))]
-        [(valid)
-         (for ([ex (in-list exs)]
-               [repr (in-vector reprs)])
-           ; The `bool` representation does not produce bigfloats
+               #:extra (vector->list (vector-map (curry format "~a = ~a") vars pt)))
+         'exit]
+        [(and (eq? status 'valid) exs)
+         (for/fold ([s 'valid]) ([ex (in-list exs)] [repr (in-vector reprs)])
            (define maybe-bf ((representation-repr->bf repr) ex))
-           (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
-             (set! status 'infinite)))])
+           (if (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf)) 'infinite s))]
+        [else status]))
+    (hash-update! outcomes final-status add1 0)
+    (define is-bad?
+      (for/or ([input (in-vector pt)] [repr (in-vector var-reprs)])
+        ((representation-special-value? repr) input)))
+    (and (list? exs) (not is-bad?)))
 
-      (hash-update! outcomes status add1 0)
-
-      (define is-bad?
-        (for/or ([input (in-vector pt)]
-                 [repr (in-vector var-reprs)])
-          ((representation-special-value? repr) input)))
-
+  (define-values (points exactss)
+    (let loop ([collected-pts '()]
+               [collected-exs '()]
+               [collected-count 0]
+               [consecutive-skips 0])
       (cond
-        [(and (list? exs) (not is-bad?))
-         (if (>= (+ 1 sampled) (*num-points*))
-             (values (cons pt points) (cons exs exactss))
-             (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
+        [(>= collected-count target)
+         (values (take collected-pts target) (take collected-exs target))]
+        [(>= consecutive-skips (*max-skipped-points*))
+         (raise-herbie-sampling-error "Cannot sample enough valid points."
+                                      #:url "faq.html#sample-valid-points")]
         [else
-         (when (>= skipped (*max-skipped-points*))
-           (raise-herbie-sampling-error "Cannot sample enough valid points."
-                                        #:url "faq.html#sample-valid-points"))
-         (loop sampled (+ 1 skipped) points exactss)])))
+         (define remaining (- target collected-count))
+         (define batch-sz (min *batch-size* (+ remaining 16)))
+         (define-values (pts-list hints-list)
+           (for/lists (ps hs) ([_ (in-range batch-sz)]) (sampler)))
+         (define pts-vec (list->vector pts-list))
+         (define hints-vec (list->vector hints-list))
+
+         (define results (real-apply-batch compiler pts-vec hints-vec))
+
+         (define-values (new-pts new-exs valid-count batch-skips)
+           (for/fold ([pts '()] [exs '()] [valid 0] [skips 0])
+                     ([pt (in-vector pts-vec)] [res (in-vector results)])
+             (match-define (cons status vals) res)
+             (if (check-point pt status vals)
+                 (values (cons pt pts) (cons vals exs) (+ valid 1) skips)
+                 (values pts exs valid (+ skips 1)))))
+
+         (loop (append new-pts collected-pts)
+               (append new-exs collected-exs)
+               (+ collected-count valid-count)
+               (if (> valid-count 0) 0 (+ consecutive-skips batch-skips)))])))
+
   (values (cons points (flip-lists exactss)) outcomes))
 
 (define (combine-tables t1 t2)
