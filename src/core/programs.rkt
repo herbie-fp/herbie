@@ -209,30 +209,20 @@
                     [(list op args ...) (cons op args)]))))
 
 ;; Replace all occurrences of `from` with `to` in expression `expr`, returning a new batchref
-;; Only recurses into impl parts, not specs (matching batch-get-locations behavior)
+;; Only recurses into impl parts, not specs
 (define (batch-replace-subexpr batch expr from to)
-  (let loop ([brf expr])
-    (cond
-      [(not (batchref? brf)) brf]
-      [(batchref<? brf from) brf]
-      [(equal? brf from) to]
-      [else
-       (define node (deref brf))
-       (match node
-         [(? number?) brf]
-         [(? literal?) brf]
-         [(? symbol?) brf]
-         [(hole _ _) brf]
-         [(approx spec impl)
-          (define impl* (loop impl))
-          (if (equal? impl impl*)
-              brf
-              (batch-add! batch (approx spec impl*)))]
-         [(list op args ...)
-          (define args* (map loop args))
-          (if (equal? args args*)
-              brf
-              (batch-push! batch (expr-recurse (cons op args*) batchref-idx)))])])))
+  (define replace
+    (batch-recurse batch
+                   (λ (brf recurse)
+                     (cond
+                       [(batchref<? brf from) brf]
+                       [(equal? brf from) to]
+                       [else
+                        (batch-add! batch
+                                    (match (deref brf)
+                                      [(approx spec impl) (approx spec (recurse impl))]
+                                      [node (expr-recurse node recurse)]))]))))
+  (replace expr))
 
 (module+ test
   (require rackunit)
