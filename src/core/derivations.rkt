@@ -8,15 +8,8 @@
 (provide add-derivations)
 
 (define (canonicalize-proof prog proof start-expr)
-  ;; Proofs are actually on subexpressions,
-  ;; we need to construct the proof for the full expression by replacing
-  ;; all occurrences of each proof step with the next
-  (and proof
-       (let loop ([proof proof]
-                  [current start-expr])
-         (match proof
-           ['() '()]
-           [(cons step rest) (cons (replace-expression prog current step) (loop rest step))]))))
+  ;; Proofs are on subexpressions; lift to full expression
+  (and proof (map (curry replace-expression prog start-expr) proof)))
 
 ;; Adds proof information to alternatives.
 ;; After unbatchify-alts, start-expr and end-expr are regular expressions, not batchrefs
