@@ -34,14 +34,10 @@
       [_ event]))
   (define (unmunge altn)
     (define expr (alt-expr altn))
-    (define event (alt-event altn))
-    (define event* (unmunge-event event))
-    (match expr
-      [(? batchref? brf)
-       (define expr* (exprs brf))
-       (struct-copy alt altn [expr expr*] [event event*])]
-      [_
-       (if (equal? event event*)
-           altn
-           (struct-copy alt altn [event event*]))]))
+    (define expr*
+      (if (batchref? expr)
+          (exprs expr)
+          expr))
+    (define event* (unmunge-event (alt-event altn)))
+    (struct-copy alt altn [expr expr*] [event event*]))
   (map (curry alt-map unmunge) altns))
