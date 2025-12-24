@@ -192,11 +192,9 @@
     (define-values (result-alt _) (loop altn))
     result-alt)
 
-  (^patched^ (remove-duplicates (reap [sow]
-                                      (for ([altn (in-list alts)])
-                                        (define start-expr (get-starting-expr altn))
-                                        (for ([full-altn (in-list (^next-alts^))])
-                                          (sow (reconstruct-alt altn start-expr full-altn)))))
+  (^patched^ (remove-duplicates (for*/list ([altn (in-list alts)]
+                                            [full-altn (in-list (^next-alts^))])
+                                  (reconstruct-alt altn (get-starting-expr altn) full-altn))
                                 #:key (compose batchref-idx alt-expr)))
 
   (void))
