@@ -65,10 +65,12 @@
   (= (batchref-idx brf1) (batchref-idx brf2)))
 
 ;; This function defines the recursive structure of expressions
+;; Note: specs in approx/hole are treated as opaque (not recursed into)
+;; They live in a separate spec-batch; use batchify-specs to extract them
 (define (expr-recurse expr f)
   (match expr
-    [(approx spec impl) (approx (f spec) (f impl))]
-    [(hole precision spec) (hole precision (f spec))]
+    [(approx spec impl) (approx spec (f impl))]
+    [(hole precision spec) (hole precision spec)]
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
 
@@ -291,14 +293,17 @@
   (check-equal? (create-dvector 0 1/2 '(+ 0 1))
                 (zombie-test #:nodes (create-dvector 0 1/2 '(+ 0 1) '(* 2 0)) #:roots (list 2)))
 
-  (check-equal? (create-dvector 1/2 '(exp 0) 0 (approx 1 2))
-                (zombie-test #:nodes (create-dvector 0 1/2 '(+ 0 1) '(* 2 0) '(exp 1) (approx 4 0))
-                             #:roots (list 5)))
+  ;; approx nodes store spec as raw expr (not index), impl as index
+  (check-equal? (create-dvector 0 (approx '(exp 1/2) 0))
+                (zombie-test #:nodes (create-dvector 0 1/2 '(+ 0 1) '(* 2 0) (approx '(exp 1/2) 0))
+                             #:roots (list 4)))
   (check-equal?
-   (create-dvector 1/2 'x '(* 1 1) 2 (approx 2 3) '(pow 0 4))
-   (zombie-test #:nodes (create-dvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
-                #:roots (list 7)))
+   (create-dvector 1/2 'x '(* 1 1) (approx '(* x x) 2) '(pow 0 3))
+   (zombie-test #:nodes
+                (create-dvector 'x 1/2 '(sqrt 0) '(cbrt 0) '(* 0 0) (approx '(* x x) 4) '(pow 1 5))
+                #:roots (list 6)))
   (check-equal?
-   (create-dvector 1/2 'x '(* 1 1) 2 (approx 2 3) '(pow 0 4) '(sqrt 3))
-   (zombie-test #:nodes (create-dvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
-                #:roots (list 7 3))))
+   (create-dvector 1/2 'x '(* 1 1) (approx '(* x x) 2) '(pow 0 3) '(sqrt 1))
+   (zombie-test #:nodes
+                (create-dvector 'x 1/2 '(sqrt 0) '(cbrt 0) '(* 0 0) (approx '(* x x) 4) '(pow 1 5))
+                #:roots (list 6 2))))

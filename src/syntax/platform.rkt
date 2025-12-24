@@ -35,7 +35,7 @@
          impl-exists?
          impl-info
          prog->spec
-         batch-to-spec!
+         batch-to-spec
          get-fpcore-impl
          (struct-out $platform)
          ;; Platform API
@@ -101,25 +101,30 @@
      (define env (map cons vars (map prog->spec args)))
      (pattern-substitute spec env)]))
 
-(define (batch-to-spec! batch brfs)
+;; Converts impl brfs to spec expressions by extracting specs from approx/hole
+;; and converting impl operators to their spec equivalents.
+;; Returns: (values spec-batch spec-brfs)
+(define (batch-to-spec impl-batch impl-brfs)
+  (define spec-batch (batch-empty))
   (define lower
-    (batch-recurse batch
+    (batch-recurse impl-batch
                    (lambda (brf recurse)
                      (define node (deref brf))
                      (match node
-                       [(? literal?) (batch-push! batch (literal-value node))]
-                       [(? number?) brf]
-                       [(? symbol?) brf]
-                       [(hole _ spec) (recurse spec)]
-                       [(approx spec _) (recurse spec)]
+                       [(? literal?) (batch-push! spec-batch (literal-value node))]
+                       [(? number?) (batch-push! spec-batch node)]
+                       [(? symbol?) (batch-push! spec-batch node)]
+                       [(hole _ spec) (batch-add! spec-batch spec)] ; spec is raw expr
+                       [(approx spec _) (batch-add! spec-batch spec)] ; spec is raw expr
                        [(list (? impl-exists? impl) args ...)
                         (define vars (impl-info impl 'vars))
                         (define spec (impl-info impl 'spec))
                         (define env (map cons vars (map recurse args)))
-                        (batch-add! batch (pattern-substitute spec env))]
+                        (batch-add! spec-batch (pattern-substitute spec env))]
                        [(list op args ...)
-                        (batch-push! batch (cons op (map (compose batchref-idx recurse) args)))]))))
-  (map lower brfs))
+                        (batch-push! spec-batch
+                                     (cons op (map (compose batchref-idx recurse) args)))]))))
+  (values spec-batch (map lower impl-brfs)))
 
 ;; Expression predicates ;;
 

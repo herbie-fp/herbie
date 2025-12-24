@@ -63,7 +63,7 @@
 (define (egraph-add-exprs egg-data batch brfs ctx)
   (match-define (egraph-data ptr id->spec) egg-data)
 
-  ; normalizes an approx spec
+  ; normalizes an approx spec (raw expression)
   (define (normalize-spec expr)
     (match expr
       [(? number?) expr]
@@ -101,6 +101,17 @@
       [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
+  ;; Recursively insert a spec expression (raw expr) into egraph, with caching
+  (define spec-cache (make-hash))
+  (define (insert-spec! spec-expr)
+    (hash-ref! spec-cache
+               spec-expr
+               (λ ()
+                 (match spec-expr
+                   [(? number?) (insert-node! spec-expr)]
+                   [(? symbol?) (insert-node! (var->egg-var spec-expr ctx))]
+                   [(list op args ...) (insert-node! (cons op (map insert-spec! args)))]))))
+
   (define reprs (batch-reprs batch ctx))
   (define add-to-egraph
     (batch-recurse batch
@@ -110,15 +121,16 @@
                        [(literal v _) (insert-node! v)]
                        [(? number?) (insert-node! node)]
                        [(? symbol?) (insert-node! (var->egg-var node ctx))]
-                       [(hole prec spec) (recurse spec)] ; "hole" terms currently disappear
+                       [(hole prec spec) (insert-spec! spec)] ; spec is raw expr
                        [(approx spec impl)
+                        (define spec-id (insert-spec! spec)) ; spec is raw expr
                         (hash-ref! id->spec ; Save original (spec, type) for extraction
-                                   (recurse spec)
+                                   spec-id
                                    (lambda ()
-                                     (define spec* (normalize-spec (batch-pull spec)))
+                                     (define spec* (normalize-spec spec))
                                      (define type (representation-type (reprs impl)))
                                      (cons spec* type)))
-                        (insert-node! (list '$approx (recurse spec) (recurse impl)))]
+                        (insert-node! (list '$approx spec-id (recurse impl)))]
                        [(list op (app recurse args) ...) (insert-node! (cons op args))]))))
 
   (for/list ([brf (in-list brfs)])
@@ -1084,8 +1096,8 @@
                    (representation-type type)
                    type))
              (define final-spec (egg-parsed->expr spec* spec-type))
-             (define final-spec-idx (batchref-idx (batch-add! batch final-spec)))
-             (approx final-spec-idx (loop impl type))]
+             ;; Store spec as raw expression, not as index
+             (approx final-spec (loop impl type))]
             [(list impl (app eggref args) ...)
              (define args*
                (for/list ([arg (in-list args)]

@@ -34,20 +34,21 @@
   (define vars (context-vars (*context*)))
   (define brfs (map alt-expr altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
-  ;; Specs
-  (define spec-brfs (batch-to-spec! global-batch brfs)) ;; These specs will go into (approx spec impl)
-  (define free-vars (map (batch-free-vars global-batch) spec-brfs))
+  ;; Specs (in a separate spec-batch)
+  (define-values (spec-batch0 spec-brfs) (batch-to-spec global-batch brfs))
+  (define specs (batch->progs spec-batch0 spec-brfs)) ;; raw exprs for (approx spec impl)
+  (define free-vars (map (batch-free-vars spec-batch0) spec-brfs))
   (define spec-brfs*
-    (map (batch-copy-only! spec-batch global-batch)
-         spec-brfs)) ;; copy from global-batch to spec-batch
-  (define copier (batch-copy-only! global-batch spec-batch)) ;; copy from spec-batch to global-batch
+    (map (batch-copy-only! spec-batch spec-batch0) spec-brfs)) ;; copy from spec-batch0 to spec-batch
+  (define copier (batch-copy-only! spec-batch0 spec-batch)) ;; copy from spec-batch to spec-batch0
 
   (reap [sow]
         (parameterize ([reduce reducer] ;; reduces over spec-batch
                        [add (λ (x) (batch-add! spec-batch x))]) ;; adds to spec-batch
           ;; Zero expansion
           (define genexpr0 (batch-add! global-batch 0))
-          (define gen0 (approx (car spec-brfs) (hole (representation-name (car reprs)) genexpr0)))
+          (define gen0
+            (approx (car specs) (hole (representation-name (car reprs)) 0))) ;; spec is literal 0
           (define brf0 (batch-add! global-batch gen0))
           (sow (alt brf0 `(taylor zero undef-var) (list (car altns))))
 
@@ -62,14 +63,16 @@
             (define taylor-coeffs* (list-ref taylor-coeffs idx))
             (define genexprs (approximate taylor-coeffs* spec-batch var #:transform (cons f finv)))
             (for ([genexpr (in-list genexprs)]
-                  [spec-brf (in-list spec-brfs)]
+                  [spec (in-list specs)]
                   [repr (in-list reprs)]
                   [altn (in-list altns)]
                   [fv (in-list free-vars)]
                   #:when (set-member? fv var)) ;; check whether var exists in expr at all
               (for ([i (in-range (*taylor-order-limit*))])
                 ;; adding a new expansion to the global batch
-                (define gen (approx spec-brf (hole (representation-name repr) (copier (genexpr)))))
+                ;; hole spec is a raw expression (use batch-pull to unfold batchref from copier)
+                (define gen
+                  (approx spec (hole (representation-name repr) (batch-pull (copier (genexpr))))))
                 (define brf (batch-add! global-batch gen))
                 (sow (alt brf `(taylor ,name ,var) (list altn)))))
             (set! idx (add1 idx))
@@ -126,18 +129,29 @@
     (for/list ([repr (in-list reprs)])
       (context '() repr '())))
 
-  (define spec-brfs (batch-to-spec! global-batch brfs))
-  (define specs (batch->progs global-batch spec-brfs))
+  (define-values (spec-batch spec-brfs) (batch-to-spec global-batch brfs))
+  (define specs (batch->progs spec-batch spec-brfs))
+  ;; Filter out specs that have free variables (can happen with approx nodes
+  ;; where the spec has variables but the impl doesn't)
+  (define specs+contexts
+    (for/list ([spec (in-list specs)]
+               [ctx (in-list contexts)]
+               [altn (in-list real-altns)]
+               #:when (null? (free-variables spec)))
+      (list spec ctx altn)))
+  (define specs* (map first specs+contexts))
+  (define contexts* (map second specs+contexts))
+  (define real-altns* (map third specs+contexts))
   (define-values (status pts)
-    (if (null? specs)
+    (if (null? specs*)
         (values 'invalid #f)
-        (let ([real-compiler (make-real-compiler specs contexts)])
+        (let ([real-compiler (make-real-compiler specs* contexts*)])
           (real-apply real-compiler (vector)))))
   (define literals
     (for/list ([pt (in-list (if (equal? status 'valid)
                                 pts
                                 '()))]
-               [ctx (in-list contexts)]
+               [ctx (in-list contexts*)]
                #:when (equal? status 'valid))
       (define repr (context-repr ctx))
       (match (representation-type repr)
@@ -149,12 +163,12 @@
 
   (define final-altns
     (for/list ([literal (in-list literals)]
-               [altn (in-list real-altns)]
+               [altn (in-list real-altns*)]
                #:when (equal? status 'valid))
       (define brf (batch-add! global-batch literal))
       (alt brf '(evaluate) (list altn))))
 
-  (timeline-push! 'inputs (map ~a specs))
+  (timeline-push! 'inputs (map ~a specs*))
   (timeline-push! 'outputs (map ~a literals))
   final-altns)
 
