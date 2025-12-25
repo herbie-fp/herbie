@@ -211,18 +211,20 @@
 ;; Replace all occurrences of `from` with `to` in expression `expr`, returning a new batchref
 ;; Only recurses into impl parts, not specs
 (define (batch-replace-subexpr batch expr from to)
-  (define replace
-    (batch-recurse batch
-                   (λ (brf recurse)
-                     (cond
-                       [(batchref<? brf from) brf]
-                       [(equal? brf from) to]
-                       [else
-                        (batch-add! batch
-                                    (match (deref brf)
-                                      [(approx spec impl) (approx spec (recurse impl))]
-                                      [node (expr-recurse node recurse)]))]))))
-  (replace expr))
+  (define cache (make-hasheq))
+  (let loop ([brf expr])
+    (cond
+      [(batchref<? brf from) brf]
+      [(equal? brf from) to]
+      [(hash-ref cache (batchref-idx brf) #f)]
+      [else
+       (define result
+         (batch-add! batch
+                     (match (deref brf)
+                       [(approx spec impl) (approx spec (loop impl))]
+                       [node (expr-recurse node loop)])))
+       (hash-set! cache (batchref-idx brf) result)
+       result])))
 
 (module+ test
   (require rackunit)
