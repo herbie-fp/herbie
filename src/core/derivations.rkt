@@ -7,22 +7,21 @@
 
 (provide add-derivations)
 
-(define (canonicalize-proof prog proof loc)
-  ;; Proofs are actually on subexpressions,
-  ;; we need to construct the proof for the full expression
-  (and proof (map (curry location-set loc prog) proof)))
+(define (canonicalize-proof prog proof start-expr)
+  ;; Proofs are on subexpressions; lift to full expression
+  (and proof (map (curry replace-expression prog start-expr) proof)))
 
 ;; Adds proof information to alternatives.
+;; After unbatchify-alts, start-expr and end-expr are regular expressions, not batchrefs
 (define (add-derivations-to altn)
   (match altn
     ; recursive rewrite or simplify, both using egg
-    [(alt expr (list 'rr loc (? egg-runner? runner) #f) `(,prev))
-     (define start-expr (location-get loc (alt-expr prev)))
-     (define end-expr (location-get loc expr))
+    ; start-expr and end-expr are the subexpressions that were transformed
+    [(alt expr (list 'rr start-expr end-expr (? egg-runner? runner) #f) `(,prev))
      (define proof
        (and (not (flag-set? 'generate 'egglog)) (egraph-prove runner start-expr end-expr)))
-     (define proof* (canonicalize-proof (alt-expr altn) proof loc))
-     (alt expr `(rr ,loc ,runner ,proof*) (list prev))]
+     (define proof* (canonicalize-proof (alt-expr altn) proof start-expr))
+     (alt expr `(rr ,start-expr ,end-expr ,runner ,proof*) (list prev))]
 
     ; everything else
     [_ altn]))

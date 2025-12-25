@@ -170,30 +170,32 @@
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
   ;; takes a patch and converts it to a full alt
-  (define (reconstruct-alt altn loc0 orig)
-    (let loop ([altn altn])
-      (match-define (alt _ event prevs) altn)
+  ;; start-expr0 is the original subexpression that was rewritten
+  ;; We replace all occurrences of the current subexpr with each step's result
+  (define (reconstruct-alt altn start-expr0 orig)
+    ;; Returns (values reconstructed-alt current-subexpr)
+    ;; current-subexpr is what needs to be replaced in the next step
+    (define (loop altn)
+      (match-define (alt patch-expr event prevs) altn)
       (match event
-        ['patch orig]
+        ['patch (values orig start-expr0)]
         [_
+         (define-values (prev-altn prev-subexpr) (loop (first prevs)))
          (define event*
            (match event
-             [(list 'evaluate) (list 'evaluate loc0)]
-             [(list 'taylor name var) (list 'taylor loc0 name var)]
-             [(list 'rr input proof) (list 'rr loc0 input proof)]))
-         (define expr* (batch-location-set (*global-batch*) (alt-expr orig) loc0 (alt-expr altn)))
-         (alt expr* event* (list (loop (first prevs))))])))
+             [(list 'evaluate) (list 'evaluate start-expr0)]
+             [(list 'taylor name var) (list 'taylor start-expr0 name var)]
+             [(list 'rr input proof) (list 'rr prev-subexpr patch-expr input proof)]))
+         (define expr*
+           (batch-replace-subexpr (*global-batch*) (alt-expr prev-altn) prev-subexpr patch-expr))
+         (values (alt expr* event* (list prev-altn)) patch-expr)]))
+    (define-values (result-alt _) (loop altn))
+    result-alt)
 
-  (^patched^ (remove-duplicates
-              (reap [sow]
-                    (for ([altn (in-list alts)])
-                      (define start-expr (get-starting-expr altn))
-                      (for ([full-altn (in-list (^next-alts^))])
-                        (define expr (alt-expr full-altn))
-                        (sow (for/fold ([full-altn full-altn])
-                                       ([loc (in-list (batch-get-locations expr start-expr))])
-                               (reconstruct-alt altn loc full-altn))))))
-              #:key (compose batchref-idx alt-expr)))
+  (^patched^ (remove-duplicates (for*/list ([altn (in-list alts)]
+                                            [full-altn (in-list (^next-alts^))])
+                                  (reconstruct-alt altn (get-starting-expr altn) full-altn))
+                                #:key (compose batchref-idx alt-expr)))
 
   (void))
 
