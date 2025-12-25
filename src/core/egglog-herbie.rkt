@@ -342,11 +342,14 @@
            :ruleset
            lift)))
 
-(define (expr->egglog-spec-serialized expr s)
+(define (expr->egglog-spec-serialized expr s #:wrap-vars? [wrap-vars? #f])
   (let loop ([expr expr])
     (match expr
       [(? number?) `(Num ,(real->bigrat expr))]
-      [(? symbol?) (string->symbol (string-append s (symbol->string expr)))]
+      [(? symbol?)
+       (if wrap-vars?
+           `(Var ,(symbol->string expr))
+           (string->symbol (string-append s (symbol->string expr))))]
       [(list op args ...)
        `(,(hash-ref (if (hash-has-key? (id->e1) op)
                         (id->e1)
@@ -439,7 +442,8 @@
         [(literal v repr) `(,(typed-num-id repr) ,(real->bigrat v))]
         [(? number?) `(Num ,(real->bigrat node))]
         [(? symbol?) #f]
-        [(approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
+        [(approx spec impl)
+         `(Approx ,(expr->egglog-spec-serialized spec "" #:wrap-vars? #t) ,(remap impl #f))]
         [(list impl args ...)
          `(,(hash-ref (if (spec? (batchref batch n))
                           (id->e1)
@@ -448,7 +452,8 @@
            ,@(for/list ([arg (in-list args)])
                (remap arg (spec? (batchref batch n)))))]
 
-        [(hole ty spec) `(do-lower ,(remap spec #t) ,(symbol->string ty))]))
+        [(hole ty spec)
+         `(do-lower ,(expr->egglog-spec-serialized spec "" #:wrap-vars? #t) ,(symbol->string ty))]))
 
     (if node*
         (vector-set! mappings n (insert-node! node* n root?))
