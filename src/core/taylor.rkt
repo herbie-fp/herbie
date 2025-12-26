@@ -84,8 +84,8 @@
 
   (define (test-expand-taylor expr)
     (define-values (batch brfs) (progs->batch (list expr)))
-    (define brfs* (map (expand-taylor! batch) brfs))
-    (car (batch->progs batch brfs*)))
+    (define brf* ((expand-taylor! batch) (car brfs)))
+    ((batch-exprs batch) brf*))
 
   (check-equal? '(* 1/2 (log (/ (+ 1 x) (+ 1 (neg x))))) (test-expand-taylor '(atanh x)))
   (check-equal? '(log (+ x (sqrt (+ (* x x) -1)))) (test-expand-taylor '(acosh x)))

@@ -5,7 +5,6 @@
          "dvector.rkt")
 
 (provide progs->batch ; List<Expr> -> (Batch, List<Batchref>)
-         batch->progs ; Batch -> List<Batchref> -> List<Expr>
 
          expr-recurse
          (struct-out batch)
@@ -109,9 +108,6 @@
     (for/list ([expr (in-list exprs)])
       (batch-add! out expr)))
   (values out brfs))
-
-(define (batch->progs b brfs)
-  (map (batch-exprs b) brfs))
 
 ;; batch-recurse iterates only over its children
 ;; A lot of parts of Herbie rely on that
@@ -247,12 +243,12 @@
 
 ;; --------------------------------- TESTS ---------------------------------------
 
-; Tests for progs->batch and batch->progs
+; Tests for progs->batch and batch-exprs
 (module+ test
   (require rackunit)
   (define (test-munge-unmunge expr)
     (define-values (batch brfs) (progs->batch (list expr)))
-    (check-equal? (list expr) (batch->progs batch brfs)))
+    (check-equal? (list expr) (map (batch-exprs batch) brfs)))
 
   (define (f64 x)
     (literal x 'binary64))
@@ -274,7 +270,7 @@
     (define in-batch (batch nodes (make-hash)))
     (define brfs (map (curry batchref in-batch) roots))
     (define-values (out-batch brfs*) (batch-copy-only in-batch brfs))
-    (check-equal? (batch->progs out-batch brfs*) (batch->progs in-batch brfs))
+    (check-equal? (map (batch-exprs out-batch) brfs*) (map (batch-exprs in-batch) brfs))
     (batch-nodes out-batch))
 
   (check-equal? (create-dvector 2 0 '(sqrt 1) '(pow 0 2))
