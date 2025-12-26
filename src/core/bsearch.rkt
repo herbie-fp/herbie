@@ -12,6 +12,7 @@
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
          "../syntax/platform.rkt"
+         "batch.rkt"
          "compiler.rkt"
          "regimes.rkt"
          "rival.rkt"
@@ -30,7 +31,7 @@
 ;; The last splitpoint uses +nan.0 for pt and represents the "else"
 (struct sp (cidx bexpr point) #:prefab)
 
-(define (combine-alts best-option start-prog ctx pcontext)
+(define (combine-alts batch best-option start-prog ctx pcontext)
   (match-define (option splitindices alts pts expr _) best-option)
   (match splitindices
     [(list (si cidx _)) (list-ref alts cidx)]
@@ -38,21 +39,22 @@
      (timeline-event! 'bsearch)
      (define splitpoints (sindices->spoints pts expr alts splitindices start-prog ctx pcontext))
 
-     (define expr*
-       (for/fold ([expr (alt-expr (list-ref alts (sp-cidx (last splitpoints))))])
+     (define brf*
+       (for/fold ([brf (alt-expr (list-ref alts (sp-cidx (last splitpoints))))])
                  ([splitpoint (cdr (reverse splitpoints))])
          (define repr (repr-of (sp-bexpr splitpoint) ctx))
          (define if-impl (get-fpcore-impl 'if '() (list (get-representation 'bool) repr repr)))
          (define <=-impl (get-fpcore-impl '<= '() (list repr repr)))
-         `(,if-impl (,<=-impl ,(sp-bexpr splitpoint)
-                              ,(literal (repr->real (sp-point splitpoint) repr)
-                                        (representation-name repr)))
-                    ,(alt-expr (list-ref alts (sp-cidx splitpoint)))
-                    ,expr)))
+         (define lit-brf
+           (batch-add! batch
+                       (literal (repr->real (sp-point splitpoint) repr) (representation-name repr))))
+         (define cmp-brf (batch-add! batch `(,<=-impl ,(sp-bexpr splitpoint) ,lit-brf)))
+         (batch-add! batch
+                     `(,if-impl ,cmp-brf ,(alt-expr (list-ref alts (sp-cidx splitpoint))) ,brf))))
 
      ;; We don't want unused alts in our history!
      (define-values (alts* splitpoints*) (remove-unused-alts alts splitpoints))
-     (alt expr* (list 'regimes splitpoints*) alts*)]))
+     (alt brf* (list 'regimes splitpoints*) alts*)]))
 
 (define (remove-unused-alts alts splitpoints)
   (for/fold ([alts* '()]

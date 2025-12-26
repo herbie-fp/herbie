@@ -271,7 +271,7 @@
                        ctx
                        (*pcontext*)))
      (for/list ([opt (in-list opts)])
-       (combine-alts opt start-prog ctx (*pcontext*)))]
+       (combine-alts batch opt start-prog ctx (*pcontext*)))]
     [else
      (define scores (batch-score-alts alts))
      (list (cdr (argmin car (map (λ (a s) (cons s a)) alts scores))))]))
