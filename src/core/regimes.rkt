@@ -5,6 +5,7 @@
          "../utils/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
+         "batch.rkt"
          "compiler.rkt"
          "points.rkt"
          "programs.rkt")
@@ -23,13 +24,13 @@
   [(define (write-proc opt port mode)
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
-(define (pareto-regimes sorted start-prog ctx pcontext)
+(define (pareto-regimes batch sorted start-prog ctx pcontext)
   (timeline-event! 'regimes)
-  (define err-lsts (exprs-errors (map alt-expr sorted) pcontext ctx))
+  (define err-lsts (batch-errors batch (map alt-expr sorted) pcontext ctx))
   (define branches
     (if (null? sorted)
         '()
-        (exprs-to-branch-on sorted start-prog ctx)))
+        (exprs-to-branch-on batch sorted start-prog ctx)))
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
         branches
@@ -85,10 +86,11 @@
   (timeline-push! 'oracle (errors-score (map (curry apply max) err-lsts)))
   (values best errs))
 
-(define (exprs-to-branch-on alts start-prog ctx)
+(define (exprs-to-branch-on batch alts start-prog ctx)
+  (define exprs (batch-exprs batch))
   (define alt-critexprs
     (for/list ([alt (in-list alts)])
-      (all-critical-subexpressions (alt-expr alt) ctx)))
+      (all-critical-subexpressions (exprs (alt-expr alt)) ctx)))
   (define start-critexprs (all-critical-subexpressions start-prog ctx))
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
