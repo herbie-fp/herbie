@@ -31,10 +31,10 @@
     (if (null? sorted)
         '()
         (exprs-to-branch-on batch sorted start-prog ctx)))
-  (define branch-exprs
+  (define branch-brfs
     (if (flag-set? 'reduce 'branch-expressions)
         branches
-        (context-vars ctx)))
+        (map (curry batch-add! batch) (context-vars ctx))))
   (let loop ([alts sorted]
              [errs (hash)]
              [err-lsts err-lsts])
@@ -43,18 +43,18 @@
       ; Only return one option if not pareto mode
       [else
        (define-values (opt new-errs)
-         (infer-splitpoints batch branch-exprs alts err-lsts #:errs errs ctx pcontext))
+         (infer-splitpoints batch branch-brfs alts err-lsts #:errs errs ctx pcontext))
        (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
        (cons opt (loop (take alts high) new-errs (take err-lsts high)))])))
 
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-splitpoints batch branch-exprs alts err-lsts* #:errs [cerrs (hash)] ctx pcontext)
+(define (infer-splitpoints batch branch-brfs alts err-lsts* #:errs [cerrs (hash)] ctx pcontext)
   (define exprs (batch-exprs batch))
   (timeline-push! 'inputs (map (compose ~a exprs alt-expr) alts))
-  (define sorted-bexprs
-    (sort branch-exprs (lambda (x y) (< (hash-ref cerrs x -1) (hash-ref cerrs y -1)))))
+  (define sorted-brfs
+    (sort branch-brfs (lambda (x y) (< (hash-ref cerrs x -1) (hash-ref cerrs y -1)))))
   (define err-lsts (flip-lists err-lsts*))
 
   ;; invariant:
@@ -64,14 +64,14 @@
                [best-err +inf.0]
                [errs cerrs]
                #:result (values best best-err errs))
-              ([bexpr sorted-bexprs]
-               ;; stop if we've computed this (and following) branch-expr on more alts and it's still worse
-               #:break (> (hash-ref cerrs bexpr -1) best-err))
-      (define opt (option-on-expr alts err-lsts bexpr ctx pcontext))
+              ([brf sorted-brfs]
+               ;; stop if we've computed this (and following) branch-brf on more alts and it's still worse
+               #:break (> (hash-ref cerrs brf -1) best-err))
+      (define opt (option-on-brf batch alts err-lsts brf ctx pcontext))
       (define err
         (+ (errors-score (option-errors opt))
            (length (option-split-indices opt)))) ;; one-bit penalty per split
-      (define new-errs (hash-set errs bexpr err))
+      (define new-errs (hash-set errs brf err))
       (if (< err best-err)
           (values opt err new-errs)
           (values best best-err new-errs))))
@@ -95,8 +95,11 @@
   (define start-critexprs (all-critical-subexpressions start-prog ctx))
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
-  (filter (λ (e) (equal? (representation-type (repr-of e ctx)) 'real))
-          (set-intersect start-critexprs (apply set-union alt-critexprs))))
+  (define branch-exprs
+    (filter (λ (e) (equal? (representation-type (repr-of e ctx)) 'real))
+            (set-intersect start-critexprs (apply set-union alt-critexprs))))
+  ;; Convert to batchrefs
+  (map (curry batch-add! batch) branch-exprs))
 
 ;; Requires that expr is not a λ expression
 (define (critical-subexpression? expr subexpr)
@@ -114,7 +117,9 @@
              #:when (critical-subexpression? expr subexpr))
     subexpr))
 
-(define (option-on-expr alts err-lsts expr ctx pcontext)
+(define (option-on-brf batch alts err-lsts brf ctx pcontext)
+  (define exprs (batch-exprs batch))
+  (define expr (exprs brf))
   (define timeline-stop! (timeline-start! 'times (~a expr)))
 
   (define fn (compile-prog expr ctx))
@@ -135,7 +140,7 @@
                      [prev splitvals*])
             (</total prev val repr))))
   (define split-indices (infer-split-indices bit-err-lsts* can-split?))
-  (define out (option split-indices alts pts* expr (pick-errors split-indices err-lsts* repr)))
+  (define out (option split-indices alts pts* brf (pick-errors split-indices err-lsts* repr)))
   (timeline-stop!)
   (timeline-push! 'branch
                   (~a expr)
@@ -160,8 +165,10 @@
   (define err-lsts `((,(expt 2.0 53) 1.0) (1.0 ,(expt 2.0 53))))
 
   (define (test-regimes expr goal)
+    (define-values (batch brfs) (progs->batch (list expr)))
+    (define brf (car brfs))
     (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts err-lsts expr ctx pctx)
+           (option-on-brf batch alts err-lsts brf ctx pctx)
            goal))
 
   ;; This is a basic sanity test

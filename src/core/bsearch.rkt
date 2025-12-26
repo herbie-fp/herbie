@@ -21,28 +21,24 @@
          "programs.rkt")
 
 (provide combine-alts
-         (struct-out sp)
          regimes-pcontext-masks)
 
 (module+ test
   (require rackunit))
 
-;; A splitpoint (sp a b pt) means we should use alt a if b < pt
-;; The last splitpoint uses +nan.0 for pt and represents the "else"
-(struct sp (cidx bexpr point) #:prefab)
-
 (define (combine-alts batch best-option start-prog ctx pcontext)
-  (match-define (option splitindices alts pts expr _) best-option)
+  (match-define (option splitindices alts pts brf _) best-option)
   (match splitindices
     [(list (si cidx _)) (list-ref alts cidx)]
     [_
      (timeline-event! 'bsearch)
-     (define splitpoints (sindices->spoints batch pts expr alts splitindices start-prog ctx pcontext))
+     (define splitpoints (sindices->spoints batch pts brf alts splitindices start-prog ctx pcontext))
 
+     (define exprs (batch-exprs batch))
      (define brf*
        (for/fold ([brf (alt-expr (list-ref alts (sp-cidx (last splitpoints))))])
                  ([splitpoint (cdr (reverse splitpoints))])
-         (define repr (repr-of (sp-bexpr splitpoint) ctx))
+         (define repr (repr-of (exprs (sp-bexpr splitpoint)) ctx))
          (define if-impl (get-fpcore-impl 'if '() (list (get-representation 'bool) repr repr)))
          (define <=-impl (get-fpcore-impl '<= '() (list repr repr)))
          (define lit-brf
@@ -96,8 +92,9 @@
   (define vars* (set-subtract (context-vars ctx) (free-variables pattern)))
   (and (subset? (free-variables body*) (cons var vars*)) body*))
 
-(define (extract-subexpression batch brf var pattern ctx)
-  (extract-subexpression* ((batch-exprs batch) brf) var pattern ctx))
+(define (extract-subexpression batch brf var pattern-brf ctx)
+  (define exprs (batch-exprs batch))
+  (extract-subexpression* (exprs brf) var (exprs pattern-brf) ctx))
 
 (define (prepend-argument evaluator val pcontext)
   (define pts
@@ -123,16 +120,18 @@
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
-(define/contract (sindices->spoints batch points expr alts sindices start-prog ctx pcontext)
+(define/contract (sindices->spoints batch points brf alts sindices start-prog ctx pcontext)
   (-> batch?
       (listof vector?)
-      any/c
+      batchref?
       (listof alt?)
       (listof si?)
       any/c
       context?
       pcontext?
       valid-splitpoints?)
+  (define exprs (batch-exprs batch))
+  (define expr (exprs brf))
   (define repr (repr-of expr ctx))
 
   (define eval-expr (compile-prog expr ctx))
@@ -141,7 +140,7 @@
   (define ctx* (context-extend ctx var repr))
   (define progs
     (for/list ([alt (in-list alts)])
-      (extract-subexpression batch (alt-expr alt) var expr ctx)))
+      (extract-subexpression batch (alt-expr alt) var brf ctx)))
   (define start-prog-sub (extract-subexpression* start-prog var expr ctx))
 
   ; Not totally clear if this should actually use the precondition
@@ -196,8 +195,8 @@
             (timeline-stop!)
 
             (timeline-push! 'method (if use-binary "binary-search" "left-value"))
-            (sp (si-cidx si1) expr split-at))
-          (list (sp (si-cidx (last sindices)) expr +nan.0))))
+            (sp (si-cidx si1) brf split-at))
+          (list (sp (si-cidx (last sindices)) brf +nan.0))))
 
 (define (regimes-pcontext-masks pcontext splitpoints alts ctx)
   (define num-alts (length alts))
