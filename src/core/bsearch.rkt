@@ -37,7 +37,7 @@
     [(list (si cidx _)) (list-ref alts cidx)]
     [_
      (timeline-event! 'bsearch)
-     (define splitpoints (sindices->spoints pts expr alts splitindices start-prog ctx pcontext))
+     (define splitpoints (sindices->spoints batch pts expr alts splitindices start-prog ctx pcontext))
 
      (define brf*
        (for/fold ([brf (alt-expr (list-ref alts (sp-cidx (last splitpoints))))])
@@ -91,10 +91,13 @@
         (timeline-push! 'stop "predicate-same" 1)
         (values p1 p2)])]))
 
-(define (extract-subexpression expr var pattern ctx)
+(define (extract-subexpression* expr var pattern ctx)
   (define body* (replace-expression expr pattern var))
   (define vars* (set-subtract (context-vars ctx) (free-variables pattern)))
   (and (subset? (free-variables body*) (cons var vars*)) body*))
+
+(define (extract-subexpression batch brf var pattern ctx)
+  (extract-subexpression* ((batch-exprs batch) brf) var pattern ctx))
 
 (define (prepend-argument evaluator val pcontext)
   (define pts
@@ -120,16 +123,26 @@
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
-(define/contract (sindices->spoints points expr alts sindices start-prog ctx pcontext)
-  (-> (listof vector?) any/c (listof alt?) (listof si?) any/c context? pcontext? valid-splitpoints?)
+(define/contract (sindices->spoints batch points expr alts sindices start-prog ctx pcontext)
+  (-> batch?
+      (listof vector?)
+      any/c
+      (listof alt?)
+      (listof si?)
+      any/c
+      context?
+      pcontext?
+      valid-splitpoints?)
   (define repr (repr-of expr ctx))
 
   (define eval-expr (compile-prog expr ctx))
 
   (define var (gensym 'branch))
   (define ctx* (context-extend ctx var repr))
-  (define progs (map (compose (curryr extract-subexpression var expr ctx) alt-expr) alts))
-  (define start-prog-sub (extract-subexpression start-prog var expr ctx))
+  (define progs
+    (for/list ([alt (in-list alts)])
+      (extract-subexpression batch (alt-expr alt) var expr ctx)))
+  (define start-prog-sub (extract-subexpression* start-prog var expr ctx))
 
   ; Not totally clear if this should actually use the precondition
   (define start-real-compiler
