@@ -43,15 +43,16 @@
       ; Only return one option if not pareto mode
       [else
        (define-values (opt new-errs)
-         (infer-splitpoints branch-exprs alts err-lsts #:errs errs ctx pcontext))
+         (infer-splitpoints batch branch-exprs alts err-lsts #:errs errs ctx pcontext))
        (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
        (cons opt (loop (take alts high) new-errs (take err-lsts high)))])))
 
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-splitpoints branch-exprs alts err-lsts* #:errs [cerrs (hash)] ctx pcontext)
-  (timeline-push! 'inputs (map (compose ~a alt-expr) alts))
+(define (infer-splitpoints batch branch-exprs alts err-lsts* #:errs [cerrs (hash)] ctx pcontext)
+  (define exprs (batch-exprs batch))
+  (timeline-push! 'inputs (map (compose ~a exprs alt-expr) alts))
   (define sorted-bexprs
     (sort branch-exprs (lambda (x y) (< (hash-ref cerrs x -1) (hash-ref cerrs y -1)))))
   (define err-lsts (flip-lists err-lsts*))
@@ -78,7 +79,7 @@
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
   (timeline-push! 'outputs
                   (for/list ([sidx (option-split-indices best)])
-                    (~a (alt-expr (list-ref alts (si-cidx sidx))))))
+                    (~a (exprs (alt-expr (list-ref alts (si-cidx sidx)))))))
   (timeline-push! 'baseline (apply min (map errors-score err-lsts*)))
   (timeline-push! 'accuracy (errors-score (option-errors best)))
   (define repr (context-repr ctx))
