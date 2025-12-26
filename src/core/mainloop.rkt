@@ -78,11 +78,11 @@
   (timeline-push-alts! '())
   (define all-alts (atab-all-alts (^table^)))
   (define joined-alts (make-regime! (*global-batch*) all-alts (*start-prog*)))
-  (define unbatched-alts (unbatchify-alts (*global-batch*) joined-alts))
-  (define annotated-alts (add-derivations! unbatched-alts))
+  (define annotated-alts (add-derivations! joined-alts))
+  (define unbatched-alts (unbatchify-alts (*global-batch*) annotated-alts))
 
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
-  (map car (sort-alts annotated-alts)))
+  (map car (sort-alts unbatched-alts)))
 
 ;; The next few functions are for interactive use in a REPL, usually for debugging
 ;; In Emacs, you can install racket-mode and then use C-c C-k to start that REPL

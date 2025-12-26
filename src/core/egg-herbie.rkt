@@ -1357,9 +1357,13 @@
   (define egg-graph (egg-runner-egg-graph runner))
   (egraph-expr-equal? egg-graph start end ctx))
 
-(define (egraph-prove runner start end)
+(define (egraph-prove runner start-brf end-brf)
   (define ctx (egg-runner-ctx runner))
   (define egg-graph (egg-runner-egg-graph runner))
+  (define batch (egg-runner-batch runner))
+  (define exprs (batch-exprs batch))
+  (define start (exprs start-brf))
+  (define end (exprs end-brf))
 
   (unless (egraph-expr-equal? egg-graph start end ctx)
     (error 'egraph-prove "cannot prove ~a is equal to ~a; not equal" start end))
