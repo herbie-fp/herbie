@@ -127,7 +127,7 @@
       (context '() repr '())))
 
   (define spec-brfs (batch-to-spec! global-batch brfs))
-  (define specs (batch->progs global-batch spec-brfs))
+  (define specs (map (batch-exprs global-batch) spec-brfs))
   (define-values (status pts)
     (if (null? specs)
         (values 'invalid #f)

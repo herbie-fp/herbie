@@ -337,7 +337,7 @@
 
   ;; Checks for batch-reduce-evaluation
   (define (reducer-results expr)
-    (batch-pull (reduce-evaluation (batch-add! batch expr))))
+    ((batch-exprs batch) (reduce-evaluation (batch-add! batch expr))))
   (check-equal? (reducer-results '(cos (/ (PI) 6))) '(/ (sqrt 3) 2))
   (check-equal? (reducer-results '(sin (/ (PI) 4))) '(/ (sqrt 2) 2))
   (check-equal? (reducer-results '(cos (PI))) -1)
@@ -345,7 +345,7 @@
 
   ;; Checks for batch-reduce-inverses
   (define (inverse-reducer-results expr)
-    (batch-pull (reduce-inverses (batch-add! batch expr))))
+    ((batch-exprs batch) (reduce-inverses (batch-add! batch expr))))
   (check-equal? (inverse-reducer-results '(cosh (acosh x))) 'x)
   (check-equal? (inverse-reducer-results '(tanh (atanh x))) 'x)
   (check-equal? (inverse-reducer-results '(sinh (asinh x))) 'x)
@@ -365,7 +365,7 @@
   ;; Checks for batch-reduce
   (define reduce (batch-reduce batch))
   (define (reduce-results expr)
-    (batch-pull (reduce (batch-add! batch expr))))
+    ((batch-exprs batch) (reduce (batch-add! batch expr))))
   (check-equal? '(- (pow (+ 1 x) 2) 1) (reduce-results '(- (* (+ x 1) (+ x 1)) 1)))
   (check-equal? '(neg (* 2 (/ 1 x))) (reduce-results '(+ (/ 1 (neg x)) (/ 1 (neg x)))))
   (check-equal? '(- (pow (- 1 (/ 1 x)) 2) 1)
