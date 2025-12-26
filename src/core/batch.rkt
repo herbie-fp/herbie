@@ -20,7 +20,6 @@
          batch-free-vars ; Batch -> (Batchref -> Set<Var>)
          in-batch ; Batch -> Sequence<Node>
          batch-ref ; Batch -> Idx -> Node
-         batch-pull ; Batchref -> Expr
          batch-apply ; Batch -> List<Batchref> -> (Expr<Batchref> -> Expr<Batchref>) -> (Batch, List<Batchref>)
          batch-apply! ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> (Batchref -> Batchref)
          batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
@@ -160,11 +159,6 @@
 
 (define (batch-ref batch reg)
   (dvector-ref (batch-nodes batch) reg))
-
-(define (batch-pull brf)
-  (define (unmunge brf)
-    (expr-recurse (deref brf) unmunge))
-  (unmunge brf))
 
 (define (brfs-belong-to-batch? batch brfs)
   (unless (andmap (compose (curry equal? batch) batchref-batch) brfs)
