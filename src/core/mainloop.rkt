@@ -183,8 +183,7 @@
              [(list 'evaluate) (list 'evaluate start-expr)]
              [(list 'taylor name var) (list 'taylor start-expr name var)]
              [(list 'rr input proof) (list 'rr (alt-expr prev) cur-expr input proof)]))
-         (define expr*
-           (batch-replace-subexpr (*global-batch*) (alt-expr orig) start-expr cur-expr))
+         (define expr* (batch-replace-subexpr (*global-batch*) (alt-expr orig) start-expr cur-expr))
          (values (alt expr* event* (list prev-altn)) start-expr)]))
     (define-values (result-alt _) (loop altn))
     result-alt)
@@ -244,7 +243,8 @@
   (define brfs (map alt-expr (^next-alts^)))
   (define brfs* (batch-reachable (*global-batch*) brfs #:condition node-is-impl?))
 
-  (reconstruct! (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer))
+  (define results (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer))
+  (reconstruct! results)
   (finalize-iter!)
   (void))
 
