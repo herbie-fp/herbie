@@ -119,11 +119,10 @@
 
 (define (option-on-brf batch alts err-lsts brf ctx pcontext)
   (define exprs (batch-exprs batch))
-  (define expr (exprs brf))
-  (define timeline-stop! (timeline-start! 'times (~a expr)))
+  (define timeline-stop! (timeline-start! 'times (~a (exprs brf))))
 
-  (define fn (compile-prog expr ctx))
-  (define repr (repr-of expr ctx))
+  (define fn (compose (curryr vector-ref 0) (compile-batch batch (list brf) ctx)))
+  (define repr ((batch-reprs batch ctx) brf))
 
   (define big-table ; pt ; splitval ; alt1-err ; alt2-err ; ...
     (for/list ([(pt ex) (in-pcontext pcontext)]
@@ -143,7 +142,7 @@
   (define out (option split-indices alts pts* brf (pick-errors split-indices err-lsts* repr)))
   (timeline-stop!)
   (timeline-push! 'branch
-                  (~a expr)
+                  (~a (exprs brf))
                   (errors-score (option-errors out))
                   (length split-indices)
                   (~a (representation-name repr)))

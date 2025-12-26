@@ -34,11 +34,11 @@
      (timeline-event! 'bsearch)
      (define splitpoints (sindices->spoints batch pts brf alts splitindices start-prog ctx pcontext))
 
-     (define exprs (batch-exprs batch))
+     (define reprs (batch-reprs batch ctx))
      (define brf*
        (for/fold ([brf (alt-expr (list-ref alts (sp-cidx (last splitpoints))))])
                  ([splitpoint (cdr (reverse splitpoints))])
-         (define repr (repr-of (exprs (sp-bexpr splitpoint)) ctx))
+         (define repr (reprs (sp-bexpr splitpoint)))
          (define if-impl (get-fpcore-impl 'if '() (list (get-representation 'bool) repr repr)))
          (define <=-impl (get-fpcore-impl '<= '() (list repr repr)))
          (define lit-brf
@@ -131,17 +131,16 @@
       pcontext?
       valid-splitpoints?)
   (define exprs (batch-exprs batch))
-  (define expr (exprs brf))
-  (define repr (repr-of expr ctx))
+  (define repr ((batch-reprs batch ctx) brf))
 
-  (define eval-expr (compile-prog expr ctx))
+  (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf) ctx)))
 
   (define var (gensym 'branch))
   (define ctx* (context-extend ctx var repr))
   (define progs
     (for/list ([alt (in-list alts)])
       (extract-subexpression batch (alt-expr alt) var brf ctx)))
-  (define start-prog-sub (extract-subexpression* start-prog var expr ctx))
+  (define start-prog-sub (extract-subexpression* start-prog var (exprs brf) ctx))
 
   ; Not totally clear if this should actually use the precondition
   (define start-real-compiler
@@ -154,7 +153,7 @@
     (define (pred v)
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
-          (cache-get-prepend v expr prepend-macro)))
+          (cache-get-prepend v brf prepend-macro)))
       (define acc1 (errors-score (errors expr1 pctx ctx*)))
       (define acc2 (errors-score (errors expr2 pctx ctx*)))
       (- acc1 acc2))
