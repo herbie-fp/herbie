@@ -50,16 +50,8 @@
 ;; - FFIRule: struct defined in egg-herbie
 ;; - EgraphIter: struct defined in egg-herbie
 
-;; Wrapper around Rust-allocated egg runner
-(struct egraph-data (egraph-pointer)) ; FFI pointer to runner
-
-; Makes a new egraph that is managed by Racket's GC
-(define (make-egraph-data)
-  (egraph-data (egraph_create)))
-
 ; Adds expressions returning the root ids
-(define (egraph-add-exprs egg-data batch brfs ctx)
-  (define ptr (egraph-data-egraph-pointer egg-data))
+(define (egraph-add-exprs ptr batch brfs ctx)
 
   ; pre-allocated id vectors for all the common cases
   (define 0-vec (make-u32vector 0))
@@ -112,7 +104,7 @@
     brf-id))
 
 ;; runs rules on an egraph (optional iteration limit)
-(define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler)
+(define (egraph-run ptr ffi-rules node-limit iter-limit scheduler)
   (define u32_max 4294967295) ; since we can't send option types
   (define node_limit (if node-limit node-limit u32_max))
   (define iter_limit (if iter-limit iter-limit u32_max))
@@ -121,44 +113,23 @@
       ['backoff #f]
       ['simple #t]
       [_ (error 'egraph-run "unknown scheduler: `~a`" scheduler)]))
-  (egraph_run (egraph-data-egraph-pointer egraph-data)
-              ffi-rules
-              iter_limit
-              node_limit
-              simple_scheduler?))
+  (egraph_run ptr ffi-rules iter_limit node_limit simple_scheduler?))
 
-(define (egraph-get-simplest egraph-data node-id iteration ctx)
-  (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
+(define (egraph-get-simplest ptr node-id iteration ctx)
+  (define expr (egraph_get_simplest ptr node-id iteration))
   (egg-expr->expr expr ctx))
 
-(define (egraph-get-variants egraph-data node-id orig-expr ctx)
+(define (egraph-get-variants ptr node-id orig-expr ctx)
   (define egg-expr (expr->egg-expr orig-expr ctx))
-  (define exprs (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id egg-expr))
+  (define exprs (egraph_get_variants ptr node-id egg-expr))
   (for/list ([expr (in-list exprs)])
     (egg-expr->expr expr ctx)))
-
-(define (egraph-is-unsound-detected egraph-data)
-  (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))
-
-(define (egraph-get-cost egraph-data node-id iteration)
-  (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id iteration))
-
-(define (egraph-get-times-applied egraph-data rule)
-  (egraph_get_times_applied (egraph-data-egraph-pointer egraph-data) (FFIRule-name rule)))
-
-(define (egraph-stop-reason egraph-data)
-  (egraph_get_stop_reason (egraph-data-egraph-pointer egraph-data)))
-
-;; Extracts the eclasses of an e-graph as a u32vector
-(define (egraph-eclasses egraph-data)
-  (egraph_get_eclasses (egraph-data-egraph-pointer egraph-data)))
 
 (define empty-u32vec (make-u32vector 0))
 
 ;; Extracts the nodes of an e-class as a vector
 ;; where each enode is either a symbol, number, or list
-(define (egraph-get-eclass egraph-data id)
-  (define ptr (egraph-data-egraph-pointer egraph-data))
+(define (egraph-get-eclass ptr id)
   (define eclass (egraph_get_eclass ptr id))
   ; need to fix up any constant operators
   (for ([enode (in-vector eclass)]
@@ -167,19 +138,16 @@
     (vector-set! eclass i (cons enode empty-u32vec)))
   eclass)
 
-(define (egraph-find egraph-data id)
-  (egraph_find (egraph-data-egraph-pointer egraph-data) id))
-
-(define (egraph-expr-equal? egraph-data expr goal ctx)
+(define (egraph-expr-equal? ptr expr goal ctx)
   (define-values (batch brfs) (progs->batch (list expr goal)))
-  (match-define (list id1 id2) (egraph-add-exprs egraph-data batch brfs ctx))
+  (match-define (list id1 id2) (egraph-add-exprs ptr batch brfs ctx))
   (= id1 id2))
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
-(define (egraph-get-proof egraph-data expr goal ctx)
+(define (egraph-get-proof ptr expr goal ctx)
   (define egg-expr (expr->egg-expr expr ctx))
   (define egg-goal (expr->egg-expr goal ctx))
-  (define str (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
+  (define str (egraph_get_proof ptr egg-expr egg-goal))
   (cond
     [(<= (string-length str) (*proof-max-string-length*))
      (define converted
@@ -307,7 +275,7 @@
           (cons '(cos.f32 (PI.f32)) '(cos.f32 (PI.f32)))
           (cons '(if.f64 (TRUE) x y) '(if.f64 (TRUE) $var0 $var1))))
 
-  (let ([egg-graph (make-egraph-data)])
+  (let ([egg-graph (egraph_create)])
     (for ([(in expected-out) (in-dict test-exprs)])
       (define out (expr->egg-expr in ctx))
       (define computed-in (egg-expr->expr out ctx))
@@ -337,7 +305,7 @@
           `(*.f64 ,(literal 23/54 'binary64) r)
           `(+.f64 ,(literal 3/2 'binary64) ,(literal 14/10 'binary64))))
 
-  (let ([egg-graph (make-egraph-data)])
+  (let ([egg-graph (egraph_create)])
     (for ([expr extended-expr-list])
       (define egg-expr (expr->egg-expr expr ctx))
       (check-equal? (egg-expr->expr egg-expr ctx) expr))))
@@ -596,8 +564,8 @@
 
 ;; Splits untyped eclasses into typed eclasses.
 ;; Nodes are duplicated across their possible types.
-(define (split-untyped-eclasses egraph-data ctx)
-  (define eclass-ids (egraph-eclasses egraph-data))
+(define (split-untyped-eclasses ptr ctx)
+  (define eclass-ids (egraph_get_eclasses ptr))
   (define max-id
     (for/fold ([current-max 0]) ([egg-id (in-u32vector eclass-ids)])
       (max current-max egg-id)))
@@ -635,7 +603,7 @@
   ; to their position in untyped eclasses
   (for ([eid (in-u32vector eclass-ids)]
         [idx (in-naturals)])
-    (define enodes (egraph-get-eclass egraph-data eid))
+    (define enodes (egraph-get-eclass ptr eid))
     (for ([enode (in-vector enodes)])
       ; get all possible types for the enode
       ; lookup its correct eclass and add the rebuilt node
@@ -767,10 +735,10 @@
 
 ;; Splits untyped eclasses into typed eclasses,
 ;; keeping only the subset of enodes that are well-typed.
-(define (make-typed-eclasses egraph-data ctx)
+(define (make-typed-eclasses ptr ctx)
   ;; Step 1: split Rust-eclasses by type
   (define-values (id->eclass id->parents id->leaf? eclass-ids egg-id->idx type->idx)
-    (split-untyped-eclasses egraph-data ctx))
+    (split-untyped-eclasses ptr ctx))
 
   ;; Step 2: keep well-typed e-nodes
   ;; An e-class is well-typed if it has one well-typed node
@@ -814,9 +782,9 @@
 
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
-(define (make-regraph egraph-data ctx)
+(define (make-regraph ptr ctx)
   ;; split the e-classes by type
-  (define-values (eclasses types canon) (make-typed-eclasses egraph-data ctx))
+  (define-values (eclasses types canon) (make-typed-eclasses ptr ctx))
 
   ;; analyze each eclass
   (define-values (parents leaf? constants) (analyze-eclasses eclasses))
@@ -1146,13 +1114,6 @@
 ;; A mini-interpreter for egraph "schedules" including running egg,
 ;; pruning certain kinds of nodes, extracting expressions, etc.
 
-; Creates a new runner using an existing egraph.
-; Useful for multi-phased rule application
-(define (egraph-copy eg-data)
-  (struct-copy egraph-data
-               eg-data
-               [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
-
 ;; Runs rules over the egraph with the given egg parameters.
 (define (egraph-run-rules egg-graph0
                           egg-rules
@@ -1162,16 +1123,16 @@
   (define ffi-rules (map cdr egg-rules))
 
   ;; run the rules
-  (define egg-graph (egraph-copy egg-graph0))
+  (define egg-graph (egraph_copy egg-graph0))
   (define iteration-data (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
 
-  (when (egraph-is-unsound-detected egg-graph)
+  (when (egraph_is_unsound_detected egg-graph)
     (warn 'unsound-egraph #:url "faq.html#unsound-egraph" "unsoundness detected in the egraph"))
-  (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
+  (timeline-push! 'stop (~a (egraph_get_stop_reason egg-graph)) 1)
   (values egg-graph iteration-data))
 
 (define (egraph-analyze-rewrite-impact batch brfs ctx iter)
-  (define egg-graph (make-egraph-data))
+  (define egg-graph (egraph_create))
   (egraph-add-exprs egg-graph batch brfs ctx)
   (define lifting-rules (expand-rules (platform-lifting-rules)))
   (define-values (egg-graph1 _1)
@@ -1196,7 +1157,7 @@
 
 (define (egraph-run-schedule batch brfs schedule ctx)
   ; allocate the e-graph
-  (define egg-graph (make-egraph-data))
+  (define egg-graph (egraph_create))
 
   ; insert expressions into the e-graph
   (define root-ids (egraph-add-exprs egg-graph batch brfs ctx))
@@ -1223,13 +1184,13 @@
       (for ([iter (in-list iteration-data)]
             [i (in-naturals)])
         (define cnt (iteration-data-num-nodes iter))
-        (define cost (for/sum ([id (in-list root-ids)]) (egraph-get-cost egg-graph* id i)))
+        (define cost (for/sum ([id (in-list root-ids)]) (egraph_get_cost egg-graph* id i)))
         (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
 
       egg-graph*))
 
   ; root eclasses may have changed
-  (define root-ids* (map (lambda (id) (egraph-find egg-graph* id)) root-ids))
+  (define root-ids* (map (lambda (id) (egraph_find egg-graph* id)) root-ids))
   ; return what we need
   (values root-ids* egg-graph*))
 
@@ -1314,7 +1275,7 @@
 
   ; Return empty results if unsound
   (cond
-    [(egraph-is-unsound-detected egg-graph) (map (const empty) root-ids)]
+    [(egraph_is_unsound_detected egg-graph) (map (const empty) root-ids)]
     [else
      (define regraph (make-regraph egg-graph ctx))
      (define reprs (egg-runner-reprs runner))
@@ -1335,7 +1296,7 @@
 
   ; Return empty results if unsound
   (cond
-    [(egraph-is-unsound-detected egg-graph) (map (const empty) root-ids)]
+    [(egraph_is_unsound_detected egg-graph) (map (const empty) root-ids)]
     [else
      (define regraph (make-regraph egg-graph ctx))
      (define reprs (egg-runner-reprs runner))
