@@ -108,8 +108,8 @@
   (apply mk-pcontext results))
 
 (define/reset *prepend-arguement-cache* (make-hash))
-(define (cache-get-prepend v expr macro)
-  (define key (cons expr v))
+(define (cache-get-prepend v brf macro)
+  (define key (cons brf v))
   (hash-ref! (*prepend-arguement-cache*) key (lambda () (macro v))))
 
 (define (valid-splitpoints? splitpoints)
