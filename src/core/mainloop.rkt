@@ -145,13 +145,12 @@
                (list-ref altns** (- (* i div-size) 1))))]))
 
 (define (timeline-push-alts! picked-alts)
-  (define exprs (batch-exprs (*global-batch*)))
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define repr (context-repr (*context*)))
   (for ([alt (atab-active-alts (^table^))]
         [sc (in-list (batch-score-alts (atab-active-alts (^table^))))])
     (timeline-push! 'alts
-                    (~a (exprs (alt-expr alt)))
+                    (batch->jsexpr (*global-batch*) (list (alt-expr alt)))
                     (cond
                       [(set-member? picked-alts alt) "next"]
                       [(set-member? fresh-alts alt) "fresh"]

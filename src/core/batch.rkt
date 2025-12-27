@@ -26,6 +26,8 @@
          batch-recurse
          batch-iterate
          batch-get-nodes
+         batch->jsexpr
+         jsexpr->batch-exprs
 
          (struct-out batchref)
          batchref<?
@@ -241,6 +243,44 @@
 (define (batch-copy-only batch brfs)
   (batch-apply batch brfs identity))
 
+;; Converts a batch + roots to a JSON-compatible structure
+;; Returns: (hash 'nodes [...] 'roots [idx1 idx2 ...])
+;; Nodes are: atoms (symbols->strings, numbers) or [op-string idx1 idx2 ...]
+(define (batch->jsexpr batch brfs)
+  (define-values (batch* brfs*) (batch-copy-only batch brfs))
+  (define nodes
+    (for/list ([node (in-batch batch*)])
+      (match node
+        [(? symbol?) (~a node)]
+        [(? number?) node]
+        [(approx spec impl) (list "approx" spec impl)]
+        [(hole precision spec) (list "hole" (~a precision) spec)]
+        [(list op args ...) (cons (~a op) args)]
+        [_ (~a node)])))
+  (hash 'nodes nodes 'roots (map batchref-idx brfs*)))
+
+;; Converts a jsexpr batch back to expression strings
+;; Returns a list of expression strings, one per root
+(define (jsexpr->batch-exprs jsexpr)
+  (define nodes (hash-ref jsexpr 'nodes))
+  (define roots (hash-ref jsexpr 'roots))
+  (define exprs (make-vector (length nodes) #f))
+  (for ([node (in-list nodes)]
+        [i (in-naturals)])
+    (vector-set! exprs
+                 i
+                 (match node
+                   [(? string?) node]
+                   [(? number?) (~a node)]
+                   [(list op args ...)
+                    (format "(~a~a)"
+                            op
+                            (apply string-append
+                                   (for/list ([arg args])
+                                     (format " ~a" (vector-ref exprs arg)))))])))
+  (for/list ([root roots])
+    (vector-ref exprs root)))
+
 ;; --------------------------------- TESTS ---------------------------------------
 
 ; Tests for progs->batch and batch-exprs
@@ -292,3 +332,16 @@
    (create-dvector 1/2 'x '(* 1 1) 2 (approx 2 3) '(pow 0 4) '(sqrt 3))
    (zombie-test #:nodes (create-dvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
                 #:roots (list 7 3))))
+
+; Tests for batch->jsexpr and jsexpr->batch-exprs roundtrip
+(module+ test
+  (require rackunit)
+  (define (test-json-roundtrip expr)
+    (define-values (batch brfs) (progs->batch (list expr)))
+    (define jsexpr (batch->jsexpr batch brfs))
+    (define strs (jsexpr->batch-exprs jsexpr))
+    (check-equal? strs (map (compose ~a (batch-exprs batch)) brfs)))
+
+  (test-json-roundtrip '(+ x y))
+  (test-json-roundtrip '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))))
+  (test-json-roundtrip '(sqrt (+ (* x x) (* y y)))))
