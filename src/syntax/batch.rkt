@@ -11,7 +11,6 @@
          batch-empty ; Batch
          batch-push!
          batch-add! ; Batch -> (or Expr Batchref Expr<Batchref>) -> Batchref
-         batch-copy ; Batch -> Batch
          batch-copy-only ; Batch -> List<Batchref> -> (Batch, List<Batchref>)
          batch-copy-only!
          batch-length ; Batch -> Integer
@@ -19,20 +18,14 @@
          batch-free-vars ; Batch -> (Batchref -> Set<Var>)
          in-batch ; Batch -> Sequence<Node>
          batch-ref ; Batch -> Idx -> Node
-         batch-apply ; Batch -> List<Batchref> -> (Expr<Batchref> -> Expr<Batchref>) -> (Batch, List<Batchref>)
          batch-apply! ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> (Batchref -> Batchref)
          batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-exprs
          batch-recurse
-         batch-iterate
          batch-get-nodes
 
          (struct-out batchref)
          batchref<?
-         batchref<=?
-         batchref>?
-         batchref>=?
-         batchref=?
          deref) ; Batchref -> Expr
 
 ;; Batches store these recursive structures, flattened
@@ -53,14 +46,6 @@
 
 (define (batchref<? brf1 brf2)
   (< (batchref-idx brf1) (batchref-idx brf2)))
-(define (batchref<=? brf1 brf2)
-  (<= (batchref-idx brf1) (batchref-idx brf2)))
-(define (batchref>? brf1 brf2)
-  (> (batchref-idx brf1) (batchref-idx brf2)))
-(define (batchref>=? brf1 brf2)
-  (>= (batchref-idx brf1) (batchref-idx brf2)))
-(define (batchref=? brf1 brf2)
-  (= (batchref-idx brf1) (batchref-idx brf2)))
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
@@ -92,9 +77,6 @@
        idx*]
       [_ (batchref-idx (batch-push! b (expr-recurse prog munge)))]))
   (batchref b (munge expr)))
-
-(define (batch-copy b)
-  (batch (dvector-copy (batch-nodes b)) (hash-copy (batch-index b))))
 
 (define (deref x)
   (match-define (batchref b idx) x)
@@ -138,21 +120,6 @@
          (dvector-set! visited idx args)
          res]))))
 
-;; Same as batch-recurse but without using additional arguments inside a recurse function
-(define (batch-iterate batch f)
-  (define out (make-dvector))
-  (define pt -1)
-  (λ (brf)
-    (match-define (batchref b idx) brf)
-    (unless (eq? b batch)
-      (error 'batch-iterate "Batchref belongs to a different batch"))
-
-    (when (< pt idx)
-      (for ([n (in-range (add1 pt) (add1 idx))])
-        (dvector-set! out n (f (batchref batch n) (compose (curry dvector-ref out) batchref-idx))))
-      (set! pt idx))
-    (dvector-ref out idx)))
-
 (define (batch-ref batch reg)
   (dvector-ref (batch-nodes batch) reg))
 
@@ -174,13 +141,6 @@
                      (match node*
                        [(? batchref? brf) (recurse brf)]
                        [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))))
-
-;; Allocates new batch
-(define (batch-apply b brfs f)
-  (define out (batch-empty))
-  (define apply-f (batch-apply-internal out b f))
-  (define brfs* (map apply-f brfs))
-  (values out brfs*))
 
 ;; Modifies batch in-place
 (define (batch-apply! b f)
@@ -238,8 +198,11 @@
   (apply + (map counts brfs)))
 
 ;; The function removes any zombie nodes from batch with respect to the brfs
-(define (batch-copy-only batch brfs)
-  (batch-apply batch brfs identity))
+(define (batch-copy-only b brfs)
+  (define out (batch-empty))
+  (define apply-f (batch-apply-internal out b identity))
+  (define brfs* (map apply-f brfs))
+  (values out brfs*))
 
 ;; --------------------------------- TESTS ---------------------------------------
 
