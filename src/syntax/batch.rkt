@@ -11,14 +11,12 @@
          batch-empty ; Batch
          batch-push!
          batch-add! ; Batch -> (or Expr Batchref Expr<Batchref>) -> Batchref
-         batch-copy-only ; Batch -> List<Batchref> -> (Batch, List<Batchref>)
          batch-copy-only!
          batch-length ; Batch -> Integer
          batch-tree-size ; Batch -> List<Batchref> -> Integer
          batch-free-vars ; Batch -> (Batchref -> Set<Var>)
          in-batch ; Batch -> Sequence<Node>
          batch-ref ; Batch -> Idx -> Node
-         batch-apply! ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> (Batchref -> Batchref)
          batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-exprs
          batch-recurse
@@ -127,25 +125,6 @@
   (unless (andmap (compose (curry equal? batch) batchref-batch) brfs)
     (error 'brfs-belong-to-batch? "One of batchrefs does not belong to the provided batch")))
 
-;; --------------------------------- CUSTOM BATCH FUNCTION ------------------------------------
-
-;; out - batch to where write new nodes
-;; b - batch from which to read nodes
-;; f - function to modify nodes from b
-(define (batch-apply-internal out b f)
-  (batch-recurse b
-                 (λ (brf recurse)
-                   (define node (deref brf))
-                   (define node* (f node))
-                   (let loop ([node* node*])
-                     (match node*
-                       [(? batchref? brf) (recurse brf)]
-                       [_ (batch-push! out (expr-recurse node* (compose batchref-idx loop)))])))))
-
-;; Modifies batch in-place
-(define (batch-apply! b f)
-  (batch-apply-internal b b f))
-
 ;; Function returns indices of children nodes within a batch for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
 (define (batch-reachable batch brfs #:condition [condition (const #t)])
@@ -197,13 +176,6 @@
                      (apply + 1 (map recurse args)))))
   (apply + (map counts brfs)))
 
-;; The function removes any zombie nodes from batch with respect to the brfs
-(define (batch-copy-only b brfs)
-  (define out (batch-empty))
-  (define apply-f (batch-apply-internal out b identity))
-  (define brfs* (map apply-f brfs))
-  (values out brfs*))
-
 ;; --------------------------------- TESTS ---------------------------------------
 
 ; Tests for progs->batch and batch-exprs
@@ -232,7 +204,9 @@
   (define (zombie-test #:nodes nodes #:roots roots)
     (define in-batch (batch nodes (make-hash)))
     (define brfs (map (curry batchref in-batch) roots))
-    (define-values (out-batch brfs*) (batch-copy-only in-batch brfs))
+    (define out-batch (batch-empty))
+    (define copy-f (batch-copy-only! out-batch in-batch))
+    (define brfs* (map copy-f brfs))
     (check-equal? (map (batch-exprs out-batch) brfs*) (map (batch-exprs in-batch) brfs))
     (batch-nodes out-batch))
 

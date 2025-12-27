@@ -57,26 +57,33 @@
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
 (define (expand-taylor! input-batch)
-  (batch-apply!
+  (define (f node)
+    (match node
+      [(list '- ref1 ref2) `(+ ,ref1 (neg ,ref2))]
+      [(list 'pow base (app deref 1/2)) `(sqrt ,base)]
+      [(list 'pow base (app deref 1/3)) `(cbrt ,base)]
+      [(list 'pow base (app deref 2/3)) `(cbrt (* ,base ,base))]
+      [(list 'pow base power)
+       #:when (exact-integer? (deref power))
+       `(pow ,base ,power)]
+      [(list 'pow base power) `(exp (* ,power (log ,base)))]
+      [(list 'tan arg) `(/ (sin ,arg) (cos ,arg))]
+      [(list 'cosh arg) `(* 1/2 (+ (exp ,arg) (/ 1 (exp ,arg))))]
+      [(list 'sinh arg) `(* 1/2 (+ (exp ,arg) (/ -1 (exp ,arg))))]
+      [(list 'tanh arg) `(/ (+ (exp ,arg) (neg (/ 1 (exp ,arg)))) (+ (exp ,arg) (/ 1 (exp ,arg))))]
+      [(list 'asinh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) 1))))]
+      [(list 'acosh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) -1))))]
+      [(list 'atanh arg) `(* 1/2 (log (/ (+ 1 ,arg) (+ 1 (neg ,arg)))))]
+      [_ node]))
+  (batch-recurse
    input-batch
-   (lambda (node)
-     (match node
-       [(list '- ref1 ref2) `(+ ,ref1 (neg ,ref2))]
-       [(list 'pow base (app deref 1/2)) `(sqrt ,base)]
-       [(list 'pow base (app deref 1/3)) `(cbrt ,base)]
-       [(list 'pow base (app deref 2/3)) `(cbrt (* ,base ,base))]
-       [(list 'pow base power)
-        #:when (exact-integer? (deref power))
-        `(pow ,base ,power)]
-       [(list 'pow base power) `(exp (* ,power (log ,base)))]
-       [(list 'tan arg) `(/ (sin ,arg) (cos ,arg))]
-       [(list 'cosh arg) `(* 1/2 (+ (exp ,arg) (/ 1 (exp ,arg))))]
-       [(list 'sinh arg) `(* 1/2 (+ (exp ,arg) (/ -1 (exp ,arg))))]
-       [(list 'tanh arg) `(/ (+ (exp ,arg) (neg (/ 1 (exp ,arg)))) (+ (exp ,arg) (/ 1 (exp ,arg))))]
-       [(list 'asinh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) 1))))]
-       [(list 'acosh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) -1))))]
-       [(list 'atanh arg) `(* 1/2 (log (/ (+ 1 ,arg) (+ 1 (neg ,arg)))))]
-       [_ node]))))
+   (λ (brf recurse)
+     (define node (deref brf))
+     (define node* (f node))
+     (let loop ([node* node*])
+       (match node*
+         [(? batchref? brf) (recurse brf)]
+         [_ (batch-push! input-batch (expr-recurse node* (compose batchref-idx loop)))])))))
 
 ; Tests for expand-taylor
 (module+ test
