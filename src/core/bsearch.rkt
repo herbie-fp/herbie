@@ -92,7 +92,8 @@
   (define pattern (exprs pattern-brf))
   (define body* (replace-expression (exprs brf) pattern var))
   (define vars* (set-subtract (context-vars ctx) (free-variables pattern)))
-  (and (subset? (free-variables body*) (cons var vars*)) body*))
+  (and (subset? (free-variables body*) (cons var vars*))
+       (batch-add! batch body*)))
 
 (define (prepend-argument evaluator val pcontext)
   (define pts
@@ -148,14 +149,13 @@
   (define (prepend-macro v)
     (prepend-argument start-real-compiler v pcontext))
 
-  (define (find-split expr1 expr2 v1 v2)
+  (define (find-split brf1 brf2 v1 v2)
     (define (pred v)
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
           (cache-get-prepend v brf prepend-macro)))
-      (define acc1 (errors-score (errors expr1 pctx ctx*)))
-      (define acc2 (errors-score (errors expr2 pctx ctx*)))
-      (- acc1 acc2))
+      (match-define (list errs1 errs2) (batch-errors batch (list brf1 brf2) pctx ctx*))
+      (- (errors-score errs1) (errors-score errs2)))
     (define-values (p1 p2) (binary-search-floats pred v1 v2 repr))
     (left-point p1 p2))
 
@@ -178,8 +178,8 @@
 
   (append (for/list ([si1 sindices]
                      [si2 (cdr sindices)])
-            (define prog1 (list-ref progs (si-cidx si1)))
-            (define prog2 (list-ref progs (si-cidx si2)))
+            (define brf1 (list-ref progs (si-cidx si1)))
+            (define brf2 (list-ref progs (si-cidx si2)))
 
             (define p1 (eval-expr (list-ref points (sub1 (si-pidx si1)))))
             (define p2 (eval-expr (list-ref points (si-pidx si1))))
@@ -188,7 +188,7 @@
               (timeline-start! 'bstep (value->json p1 repr) (value->json p2 repr)))
             (define split-at
               (if use-binary
-                  (find-split prog1 prog2 p1 p2)
+                  (find-split brf1 brf2 p1 p2)
                   (left-point p1 p2)))
             (timeline-stop!)
 
