@@ -16,7 +16,6 @@
          batch-tree-size ; Batch -> List<Batchref> -> Integer
          batch-free-vars ; Batch -> (Batchref -> Set<Var>)
          in-batch ; Batch -> Sequence<Node>
-         batch-ref ; Batch -> Idx -> Node
          batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-exprs
          batch-recurse
@@ -78,7 +77,7 @@
 
 (define (deref x)
   (match-define (batchref b idx) x)
-  (expr-recurse (batch-ref b idx) (lambda (ref) (batchref b ref))))
+  (expr-recurse (dvector-ref (batch-nodes b) idx) (lambda (ref) (batchref b ref))))
 
 (define (progs->batch exprs #:vars [vars '()])
   (define out (batch-empty))
@@ -117,9 +116,6 @@
          (dvector-set! out idx res)
          (dvector-set! visited idx args)
          res]))))
-
-(define (batch-ref batch reg)
-  (dvector-ref (batch-nodes batch) reg))
 
 (define (brfs-belong-to-batch? batch brfs)
   (unless (andmap (compose (curry equal? batch) batchref-batch) brfs)
