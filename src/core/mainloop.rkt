@@ -33,7 +33,7 @@
 (define/reset ^table^ #f)
 
 ;; Starting program for the current run
-(define *start-prog* (make-parameter #f))
+(define *start-brf* (make-parameter #f))
 (define *pcontext* (make-parameter #f))
 (define *preprocessing* (make-parameter '()))
 
@@ -53,7 +53,6 @@
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
-  (*start-prog* initial)
 
   (parameterize ([*global-batch* (batch-empty)])
     (define global-spec-batch (batch-empty))
@@ -61,6 +60,7 @@
 
     (*preprocessing* preprocessing)
     (define initial-brf (batch-add! (*global-batch*) initial))
+    (*start-brf* initial-brf)
     (define start-alt (alt initial-brf 'start '()))
     (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
 
@@ -77,7 +77,7 @@
 (define (extract!)
   (timeline-push-alts! '())
   (define all-alts (atab-all-alts (^table^)))
-  (define joined-alts (make-regime! (*global-batch*) all-alts (*start-prog*)))
+  (define joined-alts (make-regime! (*global-batch*) all-alts (*start-brf*)))
   (define annotated-alts (add-derivations! joined-alts))
   (define unbatched-alts (unbatchify-alts (*global-batch*) annotated-alts))
 

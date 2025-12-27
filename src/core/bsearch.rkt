@@ -140,11 +140,11 @@
   (define progs
     (for/list ([alt (in-list alts)])
       (extract-subexpression batch (alt-expr alt) var brf ctx)))
-  (define start-prog-sub (extract-subexpression* start-prog var (exprs brf) ctx))
+  (define start-prog-sub (extract-subexpression batch start-prog var brf ctx))
 
   ; Not totally clear if this should actually use the precondition
   (define start-real-compiler
-    (and start-prog (make-real-compiler (list (prog->spec start-prog)) (list ctx*))))
+    (and start-prog (make-real-compiler (list (prog->spec (exprs start-prog))) (list ctx*))))
 
   (define (prepend-macro v)
     (prepend-argument start-real-compiler v pcontext))
