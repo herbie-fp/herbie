@@ -8,7 +8,7 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../syntax/platform.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "compiler.rkt"
          "points.rkt"
          "programs.rkt"

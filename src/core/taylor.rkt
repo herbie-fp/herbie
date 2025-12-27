@@ -2,9 +2,9 @@
 
 (require math/number-theory)
 (require "../utils/common.rkt"
+         "../utils/dvector.rkt"
          "../syntax/syntax.rkt"
-         "batch.rkt"
-         "dvector.rkt"
+         "../syntax/batch.rkt"
          "programs.rkt")
 
 (provide approximate

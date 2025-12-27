@@ -1,8 +1,8 @@
 #lang racket
 
-(require "../syntax/syntax.rkt"
+(require "syntax.rkt"
          "../utils/common.rkt"
-         "dvector.rkt")
+         "../utils/dvector.rkt")
 
 (provide progs->batch ; List<Expr> -> (Batch, List<Batchref>)
 

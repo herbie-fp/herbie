@@ -12,7 +12,7 @@
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
          "../syntax/platform.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "compiler.rkt"
          "regimes.rkt"
          "rival.rkt"

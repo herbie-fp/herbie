@@ -4,7 +4,7 @@
          "../syntax/syntax.rkt"
          "../syntax/platform.rkt"
          "../syntax/types.rkt"
-         "batch.rkt")
+         "../syntax/batch.rkt")
 
 (provide expr?
          expr<?

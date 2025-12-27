@@ -1,6 +1,6 @@
 #lang racket
 
-(require "batch.rkt"
+(require "../syntax/batch.rkt"
          "../utils/common.rkt"
          "programs.rkt")
 
