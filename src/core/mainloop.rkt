@@ -33,7 +33,7 @@
 (define/reset ^table^ #f)
 
 ;; Starting program for the current run
-(define *start-brf* (make-parameter #f))
+(define *spec* (make-parameter #f))
 (define *pcontext* (make-parameter #f))
 (define *preprocessing* (make-parameter '()))
 
@@ -46,9 +46,10 @@
 
 (define (run-improve! initial specification context pcontext)
   (timeline-event! 'preprocess)
+  (define spec (prog->spec specification))
   (define preprocessing
     (if (flag-set? 'setup 'preprocess)
-        (find-preprocessing specification context)
+        (find-preprocessing spec context)
         '()))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
@@ -60,7 +61,8 @@
 
     (*preprocessing* preprocessing)
     (define initial-brf (batch-add! (*global-batch*) initial))
-    (*start-brf* initial-brf)
+    (define spec-brf (batch-add! (*global-batch*) spec))
+    (*spec* spec-brf)
     (define start-alt (alt initial-brf 'start '()))
     (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
 
@@ -77,7 +79,7 @@
 (define (extract!)
   (timeline-push-alts! '())
   (define all-alts (atab-all-alts (^table^)))
-  (define joined-alts (make-regime! (*global-batch*) all-alts (*start-brf*)))
+  (define joined-alts (make-regime! (*global-batch*) all-alts (*spec*)))
   (define annotated-alts (add-derivations! joined-alts))
   (define unbatched-alts (unbatchify-alts (*global-batch*) annotated-alts))
 
