@@ -1,27 +1,32 @@
 #lang racket
 
 (require "../utils/alternative.rkt"
+         "batch.rkt"
          "programs.rkt"
          "egg-herbie.rkt"
          "../config.rkt")
 
 (provide add-derivations)
 
-(define (canonicalize-proof prog proof start-expr)
+(define (canonicalize-proof batch prog-brf proof start-brf)
   ;; Proofs are on subexpressions; lift to full expression
-  (and proof (map (curry replace-expression prog start-expr) proof)))
+  ;; Returns a list of batchrefs instead of expressions
+  (and proof
+       (for/list ([step (in-list proof)])
+         (define step-brf (batch-add! batch step))
+         (batch-replace-subexpr batch prog-brf start-brf step-brf))))
 
 ;; Adds proof information to alternatives.
-;; After unbatchify-alts, start-expr and end-expr are regular expressions, not batchrefs
+;; start-expr and end-expr are batchrefs
 (define (add-derivations-to altn)
   (match altn
     ; recursive rewrite or simplify, both using egg
-    ; start-expr and end-expr are the subexpressions that were transformed
-    [(alt expr (list 'rr start-expr end-expr (? egg-runner? runner) #f) `(,prev))
-     (define proof
-       (and (not (flag-set? 'generate 'egglog)) (egraph-prove runner start-expr end-expr)))
-     (define proof* (canonicalize-proof (alt-expr altn) proof start-expr))
-     (alt expr `(rr ,start-expr ,end-expr ,runner ,proof*) (list prev))]
+    ; start-brf and end-brf are batchrefs for the subexpressions that were transformed
+    [(alt expr (list 'rr start-brf end-brf (? egg-runner? runner) #f) `(,prev))
+     (define batch (egg-runner-batch runner))
+     (define proof (and (not (flag-set? 'generate 'egglog)) (egraph-prove runner start-brf end-brf)))
+     (define proof* (canonicalize-proof batch (alt-expr altn) proof start-brf))
+     (alt expr `(rr ,start-brf ,end-brf ,runner ,proof*) (list prev))]
 
     ; everything else
     [_ altn]))

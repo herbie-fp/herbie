@@ -33,7 +33,7 @@
 (define/reset ^table^ #f)
 
 ;; Starting program for the current run
-(define *start-prog* (make-parameter #f))
+(define *start-brf* (make-parameter #f))
 (define *pcontext* (make-parameter #f))
 (define *preprocessing* (make-parameter '()))
 
@@ -53,7 +53,6 @@
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
-  (*start-prog* initial)
 
   (parameterize ([*global-batch* (batch-empty)])
     (define global-spec-batch (batch-empty))
@@ -61,6 +60,7 @@
 
     (*preprocessing* preprocessing)
     (define initial-brf (batch-add! (*global-batch*) initial))
+    (*start-brf* initial-brf)
     (define start-alt (alt initial-brf 'start '()))
     (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
 
@@ -76,12 +76,13 @@
 
 (define (extract!)
   (timeline-push-alts! '())
-  (define all-alts (unbatchify-alts (*global-batch*) (atab-all-alts (^table^))))
-  (define joined-alts (make-regime! all-alts (*start-prog*))) ;; HERE
+  (define all-alts (atab-all-alts (^table^)))
+  (define joined-alts (make-regime! (*global-batch*) all-alts (*start-brf*)))
   (define annotated-alts (add-derivations! joined-alts))
+  (define unbatched-alts (unbatchify-alts (*global-batch*) annotated-alts))
 
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
-  (map car (sort-alts annotated-alts)))
+  (map car (sort-alts unbatched-alts)))
 
 ;; The next few functions are for interactive use in a REPL, usually for debugging
 ;; In Emacs, you can install racket-mode and then use C-c C-k to start that REPL
@@ -248,9 +249,10 @@
   (finalize-iter!)
   (void))
 
-(define (make-regime! alts start-prog)
+(define (make-regime! batch alts start-prog)
   (define ctx (*context*))
   (define repr (context-repr ctx))
+  (define alt-costs (alt-batch-costs batch))
 
   (cond
     [(and (flag-set? 'reduce 'regimes)
@@ -260,10 +262,16 @@
           (get-fpcore-impl 'if '() (list <bool> repr repr))
           (get-fpcore-impl '<= '() (list repr repr)))
      (define opts
-       (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) start-prog ctx (*pcontext*)))
+       (pareto-regimes batch
+                       (sort alts < #:key (compose (curryr alt-costs repr) alt-expr))
+                       start-prog
+                       ctx
+                       (*pcontext*)))
      (for/list ([opt (in-list opts)])
-       (combine-alts opt start-prog ctx (*pcontext*)))]
-    [else (list (argmin score-alt alts))]))
+       (combine-alts batch opt start-prog ctx (*pcontext*)))]
+    [else
+     (define scores (batch-score-alts alts))
+     (list (cdr (argmin car (map (λ (a s) (cons s a)) alts scores))))]))
 
 (define (add-derivations! alts)
   (cond
