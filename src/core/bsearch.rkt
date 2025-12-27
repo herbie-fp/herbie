@@ -87,14 +87,12 @@
         (timeline-push! 'stop "predicate-same" 1)
         (values p1 p2)])]))
 
-(define (extract-subexpression* expr var pattern ctx)
-  (define body* (replace-expression expr pattern var))
-  (define vars* (set-subtract (context-vars ctx) (free-variables pattern)))
-  (and (subset? (free-variables body*) (cons var vars*)) body*))
-
 (define (extract-subexpression batch brf var pattern-brf ctx)
   (define exprs (batch-exprs batch))
-  (extract-subexpression* (exprs brf) var (exprs pattern-brf) ctx))
+  (define pattern (exprs pattern-brf))
+  (define body* (replace-expression (exprs brf) pattern var))
+  (define vars* (set-subtract (context-vars ctx) (free-variables pattern)))
+  (and (subset? (free-variables body*) (cons var vars*)) body*))
 
 (define (prepend-argument evaluator val pcontext)
   (define pts
@@ -144,7 +142,8 @@
 
   ; Not totally clear if this should actually use the precondition
   (define start-real-compiler
-    (and start-prog (make-real-compiler (list (prog->spec (exprs start-prog))) (list ctx*))))
+    (and start-prog
+         (make-real-compiler (list (exprs (car (batch-to-spec! batch (list start-prog))))) (list ctx*))))
 
   (define (prepend-macro v)
     (prepend-argument start-real-compiler v pcontext))
