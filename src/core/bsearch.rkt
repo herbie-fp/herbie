@@ -88,12 +88,11 @@
         (values p1 p2)])]))
 
 (define (extract-subexpression batch brf var pattern-brf ctx)
-  (define exprs (batch-exprs batch))
-  (define pattern (exprs pattern-brf))
-  (define body* (replace-expression (exprs brf) pattern var))
-  (define vars* (set-subtract (context-vars ctx) (free-variables pattern)))
-  (and (subset? (free-variables body*) (cons var vars*))
-       (batch-add! batch body*)))
+  (define free-vars (batch-free-vars batch))
+  (define var-brf (batch-add! batch var))
+  (define body-brf (batch-replace-subexpr batch brf pattern-brf var-brf))
+  (define vars* (set-subtract (list->set (context-vars ctx)) (free-vars pattern-brf)))
+  (and (subset? (free-vars body-brf) (set-add vars* var)) body-brf))
 
 (define (prepend-argument evaluator val pcontext)
   (define pts
@@ -144,7 +143,8 @@
   ; Not totally clear if this should actually use the precondition
   (define start-real-compiler
     (and start-prog
-         (make-real-compiler (list (exprs (car (batch-to-spec! batch (list start-prog))))) (list ctx*))))
+         (make-real-compiler (list (exprs (car (batch-to-spec! batch (list start-prog)))))
+                             (list ctx*))))
 
   (define (prepend-macro v)
     (prepend-argument start-real-compiler v pcontext))
