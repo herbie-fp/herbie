@@ -170,32 +170,28 @@
 
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
-  ;; takes a patch and converts it to a full alt
-  ;; start-expr0 is the original subexpression that was rewritten
-  ;; We replace all occurrences of the current subexpr with each step's result
-  (define (reconstruct-alt altn start-expr0 orig)
-    ;; Returns (values reconstructed-alt current-subexpr)
-    ;; current-subexpr is what needs to be replaced in the next step
+  (timeline-event! 'reconstruct)
+
+  (define (reconstruct-alt altn orig)
     (define (loop altn)
       (match-define (alt patch-expr event prevs) altn)
-      (match event
-        ['patch (values orig start-expr0)]
-        [_
-         (define-values (prev-altn prev-subexpr) (loop (first prevs)))
+      (match altn
+        [(alt start-expr 'patch '()) (values orig start-expr)]
+        [(alt cur-expr event (list prev))
+         (define-values (prev-altn start-expr) (loop prev))
          (define event*
            (match event
-             [(list 'evaluate) (list 'evaluate start-expr0)]
-             [(list 'taylor name var) (list 'taylor start-expr0 name var)]
-             [(list 'rr input proof) (list 'rr prev-subexpr patch-expr input proof)]))
-         (define expr*
-           (batch-replace-subexpr (*global-batch*) (alt-expr prev-altn) prev-subexpr patch-expr))
-         (values (alt expr* event* (list prev-altn)) patch-expr)]))
+             [(list 'evaluate) (list 'evaluate start-expr)]
+             [(list 'taylor name var) (list 'taylor start-expr name var)]
+             [(list 'rr input proof) (list 'rr (alt-expr prev) cur-expr input proof)]))
+         (define expr* (batch-replace-subexpr (*global-batch*) (alt-expr orig) start-expr cur-expr))
+         (values (alt expr* event* (list prev-altn)) start-expr)]))
     (define-values (result-alt _) (loop altn))
     result-alt)
 
   (^patched^ (remove-duplicates (for*/list ([altn (in-list alts)]
                                             [full-altn (in-list (^next-alts^))])
-                                  (reconstruct-alt altn (get-starting-expr altn) full-altn))
+                                  (reconstruct-alt altn full-altn))
                                 #:key (compose batchref-idx alt-expr)))
 
   (void))
@@ -248,7 +244,8 @@
   (define brfs (map alt-expr (^next-alts^)))
   (define brfs* (batch-reachable (*global-batch*) brfs #:condition node-is-impl?))
 
-  (reconstruct! (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer))
+  (define results (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer))
+  (reconstruct! results)
   (finalize-iter!)
   (void))
 
