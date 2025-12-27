@@ -8,7 +8,8 @@
          "../syntax/platform.rkt"
          "../syntax/types.rkt"
          "../utils/float.rkt"
-         "../config.rkt")
+         "../config.rkt"
+         "../syntax/batch.rkt")
 (provide make-timeline)
 
 (define timeline-phase? (hash/c symbol? any/c))
@@ -319,7 +320,8 @@
                         (thead (tr (th "Status") (th "Accuracy") (th "Program")))
                         ,@
                         (for/list ([rec (in-list alts)])
-                          (match-define (list expr status score repr-name) rec)
+                          (match-define (list batch-jsexpr status score repr-name) rec)
+                          (define expr (car (jsexpr->batch-exprs batch-jsexpr)))
                           (define repr (get-representation (read (open-input-string repr-name))))
                           `(tr ,(match status
                                   ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
@@ -339,8 +341,9 @@
         (table ((class "times"))
                ,@(for/list ([rec (in-list (sort times > #:key first))]
                             [_ (in-range 5)])
-                   (match-define (list time expr) rec)
-                   `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
+                   (match-define (list time batch-jsexpr) rec)
+                   (define expr (car (jsexpr->batch-exprs batch-jsexpr)))
+                   `(tr (td ,(format-time time)) (td (pre ,expr))))))))
 
 (define (render-phase-series times)
   (define hist-id (make-id))
@@ -374,7 +377,8 @@
   `((dt "Results") (dd (table ((class "times"))
                               (thead (tr (th "Accuracy") (th "Segments") (th "Branch")))
                               ,@(for/list ([rec (in-list branches)])
-                                  (match-define (list expr score splits repr-name) rec)
+                                  (match-define (list batch-jsexpr score splits repr-name) rec)
+                                  (define expr (car (jsexpr->batch-exprs batch-jsexpr)))
                                   (define repr
                                     (get-representation (read (open-input-string repr-name))))
                                   `(tr (td ,(format-accuracy score repr #:unit "%") "")
@@ -390,17 +394,27 @@
                                        (td ,(~a precision))
                                        (td ,(~a category))))))))
 
+(define (batch-jsexpr? x)
+  (and (hash? x) (hash-has-key? x 'nodes)))
+
+(define (jsexpr->exprs x)
+  (if (batch-jsexpr? x)
+      (jsexpr->batch-exprs x)
+      (map ~a x)))
+
 (define (render-phase-inputs inputs outputs)
-  `((dt "Calls") (dd ,@(for/list ([call inputs]
-                                  [output outputs]
+  `((dt "Calls") (dd ,@(for/list ([input-jsexpr inputs]
+                                  [output-jsexpr outputs]
                                   [n (in-naturals 1)])
+                         (define input-exprs (jsexpr->exprs input-jsexpr))
+                         (define output-exprs (jsexpr->exprs output-jsexpr))
                          `(details (summary "Call " ,(~a n))
                                    (table (thead (tr (th "Inputs")))
-                                          ,@(for/list ([arg call])
-                                              `(tr (td (pre ,(~a arg))))))
+                                          ,@(for/list ([arg input-exprs])
+                                              `(tr (td (pre ,arg)))))
                                    (table (thead (tr (th "Outputs")))
-                                          ,@(for/list ([out output])
-                                              `(tr (td (pre ,(~a out)))))))))))
+                                          ,@(for/list ([out output-exprs])
+                                              `(tr (td (pre ,out))))))))))
 
 (define (render-phase-allocations allocations)
   (define sorted (sort allocations > #:key second))

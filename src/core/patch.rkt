@@ -83,9 +83,8 @@
   (define approxs (remove-duplicates (taylor-alts altns global-batch spec-batch reducer) #:key key))
   (define approxs* (remove-duplicates (run-lowering approxs global-batch) #:key key))
 
-  (define exprs (batch-exprs global-batch))
-  (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
-  (timeline-push! 'outputs (map (compose ~a exprs alt-expr) approxs*))
+  (timeline-push! 'inputs (batch->jsexpr global-batch (map alt-expr altns)))
+  (timeline-push! 'outputs (batch->jsexpr global-batch (map alt-expr approxs*)))
   (timeline-push! 'count (length altns) (length approxs*))
   approxs*)
 
@@ -156,7 +155,7 @@
       (define brf (batch-add! global-batch literal))
       (alt brf '(evaluate) (list altn))))
 
-  (timeline-push! 'inputs (map ~a specs))
+  (timeline-push! 'inputs (batch->jsexpr global-batch spec-brfs))
   (timeline-push! 'outputs (map ~a literals))
   final-altns)
 
@@ -193,9 +192,8 @@
             (for ([batchref* (in-list batchrefs)])
               (sow (alt batchref* (list 'rr runner #f) (list altn)))))))
 
-  (define exprs (batch-exprs global-batch))
-  (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
-  (timeline-push! 'outputs (map (compose ~a exprs alt-expr) rewritten))
+  (timeline-push! 'inputs (batch->jsexpr global-batch (map alt-expr altns)))
+  (timeline-push! 'outputs (batch->jsexpr global-batch (map alt-expr rewritten)))
   (timeline-push! 'count (length altns) (length rewritten))
 
   rewritten)

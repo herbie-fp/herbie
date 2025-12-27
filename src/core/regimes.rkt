@@ -51,8 +51,7 @@
 ;; can insert a timeline break between them.
 
 (define (infer-splitpoints batch branch-brfs alts err-lsts* #:errs [cerrs (hash)] ctx pcontext)
-  (define exprs (batch-exprs batch))
-  (timeline-push! 'inputs (map (compose ~a exprs alt-expr) alts))
+  (timeline-push! 'inputs (batch->jsexpr batch (map alt-expr alts)))
   (define sorted-brfs
     (sort branch-brfs (lambda (x y) (< (hash-ref cerrs x -1) (hash-ref cerrs y -1)))))
   (define err-lsts (flip-lists err-lsts*))
@@ -77,9 +76,10 @@
           (values best best-err new-errs))))
 
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
-  (timeline-push! 'outputs
-                  (for/list ([sidx (option-split-indices best)])
-                    (~a (exprs (alt-expr (list-ref alts (si-cidx sidx)))))))
+  (define output-brfs
+    (for/list ([sidx (option-split-indices best)])
+      (alt-expr (list-ref alts (si-cidx sidx)))))
+  (timeline-push! 'outputs (batch->jsexpr batch output-brfs))
   (timeline-push! 'baseline (apply min (map errors-score err-lsts*)))
   (timeline-push! 'accuracy (errors-score (option-errors best)))
   (define repr (context-repr ctx))
@@ -118,8 +118,7 @@
     subexpr))
 
 (define (option-on-brf batch alts err-lsts brf ctx pcontext)
-  (define exprs (batch-exprs batch))
-  (define timeline-stop! (timeline-start! 'times (~a (exprs brf))))
+  (define timeline-stop! (timeline-start! 'times (batch->jsexpr batch (list brf))))
 
   (define fn (compose (curryr vector-ref 0) (compile-batch batch (list brf) ctx)))
   (define repr ((batch-reprs batch ctx) brf))
@@ -142,7 +141,7 @@
   (define out (option split-indices alts pts* brf (pick-errors split-indices err-lsts* repr)))
   (timeline-stop!)
   (timeline-push! 'branch
-                  (~a (exprs brf))
+                  (batch->jsexpr batch (list brf))
                   (errors-score (option-errors out))
                   (length split-indices)
                   (~a (representation-name repr)))
