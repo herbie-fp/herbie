@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../src/core/egg-herbie.rkt"
-         "../src/core/batch.rkt"
+         "../src/syntax/batch.rkt"
          "../src/syntax/types.rkt"
          "../src/syntax/load-platform.rkt"
          "../src/syntax/platform.rkt"
