@@ -23,8 +23,8 @@
          eval-progs-real
          local-error-as-tree)
 
-(define (eval-progs-real specs ctxs)
-  (define compiler (make-real-compiler specs ctxs))
+(define (eval-progs-real batch brfs ctxs)
+  (define compiler (make-real-compiler batch brfs ctxs))
   (define bad-pt
     (for/list ([ctx* (in-list ctxs)])
       ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
@@ -71,7 +71,8 @@
   (define-values (expr-batch brfs) (progs->batch exprs-list))
   (define roots (list->vector (map batchref-idx brfs)))
 
-  (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
+  (define-values (spec-batch spec-brfs) (progs->batch (map prog->spec exprs-list)))
+  (define subexprs-fn (eval-progs-real spec-batch spec-brfs ctx-list))
 
   (define errs (make-matrix roots pcontext))
 
@@ -120,7 +121,8 @@
     (for/list ([subexpr (in-list exprs-list)]
                [repr (in-list reprs-list)])
       (struct-copy context ctx [repr repr])))
-  (define subexprs-fn (eval-progs-real spec-list ctx-list))
+  (define-values (spec-batch spec-brfs) (progs->batch spec-list))
+  (define subexprs-fn (eval-progs-real spec-batch spec-brfs ctx-list))
 
   ;; And the absolute difference between the two
   (define exact-var-names
@@ -138,7 +140,8 @@
       (match (representation-type repr)
         ['bool 0] ; We can't subtract booleans so ignore them
         ['real `(fabs (- ,spec ,var))])))
-  (define delta-fn (eval-progs-real compare-specs (map (const delta-ctx) compare-specs)))
+  (define-values (compare-batch compare-brfs) (progs->batch compare-specs))
+  (define delta-fn (eval-progs-real compare-batch compare-brfs (map (const delta-ctx) compare-specs)))
 
   (define-values (expr-batch brfs) (progs->batch exprs-list))
   (define roots (list->vector (map batchref-idx brfs)))
