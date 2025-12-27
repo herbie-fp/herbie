@@ -46,9 +46,10 @@
 
 (define (run-improve! initial specification context pcontext)
   (timeline-event! 'preprocess)
+  (define spec (prog->spec specification))
   (define preprocessing
     (if (flag-set? 'setup 'preprocess)
-        (find-preprocessing specification context)
+        (find-preprocessing spec context)
         '()))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
@@ -60,7 +61,8 @@
 
     (*preprocessing* preprocessing)
     (define initial-brf (batch-add! (*global-batch*) initial))
-    (*start-brf* initial-brf)
+    (define spec-brf (batch-add! (*global-batch*) spec))
+    (*start-brf* spec-brf)
     (define start-alt (alt initial-brf 'start '()))
     (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
 
