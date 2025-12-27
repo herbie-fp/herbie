@@ -10,10 +10,11 @@
 
 (define (canonicalize-proof batch prog-brf proof start-brf)
   ;; Proofs are on subexpressions; lift to full expression
-  (define exprs (batch-exprs batch))
-  (define prog (exprs prog-brf))
-  (define start-expr (exprs start-brf))
-  (and proof (map (curry replace-expression prog start-expr) proof)))
+  ;; Returns a list of batchrefs instead of expressions
+  (and proof
+       (for/list ([step (in-list proof)])
+         (define step-brf (batch-add! batch step))
+         (batch-replace-subexpr batch prog-brf start-brf step-brf))))
 
 ;; Adds proof information to alternatives.
 ;; start-expr and end-expr are batchrefs

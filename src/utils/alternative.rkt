@@ -35,7 +35,8 @@
       [(list 'evaluate (? batchref? start-expr)) (list 'evaluate (exprs start-expr))]
       [(list 'taylor (? batchref? start-expr) name var) (list 'taylor (exprs start-expr) name var)]
       [(list 'rr (? batchref? start-expr) (? batchref? end-expr) input proof)
-       (list 'rr (exprs start-expr) (exprs end-expr) input proof)]
+       (define proof* (and proof (map exprs proof)))
+       (list 'rr (exprs start-expr) (exprs end-expr) input proof*)]
       [(list 'regimes splitpoints)
        (list 'regimes
              (for/list ([spt (in-list splitpoints)])
