@@ -9,7 +9,7 @@
          "../syntax/types.rkt"
          "../utils/float.rkt"
          "../config.rkt"
-         "../core/batch.rkt")
+         "../syntax/batch.rkt")
 (provide make-timeline)
 
 (define timeline-phase? (hash/c symbol? any/c))

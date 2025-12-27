@@ -7,7 +7,7 @@
          "../utils/common.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "egg-herbie.rkt"
          "egglog-herbie.rkt"
          "programs.rkt"
@@ -98,7 +98,9 @@
   (define runner
     (cond
       [(flag-set? 'generate 'egglog)
-       (define-values (batch* brfs*) (batch-copy-only global-batch brfs))
+       (define batch* (batch-empty))
+       (define copy-f (batch-copy-only! batch* global-batch))
+       (define brfs* (map copy-f brfs))
        (make-egglog-runner batch* brfs* reprs schedule (*context*))]
       [else (make-egraph global-batch brfs reprs schedule (*context*))]))
 
@@ -171,7 +173,9 @@
   (define runner
     (cond
       [(flag-set? 'generate 'egglog)
-       (define-values (batch* brfs*) (batch-copy-only global-batch brfs))
+       (define batch* (batch-empty))
+       (define copy-f (batch-copy-only! batch* global-batch))
+       (define brfs* (map copy-f brfs))
        (make-egglog-runner batch* brfs* reprs schedule (*context*))]
       [else (make-egraph global-batch brfs reprs schedule (*context*))]))
 

@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../syntax/platform.rkt"
-         "../core/batch.rkt")
+         "../syntax/batch.rkt")
 (provide (struct-out alt)
          (struct-out sp)
          make-alt

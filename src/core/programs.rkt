@@ -4,7 +4,7 @@
          "../syntax/syntax.rkt"
          "../syntax/platform.rkt"
          "../syntax/types.rkt"
-         "batch.rkt")
+         "../syntax/batch.rkt")
 
 (provide expr?
          expr<?
@@ -198,15 +198,22 @@
 
 (define (batch-replace-expression! batch from to)
   (define from* (deref (batch-add! batch from))) ;; a hack on how not to use deref for "from"
-  (batch-apply! batch
-                (λ (node)
-                  (match node
-                    [(== from*) to]
-                    [(? number?) node]
-                    [(? literal?) node]
-                    [(? symbol?) node]
-                    [(approx spec impl) (approx spec impl)]
-                    [(list op args ...) (cons op args)]))))
+  (define (f node)
+    (match node
+      [(== from*) to]
+      [(? number?) node]
+      [(? literal?) node]
+      [(? symbol?) node]
+      [(approx spec impl) (approx spec impl)]
+      [(list op args ...) (cons op args)]))
+  (batch-recurse batch
+                 (λ (brf recurse)
+                   (define node (deref brf))
+                   (define node* (f node))
+                   (let loop ([node* node*])
+                     (match node*
+                       [(? batchref? brf) (recurse brf)]
+                       [_ (batch-push! batch (expr-recurse node* (compose batchref-idx loop)))])))))
 
 ;; Replace all occurrences of `from` with `to` in expression `expr`, returning a new batchref
 ;; Only recurses into impl parts, not specs

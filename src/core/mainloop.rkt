@@ -8,7 +8,7 @@
          "../syntax/types.rkt"
          "alt-table.rkt"
          "bsearch.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "derivations.rkt"
          "patch.rkt"
          "points.rkt"

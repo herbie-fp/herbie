@@ -5,7 +5,7 @@
          "../utils/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "compiler.rkt"
          "points.rkt"
          "programs.rkt")

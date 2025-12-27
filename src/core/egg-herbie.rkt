@@ -16,7 +16,7 @@
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "programs.rkt"
          "rules.rkt")
 
