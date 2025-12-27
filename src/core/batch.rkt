@@ -252,7 +252,7 @@
     (for/list ([node (in-batch batch*)])
       (match node
         [(? symbol?) (~a node)]
-        [(? number?) node]
+        [(? number?) (~a node)]
         [(approx spec impl) (list "approx" spec impl)]
         [(hole precision spec) (list "hole" (~a precision) spec)]
         [(list op args ...) (cons (~a op) args)]
@@ -270,14 +270,13 @@
     (vector-set! exprs
                  i
                  (match node
-                   [(? string?) node]
-                   [(? number?) (~a node)]
                    [(list op args ...)
                     (format "(~a~a)"
                             op
                             (apply string-append
                                    (for/list ([arg args])
-                                     (format " ~a" (vector-ref exprs arg)))))])))
+                                     (format " ~a" (vector-ref exprs arg)))))]
+                   [_ node])))
   (for/list ([root roots])
     (vector-ref exprs root)))
 
