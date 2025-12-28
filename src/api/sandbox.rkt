@@ -275,10 +275,12 @@
      (define end-costs (map (curryr hash-ref 'cost) end))
 
      ; terribly formatted pareto-optimal frontier
+     (define (round3 x)
+       (/ (round (* x 1000)) 1000.0))
      (define cost&accuracy
-       (list (list start-cost start-score)
-             (list (car end-costs) (car end-scores))
-             (map list (cdr end-costs) (cdr end-scores) (cdr end-exprs))))
+       (list (list (round3 start-cost) (round3 start-score))
+             (list (round3 (car end-costs)) (round3 (car end-scores)))
+             (map (λ (c s) (list (round3 c) (round3 s))) (cdr end-costs) (cdr end-scores))))
 
      (define fuzz 0.1)
      (define end-score (car end-scores))
