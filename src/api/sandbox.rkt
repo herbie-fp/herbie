@@ -9,6 +9,7 @@
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
          "../syntax/load-platform.rkt"
+         "../syntax/batch.rkt"
          "../core/localize.rkt"
          "../utils/alternative.rkt"
          "../core/compiler.rkt"
@@ -134,9 +135,10 @@
   (random) ;; Tick the random number generator, for backwards compatibility
   (define specification (prog->spec (or (test-spec test) (test-input test))))
   (define precondition (prog->spec (test-pre test)))
+  (define-values (batch brfs) (progs->batch (list specification)))
   (define sample
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-points precondition (list specification) (list (*context*)))))
+      (sample-points precondition batch brfs (list (*context*)))))
   (apply mk-pcontext sample))
 
 ;;

@@ -128,11 +128,10 @@
       (context '() repr '())))
 
   (define spec-brfs (batch-to-spec! global-batch brfs))
-  (define specs (map (batch-exprs global-batch) spec-brfs))
   (define-values (status pts)
-    (if (null? specs)
+    (if (null? spec-brfs)
         (values 'invalid #f)
-        (let ([real-compiler (make-real-compiler specs contexts)])
+        (let ([real-compiler (make-real-compiler global-batch spec-brfs contexts)])
           (real-apply real-compiler (vector)))))
   (define literals
     (for/list ([pt (in-list (if (equal? status 'valid)

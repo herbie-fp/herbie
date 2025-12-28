@@ -14,15 +14,18 @@
          "../utils/errors.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
-         "../syntax/types.rkt")
+         "../syntax/types.rkt"
+         "../syntax/batch.rkt")
 
 (provide (struct-out real-compiler)
          (contract-out
           [make-real-compiler
-           (->i ([es (listof any/c)]
-                 [ctxs (es) (and/c unified-contexts? (lambda (ctxs) (= (length es) (length ctxs))))])
-                (#:pre [pre any/c])
-                [c real-compiler?])]
+           (->i
+            ([batch batch?]
+             [brfs (listof batchref?)]
+             [ctxs (brfs) (and/c unified-contexts? (lambda (ctxs) (= (length brfs) (length ctxs))))])
+            (#:pre [pre any/c])
+            [c real-compiler?])]
           [real-apply
            (->* (real-compiler? vector?) ((or/c (vectorof any/c) boolean?)) (values symbol? any/c))]
           [real-compiler-clear! (-> real-compiler-clear! void?)]
@@ -55,12 +58,15 @@
 (struct real-compiler (pre vars var-reprs exprs reprs machine dump-file))
 
 ;; Creates a Rival machine.
-;; Takes a context to encode input variables and their representations,
-;; a list of expressions, and a list of output representations
-;; for each expression. Optionally, takes a precondition.
-(define (make-real-compiler specs ctxs #:pre [pre '(TRUE)])
+;; Takes a batch, a list of batchrefs into the batch, and a context
+;; to encode input variables and their representations.
+;; Optionally, takes a precondition.
+(define (make-real-compiler batch brfs ctxs #:pre [pre '(TRUE)])
   (define vars (context-vars (first ctxs)))
   (define reprs (map context-repr ctxs))
+  ;; Convert batchrefs to expressions. This conversion is not slow because
+  ;; Rival internally uses a hasheq-based deduplication optimization.
+  (define specs (map (batch-exprs batch) brfs))
   ; create the machine
   (define exprs (cons `(assert ,pre) specs))
   (define discs (cons boolean-discretization (map repr->discretization reprs)))
