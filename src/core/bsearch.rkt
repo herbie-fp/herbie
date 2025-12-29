@@ -128,7 +128,6 @@
       context?
       pcontext?
       valid-splitpoints?)
-  (define exprs (batch-exprs batch))
   (define repr ((batch-reprs batch ctx) brf))
 
   (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf) ctx)))
@@ -141,10 +140,8 @@
   (define start-prog-sub (extract-subexpression batch start-prog var brf ctx))
 
   ; Not totally clear if this should actually use the precondition
-  (define start-real-compiler
-    (and start-prog
-         (make-real-compiler (list (exprs (car (batch-to-spec! batch (list start-prog)))))
-                             (list ctx*))))
+  (define spec-brfs (and start-prog (batch-to-spec! batch (list start-prog))))
+  (define start-real-compiler (and start-prog (make-real-compiler batch spec-brfs (list ctx*))))
 
   (define (prepend-macro v)
     (prepend-argument start-real-compiler v pcontext))

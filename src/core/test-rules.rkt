@@ -4,6 +4,7 @@
 (require "../utils/common.rkt"
          "../utils/float.rkt"
          "../syntax/types.rkt"
+         "../syntax/batch.rkt"
          "rival.rkt"
          "rules.rkt"
          "programs.rkt"
@@ -35,10 +36,11 @@
   (match-define (rule name p1 p2 _) test-rule)
   (define ctx (env->ctx p1 p2))
 
+  (define-values (batch brfs) (progs->batch (list p1 (drop-sound p2))))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
                    [*max-find-range-depth* 0])
-      (sample-points '(TRUE) (list p1 (drop-sound p2)) (list ctx ctx))))
+      (sample-points '(TRUE) batch brfs (list ctx ctx))))
 
   (for ([pt (in-list pts)]
         [v1 (in-list exs1)]
