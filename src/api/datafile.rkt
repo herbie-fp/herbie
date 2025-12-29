@@ -114,15 +114,6 @@
                              cost-accuracy)
       test)
     (define bits (representation-total-bits (get-representation prec)))
-    (define cost-accuracy*
-      (match cost-accuracy
-        [(list) (list)]
-        [(list start best others)
-         (list start
-               best
-               (for/list ([other (in-list others)])
-                 (match-define (list cost error expr) other)
-                 (list cost error (~a expr))))]))
     (make-hash `((name . ,name) (identifier . ,(~s identifier))
                                 (pre . ,(~s pre))
                                 (prec . ,(~s prec))
@@ -136,11 +127,13 @@
                                 (warnings . ,warnings)
                                 (input . ,(~s input))
                                 (output . ,(~s output))
-                                (spec . ,(~s spec))
+                                (spec . ,(if (equal? spec input)
+                                             #f
+                                             (~s spec)))
                                 (target-prog . ,(~s target-prog))
                                 (time . ,time)
                                 (link . ,(~a link))
-                                (cost-accuracy . ,cost-accuracy*))))
+                                (cost-accuracy . ,cost-accuracy))))
 
   (define data
     (match info
@@ -191,16 +184,7 @@
                      (match (hash-ref test 'vars)
                        [(list names ...) (map string->symbol names)]
                        [string-lst (parse-string string-lst)]))
-                   (define cost-accuracy
-                     (match (hash-ref test 'cost-accuracy '())
-                       [(list) (list)]
-                       [(list start best others)
-                        (list start
-                              best
-                              (for/list ([other (in-list others)])
-                                (match-define (list cost err expr) other)
-                                (list cost err (parse-string expr))))]
-                       [(? string? s) (parse-string s)]))
+                   (define cost-accuracy (hash-ref test 'cost-accuracy '()))
                    (table-row (get 'name)
                               (parse-string (hash-ref test 'identifier "#f"))
                               (get 'status)
@@ -214,7 +198,8 @@
                               (hash-ref test 'warnings '())
                               (parse-string (get 'input))
                               (parse-string (get 'output))
-                              (parse-string (hash-ref test 'spec "#f"))
+                              (or (parse-string (hash-ref test 'spec "#f"))
+                                  (parse-string (get 'input)))
                               (parse-string (hash-ref test 'target-prog "#f"))
                               (get 'start)
                               (get 'end)

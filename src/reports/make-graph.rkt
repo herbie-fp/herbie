@@ -31,6 +31,7 @@
 (define (make-graph result-hash output? profile?)
   (define backend (hash-ref result-hash 'backend))
   (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
+  (define pre (test-pre test))
   (define time (hash-ref result-hash 'time))
   (define warnings (hash-ref result-hash 'warnings))
   (define repr (test-output-repr test))
@@ -131,7 +132,7 @@
                           "alternatives. Up and to the right is better. The red square shows "
                           "the initial program, and each blue circle shows an alternative."
                           "The line shows the best available speed-accuracy tradeoffs."))
-     ,(let-values ([(dropdown body) (render-program start-expr ctx #:ident identifier)])
+     ,(let-values ([(dropdown body) (render-program start-expr ctx #:ident identifier #:pre pre)])
         `(section ([id "initial"] (class "programs"))
                   (h2 "Initial Program"
                       ": "
@@ -150,7 +151,7 @@
                   [history end-histories]
                   #:unless (equal? start-expr expr))
          (set! alt-number (add1 alt-number))
-         (define-values (dropdown body) (render-program expr ctx #:ident identifier))
+         (define-values (dropdown body) (render-program expr ctx #:ident identifier #:pre pre))
          `(section ([id ,(format "alternative~a" i)] (class "programs"))
                    (h2 "Alternative "
                        ,(~a alt-number)

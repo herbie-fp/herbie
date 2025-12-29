@@ -2,7 +2,7 @@
 
 (require "../utils/float.rkt"
          "../syntax/types.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "compiler.rkt")
 
 (provide in-pcontext

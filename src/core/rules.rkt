@@ -156,8 +156,8 @@
 
 (define-rules polynomials
   #;[sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
-  [flip-+ (+ a b) (sound-/ (- (* a a) (* b b)) (- a b) (+ a b))]
-  [flip-- (- a b) (sound-/ (- (* a a) (* b b)) (+ a b) (- a b))])
+  [flip-+ (+ (sqrt a) (sqrt b)) (sound-/ (- a b) (- (sqrt a) (sqrt b)) (+ (sqrt a) (sqrt b)))]
+  [flip-- (- (sqrt a) (sqrt b)) (sound-/ (- a b) (+ (sqrt a) (sqrt b)) (- (sqrt a) (sqrt b)))])
 
 ; Difference of cubes
 (define-rules polynomials
@@ -167,8 +167,16 @@
   [sum-cubes-rev (* (+ (* a a) (- (* b b) (* a b))) (+ a b)) (+ (pow a 3) (pow b 3))])
 
 (define-rules polynomials
-  [flip3-+ (+ a b) (sound-/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b))) (+ a b))]
-  [flip3-- (- a b) (sound-/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b))) (- a b))])
+  [flip3-+
+   (+ (cbrt a) (cbrt b))
+   (sound-/ (+ a b)
+            (+ (* (cbrt a) (cbrt a)) (- (* (cbrt b) (cbrt b)) (* (cbrt a) (cbrt b))))
+            (+ (cbrt a) (cbrt b)))]
+  [flip3--
+   (- (cbrt a) (cbrt b))
+   (sound-/ (- a b)
+            (+ (* (cbrt a) (cbrt a)) (+ (* (cbrt b) (cbrt b)) (* (cbrt a) (cbrt b))))
+            (- (cbrt a) (cbrt b)))])
 
 ; Dealing with fractions
 (define-rules fractions
