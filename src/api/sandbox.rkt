@@ -1,7 +1,6 @@
 #lang racket
 
-(require profile
-         racket/engine
+(require racket/engine
          json)
 
 (require "../syntax/read.rkt"
@@ -199,11 +198,7 @@
   (define (in-engine _)
     (cond
       [profile?
-       (define result
-         (profile-thunk compute-result
-                        #:order 'total
-                        #:delay 0.05
-                        #:render (λ (p order) (set! profile (profile->json p)))))
+       (define result (profile-thunk compute-result (λ (p) (set! profile (profile->json p)))))
        (struct-copy job-result result [profile profile])]
       [else (compute-result)]))
 

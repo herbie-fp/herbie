@@ -1,8 +1,78 @@
 #lang racket
-(require profile/analyzer)
+(require profile/sampler
+         profile/analyzer
+         setup/dirs)
 (provide profile-merge
          profile->json
-         json->profile)
+         json->profile
+         profile-thunk)
+
+;; One annoyance with profiling in Racket is that if function f calls
+;; (map g ...), we'll get profile edges (f, map) and (map, g). So if
+;; you want to know what "f" spends its time doing, you won't know for
+;; sure (imagine it calls map more than once), and if you want to know
+;; what "g" is called by, good luck.
+;;
+;; We thus apply some clever filtering to stacks: if the stack is (f
+;; map g), we'll create the edge (f, g), but if it's (f map) we'll
+;; still do the edge (f, map) to record the overhead of map.
+
+;; The specific test is whether or not it's part of the Racket
+;; standard library (called the "collects")
+(define collects-dir (path->string (find-collects-dir)))
+
+(define (profile-focus? id src)
+  (define dominated?
+    (cond
+      [(not src) #f]
+      [else
+       (define path (srcloc-source src))
+       (cond
+         [(path? path) (string-prefix? (path->string path) collects-dir)]
+         [(string? path) (string-prefix? path "...")] ; abbreviated collects paths
+         [else #f])]))
+  (not dominated?))
+
+;; Filter a stack for edge computation. Keep non-focused functions at the
+;; front (self position), then filter them out once we hit a focused function.
+(define (filter-stack focus? stack)
+  (let loop ([stack stack]
+             [filtering? #f])
+    (cond
+      [(null? stack) '()]
+      [else
+       (define entry (car stack))
+       (define focused? (focus? (car entry) (cdr entry)))
+       (cond
+         [focused? (cons entry (loop (cdr stack) #t))]
+         [filtering? (loop (cdr stack) #t)]
+         [else (cons entry (loop (cdr stack) #f))])])))
+
+;; Filter all stacks in samples using the focus predicate
+(define (filter-samples focus? cpu-time+samples)
+  (define cpu-time (car cpu-time+samples))
+  (define samples (cdr cpu-time+samples))
+  (cons cpu-time
+        (for/list ([sample (in-list samples)])
+          (define thread-id (car sample))
+          (define thread-time (cadr sample))
+          (define stack (cddr sample))
+          (list* thread-id thread-time (filter-stack focus? stack)))))
+
+(define (profile-thunk thunk renderer #:delay [delay-secs 0.05])
+  (define sampler (create-sampler (current-thread) delay-secs))
+  (define result
+    (with-handlers ([void (λ (e)
+                            (eprintf "profiled thunk error: ~a\n"
+                                     (if (exn? e)
+                                         (exn-message e)
+                                         (format "~e" e))))])
+      (thunk)))
+  (sampler 'stop)
+  (define raw-samples (sampler 'get-snapshots))
+  (define filtered-samples (filter-samples profile-focus? raw-samples))
+  (renderer (analyze-samples filtered-samples))
+  result)
 
 (define (profile-merge . ps)
   (define nodes (make-hash))
