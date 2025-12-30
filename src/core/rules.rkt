@@ -80,7 +80,8 @@
 (define-rules arithmetic
   [count-2 (+ x x) (* 2 x)]
   [2-split 2 (+ 1 1)]
-  [count-2-rev (* 2 x) (+ x x)])
+  [count-2-rev (* 2 x) (+ x x)]
+  [1-split 1 (* 2 1/2)])
 
 ; Distributivity
 (define-rules arithmetic
