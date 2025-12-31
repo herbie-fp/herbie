@@ -204,12 +204,11 @@
 
   (define run-custodian (make-custodian))
   ;; Branch on whether or not we should run inside an engine
-  (begin0
-      (parameterize ([current-custodian run-custodian])
-        (define eng (engine in-engine))
-        (if (engine-run (*timeout*) eng)
-            (engine-result eng)
-            (on-timeout)))
+  (begin0 (parameterize ([current-custodian run-custodian])
+            (define eng (engine in-engine))
+            (if (engine-run (*timeout*) eng)
+                (engine-result eng)
+                (on-timeout)))
     (custodian-shutdown-all run-custodian)))
 
 (define (dummy-table-row-from-hash result-hash status link)
