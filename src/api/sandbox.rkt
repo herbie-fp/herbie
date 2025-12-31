@@ -202,11 +202,14 @@
        (struct-copy job-result result [profile profile])]
       [else (compute-result)]))
 
+  (define run-custodian (make-custodian))
   ;; Branch on whether or not we should run inside an engine
-  (define eng (engine in-engine))
-  (if (engine-run (*timeout*) eng)
-      (engine-result eng)
-      (on-timeout)))
+  (begin0 (parameterize ([current-custodian run-custodian])
+            (define eng (engine in-engine))
+            (if (engine-run (*timeout*) eng)
+                (engine-result eng)
+                (on-timeout)))
+    (custodian-shutdown-all run-custodian)))
 
 (define (dummy-table-row-from-hash result-hash status link)
   (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
