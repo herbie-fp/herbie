@@ -59,13 +59,7 @@
 
 (define (batch-push! b term)
   (define hashcons (batch-index b))
-  (hash-ref! hashcons
-             term
-             (lambda ()
-               (define idx (hash-count hashcons))
-               (hash-set! hashcons term idx)
-               (dvector-add! (batch-nodes b) term)
-               (batchref b idx))))
+  (batchref b (hash-ref! hashcons term (lambda () (dvector-add! (batch-nodes b) term)))))
 
 (define (batch-add! b expr)
   (define (munge prog)
