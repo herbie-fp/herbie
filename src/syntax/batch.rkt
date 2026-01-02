@@ -51,6 +51,10 @@
   (match expr
     [(approx spec impl) (approx (f spec) (f impl))]
     [(hole precision spec) (hole precision (f spec))]
+    [(list op) (list op)]
+    [(list op arg1) (list op (f arg1))]
+    [(list op arg1 arg2) (list op (f arg1) (f arg2))]
+    [(list op arg1 arg2 arg3) (list op (f arg1) (f arg2) (f arg3))]
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
 

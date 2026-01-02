@@ -219,19 +219,19 @@
 ;; Only recurses into impl parts, not specs
 (define (batch-replace-subexpr batch expr from to)
   (define cache (make-hasheq))
+  (define from-idx (batchref-idx from))
   (let loop ([brf expr])
+    (define idx (batchref-idx brf))
     (cond
-      [(batchref<? brf from) brf]
-      [(equal? brf from) to]
-      [(hash-ref cache (batchref-idx brf) #f)]
+      [(< idx from-idx) brf]
+      [(= idx from-idx) to]
       [else
-       (define result
-         (batch-add! batch
-                     (match (deref brf)
-                       [(approx spec impl) (approx spec (loop impl))]
-                       [node (expr-recurse node loop)])))
-       (hash-set! cache (batchref-idx brf) result)
-       result])))
+       (hash-ref! cache idx
+                  (lambda ()
+                    (batch-add! batch
+                                (match (deref brf)
+                                  [(approx spec impl) (approx spec (loop impl))]
+                                  [node (expr-recurse node loop)]))))])))
 
 (module+ test
   (require rackunit)
