@@ -226,7 +226,8 @@
       [(< idx from-idx) brf]
       [(= idx from-idx) to]
       [else
-       (hash-ref! cache idx
+       (hash-ref! cache
+                  idx
                   (lambda ()
                     (batch-add! batch
                                 (match (deref brf)
