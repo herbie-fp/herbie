@@ -7,7 +7,7 @@
          "../utils/common.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "egg-herbie.rkt"
          "egglog-herbie.rkt"
          "programs.rkt"
@@ -83,9 +83,8 @@
   (define approxs (remove-duplicates (taylor-alts altns global-batch spec-batch reducer) #:key key))
   (define approxs* (remove-duplicates (run-lowering approxs global-batch) #:key key))
 
-  (define exprs (batch-exprs global-batch))
-  (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
-  (timeline-push! 'outputs (map (compose ~a exprs alt-expr) approxs*))
+  (timeline-push! 'inputs (batch->jsexpr global-batch (map alt-expr altns)))
+  (timeline-push! 'outputs (batch->jsexpr global-batch (map alt-expr approxs*)))
   (timeline-push! 'count (length altns) (length approxs*))
   approxs*)
 
@@ -99,7 +98,9 @@
   (define runner
     (cond
       [(flag-set? 'generate 'egglog)
-       (define-values (batch* brfs*) (batch-copy-only global-batch brfs))
+       (define batch* (batch-empty))
+       (define copy-f (batch-copy-only! batch* global-batch))
+       (define brfs* (map copy-f brfs))
        (make-egglog-runner batch* brfs* reprs schedule (*context*))]
       [else (make-egraph global-batch brfs reprs schedule (*context*))]))
 
@@ -127,11 +128,10 @@
       (context '() repr '())))
 
   (define spec-brfs (batch-to-spec! global-batch brfs))
-  (define specs (batch->progs global-batch spec-brfs))
   (define-values (status pts)
-    (if (null? specs)
-        (values 'invalid '())
-        (let ([real-compiler (make-real-compiler specs contexts)])
+    (if (null? spec-brfs)
+        (values 'invalid #f)
+        (let ([real-compiler (make-real-compiler global-batch spec-brfs contexts)])
           (real-apply real-compiler (vector)))))
 
   (define (take-values remaining n who)
@@ -180,7 +180,7 @@
       (define brf (batch-add! global-batch lit))
       (alt brf '(evaluate) (list altn))))
 
-  (timeline-push! 'inputs (map ~a specs))
+  (timeline-push! 'inputs (batch->jsexpr global-batch spec-brfs))
   (timeline-push! 'outputs (map ~a literals))
   final-altns)
 
@@ -198,7 +198,9 @@
   (define runner
     (cond
       [(flag-set? 'generate 'egglog)
-       (define-values (batch* brfs*) (batch-copy-only global-batch brfs))
+       (define batch* (batch-empty))
+       (define copy-f (batch-copy-only! batch* global-batch))
+       (define brfs* (map copy-f brfs))
        (make-egglog-runner batch* brfs* reprs schedule (*context*))]
       [else (make-egraph global-batch brfs reprs schedule (*context*))]))
 
@@ -215,9 +217,8 @@
             (for ([batchref* (in-list batchrefs)])
               (sow (alt batchref* (list 'rr runner #f) (list altn)))))))
 
-  (define exprs (batch-exprs global-batch))
-  (timeline-push! 'inputs (map (compose ~a exprs alt-expr) altns))
-  (timeline-push! 'outputs (map (compose ~a exprs alt-expr) rewritten))
+  (timeline-push! 'inputs (batch->jsexpr global-batch (map alt-expr altns)))
+  (timeline-push! 'outputs (batch->jsexpr global-batch (map alt-expr rewritten)))
   (timeline-push! 'count (length altns) (length rewritten))
 
   rewritten)

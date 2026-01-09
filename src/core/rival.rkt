@@ -15,15 +15,18 @@
          "../utils/errors.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
-         "../syntax/types.rkt")
+         "../syntax/types.rkt"
+         "../syntax/batch.rkt")
 
 (provide (struct-out real-compiler)
          (contract-out
           [make-real-compiler
-           (->i ([es (listof any/c)]
-                 [ctxs (es) (and/c unified-contexts? (lambda (ctxs) (= (length es) (length ctxs))))])
-                (#:pre [pre any/c])
-                [c real-compiler?])]
+           (->i
+            ([batch batch?]
+             [brfs (listof batchref?)]
+             [ctxs (brfs) (and/c unified-contexts? (lambda (ctxs) (= (length brfs) (length ctxs))))])
+            (#:pre [pre any/c])
+            [c real-compiler?])]
           [real-apply
            (->* (real-compiler? vector?) ((or/c (vectorof any/c) boolean?)) (values symbol? any/c))]
           [real-compiler-clear! (-> real-compiler-clear! void?)]
@@ -55,7 +58,6 @@
 ;; Herbie's wrapper around the Rival machine abstraction.
 (struct real-compiler (pre vars var-reprs exprs reprs machine dump-file assemble))
 
-;; Creates a Rival machine.
 ;; Takes a context to encode input variables and their representations,
 ;; a list of expressions, and a list of output representations
 ;; for each expression. Optionally, takes a precondition.
@@ -197,7 +199,9 @@
                        val]))))
   (values new-specs ctxs* new-pre assemble-point new-reprs))
 
-(define (make-real-compiler specs ctxs #:pre [pre '(TRUE)])
+;; Creates a Rival machine.
+(define (make-real-compiler batch brfs ctxs #:pre [pre '(TRUE)])
+  (define specs (map (batch-exprs batch) brfs))
   (define-values (vars reprs specs* ctxs* pre* assemble)
     (let-values ([(specs* ctxs* pre* assemble reprs*) (flatten-arrays-for-rival specs ctxs pre)])
       (values (context-vars (first ctxs*)) reprs* specs* ctxs* pre* assemble)))
@@ -273,15 +277,18 @@
   (when (>= (vector-length executions) (*rival-profile-executions*))
     (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
   (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
+  (define mixsample-table (make-hash))
   (for ([execution (in-vector executions)])
     (define name (symbol->string (execution-name execution)))
     (define precision
       (- (execution-precision execution) (remainder (execution-precision execution) prec-threshold)))
-    (timeline-push!/unsafe 'mixsample
-                           (execution-time execution)
-                           name
-                           precision
-                           (execution-memory execution)))
+    (define key (cons name precision))
+    ;; Uses vectors to avoid allocation; this is really allocation-heavy
+    (define data (hash-ref! mixsample-table key (lambda () (make-vector 2 0))))
+    (vector-set! data 0 (+ (vector-ref data 0) (execution-time execution)))
+    (vector-set! data 1 (+ (vector-ref data 1) (execution-memory execution))))
+  (for ([(key val) (in-hash mixsample-table)])
+    (timeline-push!/unsafe 'mixsample (vector-ref val 0) (car key) (cdr key) (vector-ref val 1)))
   (timeline-push!/unsafe 'outcomes
                          (- (current-inexact-milliseconds) start)
                          (rival-profile machine 'iterations)

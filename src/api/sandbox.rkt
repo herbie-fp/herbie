@@ -1,7 +1,6 @@
 #lang racket
 
-(require profile
-         racket/engine
+(require racket/engine
          json)
 
 (require "../syntax/read.rkt"
@@ -9,6 +8,7 @@
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
          "../syntax/load-platform.rkt"
+         "../syntax/batch.rkt"
          "../core/localize.rkt"
          "../utils/alternative.rkt"
          "../core/compiler.rkt"
@@ -134,9 +134,10 @@
   (random) ;; Tick the random number generator, for backwards compatibility
   (define specification (prog->spec (or (test-spec test) (test-input test))))
   (define precondition (prog->spec (test-pre test)))
+  (define-values (batch brfs) (progs->batch (list specification)))
   (define sample
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-points precondition (list specification) (list (*context*)))))
+      (sample-points precondition batch brfs (list (*context*)))))
   (apply mk-pcontext sample))
 
 ;;
@@ -197,19 +198,18 @@
   (define (in-engine _)
     (cond
       [profile?
-       (define result
-         (profile-thunk compute-result
-                        #:order 'total
-                        #:delay 0.05
-                        #:render (λ (p order) (set! profile (profile->json p)))))
+       (define result (profile-thunk compute-result (λ (p) (set! profile (profile->json p)))))
        (struct-copy job-result result [profile profile])]
       [else (compute-result)]))
 
+  (define run-custodian (make-custodian))
   ;; Branch on whether or not we should run inside an engine
-  (define eng (engine in-engine))
-  (if (engine-run (*timeout*) eng)
-      (engine-result eng)
-      (on-timeout)))
+  (begin0 (parameterize ([current-custodian run-custodian])
+            (define eng (engine in-engine))
+            (if (engine-run (*timeout*) eng)
+                (engine-result eng)
+                (on-timeout)))
+    (custodian-shutdown-all run-custodian)))
 
 (define (dummy-table-row-from-hash result-hash status link)
   (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
@@ -273,10 +273,12 @@
      (define end-costs (map (curryr hash-ref 'cost) end))
 
      ; terribly formatted pareto-optimal frontier
+     (define (round3 x)
+       (/ (round (* x 1000)) 1000.0))
      (define cost&accuracy
-       (list (list start-cost start-score)
-             (list (car end-costs) (car end-scores))
-             (map list (cdr end-costs) (cdr end-scores) (cdr end-exprs))))
+       (list (list (round3 start-cost) (round3 start-score))
+             (list (round3 (car end-costs)) (round3 (car end-scores)))
+             (map (λ (c s) (list (round3 c) (round3 s))) (cdr end-costs) (cdr end-scores))))
 
      (define fuzz 0.1)
      (define end-score (car end-scores))
