@@ -1,0 +1,19 @@
+; -*- mode: scheme -*-
+
+(FPCore literal-vector ()
+ :name "Return fixed 2-element array literal"
+ :precision arraybinary64
+ (array 1.0
+        -1.0))
+
+(FPCore copy-vector ((v 2))
+ :name "Return input vector elements as array"
+ :precision arraybinary64
+ (array (ref v 0)
+        (ref v 1)))
+
+(FPCore pairwise-sum ((a 2) (b 2))
+ :name "Pairwise sum of two input vectors"
+ :precision arraybinary64
+ (array (+ (ref a 0) (ref b 0))
+        (+ (ref a 1) (ref b 1))))
