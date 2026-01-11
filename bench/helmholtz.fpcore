@@ -1,0 +1,195 @@
+; -*- mode: scheme -*-
+
+(FPCore (delta ci l_double)
+  :name "u-increment-delta"
+  :pre (and (> l_double 0) (> (fabs ci) 2.2204460492503131e-16))
+  (* (- ci) (pow delta l_double)))
+
+(FPCore (delta ci l_int)
+  :name "u-increment-delta-int"
+  :pre (and (> l_int 0) (> (fabs ci) 2.2204460492503131e-16))
+  (* (- ci) (pow delta l_int)))
+
+(FPCore (delta ci l_double)
+  :name "du-ddelta-increment"
+  :pre (and (> l_double 0) (> (fabs ci) 2.2204460492503131e-16))
+  (let* ([u_increment (* (- ci) (pow delta l_double))]
+         [one_over_delta (/ 1 delta)])
+    (* (* l_double u_increment) one_over_delta)))
+
+(FPCore (delta ci l_double)
+  :name "d3u-ddelta3-increment"
+  :pre (and (> l_double 0) (> (fabs ci) 2.2204460492503131e-16))
+  (let* ([u_increment (* (- ci) (pow delta l_double))]
+         [one_over_delta (/ 1 delta)]
+         [du_ddelta_increment (* (* l_double u_increment) one_over_delta)]
+         [d2u_ddelta2_increment (* (* (- l_double 1) du_ddelta_increment) one_over_delta)]
+         [d3u_ddelta3_increment (* (* (- l_double 2) d2u_ddelta2_increment) one_over_delta)])
+    d3u_ddelta3_increment))
+
+(FPCore (tau omegai m_double)
+  :name "u-increment-tau"
+  :pre (> (fabs m_double) 0)
+  (* (- omegai) (pow tau m_double)))
+
+(FPCore (tau omegai m_double)
+  :name "d3u-dtau3-increment"
+  :pre (> (fabs m_double) 0)
+  (let* ([u_increment (* (- omegai) (pow tau m_double))]
+         [one_over_tau (/ 1 tau)]
+         [du_dtau_increment (* (* m_double u_increment) one_over_tau)]
+         [d2u_dtau2_increment (* (* (- m_double 1) du_dtau_increment) one_over_tau)]
+         [d3u_dtau3_increment (* (* (- m_double 2) d2u_dtau2_increment) one_over_tau)])
+    d3u_dtau3_increment))
+
+(FPCore (tau delta ni ti di u)
+  :name "ndteu"
+  (let* ([log_tau (log tau)]
+         [log_delta (log delta)]
+         [exponent (+ (* ti log_tau) (+ (* di log_delta) u))])
+    (* ni (exp exponent))))
+
+(FPCore (delta di du_ddelta d2u_ddelta2)
+  :name "B-delta2"
+  (let* ([B_delta (+ (* delta du_ddelta) di)]
+         [dB_delta_ddelta (+ (* delta d2u_ddelta2) du_ddelta)]
+         [B_delta2 (+ (* delta dB_delta_ddelta) (* (- B_delta 1) B_delta))])
+    B_delta2))
+
+(FPCore (tau ti du_dtau d2u_dtau2 d3u_dtau3)
+  :name "B-tau3"
+  (let* ([B_tau (+ (* tau du_dtau) ti)]
+         [dB_tau_dtau (+ (* tau d2u_dtau2) du_dtau)]
+         [d2B_tau_dtau2 (+ (* tau d3u_dtau3) (* 2 d2u_dtau2))]
+         [B_tau2 (+ (* tau dB_tau_dtau) (* (- B_tau 1) B_tau))]
+         [dB_tau2_dtau (+ (* tau d2B_tau_dtau2) (* (* 2 B_tau) dB_tau_dtau))]
+         [B_tau3 (+ (* tau dB_tau2_dtau) (* (- B_tau 2) B_tau2))])
+    B_tau3))
+
+(FPCore (tau delta Ai betai)
+  :name "theta"
+  (let* ([delta_minus1 (- delta 1)]
+         [pow_term (pow (* delta_minus1 delta_minus1) (/ 1 (* 2 betai)))])
+    (+ (- 1 tau) (* Ai pow_term))))
+
+(FPCore (delta Ai betai)
+  :name "dtheta-dDelta"
+  (let* ([delta_minus1 (- delta 1)]
+         [pow_term (pow (* delta_minus1 delta_minus1) (- (/ 1 (* 2 betai)) 1))]
+         [scale (/ Ai betai)])
+    (* (* scale pow_term) delta_minus1)))
+
+(FPCore (delta Ai betai)
+  :name "d3theta-dDelta3"
+  (let* ([delta_minus1 (- delta 1)]
+         [pow_term (pow (* delta_minus1 delta_minus1) (/ 1 (* 2 betai)))]
+         [betai2 (* betai betai)]
+         [coef (+ (- 2 (/ 3 betai)) (/ 1 betai2))]
+         [scale (/ Ai betai)])
+    (/ (* (* scale coef) pow_term) (* delta_minus1 (* delta_minus1 delta_minus1)))))
+
+(FPCore (tau delta Ci Di)
+  :name "PSI"
+  (let* ([delta_term (* Ci (* (- delta 1) (- delta 1)))]
+         [tau_term (* Di (* (- tau 1) (- tau 1)))]
+         [exponent (+ (- delta_term) (- tau_term))])
+    (exp exponent)))
+
+(FPCore (delta Ci)
+  :name "d2PSI-dDelta2-over-PSI"
+  (let* ([delta_term (* 2 (* Ci (* (- delta 1) (- delta 1))))]
+         [inner (- delta_term 1)]
+         [scale (* 2 Ci)])
+    (* inner scale)))
+
+(FPCore (tau delta Ci Di)
+  :name "d3PSI-dDelta3"
+  (let* ([delta_minus1 (- delta 1)]
+         [delta_term (* Ci (* delta_minus1 delta_minus1))]
+         [tau_term (* Di (* (- tau 1) (- tau 1)))]
+         [psi (exp (+ (- delta_term) (- tau_term)))]
+         [inner (+ (* (* (- 4) (* Ci Ci)) (* delta_minus1 (* delta_minus1 delta_minus1)))
+                   (* (* 6 Ci) delta_minus1))])
+    (* (* (* 2 Ci) psi) inner)))
+
+(FPCore (tau delta Ai Bi ai betai)
+  :name "DELTA"
+  (let* ([delta_minus1 (- delta 1)]
+         [theta (+ (- 1 tau) (* Ai (pow (* delta_minus1 delta_minus1) (/ 1 (* 2 betai)))))]
+         [delta_pow (pow (* delta_minus1 delta_minus1) ai)])
+    (+ (* theta theta) (* Bi delta_pow))))
+
+(FPCore (tau delta Ai Bi ai betai)
+  :name "d2DELTA-dDelta2"
+  (let* ([delta_minus1 (- delta 1)]
+         [pow_base (* delta_minus1 delta_minus1)]
+         [theta (+ (- 1 tau) (* Ai (pow pow_base (/ 1 (* 2 betai)))))]
+         [dtheta (* (* (/ Ai betai) (pow pow_base (- (/ 1 (* 2 betai)) 1))) delta_minus1)]
+         [d2theta (* (/ Ai betai) (* (- (/ 1 betai) 1) (pow pow_base (- (/ 1 (* 2 betai)) 1))))]
+         [ai_term (- (* (* 2 ai) ai) ai)]
+         [pow_term (pow pow_base (- ai 1))]
+         [sum_terms (+ (* theta d2theta) (+ (* dtheta dtheta) (* (* Bi ai_term) pow_term)))])
+    (* 2 sum_terms)))
+
+(FPCore (tau delta Ai Bi ai betai bi)
+  :name "d2DELTAbi-dDelta2"
+  (let* ([delta_minus1 (- delta 1)]
+         [pow_base (* delta_minus1 delta_minus1)]
+         [theta (+ (- 1 tau) (* Ai (pow pow_base (/ 1 (* 2 betai)))))]
+         [dtheta (* (* (/ Ai betai) (pow pow_base (- (/ 1 (* 2 betai)) 1))) delta_minus1)]
+         [d2theta (* (/ Ai betai) (* (- (/ 1 betai) 1) (pow pow_base (- (/ 1 (* 2 betai)) 1))))]
+         [delta_pow (pow pow_base ai)]
+         [DELTA (+ (* theta theta) (* Bi delta_pow))]
+         [dDELTA_dDelta (+ (* (* 2 theta) dtheta)
+                           (* (* (* 2 Bi) ai) (* (pow pow_base (- ai 1)) delta_minus1)))]
+         [ai_term (- (* (* 2 ai) ai) ai)]
+         [pow_term (pow pow_base (- ai 1))]
+         [d2DELTA_dDelta2 (* 2 (+ (* theta d2theta) (+ (* dtheta dtheta) (* (* Bi ai_term) pow_term))))]
+         [term1 (* (pow DELTA (- bi 1)) d2DELTA_dDelta2)]
+         [term2 (* (* (- bi 1) (pow DELTA (- bi 2))) (* dDELTA_dDelta dDELTA_dDelta))])
+    (* bi (+ term1 term2))))
+
+(FPCore (tau delta Ai Bi ai betai bi)
+  :name "d3DELTAbi-dTau3"
+  (let* ([delta_minus1 (- delta 1)]
+         [theta (+ (- 1 tau) (* Ai (pow (* delta_minus1 delta_minus1) (/ 1 (* 2 betai)))))]
+         [DELTA (+ (* theta theta) (* Bi (pow (* delta_minus1 delta_minus1) ai)))]
+         [term1 (* (- 12) (* theta (* bi (* (- bi 1) (pow DELTA (- bi 2))))))]
+         [term2 (* (- 8) (* (* theta (* theta theta)) (* bi (* (- bi 1) (* (- bi 2) (pow DELTA (- bi 3)))))))])
+    (+ term1 term2)))
+
+(FPCore (n theta Tci_over_Tr tau)
+  :name "gerg-sinh-log"
+  (let* ([t (* theta Tci_over_Tr)]
+         [arg (* t tau)])
+    (* n (log (fabs (sinh arg))))))
+
+(FPCore (n theta Tci_over_Tr tau)
+  :name "gerg-sinh-tanh"
+  (let* ([t (* theta Tci_over_Tr)]
+         [arg (* t tau)])
+    (/ (* n t) (tanh arg))))
+
+(FPCore (n theta Tci_over_Tr tau)
+  :name "gerg-sinh-tanh-2"
+  (let* ([t (* theta Tci_over_Tr)]
+         [arg (* t tau)]
+         [sinh_arg (sinh arg)])
+    (/ (* (- n) (* t t)) (* sinh_arg sinh_arg))))
+
+(FPCore (n theta Tci_over_Tr tau)
+  :name "gerg-sinh-tanh-3"
+  (let* ([t (* theta Tci_over_Tr)]
+         [arg (* t tau)]
+         [tanh_arg (tanh arg)]
+         [inner (- (/ 1 tanh_arg) (/ 1 (* tanh_arg (* tanh_arg tanh_arg))))])
+    (* (* (* (- 2) n) (* t (* t t))) inner)))
+
+(FPCore (n theta Tci_over_Tr tau)
+  :name "gerg-sinh-tanh-4"
+  (let* ([t (* theta Tci_over_Tr)]
+         [arg (* t tau)]
+         [tanh_arg (tanh arg)]
+         [inner (+ (- 1 (/ 4 (* tanh_arg tanh_arg)))
+                   (/ 3 (* tanh_arg (* tanh_arg (* tanh_arg tanh_arg)))))])
+    (* (* (* (- 2) n) (* t (* t (* t t)))) inner)))
