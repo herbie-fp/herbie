@@ -58,6 +58,23 @@ double cos_quotient_xy(double x, double y) {
     return fma(cos_p, cos_q, -sin_p * sin_q);
 }
 
+double log1pmd(double x) {
+    static const double 
+    Lp1 = 6.666666666666735130e-01,  // 3FE55555 55555593
+    Lp2 = 3.999999999940941908e-01,  // 3FD99999 9997FA04
+    Lp3 = 2.857142874366239149e-01,  // 3FD24924 94229359
+    Lp4 = 2.222219843214978396e-01,  // 3FCC71C5 1D8E78AF
+    Lp5 = 1.818357216161805012e-01,  // 3FC74664 96CB03DE
+    Lp6 = 1.531383769920937332e-01,  // 3FC39A09 D078C69F
+    Lp7 = 1.479819860511658591e-01;  // 3FC2F112 DF3E5244
+
+    double z = x * x;
+    
+    double R = z * (Lp1 + z * (Lp2 + z * (Lp3 + z * (Lp4 + z * (Lp5 + z * (Lp6 + z * Lp7))))));
+
+    return 2.0 * x + x * R;
+}
+
 // double approx_sin_xy(double x, double y) {
 //     double p = x * y;
 //     double q = fma(x, y, -p); 

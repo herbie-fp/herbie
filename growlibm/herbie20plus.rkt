@@ -228,3 +228,10 @@
                   #:impl (from-accelerators 'cos_quotient_xy)
                   #:fpcore (! :precision binary64 (cos-quotient_xy x y))
                   #:cost 12800)
+
+(define-operation (log1pmd.f64 [x <binary64>])
+                  <binary64>
+                  #:spec (log (/ (+ 1 x) (- 1 x)))
+                  #:impl (from-accelerators 'log1pmd)
+                  #:fpcore (! :precision binary64 (log1pmd x))
+                  #:cost 3200)
