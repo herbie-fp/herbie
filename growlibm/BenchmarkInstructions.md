@@ -19,10 +19,14 @@ When you receive a new source file:
     - Ensure that `+` and `*` are only used as binary operations.
     - Preserve the original structure instead of using algebraic simplifications.
 
-4. **Validate syntax.** Run
+4. **Save the .fpcore file.**
+    - In the bench/ folder
+    - Give the .fpcore file an appropriate name
+
+5. **Validate syntax.** Run
 
     ```
-    racket -y src/main.rkt report --platform vanilla <FPCORE FILE> out
+    racket -y src/main.rkt report --platform no-accelerators <FPCORE FILE> out
     ```
 
     Fix any syntax errors Herbie reports (missing parentheses, unsupported identifiers, missing preconditions). Rerun until the file parses cleanly. Warnings about improvement quality are fine; only syntax errors must be resolved. Make sure that the number of FPCores you
