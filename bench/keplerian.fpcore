@@ -45,7 +45,7 @@
    (/ numterm denterm)))
 
 (FPCore (az z0 z vz c_light)
- :name "Retarded delay accel branch"
+ :name "Delay accel branch"
  (let* ([vz_over_c (/ vz c_light)]
         [t (+ 1 vz_over_c)]
         [t2 (* t t)]
