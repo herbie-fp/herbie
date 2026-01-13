@@ -251,8 +251,7 @@
                          (impl-info op 'itype)
                          (operator-info op 'itype))]
                     [(impl-exists? op) (impl-info op 'itype)]
-                    [(operator-exists? op) (operator-info op 'itype)]
-                    [else (make-list (length args) 'real)])))])))
+                    [(operator-exists? op) (operator-info op 'itype)])))])))
 
 ;; Parses a string from egg into a single S-expr.
 (define (egg-expr->expr egg-expr ctx)
@@ -523,12 +522,9 @@
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(string-prefix? (symbol->string f) "sound-") (list 'real)]
        [else
-        (let ([types (filter values
-                             (list (and (impl-exists? f) (impl-info f 'otype))
-                                   (and (operator-exists? f) (operator-info f 'otype))))])
-          (if (null? types)
-              (list 'real)
-              types))])]))
+        (filter values
+                (list (and (impl-exists? f) (impl-info f 'otype))
+                      (and (operator-exists? f) (operator-info f 'otype))))])]))
 
 ;; Rebuilds an e-node using typed e-classes
 (define (rebuild-enode enode type lookup)
@@ -549,10 +545,8 @@
        [else
         (define itypes
           (cond
-            [(representation? type) (and (impl-exists? f) (impl-info f 'itype))]
-            [(impl-exists? f) (impl-info f 'itype)]
-            [(operator-exists? f) (operator-info f 'itype)]
-            [else '()]))
+            [(representation? type) (impl-info f 'itype)]
+            [else (operator-info f 'itype)]))
         ; unsafe since we don't check that |itypes| = |ids|
         ; optimize for common cases to avoid extra allocations
         (cons
@@ -1000,15 +994,11 @@
                    type))
              (approx (loop spec spec-type) (loop impl type))]
             [(list impl (app eggref args) ...)
-             (define itypes
-               (cond
-                 [(representation? type) (and (impl-exists? impl) (impl-info impl 'itype))]
-                 [(impl-exists? impl) (impl-info impl 'itype)]
-                 [(operator-exists? impl) (operator-info impl 'itype)]
-                 [else (make-list (length args) 'real)]))
              (define args*
                (for/list ([arg (in-list args)]
-                          [type (in-list itypes)])
+                          [type (in-list (if (representation? type)
+                                             (impl-info impl 'itype)
+                                             (operator-info impl 'itype)))])
                  (loop arg type)))
              (cons impl args*)]))
         (batchref-idx (batch-push! batch enode*))))

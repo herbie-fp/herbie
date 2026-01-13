@@ -35,7 +35,7 @@
 
 ;; Returns all operators.
 (define (all-operators)
-  (sort (hash-keys rival-functions) symbol<?))
+  (sort (append (hash-keys rival-functions) (list 'array 'ref)) symbol<?))
 
 ;; Looks up a property `field` of a real operator `op`.
 ;; Panics if the operator is not found.
