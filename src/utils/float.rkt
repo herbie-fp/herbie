@@ -19,16 +19,42 @@
          real->repr
          repr->real)
 
+(define (normalize-array val)
+  (cond
+    [(vector? val) (vector->list val)]
+    [(list? val) val]
+    [else (list val)]))
+
 (define (ulp-difference x y repr)
-  (define ->ordinal (representation-repr->ordinal repr))
-  (+ 1 (abs (- (->ordinal y) (->ordinal x)))))
+  (match (representation-type repr)
+    ['array
+     (define elem-repr (array-representation-elem repr))
+     (define xs (normalize-array x))
+     (define ys (normalize-array y))
+     (unless (= (length xs) (length ys))
+       (raise-herbie-error "Mismatched array lengths for ulp-difference: ~a vs ~a"
+                           (length xs)
+                           (length ys)))
+     (apply max (map (lambda (a b) (ulp-difference a b elem-repr)) xs ys))]
+    [_
+     (define ->ordinal (representation-repr->ordinal repr))
+     (+ 1 (abs (- (->ordinal y) (->ordinal x))))]))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint
 (define (midpoint p1 p2 repr)
-  ((representation-ordinal->repr repr) (floor (/ (+ ((representation-repr->ordinal repr) p1)
-                                                    ((representation-repr->ordinal repr) p2))
-                                                 2))))
+  (match (representation-type repr)
+    ['array
+     (define elem-repr (array-representation-elem repr))
+     (define xs (normalize-array p1))
+     (define ys (normalize-array p2))
+     (unless (= (length xs) (length ys))
+       (raise-herbie-error "Mismatched array lengths for midpoint: ~a vs ~a" (length xs) (length ys)))
+     (list->vector (map (lambda (a b) (midpoint a b elem-repr)) xs ys))]
+    [_
+     ((representation-ordinal->repr repr) (floor (/ (+ ((representation-repr->ordinal repr) p1)
+                                                       ((representation-repr->ordinal repr) p2))
+                                                    2)))]))
 
 (define (repr-round repr dir point)
   ((representation-repr->bf repr) (parameterize ([bf-rounding-mode dir])

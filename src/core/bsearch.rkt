@@ -148,8 +148,6 @@
 
   (define (find-split brf1 brf2 v1 v2)
     (define (pred v)
-      (unless (real? v)
-        (raise-herbie-sampling-error "branch value is not real: ~a" v))
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
           (cache-get-prepend v brf prepend-macro)))
@@ -173,10 +171,7 @@
   (define use-binary
     (and (flag-set? 'reduce 'binary-search)
          ;; Binary search is only valid if we correctly extracted the branch expression
-         (andmap identity (cons start-prog-sub progs))
-         ;; Array inputs do not play well with binary search; stay on left-point strategy
-         (for/and ([repr (in-list (context-var-reprs ctx))])
-           (not (eq? (representation-type repr) 'array)))))
+         (andmap identity (cons start-prog-sub progs))))
 
   (append (for/list ([si1 sindices]
                      [si2 (cdr sindices)])
