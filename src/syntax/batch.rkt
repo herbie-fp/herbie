@@ -102,6 +102,8 @@
     (let loop ([brf (batchref batch idx)]
                [args args])
       (define idx (batchref-idx brf))
+      (when (negative? idx)
+        (error 'batch-recurse "Invalid negative batchref index ~a" idx))
       (cond
         [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx))
          (unless (equal? args (dvector-ref visited idx))

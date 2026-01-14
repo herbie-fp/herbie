@@ -43,6 +43,12 @@
      (define len (u32vector-length vec))
      (values (lambda (i) (u32vector-ref vec i)) add1 0 (lambda (i) (< i len)) #f #f))))
 
+(define (literal->egg-const lit)
+  (define repr (get-representation (literal-precision lit)))
+  (match (representation-type repr)
+    ['array (string->symbol (~s lit))]
+    [_ (literal-value lit)]))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; egg FFI shim
 ;;
@@ -80,7 +86,13 @@
 
   (define (insert-node! node)
     (match node
-      [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
+      [(list op ids ...)
+       (cond
+         [(symbol? op)
+          (when (ormap negative? ids)
+            (error 'insert-node! "Negative child index in node ~a" node))
+          (egraph_add_node ptr (~s op) (list->u32vec ids))]
+         [else (egraph_add_node ptr (~s (cons op ids)) 0-vec)])]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
   (define reprs (batch-reprs batch ctx))
@@ -90,7 +102,7 @@
      (λ (brf recurse)
        (define node (deref brf))
        (match node
-         [(literal v _) (insert-node! v)]
+         [(? literal?) (insert-node! (literal->egg-const node))]
          [(? number?) (insert-node! node)]
          [(? symbol?) (insert-node! (var->egg-var node ctx))]
          [(hole prec spec) (recurse spec)] ; "hole" terms currently disappear
@@ -171,7 +183,7 @@
   (let loop ([expr expr])
     (match expr
       [(? number?) expr]
-      [(? literal?) (literal-value expr)]
+      [(? literal?) (literal->egg-const expr)]
       [(? symbol?) (string->symbol (format "?~a" expr))]
       [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(list op args ...) (cons op (map loop args))])))
@@ -191,7 +203,7 @@
   (let loop ([expr expr])
     (match expr
       [(? number?) expr]
-      [(? literal?) (literal-value expr)]
+      [(? literal?) (literal->egg-const expr)]
       [(? symbol? x) (var->egg-var x ctx)]
       [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(hole precision spec) (loop spec)]

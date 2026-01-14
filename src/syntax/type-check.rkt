@@ -8,6 +8,18 @@
          (except-in "platform-language.rkt" quasisyntax))
 (provide assert-program-typed!)
 
+(define (precision->reprs prec-name)
+  (define repr (get-representation prec-name))
+  (define scalar-repr
+    (if (array-representation? repr)
+        (array-representation-elem repr)
+        repr))
+  (values repr scalar-repr (representation-name scalar-repr)))
+
+(define (normalize-prop-dict dict)
+  (define-values (_1 _2 scalar-name) (precision->reprs (dict-ref dict ':precision)))
+  (dict-set dict ':precision scalar-name))
+
 (define (type->string t)
   (cond
     [(representation? t) (~a (representation-name t))]
@@ -56,6 +68,8 @@
   (define default-dict `((:precision . ,(*default-precision*))))
   (define prop-dict (apply dict-set* default-dict (map syntax->datum props)))
   (define prec (dict-ref prop-dict ':precision))
+  (define-values (program-repr scalar-repr _) (precision->reprs prec))
+  (define prop-dict* (normalize-prop-dict prop-dict))
 
   (define-values (var-names var-types)
     (for/lists (var-names var-types)
@@ -64,21 +78,20 @@
                  [(list '! props ... name dims ...)
                   (define prop-dict (props->dict props))
                   (define arg-prec (dict-ref prop-dict ':precision prec))
-                  (define repr (get-representation arg-prec))
+                  (define-values (repr base-repr _) (precision->reprs arg-prec))
                   (values name
                           (if (null? dims)
                               repr
-                              (array-of dims repr)))]
+                              (array-of dims base-repr)))]
                  [(list (? symbol? name) dims ...)
-                  (define repr (get-representation prec))
                   (values name
                           (if (null? dims)
-                              repr
-                              (array-of dims repr)))]
-                 [(? symbol? name) (values name (get-representation prec))])))
+                              program-repr
+                              (array-of dims scalar-repr)))]
+                 [(? symbol? name) (values name program-repr)])))
 
-  (define ctx (context var-names (get-representation prec) var-types))
-  (assert-expression-type! body prop-dict ctx))
+  (define ctx (context var-names program-repr var-types))
+  (assert-expression-type! body prop-dict* ctx))
 
 (define (assert-expression-type! stx props ctx)
   (define errs '())
@@ -117,6 +130,7 @@
                        " ")))
 
 (define (expression->type stx prop-dict ctx error!)
+  (define prop-dict* (normalize-prop-dict prop-dict))
   (define (current-repr pd)
     (get-representation (dict-ref pd ':precision)))
   (define (bool-type? t)
@@ -153,7 +167,7 @@
         x))
 
   (let loop ([stx stx]
-             [prop-dict prop-dict]
+             [prop-dict prop-dict*]
              [ctx ctx])
     (match stx
       [#`,(? number?) (current-repr prop-dict)]
@@ -190,7 +204,9 @@
                  (type->string ift-repr)
                  (type->string iff-repr)))
        ift-repr]
-      [#`(! #,props ... #,body) (loop body (apply dict-set prop-dict (map syntax->datum props)) ctx)]
+      [#`(! #,props ... #,body)
+       (define prop-dict* (normalize-prop-dict (apply dict-set prop-dict (map syntax->datum props))))
+       (loop body prop-dict* ctx)]
       [#`(,(? (curry hash-has-key? (*functions*)) fname) #,args ...)
        ; TODO: inline functions expect uniform types, this is clearly wrong
        (match-define (list vars prec _) (hash-ref (*functions*) fname))
@@ -350,4 +366,17 @@
     (check-types <b64> <b64> #'(ref (array 5 6) 0))
     (check-types <b64> (array-of '(2) <b64>) #'(ref A 0) #:env `((A . ,mat-type)))
     (check-types <b64> <b64> #'(ref A 0 1) #:env `((A . ,mat-type)))
-    (check-fails <b64> #'(ref x 0) #:env `((x . ,<b64>))))) ; wrong target type
+    (check-fails <b64> #'(ref x 0) #:env `((x . ,<b64>))))
+
+  ;; Array precision should normalize to element precision for typing
+  (check-not-exn (lambda ()
+                   (assert-program-typed! #'(FPCore () :precision arraybinary64 (array 1.0 2.0)))))
+  (check-not-exn (lambda ()
+                   (assert-program-typed!
+                    #'(FPCore ((v 2)) :precision arraybinary64 (array (ref v 0) (ref v 1))))))
+  (check-not-exn (lambda ()
+                   (assert-program-typed! #'(FPCore ((a 2) (b 2))
+                                                    :precision
+                                                    arraybinary64
+                                                    (array (+ (ref a 0) (ref b 0))
+                                                           (+ (ref a 1) (ref b 1))))))))

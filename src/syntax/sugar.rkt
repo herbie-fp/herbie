@@ -208,7 +208,7 @@
        (define lowered-args (map (lambda (a) (scalar-expr (lower a env) op)) args))
        `(scalar (,op ,@lowered-args))]
       [_ `(scalar ,expr)]))
-  (scalar-expr (lower expr env) 'program))
+  (strip (lower expr env)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FPCore -> LImpl
@@ -283,7 +283,16 @@
     [(literal -inf.0 _) '(- INFINITY)]
     [(literal +inf.0 _) 'INFINITY]
     [(literal v (or 'binary64 'binary32)) (exact->inexact v)]
-    [(literal v _) v]))
+    [(literal v prec)
+     (define repr (get-representation prec))
+     (match (representation-type repr)
+       ['array
+        (define elems
+          (if (vector? v)
+              (vector->list v)
+              v))
+        `(array ,@elems)]
+       [_ v])]))
 
 ;; Step 1.
 ;; Translates from LImpl to a series of let bindings such that each

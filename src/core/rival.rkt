@@ -56,7 +56,8 @@
                   (lambda (x y) (- (ulp-difference x y repr) 1))))
 
 ;; Herbie's wrapper around the Rival machine abstraction.
-(struct real-compiler (pre vars var-reprs exprs reprs machine dump-file assemble))
+(struct real-compiler
+        (pre vars var-reprs exprs reprs machine dump-file assemble-point assemble-output))
 
 ;; Takes a context to encode input variables and their representations,
 ;; a list of expressions, and a list of output representations
@@ -197,14 +198,35 @@
                        (define val (vector-ref pt idx))
                        (set! idx (add1 idx))
                        val]))))
-  (values new-specs ctxs* new-pre assemble-point new-reprs))
+  (define (assemble-output outs)
+    (define outputs
+      (if (vector? outs)
+          (vector->list outs)
+          outs))
+    (define idx 0)
+    (for/list ([repr (in-list orig-reprs)])
+      (match (representation-type repr)
+        ['array
+         (define len (apply * (array-representation-dims repr)))
+         (define elems
+           (for/list ([i (in-range len)])
+             (define val (list-ref outputs idx))
+             (set! idx (add1 idx))
+             val))
+         (list->vector elems)]
+        [_
+         (define val (list-ref outputs idx))
+         (set! idx (add1 idx))
+         val])))
+  (values new-specs ctxs* new-pre assemble-point assemble-output new-reprs))
 
 ;; Creates a Rival machine.
 (define (make-real-compiler batch brfs ctxs #:pre [pre '(TRUE)])
   (define specs (map (batch-exprs batch) brfs))
-  (define-values (vars reprs specs* ctxs* pre* assemble)
-    (let-values ([(specs* ctxs* pre* assemble reprs*) (flatten-arrays-for-rival specs ctxs pre)])
-      (values (context-vars (first ctxs*)) reprs* specs* ctxs* pre* assemble)))
+  (define-values (vars reprs specs* ctxs* pre* assemble-point assemble-output)
+    (let-values ([(specs* ctxs* pre* assemble-point assemble-output reprs*)
+                  (flatten-arrays-for-rival specs ctxs pre)])
+      (values (context-vars (first ctxs*)) reprs* specs* ctxs* pre* assemble-point assemble-output)))
   ; create the machine
   (define exprs (cons `(assert ,pre*) specs*))
   (define discs (cons boolean-discretization (map repr->discretization reprs)))
@@ -239,7 +261,8 @@
                  (list->vector reprs)
                  machine
                  dump-file
-                 assemble))
+                 assemble-point
+                 assemble-output))
 
 (define (bigfloat->readable-string x)
   (define real (bigfloat->real x)) ; Exact rational unless inf/nan
@@ -250,7 +273,7 @@
 
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
-  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file _) compiler)
+  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file _ _) compiler)
   (define start (current-inexact-milliseconds))
   (define pt*
     (for/vector #:length (vector-length vars)
@@ -312,10 +335,11 @@
   (define <b64> <binary64>)
   (define arr-repr (make-array-representation #:name 'arraybinary64 #:elem <b64> #:dims '(2)))
   (define arr-ctx (context '(v) arr-repr (list arr-repr)))
-  (define-values (specs* ctxs* pre* _assemble reprs*)
+  (define-values (specs* ctxs* pre* _assemble-pt _assemble-out reprs*)
     (flatten-arrays-for-rival (list 'v) (list arr-ctx) 'TRUE))
   (check-equal? specs* '(v_0 v_1))
   (check-equal? (map context-vars ctxs*) '((v_0 v_1)))
   (check-equal? (map context-var-reprs ctxs*) (list (list <b64> <b64>)))
   (check-equal? reprs* (list <b64> <b64>))
+  (check-equal? (_assemble-out '(1 2)) #(1 2))
   (check-equal? pre* 'TRUE))
