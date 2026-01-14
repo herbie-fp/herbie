@@ -13,7 +13,7 @@
         (ref v 1)))
 
 (FPCore create-vector ((! :precision binary64 v0) (! :precision binary64 v1))
- :name "Return input vector elements as array"
+ :name "Return input elements as array"
  :precision arraybinary64
  (array v0 v1))
 

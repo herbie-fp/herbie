@@ -169,7 +169,15 @@
                  ['array
                   (define elem-repr (array-representation-elem repr))
                   (define elems (map (lambda (x) (repr->real x elem-repr)) vals))
-                  (literal elems name)]))
+                  (define elem-name (representation-name elem-repr))
+                  (define elem-lits
+                    (for/list ([e (in-list elems)])
+                      (literal e elem-name)))
+                  (define impl
+                    (get-fpcore-impl 'array
+                                     (repr->prop repr)
+                                     (make-list (length elem-lits) elem-repr)))
+                  (cons impl elem-lits)]))
              (loop rest (cdr reprs) (cons literal* out))]))
         '()))
 
@@ -240,9 +248,10 @@
 
   (define result-expr (deref (alt-expr (first evaluated))))
   (match result-expr
-    [(literal vals prec)
-     (check-equal? prec 'arraybinary64)
-     (check-equal? (map exact->inexact vals) '(1.0 2.0))]
+    [`(array.f64 ,(literal v1 prec1) ,(literal v2 prec2))
+     (check-equal? prec1 'binary64)
+     (check-equal? prec2 'binary64)
+     (check-equal? (map exact->inexact (list v1 v2)) '(1.0 2.0))]
     [else (fail "Expected literal output, got ~a" result-expr)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;

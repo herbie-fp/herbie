@@ -86,13 +86,7 @@
 
   (define (insert-node! node)
     (match node
-      [(list op ids ...)
-       (cond
-         [(symbol? op)
-          (when (ormap negative? ids)
-            (error 'insert-node! "Negative child index in node ~a" node))
-          (egraph_add_node ptr (~s op) (list->u32vec ids))]
-         [else (egraph_add_node ptr (~s (cons op ids)) 0-vec)])]
+      [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
   (define reprs (batch-reprs batch ctx))
