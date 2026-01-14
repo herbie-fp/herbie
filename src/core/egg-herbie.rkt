@@ -479,7 +479,7 @@
                         (lambda ()
                           (define name (sym-append 'lower- impl))
                           (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                          (list (rule name spec-expr impl-expr '(lowering))))))))
+                          (list (rule name (add-unsound spec-expr) impl-expr '(lowering))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
@@ -1173,9 +1173,6 @@
           ['lower
            (define rules (expand-rules (platform-lowering-rules)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
-          ['unsound
-           (define rules (expand-rules (*sound-removal-rules*)))
-           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['rewrite
            (define rules (expand-rules (*rules*)))
            (egraph-run-rules egg-graph rules #:node-limit (*node-limit*))]))
@@ -1217,14 +1214,13 @@
 ;; The schedule is a list of step symbols:
 ;;  - `lift`: run lifting rules for 1 iteration with simple scheduler
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
-;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
 ;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
 (define (make-egraph batch brfs reprs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
   (for ([step (in-list schedule)])
-    (unless (memq step '(lift lower unsound rewrite))
+    (unless (memq step '(lift lower rewrite))
       (oops! "unknown schedule step `~a`" step)))
 
   (define-values (root-ids egg-graph) (egraph-run-schedule batch brfs schedule ctx))
