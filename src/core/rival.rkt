@@ -341,5 +341,5 @@
   (check-equal? (map context-vars ctxs*) '((v_0 v_1)))
   (check-equal? (map context-var-reprs ctxs*) (list (list <b64> <b64>)))
   (check-equal? reprs* (list <b64> <b64>))
-  (check-equal? (_assemble-out '(1 2)) #(1 2))
+  (check-equal? (_assemble-out '(1 2)) '(#(1 2)))
   (check-equal? pre* 'TRUE))

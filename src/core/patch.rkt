@@ -248,11 +248,11 @@
 
   (define result-expr (deref (alt-expr (first evaluated))))
   (match result-expr
-    [`(array.f64 ,(literal v1 prec1) ,(literal v2 prec2))
-     (check-equal? prec1 'binary64)
-     (check-equal? prec2 'binary64)
-     (check-equal? (map exact->inexact (list v1 v2)) '(1.0 2.0))]
-    [else (fail "Expected literal output, got ~a" result-expr)]))
+    [(list 'array.f64 (app deref v1) (app deref v2))
+     (check-equal? (literal-precision v1) 'binary64)
+     (check-equal? (literal-precision v2) 'binary64)
+     (check-equal? (map exact->inexact (list (literal-value v1) (literal-value v2))) '(1.0 2.0))]
+    [else (fail "Expected array.f64 operation, got ~a" result-expr)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
