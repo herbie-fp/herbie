@@ -43,12 +43,6 @@
      (define len (u32vector-length vec))
      (values (lambda (i) (u32vector-ref vec i)) add1 0 (lambda (i) (< i len)) #f #f))))
 
-(define (literal->egg-const lit)
-  (define repr (get-representation (literal-precision lit)))
-  (match (representation-type repr)
-    ['array (string->symbol (~s lit))]
-    [_ (literal-value lit)]))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; egg FFI shim
 ;;
@@ -96,7 +90,7 @@
      (λ (brf recurse)
        (define node (deref brf))
        (match node
-         [(? literal?) (insert-node! (literal->egg-const node))]
+         [(literal v _) (insert-node! v)]
          [(? number?) (insert-node! node)]
          [(? symbol?) (insert-node! (var->egg-var node ctx))]
          [(hole prec spec) (recurse spec)] ; "hole" terms currently disappear
@@ -177,7 +171,7 @@
   (let loop ([expr expr])
     (match expr
       [(? number?) expr]
-      [(? literal?) (literal->egg-const expr)]
+      [(? literal?) (literal-value expr)]
       [(? symbol?) (string->symbol (format "?~a" expr))]
       [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(list op args ...) (cons op (map loop args))])))
@@ -197,7 +191,7 @@
   (let loop ([expr expr])
     (match expr
       [(? number?) expr]
-      [(? literal?) (literal->egg-const expr)]
+      [(? literal?) (literal-value expr)]
       [(? symbol? x) (var->egg-var x ctx)]
       [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(hole precision spec) (loop spec)]
