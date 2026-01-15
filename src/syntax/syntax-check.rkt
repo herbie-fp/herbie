@@ -249,4 +249,10 @@
   (check-pred null? (get-errs #'(FPCore (x) x)))
   (check-pred null? (get-errs #'(FPCore (x) :precision binary64 x)))
   (check-pred null? (get-errs #'(FPCore foo (x) x)))
-  (check-pred null? (get-errs #'(FPCore foo (x) :precision binary64 x))))
+  (check-pred null? (get-errs #'(FPCore foo (x) :precision binary64 x)))
+
+  (check-pred null? (get-errs #'(FPCore (x) (array 1 2))))
+  (check-pred null? (get-errs #'(FPCore (x) (ref (array 1 2) 0))))
+  (check-pred (compose not null?) (get-errs #'(FPCore (x) (array 1 2 3))))
+  (check-pred (compose not null?) (get-errs #'(FPCore (x) (ref (array 1 2) 2))))
+  (check-pred (compose not null?) (get-errs #'(FPCore ((v 3)) v))))
