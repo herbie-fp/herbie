@@ -165,18 +165,17 @@
       [(? number?) `(scalar ,expr)]
       [(? symbol? s) (hash-ref env s `(scalar ,s))]
       [`(array ,a ,b) `(array ,(strip (lower a env)) ,(strip (lower b env)))]
-      [`(ref ,arr ,idx ,rest ...)
+      [`(ref ,arr ,idx)
        (define arr* (lower arr env))
        (match arr*
-         [`(scalar ,a) `(scalar (ref ,a ,idx ,@rest))]
+         [`(scalar ,a) `(scalar (ref ,a ,idx))]
          [_
           (define selected
-            (for/fold ([current arr*]) ([i (in-list (cons idx rest))])
-              (select-component current
-                                (if (syntax? i)
-                                    (syntax-e i)
-                                    i)
-                                'ref)))
+            (select-component arr*
+                              (if (syntax? idx)
+                                  (syntax-e idx)
+                                  idx)
+                              'ref))
           `(scalar ,selected)])]
       [`(let ([,ids ,vals] ...) ,body)
        (define env* env)

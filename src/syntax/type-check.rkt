@@ -23,12 +23,6 @@
 (define (type->string t)
   (cond
     [(representation? t) (~a (representation-name t))]
-    [(array-type? t)
-     (format "array[~a] of ~a"
-             (string-join (for/list ([d (array-type-dims t)])
-                            (~a d))
-                          " ")
-             (type->string (array-type-elem t)))]
     [(array-representation? t)
      (format "array[~a] of ~a"
              (string-join (for/list ([d (array-representation-dims t)])
@@ -39,7 +33,6 @@
 
 (define (flatten-type t)
   (cond
-    [(array-type? t) (values (array-type-elem t) (array-type-dims t))]
     [(array-representation? t) (values (array-representation-elem t) (array-representation-dims t))]
     [else (values t '())]))
 
@@ -100,7 +93,6 @@
       (for/list ([arg (in-list args)])
         (match arg
           [(? representation?) (representation-name arg)]
-          [(? array-type?) (type->string arg)]
           [(? array-representation?) (type->string arg)]
           [_ arg])))
     (set! errs (cons (cons stx (apply format fmt args*)) errs)))
@@ -109,7 +101,6 @@
   (define expected (context-repr ctx))
   (define (comparable? a b)
     (or (and (representation? a) (representation? b))
-        (and (array-type? a) (array-type? b))
         (and (array-representation? a) (array-representation? b))))
   (when (and expected (comparable? repr expected) (not (equal? repr expected)))
     (error! stx
@@ -224,34 +215,20 @@
       [#`(array #,elems ...)
        (define elem-types (map (lambda (e) (loop e prop-dict ctx)) elems))
        (array-literal-type elem-types prop-dict)]
-      [#`(ref #,arr #,idxs ...)
+      [#`(ref #,arr #,idx)
        (define arr-type (loop arr prop-dict ctx))
-       (define idx-types (map (lambda (i) (loop i prop-dict ctx)) idxs))
-       (for ([itype (in-list idx-types)])
-         (assert-scalar arr itype "Reference index must be scalar, got ~a"))
-       (for ([idx (in-list idxs)])
-         (define raw (syntax-e idx))
-         (unless (and (integer? raw) (<= 0 raw 1))
-           (error! idx "Array index must be literal 0 or 1, got ~a" idx)))
+       (define idx-type (loop idx prop-dict ctx))
+       (assert-scalar arr idx-type "Reference index must be scalar, got ~a")
+       (define raw (syntax-e idx))
+       (unless (and (integer? raw) (<= 0 raw 1))
+         (error! idx "Array index must be literal 0 or 1, got ~a" idx))
        (match arr-type
-         [(? array-type?)
-          (define dims (array-type-dims arr-type))
-          (when (> (length idxs) (length dims))
-            (error! stx "Reference expected at most ~a indices, got ~a" (length dims) (length idxs)))
-          (define remaining (drop dims (length idxs)))
-          (define elem (array-type-elem arr-type))
-          (if (null? remaining)
-              elem
-              (array-of remaining elem))]
          [(? array-representation?)
           (define dims (array-representation-dims arr-type))
-          (when (> (length idxs) (length dims))
-            (error! stx "Reference expected at most ~a indices, got ~a" (length dims) (length idxs)))
-          (define remaining (drop dims (length idxs)))
           (define elem (array-representation-elem arr-type))
-          (if (null? remaining)
+          (if (= (length dims) 1)
               elem
-              (array-of remaining elem))]
+              (array-of (cdr dims) elem))]
          [_
           (error! stx "ref expects an array, got ~a" (type->string arr-type))
           (current-repr prop-dict)])]
@@ -365,7 +342,6 @@
     (check-true ragged-fail)
     (check-types <b64> <b64> #'(ref (array 5 6) 0))
     (check-types <b64> (array-of '(2) <b64>) #'(ref A 0) #:env `((A . ,mat-type)))
-    (check-types <b64> <b64> #'(ref A 0 1) #:env `((A . ,mat-type)))
     (check-fails <b64> #'(ref x 0) #:env `((x . ,<b64>))))
 
   ;; Array precision should normalize to element precision for typing

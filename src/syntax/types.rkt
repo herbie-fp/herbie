@@ -7,7 +7,6 @@
 
 (provide (struct-out representation)
          (struct-out array-representation)
-         (struct-out array-type)
          repr->prop
          shift
          unshift
@@ -53,10 +52,7 @@
      (match (representation-type repr)
        ['bool '()]
        ['real (list (cons ':precision (representation-name repr)))]
-       ['array (repr->prop (array-representation-elem repr))])]
-    [(array-type _ elem) (repr->prop elem)]))
-
-(struct array-type (dims elem) #:transparent)
+       ['array (repr->prop (array-representation-elem repr))])]))
 
 (define (make-representation #:name name
                              #:bf->repr bf->repr

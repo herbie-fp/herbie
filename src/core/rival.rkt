@@ -81,15 +81,14 @@
       [(? symbol? s) (hash-ref env s `(scalar ,s))]
       [`(array ,a ,b)
        `(array ,(scalar-expr (lower-arr a env) 'array) ,(scalar-expr (lower-arr b env) 'array))]
-      [`(ref ,arr ,idx ,rest ...)
+      [`(ref ,arr ,idx)
        (define arr* (lower-arr arr env))
        (define selected
-         (for/fold ([current arr*]) ([i (in-list (cons idx rest))])
-           (select-component current
-                             (if (syntax? i)
-                                 (syntax-e i)
-                                 i)
-                             'ref)))
+         (select-component arr*
+                           (if (syntax? idx)
+                               (syntax-e idx)
+                               idx)
+                           'ref))
        `(scalar ,selected)]
       [`(let ([,ids ,vals] ...) ,body)
        (define env* env)

@@ -173,42 +173,31 @@
       [(identifier? dim) (error! dim "Dimension names are unsupported; arrays are fixed-size 2")]
       [(number? (syntax-e dim)) (error! dim "Invalid dimension ~a; arrays must be of size 2" dim)]
       [else (error! dim "Invalid dimension ~a; must be the number 2" dim)]))
-  (define args-info
+  (define vars*
     (reap [sow]
           (when (list? vars)
             (for ([var (in-list vars)])
               (match var
-                [(? identifier? x) (sow (cons var '()))]
+                [(? identifier? x) (sow x)]
                 [#`(! #,props ... #,name #,dims ...)
                  (check-properties* props (immutable-bound-id-set '()) error!)
                  (cond
                    [(identifier? name)
                     (for ([dim (in-list dims)])
                       (check-dimension dim))
-                    (sow (cons name dims))]
+                    (sow name)]
                    [else (error! var "Annotated argument ~a is not a variable name" name)])]
                 [#`(#,name #,dims ...)
                  (unless (identifier? name)
                    (error! var "Invalid argument name ~a" name))
                  (for ([dim (in-list dims)])
                    (check-dimension dim))
-                 (sow (cons name dims))]
+                 (sow name)]
                 [_ (error! var "Invalid argument name ~a" var)])))))
-  (define vars* (map car args-info))
-  (define dim-vars
-    (for*/list ([info (in-list args-info)]
-                [dim (in-list (cdr info))]
-                #:when (identifier? dim))
-      dim))
   (when (check-duplicate-identifier vars*)
     (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*)))
-  (for ([dim (in-list dim-vars)]
-        #:when (set-member? (immutable-bound-id-set vars*) dim))
-    (error! dim "Dimension name ~a duplicates argument name" dim))
-  (define all-vars
-    (bound-id-set-union (immutable-bound-id-set vars*) (immutable-bound-id-set dim-vars)))
-  (check-properties* props all-vars error!)
-  (check-expression* body all-vars error!))
+  (check-properties* props (immutable-bound-id-set vars*) error!)
+  (check-expression* body (immutable-bound-id-set vars*) error!))
 
 (define (check-fpcore* stx error!)
   (match stx
