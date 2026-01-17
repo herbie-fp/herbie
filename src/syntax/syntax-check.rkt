@@ -53,6 +53,17 @@
       [#`(! #,props ... #,body)
        (check-properties* props '() error!)
        (loop body vars)]
+      [#`(array #,elems ...)
+       (unless (= (length elems) 2)
+         (error! stx "Array literal must have exactly 2 elements"))
+       (for ([elem (in-list elems)])
+         (loop elem vars))]
+      [#`(ref #,arr #,idx)
+       (define val (syntax-e idx))
+       (unless (and (integer? val) (<= 0 val 1))
+         (error! idx "Array index must be literal 0 or 1, got ~a" idx))
+       (loop arr vars)
+       (loop idx vars)]
       [#`(cast #,arg) (loop arg vars)]
       [#`(cast #,args ...)
        (error! stx "Invalid `cast` expression with ~a arguments (expects 1)" (length args))
@@ -156,17 +167,33 @@
 (define (check-program* stx vars props body error!)
   (unless (list? vars)
     (error! stx "Invalid arguments list ~a; must be a list" stx))
+  (define (check-dimension dim)
+    (cond
+      [(and (number? (syntax-e dim)) (= 2 (syntax-e dim))) (void)]
+      [(identifier? dim) (error! dim "Dimension names are unsupported; arrays are fixed-size 2")]
+      [(number? (syntax-e dim)) (error! dim "Invalid dimension ~a; arrays must be of size 2" dim)]
+      [else (error! dim "Invalid dimension ~a; must be the number 2" dim)]))
   (define vars*
     (reap [sow]
           (when (list? vars)
             (for ([var (in-list vars)])
               (match var
-                [(? identifier? x) (sow var)]
-                [#`(! #,props ... #,name)
+                [(? identifier? x) (sow x)]
+                [#`(! #,props ... #,name #,dims ...)
                  (check-properties* props (immutable-bound-id-set '()) error!)
                  (cond
-                   [(identifier? name) (sow name)]
-                   [else (error! var "Annotated argument ~a is not a variable name" name)])])))))
+                   [(identifier? name)
+                    (for ([dim (in-list dims)])
+                      (check-dimension dim))
+                    (sow name)]
+                   [else (error! var "Annotated argument ~a is not a variable name" name)])]
+                [#`(#,name #,dims ...)
+                 (unless (identifier? name)
+                   (error! var "Invalid argument name ~a" name))
+                 (for ([dim (in-list dims)])
+                   (check-dimension dim))
+                 (sow name)]
+                [_ (error! var "Invalid argument name ~a" var)])))))
   (when (check-duplicate-identifier vars*)
     (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*)))
   (check-properties* props (immutable-bound-id-set vars*) error!)
@@ -222,4 +249,10 @@
   (check-pred null? (get-errs #'(FPCore (x) x)))
   (check-pred null? (get-errs #'(FPCore (x) :precision binary64 x)))
   (check-pred null? (get-errs #'(FPCore foo (x) x)))
-  (check-pred null? (get-errs #'(FPCore foo (x) :precision binary64 x))))
+  (check-pred null? (get-errs #'(FPCore foo (x) :precision binary64 x)))
+
+  (check-pred null? (get-errs #'(FPCore (x) (array 1 2))))
+  (check-pred null? (get-errs #'(FPCore (x) (ref (array 1 2) 0))))
+  (check-pred (compose not null?) (get-errs #'(FPCore (x) (array 1 2 3))))
+  (check-pred (compose not null?) (get-errs #'(FPCore (x) (ref (array 1 2) 2))))
+  (check-pred (compose not null?) (get-errs #'(FPCore ((v 3)) v))))

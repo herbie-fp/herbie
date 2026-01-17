@@ -1,0 +1,17 @@
+; -*- mode: scheme -*-
+
+(FPCore first-element ((v 2))
+ :name "First element from 2-element vector input"
+ (ref v 0))
+
+(FPCore nested-literal ()
+ :name "Element from nested array literal"
+ (ref (ref (array (array 2.0 0.5)
+                  (array -0.25 1.5))
+           1)
+      0))
+
+(FPCore bias-add ()
+ :name "Sum two literal bias terms"
+ (let* ([bias (array 0.1 -0.2)])
+   (+ (ref bias 0) (ref bias 1))))

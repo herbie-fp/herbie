@@ -19,16 +19,42 @@
          real->repr
          repr->real)
 
+(define (normalize-array val)
+  (cond
+    [(vector? val) (vector->list val)]
+    [(list? val) val]
+    [else (list val)]))
+
 (define (ulp-difference x y repr)
-  (define ->ordinal (representation-repr->ordinal repr))
-  (+ 1 (abs (- (->ordinal y) (->ordinal x)))))
+  (match (representation-type repr)
+    ['array
+     (define elem-repr (array-representation-elem repr))
+     (define xs (normalize-array x))
+     (define ys (normalize-array y))
+     (unless (= (length xs) (length ys))
+       (raise-herbie-error "Mismatched array lengths for ulp-difference: ~a vs ~a"
+                           (length xs)
+                           (length ys)))
+     (apply max (map (lambda (a b) (ulp-difference a b elem-repr)) xs ys))]
+    [_
+     (define ->ordinal (representation-repr->ordinal repr))
+     (+ 1 (abs (- (->ordinal y) (->ordinal x))))]))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint
 (define (midpoint p1 p2 repr)
-  ((representation-ordinal->repr repr) (floor (/ (+ ((representation-repr->ordinal repr) p1)
-                                                    ((representation-repr->ordinal repr) p2))
-                                                 2))))
+  (match (representation-type repr)
+    ['array
+     (define elem-repr (array-representation-elem repr))
+     (define xs (normalize-array p1))
+     (define ys (normalize-array p2))
+     (unless (= (length xs) (length ys))
+       (raise-herbie-error "Mismatched array lengths for midpoint: ~a vs ~a" (length xs) (length ys)))
+     (list->vector (map (lambda (a b) (midpoint a b elem-repr)) xs ys))]
+    [_
+     ((representation-ordinal->repr repr) (floor (/ (+ ((representation-repr->ordinal repr) p1)
+                                                       ((representation-repr->ordinal repr) p2))
+                                                    2)))]))
 
 (define (repr-round repr dir point)
   ((representation-repr->bf repr) (parameterize ([bf-rounding-mode dir])
@@ -50,8 +76,16 @@
   (real->double-flonum (log x 2)))
 
 (define (random-generate repr)
-  (define bits (sub1 (representation-total-bits repr)))
-  ((representation-ordinal->repr repr) (random-integer (- (expt 2 bits)) (expt 2 bits))))
+  (match (representation-type repr)
+    ['array
+     (define elem-repr (array-representation-elem repr))
+     (define bits (sub1 (representation-total-bits elem-repr)))
+     (define len (apply * (array-representation-dims repr)))
+     ((representation-ordinal->repr repr) (for/list ([i (in-range len)])
+                                            (random-integer (- (expt 2 bits)) (expt 2 bits))))]
+    [_
+     (define bits (sub1 (representation-total-bits repr)))
+     ((representation-ordinal->repr repr) (random-integer (- (expt 2 bits)) (expt 2 bits)))]))
 
 (define (=/total x1 x2 repr)
   (define ->ordinal (representation-repr->ordinal repr))
@@ -119,9 +153,21 @@
 
 (define (real->repr x repr)
   (parameterize ([bf-precision (representation-total-bits repr)])
-    ((representation-bf->repr repr) (bf x))))
+    (match (representation-type repr)
+      ['array
+       (define len (apply * (array-representation-dims repr)))
+       (define lst
+         (cond
+           [(vector? x) (vector->list x)]
+           [(list? x) x]
+           [else (make-list len x)]))
+       ((representation-bf->repr repr) (map bf lst))]
+      [_ ((representation-bf->repr repr) (bf x))])))
 
 (define (repr->real x repr)
   (match x
     [(? boolean?) x]
-    [_ (bigfloat->real ((representation-repr->bf repr) x))]))
+    [_
+     (match (representation-type repr)
+       ['array (map bigfloat->real ((representation-repr->bf repr) x))]
+       [_ (bigfloat->real ((representation-repr->bf repr) x))])]))

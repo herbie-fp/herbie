@@ -133,19 +133,41 @@
         (values 'invalid #f)
         (let ([real-compiler (make-real-compiler global-batch spec-brfs contexts)])
           (real-apply real-compiler (vector)))))
+
+  (define (take-values remaining n who)
+    (when (< (length remaining) n)
+      (error 'run-evaluate "Expected ~a outputs for ~a, got ~a" n who (length remaining)))
+    (values (take remaining n) (drop remaining n)))
+
   (define literals
-    (for/list ([pt (in-list (if (equal? status 'valid)
-                                pts
-                                '()))]
-               [ctx (in-list contexts)]
-               #:when (equal? status 'valid))
-      (define repr (context-repr ctx))
-      (match (representation-type repr)
-        ['bool
-         (if pt
-             '(TRUE)
-             '(FALSE))]
-        ['real (literal (repr->real pt repr) (representation-name repr))])))
+    (let ([remaining pts])
+      (for/list ([repr (in-list reprs)]
+                 #:when (equal? status 'valid))
+        (define type (representation-type repr))
+        (define name (representation-name repr))
+        (define-values (vals rest)
+          (match type
+            ['array
+             (define expected (apply * (array-representation-dims repr)))
+             (take-values remaining expected type)]
+            [_ (take-values remaining 1 type)]))
+        (set! remaining rest)
+        (match type
+          ['bool
+           (if (car vals)
+               '(TRUE)
+               '(FALSE))]
+          ['real (literal (repr->real (car vals) repr) name)]
+          ['array
+           (define elem-repr (array-representation-elem repr))
+           (define elems (map (lambda (x) (repr->real x elem-repr)) vals))
+           (define elem-name (representation-name elem-repr))
+           (define elem-lits
+             (for/list ([e (in-list elems)])
+               (literal e elem-name)))
+           (define impl
+             (get-fpcore-impl 'array (repr->prop repr) (make-list (length elem-lits) elem-repr)))
+           (cons impl elem-lits)]))))
 
   (define final-altns
     (for/list ([literal (in-list literals)]
