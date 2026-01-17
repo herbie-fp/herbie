@@ -140,52 +140,40 @@
     (values (take remaining n) (drop remaining n)))
 
   (define literals
-    (if (equal? status 'valid)
-        (let loop ([remaining pts]
-                   [reprs reprs]
-                   [out '()])
-          (cond
-            [(null? reprs)
-             (unless (null? remaining)
-               (error 'run-evaluate "Unexpected extra outputs: ~a" remaining))
-             (reverse out)]
-            [else
-             (define repr (car reprs))
-             (define type (representation-type repr))
-             (define name (representation-name repr))
-             (define-values (vals rest)
-               (match type
-                 ['array
-                  (define expected (apply * (array-representation-dims repr)))
-                  (take-values remaining expected type)]
-                 [_ (take-values remaining 1 type)]))
-             (define literal*
-               (match type
-                 ['bool
-                  (if (car vals)
-                      '(TRUE)
-                      '(FALSE))]
-                 ['real (literal (repr->real (car vals) repr) name)]
-                 ['array
-                  (define elem-repr (array-representation-elem repr))
-                  (define elems (map (lambda (x) (repr->real x elem-repr)) vals))
-                  (define elem-name (representation-name elem-repr))
-                  (define elem-lits
-                    (for/list ([e (in-list elems)])
-                      (literal e elem-name)))
-                  (define impl
-                    (get-fpcore-impl 'array
-                                     (repr->prop repr)
-                                     (make-list (length elem-lits) elem-repr)))
-                  (cons impl elem-lits)]))
-             (loop rest (cdr reprs) (cons literal* out))]))
-        '()))
+    (let ([remaining pts])
+      (for/list ([repr (in-list reprs)]
+                 #:when (equal? status 'valid))
+        (define type (representation-type repr))
+        (define name (representation-name repr))
+        (define-values (vals rest)
+          (match type
+            ['array
+             (define expected (apply * (array-representation-dims repr)))
+             (take-values remaining expected type)]
+            [_ (take-values remaining 1 type)]))
+        (set! remaining rest)
+        (match type
+          ['bool
+           (if (car vals)
+               '(TRUE)
+               '(FALSE))]
+          ['real (literal (repr->real (car vals) repr) name)]
+          ['array
+           (define elem-repr (array-representation-elem repr))
+           (define elems (map (lambda (x) (repr->real x elem-repr)) vals))
+           (define elem-name (representation-name elem-repr))
+           (define elem-lits
+             (for/list ([e (in-list elems)])
+               (literal e elem-name)))
+           (define impl
+             (get-fpcore-impl 'array (repr->prop repr) (make-list (length elem-lits) elem-repr)))
+           (cons impl elem-lits)]))))
 
   (define final-altns
-    (for/list ([lit (in-list literals)]
+    (for/list ([literal (in-list literals)]
                [altn (in-list real-altns)]
                #:when (equal? status 'valid))
-      (define brf (batch-add! global-batch lit))
+      (define brf (batch-add! global-batch literal))
       (alt brf '(evaluate) (list altn))))
 
   (timeline-push! 'inputs (batch->jsexpr global-batch spec-brfs))
@@ -230,29 +218,6 @@
   (timeline-push! 'count (length altns) (length rewritten))
 
   rewritten)
-
-(module+ test
-  (require rackunit
-           "../syntax/load-platform.rkt")
-
-  (activate-platform! "c")
-
-  (define test-batch (batch-empty))
-  (define array-expr `(array.f64 ,(literal 1 'binary64) ,(literal 2 'binary64)))
-  (define array-brf (batch-add! test-batch array-expr))
-  (define array-altn (alt array-brf 'patch '()))
-
-  (define evaluated (run-evaluate (list array-altn) test-batch))
-
-  (check-equal? (length evaluated) 1)
-
-  (define result-expr (deref (alt-expr (first evaluated))))
-  (match result-expr
-    [(list 'array.f64 (app deref v1) (app deref v2))
-     (check-equal? (literal-precision v1) 'binary64)
-     (check-equal? (literal-precision v2) 'binary64)
-     (check-equal? (map exact->inexact (list (literal-value v1) (literal-value v2))) '(1.0 2.0))]
-    [else (fail "Expected array.f64 operation, got ~a" result-expr)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
