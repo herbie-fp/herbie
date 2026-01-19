@@ -83,12 +83,16 @@
 
   ;; This generates the errors array in reverse because that's how lists work
   (define num-points (pcontext-length pcontext))
-  (for/fold ([result (make-list num-exprs '())])
-            ([point (in-vector (pcontext-points pcontext) (- num-points 1) -1 -1)]
-             [exact (in-vector (pcontext-exacts pcontext) (- num-points 1) -1 -1)])
-    (for/list ([out (in-vector (fn point))]
-               [rest (in-list result)])
-      (cons (if (special? out)
-                max-error
-                (ulp-difference out exact repr))
-            rest))))
+  (define results (make-vector num-exprs '()))
+  (for ([point (in-vector (pcontext-points pcontext) (- num-points 1) -1 -1)]
+        [exact (in-vector (pcontext-exacts pcontext) (- num-points 1) -1 -1)])
+    (define outs (fn point))
+    (for ([out (in-vector outs)]
+          [i (in-naturals)])
+      (vector-set! results
+                   i
+                   (cons (if (special? out)
+                             max-error
+                             (ulp-difference out exact repr))
+                         (vector-ref results i)))))
+  (vector->list results))
