@@ -18,9 +18,12 @@
   "../src/syntax/types.rkt"
   "../src/core/egglog-herbie.rkt")
 
+;;; ------------------------- SETUP ---------------------------------
 (activate-platform! "no-accelerators")
-(*node-limit* 100000)
-(define (all-subexpressions* expr)
+(*node-limit* 50000)
+
+;;; ------------------------- HELPERS ---------------------------------
+(define (get-subexpressions expr)
   (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
   (define (comparison-op? op)
     (and (symbol? op)
@@ -50,7 +53,7 @@
                   (for ([arg args])
                     (loop arg))]
                  [_ (void)])]))))
-  (remove-duplicates subexprs))
+  subexprs)
 
 (define (remove-approxes expr)
   (match expr
@@ -69,23 +72,22 @@
     (define err-score (errors-score error))
     err-score))
 
-(define (canonicalize exprs)
+(define (run-egg exprs)
   (define ctxs (map get-ctx exprs))
   (*context* (ctx-union ctxs))
-
-    (define schedule '(lift rewrite lower))
+  (define schedule '(lift rewrite lower))
 
   (define-values (batch brfs)
     (progs->batch exprs))
 
-(define runner (make-egraph batch brfs (map context-repr ctxs) schedule (ctx-union ctxs)))
-;;;   (define egglog-runner (make-egglog-runner batch brfs (map context-repr ctxs) schedule (ctx-union ctxs)))
+  (define runner (make-egraph batch brfs (map context-repr ctxs) schedule (ctx-union ctxs)))
+  ;;;   (define egglog-runner (make-egglog-runner batch brfs (map context-repr ctxs) schedule (ctx-union ctxs)))
 
   (define batchrefss (egraph-best runner batch))
-;;;   (define batchrefss (run-egglog egglog-runner batch #:extract 1000000))
+  ;;;   (define batchrefss (run-egglog egglog-runner batch #:extract 1000000))
   (map (compose batch-pull first) batchrefss))
 
-(define (rename-vars impl)
+(define (alpha-rename impl)
   (define free-vars (sort (free-variables impl) symbol<?))
   (define varDict
     (for/hash ([v free-vars]
@@ -110,59 +112,42 @@
   (context free-vars (get-representation 'binary64)
            (make-list (length free-vars) (get-representation 'binary64))))
 
-;;; (define (deduplicate pairs)
-;;;   (define exprs (map car pairs))
-;;;   (define counts (map cdr pairs))
-;;;   (define ctxs (map get-ctx exprs))
-;;;   (define ht (make-hash))
-;;;   (define best (best-exprs exprs ctxs))
-;;;   (for ([b best]
-;;;         [c counts])
-;;;     (hash-update! ht (batch-pull (first b)) (lambda (n) (+ n c)) 0))
-;;;   ht)
-
 (define (to-fpcore-str pair)
   (define expr (car pair))
   (define vars (sort (free-variables expr) symbol<?))
   (define ctx (get-ctx expr))
   (format "(FPCore ~a ~a)" vars (prog->fpcore expr ctx)))
 
-(define (to-count-print p)
-  (define expr (car p))
-  (define count (cdr p))
-  (define ctx (get-ctx expr))
-  (cons (prog->fpcore expr ctx) count))
-
 ;;; ------------------------- MAIN PIPELINE ---------------------------------
 (define report-dir (vector-ref (current-command-line-arguments) 0))
 
-(define lines (file->list (string-append report-dir "/expr_dump.txt")))
-(define canonical-exprs (canonicalize lines))
+(define roots (file->list (string-append report-dir "/expr_dump.txt")))
+(define alpha-renamed-roots (map alpha-rename roots))
+(define canonical-roots (run-egg alpha-renamed-roots))
 
-(define raw-subexprs (apply append (map all-subexpressions* canonical-exprs)))
+(define subexprs (append* (map get-subexpressions canonical-roots)))
 
 (define candidates
   (filter (lambda (n)
-            (and (not (or (symbol? n) (literal? n) (number? n))) ;; No atoms
-                 (> (length (free-variables n)) 0)               ;; Must have variables
-                 (< (length (free-variables n)) 4)))             ;; Small size
-          raw-subexprs))
+            (and (not (or (symbol? n) (literal? n) (number? n))) 
+                 (> (length (free-variables n)) 0)               
+                 (< (length (free-variables n)) 4)))            
+          subexprs))
 
-(define renamed-candidates (map rename-vars candidates))
+(define alpha-renamed-candidates (map alpha-rename candidates))
+(define canonical-candidates (run-egg alpha-renamed-candidates))
 
-(define ht (make-hash))
-(for ([c renamed-candidates])
-  (hash-update! ht c add1 0))
+(define counts (make-hash))
+(for ([c canonical-candidates])
+  (hash-update! counts c add1 0))
 
-(define pairs (hash->list ht))
-(define sorted-pairs (sort pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
+(define cand-count-pairs (hash->list counts))
+(define sorted-cand-count-pairs (sort cand-count-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
 
-(define top-candidates (take sorted-pairs (min (length sorted-pairs) 2000)))
+(define top-candidates (take sorted-cand-count-pairs (min (length sorted-cand-count-pairs) 2000)))
 
 (define high-error-candidates
   (filter (lambda (p) (< 0.1 (get-error (car p)))) top-candidates))
-
-(displayln high-error-candidates)
 
 ;; Output
 (define final-output (take high-error-candidates (min (length high-error-candidates) 500)))
