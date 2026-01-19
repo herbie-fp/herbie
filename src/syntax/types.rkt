@@ -110,10 +110,7 @@
                                     (parameterize ([bf-precision 53])
                                       (bf x)))
                        #:ordinal->repr ordinal->flonum
-                       #:repr->ordinal (lambda (x)
-                                         (if (fl< x 0.0)
-                                             (- (flbit-field (fl- 0.0 x) 0 64))
-                                             (flbit-field (flabs x) 0 64)))
+                       #:repr->ordinal flonum->ordinal
                        #:total-bits 64
                        #:special-value? nan?))
 
