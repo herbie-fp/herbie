@@ -1,0 +1,178 @@
+#lang racket
+
+(require
+  "../src/api/sandbox.rkt"
+  "../src/core/points.rkt"
+  "../src/core/batch.rkt"
+  "../src/core/egg-herbie.rkt"
+  "../src/syntax/load-platform.rkt"
+  "../src/core/points.rkt"
+  "../src/core/batch.rkt"
+  "../src/core/egg-herbie.rkt"
+  "../src/syntax/load-platform.rkt"
+  "../src/syntax/sugar.rkt"
+  "../src/core/programs.rkt"
+  "../src/syntax/syntax.rkt"
+  "../src/utils/common.rkt"
+  "../src/syntax/platform.rkt"
+  "../src/syntax/types.rkt"
+  "../src/core/egglog-herbie.rkt")
+
+(activate-platform! "no-accelerators")
+(*node-limit* 100000)
+(define (all-subexpressions* expr)
+  (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
+  (define (comparison-op? op)
+    (and (symbol? op)
+         (member op comparison-bases)))
+  (define subexprs
+    (reap [sow]
+          (let loop ([expr expr])
+            (match expr
+              [(or `(if ,test ,t ,f)
+                   `(if.f32 ,test ,t ,f)
+                   `(if.f64 ,test ,t ,f))
+               (loop test)
+               (loop t)
+               (loop f)]
+              [(approx _ impl)
+               (loop impl)]
+              [(list (? comparison-op?) lhs rhs)
+               (loop lhs)
+               (loop rhs)]
+              [_
+               (sow expr)
+               (match expr
+                 [(? number?) (void)]
+                 [(? literal?) (void)]
+                 [(? symbol?) (void)]
+                 [(list _ args ...)
+                  (for ([arg args])
+                    (loop arg))]
+                 [_ (void)])]))))
+  (remove-duplicates subexprs))
+
+(define (remove-approxes expr)
+  (match expr
+    [(approx _ impl) (remove-approxes impl)]
+    [(list op args ...) (cons op (map remove-approxes args))]
+    [_ expr]))
+
+(define (get-error expr)
+  (with-handlers ([exn? (lambda (exn) 0)])
+    (define ctx (get-ctx expr))
+    (define spec (prog->spec expr))
+    (*num-points* 8000)
+    (*context* ctx)
+    (define pcon (get-spec-sample spec))
+    (define error (errors expr pcon ctx))
+    (define err-score (errors-score error))
+    err-score))
+
+(define (canonicalize exprs)
+  (define ctxs (map get-ctx exprs))
+  (*context* (ctx-union ctxs))
+
+    (define schedule '(lift rewrite lower))
+
+  (define-values (batch brfs)
+    (progs->batch exprs))
+
+(define runner (make-egraph batch brfs (map context-repr ctxs) schedule (ctx-union ctxs)))
+;;;   (define egglog-runner (make-egglog-runner batch brfs (map context-repr ctxs) schedule (ctx-union ctxs)))
+
+  (define batchrefss (egraph-best runner batch))
+;;;   (define batchrefss (run-egglog egglog-runner batch #:extract 1000000))
+  (map (compose batch-pull first) batchrefss))
+
+(define (rename-vars impl)
+  (define free-vars (sort (free-variables impl) symbol<?))
+  (define varDict
+    (for/hash ([v free-vars]
+               [i (in-naturals)])
+      (values v (string->symbol (format "z~a" i)))))
+  (define impl* (replace-vars varDict impl))
+  impl*)
+
+(define (ctx-union ctxs)
+  (define vars '())
+  (define var-reprs '())
+  (for ([ctx ctxs])
+    (for ([var (context-vars ctx)]
+          [repr (context-var-reprs ctx)])
+      (unless (member var vars)
+        (set! vars (append vars (list var)))
+        (set! var-reprs (append var-reprs (list repr))))))
+  (context vars (get-representation 'binary64) var-reprs))
+
+(define (get-ctx expr)
+  (define free-vars (free-variables expr))
+  (context free-vars (get-representation 'binary64)
+           (make-list (length free-vars) (get-representation 'binary64))))
+
+;;; (define (deduplicate pairs)
+;;;   (define exprs (map car pairs))
+;;;   (define counts (map cdr pairs))
+;;;   (define ctxs (map get-ctx exprs))
+;;;   (define ht (make-hash))
+;;;   (define best (best-exprs exprs ctxs))
+;;;   (for ([b best]
+;;;         [c counts])
+;;;     (hash-update! ht (batch-pull (first b)) (lambda (n) (+ n c)) 0))
+;;;   ht)
+
+(define (to-fpcore-str pair)
+  (define expr (car pair))
+  (define vars (sort (free-variables expr) symbol<?))
+  (define ctx (get-ctx expr))
+  (format "(FPCore ~a ~a)" vars (prog->fpcore expr ctx)))
+
+(define (to-count-print p)
+  (define expr (car p))
+  (define count (cdr p))
+  (define ctx (get-ctx expr))
+  (cons (prog->fpcore expr ctx) count))
+
+;;; ------------------------- MAIN PIPELINE ---------------------------------
+(define report-dir (vector-ref (current-command-line-arguments) 0))
+
+(define lines (file->list (string-append report-dir "/expr_dump.txt")))
+(define canonical-exprs (canonicalize lines))
+
+(define raw-subexprs (apply append (map all-subexpressions* canonical-exprs)))
+
+(define candidates
+  (filter (lambda (n)
+            (and (not (or (symbol? n) (literal? n) (number? n))) ;; No atoms
+                 (> (length (free-variables n)) 0)               ;; Must have variables
+                 (< (length (free-variables n)) 4)))             ;; Small size
+          raw-subexprs))
+
+(define renamed-candidates (map rename-vars candidates))
+
+(define ht (make-hash))
+(for ([c renamed-candidates])
+  (hash-update! ht c add1 0))
+
+(define pairs (hash->list ht))
+(define sorted-pairs (sort pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
+
+(define top-candidates (take sorted-pairs (min (length sorted-pairs) 2000)))
+
+(define high-error-candidates
+  (filter (lambda (p) (< 0.1 (get-error (car p)))) top-candidates))
+
+(displayln high-error-candidates)
+
+;; Output
+(define final-output (take high-error-candidates (min (length high-error-candidates) 500)))
+(define fpcores-out (map to-fpcore-str final-output))
+(define counts-out (map (lambda (p) (cons (prog->fpcore (car p) (get-ctx (car p))) (cdr p))) final-output))
+
+(with-output-to-file (string-append report-dir "/counts.rkt")
+  (lambda () (display counts-out))
+  #:exists 'replace)
+
+(with-output-to-file (string-append report-dir "/candidates.txt")
+  (lambda () (for-each displayln fpcores-out))
+  #:exists 'replace)

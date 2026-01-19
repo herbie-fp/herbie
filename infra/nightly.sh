@@ -11,7 +11,7 @@ make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
-BENCHDIR="bench/keplerian.fpcore"
+BENCHDIR="bench/PROJ/"
 REPORTDIR="reports"
 NUMITERS=10
 
@@ -29,7 +29,7 @@ racket -y "src/main.rkt" report \
         "$REPORTDIR/start" > "$REPORTDIR/expr_dump.txt"
 
 # generate accelerator candidates
-racket -y growlibm/generate-candidates.rkt "$REPORTDIR"
+racket -y growlibm/generate-candidates2.rkt "$REPORTDIR"
  
 racket -y growlibm/to-json.rkt 
 
