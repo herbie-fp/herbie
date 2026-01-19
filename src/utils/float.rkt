@@ -1,7 +1,8 @@
 #lang racket
 
 (require math/bigfloat
-         math/base)
+         math/base
+         racket/flonum)
 (require "../utils/common.rkt"
          "../syntax/types.rkt"
          "../utils/errors.rkt")
@@ -19,9 +20,32 @@
          real->repr
          repr->real)
 
+(define (flonum->ordinal-parts x)
+  (define lo (flbit-field x 0 32))
+  (define hi (flbit-field x 32 64))
+  (define sign? (not (zero? (bitwise-and hi #x80000000))))
+  (define hi* (bitwise-and hi #x7fffffff))
+  (define negative? (and sign? (or (not (zero? hi*)) (not (zero? lo)))))
+  (values negative? hi* lo))
+
+(define (parts->int hi lo)
+  (+ (arithmetic-shift hi 32) lo))
+
+(define (binary64-ulp-diff-from-parts sx hx lx sy hy ly)
+  (if (eq? sx sy)
+      (parts->int (- hx hy) (- lx ly))
+      (+ (parts->int hx lx) (parts->int hy ly))))
+
+(define (binary64-ulp-diff x y)
+  (define-values (sx hx lx) (flonum->ordinal-parts x))
+  (define-values (sy hy ly) (flonum->ordinal-parts y))
+  (binary64-ulp-diff-from-parts sx hx lx sy hy ly))
+
 (define (ulp-difference x y repr)
   (define ->ordinal (representation-repr->ordinal repr))
-  (+ 1 (abs (- (->ordinal y) (->ordinal x)))))
+  (if (eq? repr <binary64>)
+      (+ 1 (abs (binary64-ulp-diff x y)))
+      (+ 1 (abs (- (->ordinal y) (->ordinal x))))))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint
