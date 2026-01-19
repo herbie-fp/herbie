@@ -2,8 +2,7 @@
 
 (require math/bigfloat
          math/base
-         math/flonum
-         racket/flonum)
+         math/flonum)
 
 (provide (struct-out representation)
          repr->prop
