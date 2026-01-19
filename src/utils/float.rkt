@@ -20,6 +20,11 @@
          real->repr
          repr->real)
 
+;; In Racket, integers immediates are like 61 bit or something.
+;; Everything larger is heap-allocated. So we don't want to convert
+;; doubles to integers directly; it's better to convert in 32-bit
+;; chunks and then play bit games to avoid ever making a 64-bit output
+;; if we don't need to.
 (define (flonum->ordinal-parts x)
   (define lo (flbit-field x 0 32))
   (define hi (flbit-field x 32 64))
@@ -31,15 +36,12 @@
 (define (parts->int hi lo)
   (+ (arithmetic-shift hi 32) lo))
 
-(define (binary64-ulp-diff-from-parts sx hx lx sy hy ly)
-  (if (eq? sx sy)
-      (parts->int (- hx hy) (- lx ly))
-      (+ (parts->int hx lx) (parts->int hy ly))))
-
 (define (binary64-ulp-diff x y)
   (define-values (sx hx lx) (flonum->ordinal-parts x))
   (define-values (sy hy ly) (flonum->ordinal-parts y))
-  (binary64-ulp-diff-from-parts sx hx lx sy hy ly))
+  (if (eq? sx sy)
+      (parts->int (- hx hy) (- lx ly))
+      (+ (parts->int hx lx) (parts->int hy ly))))
 
 (define (ulp-difference x y repr)
   (define ->ordinal (representation-repr->ordinal repr))
