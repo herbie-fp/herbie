@@ -155,18 +155,46 @@
 
   (define default-prec (dict-ref prop-dict ':precision (*default-precision*)))
 
-  (define-values (var-names var-precs)
-    (for/lists (var-names var-precs)
+  (define (split-precision name)
+    (define repr (get-representation name))
+    (define scalar-repr
+      (if (array-representation? repr)
+          (array-representation-elem repr)
+          repr))
+    (values repr scalar-repr))
+
+  (define (array-of dims elem)
+    (define names
+      (list (string->symbol (format "array~a" (representation-name elem)))
+            (string->symbol
+             (format "array~a-~a" (representation-name elem) (string-join (map ~a dims) "x")))))
+    (define existing
+      (for/or ([n (in-list names)])
+        (and (repr-exists? n)
+             (let ([r (get-representation n)])
+               (and (array-representation? r) (equal? (array-representation-dims r) dims) r)))))
+    (or existing (make-array-representation #:name (first names) #:elem elem #:dims dims)))
+
+  (define-values (default-repr default-scalar-repr) (split-precision default-prec))
+
+  (define-values (var-names var-reprs)
+    (for/lists (var-names var-reprs)
                ([var (in-list args)])
                (match var
-                 [(list '! props ... name)
+                 [(list '! props ... name dims ...)
                   (define prop-dict (props->dict props))
                   (define arg-prec (dict-ref prop-dict ':precision default-prec))
-                  (values name arg-prec)]
-                 [(? symbol? name) (values name default-prec)])))
-
-  (define default-repr (get-representation default-prec))
-  (define var-reprs (map get-representation var-precs))
+                  (define-values (repr scalar-repr) (split-precision arg-prec))
+                  (values name
+                          (if (null? dims)
+                              repr
+                              (array-of dims scalar-repr)))]
+                 [(list (? symbol? name) dims ...)
+                  (values name
+                          (if (null? dims)
+                              default-repr
+                              (array-of dims default-scalar-repr)))]
+                 [(? symbol? name) (values name default-repr)])))
   (define ctx (context var-names default-repr var-reprs))
 
   ;; Named fpcores need to be added to function table

@@ -55,7 +55,10 @@
 ;; all points in a pcontext.
 
 (define (average . s)
-  (/ (apply + s) (length s)))
+  (define flat (flatten s))
+  (unless (and (list? flat) (not (null? flat)))
+    (error 'average "Cannot average empty list ~a" s))
+  (/ (apply + flat) (length flat)))
 
 (define (errors-score e)
   (apply average (map ulps->bits e)))
@@ -78,8 +81,18 @@
 
 (define (generate-errors fn pcontext ctx num-exprs)
   (define repr (context-repr ctx))
-  (define special? (representation-special-value? repr))
-  (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
+
+  (define (flatten-value val repr)
+    (match (representation-type repr)
+      ['array
+       (define elem-repr (array-representation-elem repr))
+       (define elems
+         (cond
+           [(vector? val) (vector->list val)]
+           [(list? val) val]
+           [else (list val)]))
+       (apply append (map (λ (v) (flatten-value v elem-repr)) elems))]
+      [_ (list (cons val repr))]))
 
   ;; This generates the errors array in reverse because that's how lists work
   (define num-points (pcontext-length pcontext))
@@ -88,7 +101,23 @@
              [exact (in-vector (pcontext-exacts pcontext) (- num-points 1) -1 -1)])
     (for/list ([out (in-vector (fn point))]
                [rest (in-list result)])
-      (cons (if (special? out)
-                max-error
-                (ulp-difference out exact repr))
-            rest))))
+      (define flat-out (flatten-value out repr))
+      (define flat-exact (flatten-value exact repr))
+      (unless (= (length flat-out) (length flat-exact))
+        (error 'generate-errors
+               "Mismatched array sizes: ~a vs ~a"
+               (length flat-out)
+               (length flat-exact)))
+      (define elem-errors
+        (for/list ([out* (in-list flat-out)]
+                   [exact* (in-list flat-exact)])
+          (match-define (cons out-val out-repr) out*)
+          (match-define (cons exact-val exact-repr) exact*)
+          (define repr* out-repr)
+          (define special? (representation-special-value? repr*))
+          (define max-error (+ 1 (expt 2 (representation-total-bits repr*))))
+          (if (special? out-val)
+              max-error
+              (ulp-difference out-val exact-val repr*))))
+      (define aggregated-error (average elem-errors))
+      (cons aggregated-error rest))))
