@@ -32,4 +32,4 @@ When you receive a new source file:
     Fix any syntax errors Herbie reports (missing parentheses, unsupported identifiers, missing preconditions). Rerun until the file parses cleanly. Warnings about improvement quality are fine; only syntax errors must be resolved. Make sure that the number of FPCores you
     add to the file is the same number that appears in the report when you run this command.
 
-Aim for a set of expressions that represent the numerical behaviors from the source file. Ideally, this collection will faithfully represent the numerics in the file, but will also be challenging for Herbie to improve. 
+Aim for a set of expressions that represent the numerical behaviors from the source file. Ideally, this collection will faithfully represent the numerics in the file, but will also be challenging for Herbie to improve. Include as many or as few expressions to represent the numerically code included in the file.
