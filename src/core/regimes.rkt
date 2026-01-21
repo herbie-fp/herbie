@@ -286,7 +286,8 @@
       ;; Set and fill temporary vectors with starting data
       ;; #f for best index and positive infinite for best cost
       (vector-fill! best-alt-idxs -1)
-      (set! best-alt-costs (make-flvector number-of-points +inf.0))
+      (for ([i (in-range number-of-points)])
+        (flvector-set! best-alt-costs i +inf.0))
 
       ;; For each alt loop over its vector of errors
       (for ([alt-idx (in-naturals)]
