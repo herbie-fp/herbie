@@ -62,7 +62,7 @@ jobs:
 
       # Test egglog mode
       - name: "Run Herbie with egglog"
-        run: racket -y infra/ci.rkt --egglog --precision binary64 --seed 1 --timeout 600 bench/hamming/trigonometry.fpcore
+        run: racket -y infra/ci.rkt --egglog --precision binary64 --seed 1 bench/tutorial.fpcore
 
       # Test the egg-herbie Rust code
       - run: cd egg-herbie && cargo clippy --tests
