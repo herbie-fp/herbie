@@ -6,6 +6,7 @@
          create-new-egglog-subprocess
          egglog-send
          egglog-extract
+         egglog-multi-extract
          egglog-subprocess-close)
 
 ;; Struct to hold egglog subprocess handles
@@ -71,3 +72,11 @@
   (match-define (list "(" results ... ")") (first (egglog-send subproc extract-command)))
   (for/list ([result (in-list results)])
     (read (open-input-string result))))
+
+(define (egglog-multi-extract subproc extract-command)
+  (define raw-lines (first (egglog-send subproc extract-command)))
+  (define combined (string-join raw-lines " "))
+  (define parsed (read (open-input-string combined)))
+  (for/list ([result-list (in-list parsed)])
+    (for/list ([result (in-list result-list)])
+      result)))

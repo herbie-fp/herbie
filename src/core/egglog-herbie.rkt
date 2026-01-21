@@ -148,8 +148,10 @@
 
   ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
   (define stdout-content
-    (for/list ([constructor-name extract-bindings])
-      (egglog-extract subproc `(extract (,constructor-name) ,extract))))
+    (egglog-multi-extract subproc
+                          `(multi-extract ,extract
+                                          ,@(for/list ([constructor-name extract-bindings])
+                                              `(,constructor-name)))))
 
   ;; Close everything subprocess related
   (egglog-subprocess-close subproc)
