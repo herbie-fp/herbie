@@ -1,0 +1,198 @@
+; -*- mode: scheme -*-
+
+(FPCore (q)
+  :name "qerfi-approx"
+  :pre (and (<= 0.01 q) (<= q 0.99))
+  (let* ([x (- 0.5 q)]
+         [t0 (fmax (- 0.5 (fabs x)) 0.000001)]
+         [t (sqrt (* (- 2.0) (log t0)))]
+         [num (+ (* (+ (* 0.010328 t) 0.802853) t) 2.515516698)]
+         [den (+ (* (+ (* (+ (* 0.001308 t) 0.189269) t) 1.432788) t) 1.0)]
+         [v (- t (/ num den))])
+    (if (< x 0.0) (- v) v)))
+
+(FPCore (z)
+  :name "qerf-approx"
+  (let* ([x z]
+         [t0 (fabs x)]
+         [qerfv (if (>= t0 10.0)
+                    0.0
+                    (let* ([t (/ 4.317008 (+ t0 4.317008))]
+                           [poly (+ (* (+ (* (+ (* (+ (* 1.330274429 t) -1.821255987) t)
+                                               1.781477937) t)
+                                           -0.356563782) t)
+                                      0.319381530)]
+                           [scale (exp (* (- 0.5) (* x x)))]
+                           [q (* (* scale 0.398942280) (* poly t))])
+                      q))])
+    (if (< x 0.0) (- 1.0 qerfv) qerfv)))
+
+(FPCore (c1 c2 x1 x2 x3 de)
+  :name "curve-profile"
+  (let* ([ratio (/ de x1)]
+         [ratio2 (pow ratio 2.0)]
+         [shape (/ c2 (+ 1.0 (pow (/ (- de x2) x3) 2.0)))]
+         [top (+ c1 shape)]
+         [den (+ 1.0 ratio2)])
+    (/ (* top ratio2) den)))
+
+(FPCore (d dh)
+  :name "scatter-scale"
+  (let* ([q (* (- 1.0 (* 0.8 (exp (/ (- d) 50.0e3)))) dh)]
+         [s (* 0.78 (* q (exp (- (pow (/ q 16.0) 0.25)))))])
+    s))
+
+(FPCore (td)
+  :name "ahd-attenuation"
+  (if (<= td 10000.0)
+      (+ (+ 133.4 (* 0.332e-3 td)) (* -4.343 (log td)))
+      (if (<= td 70000.0)
+          (+ (+ 104.6 (* 0.212e-3 td)) (* -1.086 (log td)))
+          (+ (+ 71.8 (* 0.157e-3 td)) (* 2.171 (log td))))))
+
+(FPCore (vs0 sgt zt sgl zl zc)
+  :name "variance-spread"
+  (let* ([rt 7.8]
+         [rl 24.0]
+         [term1 (/ (pow (* sgt zt) 2.0) (+ rt (* zc zc)))]
+         [term2 (/ (pow (* sgl zl) 2.0) (+ rl (* zc zc)))])
+    (+ (+ vs0 term1) term2)))
+
+(FPCore (v2)
+  :name "aknfe-low"
+  (let* ([sqrt_v2 (sqrt v2)]
+         [term1 (+ 6.02 (* 9.11 sqrt_v2))]
+         [term2 (* 1.27 v2)])
+    (- term1 term2)))
+
+(FPCore (v2)
+  :name "aknfe-high"
+  (+ 12.953 (* 4.343 (log v2))))
+
+(FPCore (x pk)
+  :name "fht-core"
+  (let* ([w (- (log pk))]
+         [term1 (/ (* (* 2.5e-5 x) x) pk)]
+         [term2 (* 8.686 w)]
+         [sum (- term1 term2)])
+    (- sum 15.0)))
+
+(FPCore (x)
+  :name "fht-hi-base"
+  (- (* 0.05751 x) (* 4.343 (log x))))
+
+(FPCore (x fhtv0)
+  :name "fht-blend"
+  (let* ([w (* (* 0.0134 x) (exp (* -0.005 x)))]
+         [term1 (* (- 1.0 w) fhtv0)]
+         [logterm (- (* 17.372 (log x)) 117.0)]
+         [term2 (* w logterm)])
+    (+ term1 term2)))
+
+(FPCore (a b r)
+  :name "h0f-log-term"
+  (let* ([x (pow (/ 1.0 r) 2.0)]
+         [inner1 (+ (* a x) b)]
+         [inner2 (+ (* inner1 x) 1.0)]
+         [logterm (log inner2)])
+    (* 4.343 logterm)))
+
+(FPCore (q h0a a b r)
+  :name "h0f-blend"
+  (let* ([x (pow (/ 1.0 r) 2.0)]
+         [inner1 (+ (* a x) b)]
+         [inner2 (+ (* inner1 x) 1.0)]
+         [h0b (* 4.343 (log inner2))]
+         [term1 (* (- 1.0 q) h0a)]
+         [term2 (* q h0b)])
+    (+ term1 term2)))
+
+(FPCore (wn ds th)
+  :name "adiff-q"
+  (let* ([th2 (pow th 2.0)]
+         [prod1 (* 0.0795775 wn)]
+         [prod2 (* prod1 ds)])
+    (* prod2 th2)))
+
+(FPCore (q aht)
+  :name "adiff-ar"
+  (let* ([term1 (* 0.05751 q)]
+         [term2 (* 4.343 (log q))]
+         [diff (- term1 term2)])
+    (- diff aht)))
+
+(FPCore (q)
+  :name "adiff-wd"
+  (/ 25.1 (+ 25.1 (sqrt q))))
+
+(FPCore (ar wd adiffv afo)
+  :name "adiff-blend"
+  (let* ([term1 (* ar wd)]
+         [term2 (* (- 1.0 wd) adiffv)]
+         [sum (+ term1 term2)])
+    (+ sum afo)))
+
+(FPCore (d wd1 xd1 dh wn)
+  :name "adiff-atten-q"
+  (let* ([expterm (exp (/ (- d) 50.0e3))]
+         [scale (- 1.0 (* 0.8 expterm))]
+         [scaled (* (* scale dh) wn)]
+         [limit (fmin scaled 6283.2)]
+         [factor (+ wd1 (/ xd1 d))])
+    (* factor limit)))
+
+(FPCore (etq z0)
+  :name "ascat-et"
+  (let* ([ratio (/ z0 8.0e3)]
+         [clamp (fmin 1.7 ratio)]
+         [powterm (pow clamp 6.0)]
+         [expterm (exp (- powterm))]
+         [inner (+ (* etq expterm) 1.0)]
+         [num (* inner z0)])
+    (/ num 1.7556e3)))
+
+(FPCore (h0 ett ss q)
+  :name "ascat-h0-correction"
+  (let* ([term1 (- 1.38 (log ett))]
+         [term2 (* (log ss) (log q))]
+         [term3 (* term1 term2)]
+         [term4 (* term3 0.49)]
+         [add (fmin h0 term4)])
+    (+ h0 add)))
+
+(FPCore (et h0 r1 r2)
+  :name "ascat-low-et"
+  (let* ([term1 (+ 1.0 (/ 1.4142 r1))]
+         [term2 (+ 1.0 (/ 1.4142 r2))]
+         [prod (* term1 term2)]
+         [powterm (pow prod 2.0)]
+         [sumr (+ r1 r2)]
+         [ratio (/ sumr (+ sumr 2.8284))]
+         [inner (* powterm ratio)]
+         [logterm (* 4.343 (log inner))]
+         [blend1 (* et h0)]
+         [blend2 (* (- 1.0 et) logterm)])
+    (+ blend1 blend2)))
+
+(FPCore (ahd_td th d wn ens h0)
+  :name "ascat-loss"
+  (let* ([logarg (* 47.7 (* wn (pow th 4.0)))]
+         [logterm (* 4.343 (log logarg))]
+         [expterm (exp (/ (- (* th d)) 40.0e3))]
+         [linterm (* 0.1 (* (- ens 301.0) expterm))]
+         [sum1 (+ ahd_td logterm)]
+         [sum2 (- sum1 linterm)])
+    (+ sum2 h0)))
+
+(FPCore (gma ens)
+  :name "gme-adjust"
+  (let* ([expterm (exp (/ ens 179.3))]
+         [inner (- 1.0 (* 0.04665 expterm))])
+    (* gma inner)))
+
+(FPCore (wn dh dlsa)
+  :name "wls-weight"
+  (let* ([denom (fmax 10.0e3 dlsa)]
+         [ratio (/ (* wn dh) denom)]
+         [sum (+ 0.021 ratio)])
+    (/ 0.021 sum)))

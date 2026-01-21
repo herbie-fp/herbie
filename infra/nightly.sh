@@ -11,7 +11,7 @@ make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
-BENCHDIR="bench/keplerian.fpcore"
+BENCHDIR="bench/longley-rice.fpcore"
 REPORTDIR="reports"
 NUMITERS=10
 
