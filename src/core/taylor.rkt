@@ -2,9 +2,9 @@
 
 (require math/number-theory)
 (require "../utils/common.rkt"
+         "../utils/dvector.rkt"
          "../syntax/syntax.rkt"
-         "batch.rkt"
-         "dvector.rkt"
+         "../syntax/batch.rkt"
          "programs.rkt")
 
 (provide approximate
@@ -57,26 +57,33 @@
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
 (define (expand-taylor! input-batch)
-  (batch-apply!
+  (define (f node)
+    (match node
+      [(list '- ref1 ref2) `(+ ,ref1 (neg ,ref2))]
+      [(list 'pow base (app deref 1/2)) `(sqrt ,base)]
+      [(list 'pow base (app deref 1/3)) `(cbrt ,base)]
+      [(list 'pow base (app deref 2/3)) `(cbrt (* ,base ,base))]
+      [(list 'pow base power)
+       #:when (exact-integer? (deref power))
+       `(pow ,base ,power)]
+      [(list 'pow base power) `(exp (* ,power (log ,base)))]
+      [(list 'tan arg) `(/ (sin ,arg) (cos ,arg))]
+      [(list 'cosh arg) `(* 1/2 (+ (exp ,arg) (/ 1 (exp ,arg))))]
+      [(list 'sinh arg) `(* 1/2 (+ (exp ,arg) (/ -1 (exp ,arg))))]
+      [(list 'tanh arg) `(/ (+ (exp ,arg) (neg (/ 1 (exp ,arg)))) (+ (exp ,arg) (/ 1 (exp ,arg))))]
+      [(list 'asinh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) 1))))]
+      [(list 'acosh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) -1))))]
+      [(list 'atanh arg) `(* 1/2 (log (/ (+ 1 ,arg) (+ 1 (neg ,arg)))))]
+      [_ node]))
+  (batch-recurse
    input-batch
-   (lambda (node)
-     (match node
-       [(list '- ref1 ref2) `(+ ,ref1 (neg ,ref2))]
-       [(list 'pow base (app deref 1/2)) `(sqrt ,base)]
-       [(list 'pow base (app deref 1/3)) `(cbrt ,base)]
-       [(list 'pow base (app deref 2/3)) `(cbrt (* ,base ,base))]
-       [(list 'pow base power)
-        #:when (exact-integer? (deref power))
-        `(pow ,base ,power)]
-       [(list 'pow base power) `(exp (* ,power (log ,base)))]
-       [(list 'tan arg) `(/ (sin ,arg) (cos ,arg))]
-       [(list 'cosh arg) `(* 1/2 (+ (exp ,arg) (/ 1 (exp ,arg))))]
-       [(list 'sinh arg) `(* 1/2 (+ (exp ,arg) (/ -1 (exp ,arg))))]
-       [(list 'tanh arg) `(/ (+ (exp ,arg) (neg (/ 1 (exp ,arg)))) (+ (exp ,arg) (/ 1 (exp ,arg))))]
-       [(list 'asinh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) 1))))]
-       [(list 'acosh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) -1))))]
-       [(list 'atanh arg) `(* 1/2 (log (/ (+ 1 ,arg) (+ 1 (neg ,arg)))))]
-       [_ node]))))
+   (λ (brf recurse)
+     (define node (deref brf))
+     (define node* (f node))
+     (let loop ([node* node*])
+       (match node*
+         [(? batchref? brf) (recurse brf)]
+         [_ (batch-push! input-batch (expr-recurse node* (compose batchref-idx loop)))])))))
 
 ; Tests for expand-taylor
 (module+ test
@@ -84,8 +91,8 @@
 
   (define (test-expand-taylor expr)
     (define-values (batch brfs) (progs->batch (list expr)))
-    (define brfs* (map (expand-taylor! batch) brfs))
-    (car (batch->progs batch brfs*)))
+    (define brf* ((expand-taylor! batch) (car brfs)))
+    ((batch-exprs batch) brf*))
 
   (check-equal? '(* 1/2 (log (/ (+ 1 x) (+ 1 (neg x))))) (test-expand-taylor '(atanh x)))
   (check-equal? '(log (+ x (sqrt (+ (* x x) -1)))) (test-expand-taylor '(acosh x)))
@@ -589,7 +596,7 @@
       (define brfs* (map (expand-taylor! batch) brfs))
       (define brf (car brfs*))
       (define fn (zero-series ((taylor 'x batch) brf)))
-      (map batch-pull (build-list n fn))))
+      (map (batch-exprs batch) (build-list n fn))))
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))

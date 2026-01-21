@@ -6,7 +6,7 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../config.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "../utils/common.rkt"
          "egglog-subprocess.rkt")
 

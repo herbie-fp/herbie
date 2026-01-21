@@ -8,7 +8,8 @@
          "../syntax/platform.rkt"
          "../syntax/types.rkt"
          "../utils/float.rkt"
-         "../config.rkt")
+         "../config.rkt"
+         "../syntax/batch.rkt")
 (provide make-timeline)
 
 (define timeline-phase? (hash/c symbol? any/c))
@@ -17,10 +18,6 @@
 ;; This first part handles timelines for a single Herbie run
 
 (define (make-timeline name timeline #:info [info #f] #:path [path "."])
-  (define total-memory
-    (apply +
-           (for/list ([phase (in-list timeline)])
-             (second (first (dict-ref phase 'memory))))))
   `(html (head (meta ([charset "utf-8"]))
                (title "Metrics for " ,(~a name))
                (link ([rel "stylesheet"] [type "text/css"]
@@ -32,7 +29,7 @@
                                  `(("Report" . "index.html"))
                                  `(("Details" . "graph.html"))))
                ,(if info
-                    (render-about info total-memory)
+                    (render-about info)
                     "")
                ,(render-timeline timeline)
                ,(render-profile))))
@@ -81,7 +78,8 @@
             ,@(dict-call curr render-phase-outcomes 'outcomes)
             ,@(dict-call curr render-phase-compiler 'compiler)
             ,@(dict-call curr render-phase-mixed-sampling 'mixsample)
-            ,@(dict-call curr render-phase-bogosity 'bogosity))))
+            ,@(dict-call curr render-phase-bogosity 'bogosity)
+            ,@(dict-call curr render-phase-allocations 'allocations))))
 
 (define/reset id-counter 0)
 
@@ -322,14 +320,14 @@
                         (thead (tr (th "Status") (th "Accuracy") (th "Program")))
                         ,@
                         (for/list ([rec (in-list alts)])
-                          (match-define (list expr status score repr-name) rec)
+                          (match-define (list batch-jsexpr status score repr-name) rec)
                           (define repr (get-representation (read (open-input-string repr-name))))
                           `(tr ,(match status
                                   ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
                                   ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
                                   ["fresh" `(td)])
                                (td ,(format-accuracy score repr #:unit "%") "")
-                               (td (pre ,expr)))))))))
+                               (td (pre ,(jsexpr->batch-exprs batch-jsexpr))))))))))
 
 (define (render-phase-times times)
   (define hist-id (make-id))
@@ -342,8 +340,8 @@
         (table ((class "times"))
                ,@(for/list ([rec (in-list (sort times > #:key first))]
                             [_ (in-range 5)])
-                   (match-define (list time expr) rec)
-                   `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
+                   (match-define (list time batch-jsexpr) rec)
+                   `(tr (td ,(format-time time)) (td (pre ,(jsexpr->batch-exprs batch-jsexpr)))))))))
 
 (define (render-phase-series times)
   (define hist-id (make-id))
@@ -377,12 +375,12 @@
   `((dt "Results") (dd (table ((class "times"))
                               (thead (tr (th "Accuracy") (th "Segments") (th "Branch")))
                               ,@(for/list ([rec (in-list branches)])
-                                  (match-define (list expr score splits repr-name) rec)
+                                  (match-define (list batch-jsexpr score splits repr-name) rec)
                                   (define repr
                                     (get-representation (read (open-input-string repr-name))))
                                   `(tr (td ,(format-accuracy score repr #:unit "%") "")
                                        (td ,(~a splits))
-                                       (td (code ,expr))))))))
+                                       (td (pre ,(jsexpr->batch-exprs batch-jsexpr)))))))))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Samples") (dd (table ((class "times"))
@@ -393,21 +391,39 @@
                                        (td ,(~a precision))
                                        (td ,(~a category))))))))
 
+(define (batch-jsexpr? x)
+  (and (hash? x) (hash-has-key? x 'nodes)))
+
+(define (jsexpr->exprs x)
+  (if (batch-jsexpr? x)
+      (jsexpr->batch-exprs x)
+      (string-join (map ~a x) "\n")))
+
 (define (render-phase-inputs inputs outputs)
-  `((dt "Calls") (dd ,@(for/list ([call inputs]
-                                  [output outputs]
+  `((dt "Calls") (dd ,@(for/list ([input-jsexpr inputs]
+                                  [output-jsexpr outputs]
                                   [n (in-naturals 1)])
                          `(details (summary "Call " ,(~a n))
                                    (table (thead (tr (th "Inputs")))
-                                          ,@(for/list ([arg call])
-                                              `(tr (td (pre ,(~a arg))))))
+                                          (tr (td (pre ,(jsexpr->exprs input-jsexpr)))))
                                    (table (thead (tr (th "Outputs")))
-                                          ,@(for/list ([out output])
-                                              `(tr (td (pre ,(~a out)))))))))))
+                                          (tr (td (pre ,(jsexpr->exprs output-jsexpr))))))))))
+
+(define (render-phase-allocations allocations)
+  (define sorted (sort allocations > #:key second))
+  (define total (apply + (map second sorted)))
+  `((dt "Allocations")
+    (dd (table ((class "times"))
+               (thead (tr (th "Phase") (th "Allocated") (th "Percent")))
+               ,@(for/list ([rec (in-list sorted)])
+                   (match-define (list type alloc) rec)
+                   `(tr (td ,(~a type))
+                        (td ,(~r (/ alloc (expt 2 20)) #:group-sep " " #:precision '(= 1)) " MiB")
+                        (td ,(format-percent alloc total))))))))
 
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
-(define (render-about info total-memory)
+(define (render-about info)
   (match-define (report-info date
                              commit
                              branch
@@ -447,9 +463,7 @@
                                      " "
                                      ,(~a class)
                                      ":"
-                                     ,(~a flag)))))))
-          (tr (th "Memory:")
-              (td ,(~r (/ total-memory (expt 2 20)) #:group-sep " " #:precision '(= 1)) " MB"))))
+                                     ,(~a flag)))))))))
 
 (define (render-profile)
   `(section ([id "profile"]) (h1 "Profiling") (p ((class "load-text")) "Loading profile data...")))

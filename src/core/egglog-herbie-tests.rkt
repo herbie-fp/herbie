@@ -319,7 +319,7 @@
   (require rackunit
            "egglog-herbie.rkt"
            "../syntax/types.rkt"
-           "batch.rkt"
+           "../syntax/batch.rkt"
            "rules.rkt"
            "../config.rkt"
            "../syntax/platform.rkt"
