@@ -119,8 +119,8 @@
 
 (define (print-info name number)
   (with-output-to-file (string-append report-dir "/info.txt")
-  (lambda () (display (format "~a, ~a\n" name number)))
-  #:exists 'append))
+    (lambda () (display (format "~a, ~a\n" name number)))
+    #:exists 'append))
 
 ;;; ------------------------- MAIN PIPELINE ---------------------------------
 (define report-dir (vector-ref (current-command-line-arguments) 0))
@@ -136,13 +136,13 @@
 
 (define filtered-subexprs
   (filter (lambda (n)
-            (and (not (or (symbol? n) (literal? n) (number? n))) 
-                 (> (length (free-variables n)) 0)               
-                 (< (length (free-variables n)) 4)))            
+            (and (not (or (symbol? n) (literal? n) (number? n)))
+                 (> (length (free-variables n)) 0)
+                 (< (length (free-variables n)) 4)))
           subexprs))
 
 (define alpha-renamed-subexprs (map alpha-rename filtered-subexprs))
-(print-info "alpha renamed subexprs" (length alpha-renamed-subexprs))
+(print-info "filtered subexprs" (length alpha-renamed-subexprs))
 
 (define canonical-candidates (run-egg alpha-renamed-subexprs))
 
