@@ -15,8 +15,7 @@
   "../src/syntax/syntax.rkt"
   "../src/utils/common.rkt"
   "../src/syntax/platform.rkt"
-  "../src/syntax/types.rkt"
-  "../src/core/egglog-herbie.rkt")
+  "../src/syntax/types.rkt")
 
 ;;; ------------------------- SETUP ---------------------------------
 (activate-platform! "no-accelerators")
@@ -119,40 +118,40 @@
   (format "(FPCore ~a ~a)" vars (prog->fpcore expr ctx)))
 
 (define (print-info name number)
-  (with-output-to-file (string-append report-dir "info.txt")
-  (lambda () (display (format "~a, ~a" name number)))
+  (with-output-to-file (string-append report-dir "/info.txt")
+  (lambda () (display (format "~a, ~a\n" name number)))
   #:exists 'append))
 
 ;;; ------------------------- MAIN PIPELINE ---------------------------------
 (define report-dir (vector-ref (current-command-line-arguments) 0))
 
 (define roots (file->list (string-append report-dir "/expr_dump.txt")))
-(print-info "number of roots" (length roots))
+(print-info "roots" (length roots))
 
 (define alpha-renamed-roots (map alpha-rename roots))
 (define canonical-roots (run-egg alpha-renamed-roots))
 
 (define subexprs (append* (map get-subexpressions canonical-roots)))
-(print-info "number of subexprs" (length subexprs))
+(print-info "subexprs" (length subexprs))
 
-(define candidates
+(define filtered-subexprs
   (filter (lambda (n)
             (and (not (or (symbol? n) (literal? n) (number? n))) 
                  (> (length (free-variables n)) 0)               
                  (< (length (free-variables n)) 4)))            
           subexprs))
 
-(define alpha-renamed-candidates (map alpha-rename candidates))
-(print-info "number of candidates" (length alpha-renamed-candidates))
+(define alpha-renamed-subexprs (map alpha-rename filtered-subexprs))
+(print-info "alpha renamed subexprs" (length alpha-renamed-subexprs))
 
-(define canonical-candidates (run-egg alpha-renamed-candidates))
+(define canonical-candidates (run-egg alpha-renamed-subexprs))
 
 (define counts (make-hash))
 (for ([c canonical-candidates])
   (hash-update! counts c add1 0))
 
 (define cand-count-pairs (hash->list counts))
-(print-info "number of deduped candidates" (length alpha-renamed-candidates))
+(print-info "deduped candidates" (length cand-count-pairs))
 
 (define sorted-cand-count-pairs (sort cand-count-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
 
@@ -161,7 +160,7 @@
 (define high-error-candidates
   (filter (lambda (p) (< 0.1 (get-error (car p)))) top-candidates))
 
-(print-info "number of high-error candidates" (length high-error-candidates))
+(print-info "high-error candidates" (length high-error-candidates))
 
 ;; Output
 (define final-output (take high-error-candidates (min (length high-error-candidates) 500)))
