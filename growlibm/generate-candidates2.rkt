@@ -118,14 +118,22 @@
   (define ctx (get-ctx expr))
   (format "(FPCore ~a ~a)" vars (prog->fpcore expr ctx)))
 
+(define (print-info name number)
+  (with-output-to-file (string-append report-dir "info.txt")
+  (lambda () (display (format "~a, ~a" name number)))
+  #:exists 'append))
+
 ;;; ------------------------- MAIN PIPELINE ---------------------------------
 (define report-dir (vector-ref (current-command-line-arguments) 0))
 
 (define roots (file->list (string-append report-dir "/expr_dump.txt")))
+(print-info "number of roots" (length roots))
+
 (define alpha-renamed-roots (map alpha-rename roots))
 (define canonical-roots (run-egg alpha-renamed-roots))
 
 (define subexprs (append* (map get-subexpressions canonical-roots)))
+(print-info "number of subexprs" (length subexprs))
 
 (define candidates
   (filter (lambda (n)
@@ -135,6 +143,8 @@
           subexprs))
 
 (define alpha-renamed-candidates (map alpha-rename candidates))
+(print-info "number of candidates" (length alpha-renamed-candidates))
+
 (define canonical-candidates (run-egg alpha-renamed-candidates))
 
 (define counts (make-hash))
@@ -142,12 +152,16 @@
   (hash-update! counts c add1 0))
 
 (define cand-count-pairs (hash->list counts))
+(print-info "number of deduped candidates" (length alpha-renamed-candidates))
+
 (define sorted-cand-count-pairs (sort cand-count-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
 
 (define top-candidates (take sorted-cand-count-pairs (min (length sorted-cand-count-pairs) 2000)))
 
 (define high-error-candidates
   (filter (lambda (p) (< 0.1 (get-error (car p)))) top-candidates))
+
+(print-info "number of high-error candidates" (length high-error-candidates))
 
 ;; Output
 (define final-output (take high-error-candidates (min (length high-error-candidates) 500)))
