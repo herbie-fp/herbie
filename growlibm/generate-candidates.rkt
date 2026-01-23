@@ -51,6 +51,93 @@
                  [_ (void)])]))))
   (remove-duplicates subexprs))
 
+(define (get-subexpressions expr)
+  (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
+  (define (comparison-op? op)
+    (and (symbol? op)
+         (member op comparison-bases)))
+  (define subexprs
+    (reap [sow]
+          (let loop ([expr expr])
+            (match expr
+              [(or `(if ,test ,t ,f)
+                   `(if.f32 ,test ,t ,f)
+                   `(if.f64 ,test ,t ,f))
+               (loop test)
+               (loop t)
+               (loop f)]
+              [(approx _ impl)
+               (loop impl)]
+              [(list (? comparison-op?) lhs rhs)
+               (loop lhs)
+               (loop rhs)]
+              [_
+               (sow expr)
+               (match expr
+                 [(? number?) (void)]
+                 [(? literal?) (void)]
+                 [(? symbol?) (void)]
+                 [(list _ args ...)
+                  (for ([arg args])
+                    (loop arg))]
+                 [_ (void)])]))))
+    subexprs)
+
+(define (get-subexpressions2 expr)
+  (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
+  (define (comparison-op? op)
+    (and (symbol? op)
+         (member op comparison-bases)))
+  
+  (define subexprs
+    (reap [sow]
+          (let loop ([expr expr])
+            (match expr
+              [(or `(if ,test ,t ,f)
+                   `(if.f32 ,test ,t ,f)
+                   `(if.f64 ,test ,t ,f))
+               (loop test)
+               (loop t)
+               (loop f)]
+              [(approx _ impl)
+               (loop impl)]
+              [(list (? comparison-op?) lhs rhs)
+               (loop lhs)
+               (loop rhs)]
+              [_
+               (sow expr)
+               (match expr
+                 [(? number?) (void)]
+                 [(? literal?) (void)]
+                 [(? symbol?) (void)]
+                 [(list op args ...)
+                  ;; --- UPDATED LOGIC FOR ALL COMBINATIONS ---
+                  
+                  ;; 1. Get a list of indices: (0 1 2 ...)
+                  (define idxs (range (length args)))
+                  
+                  ;; 2. Get all subsets of indices to replace (excluding empty set)
+                  (define subsets (combinations idxs))
+                  
+                  (for ([subset subsets])
+                    (unless (null? subset) ;; Skip the case where nothing is replaced
+                      (define new-args
+                        (for/list ([arg args]
+                                   [i (in-naturals)])
+                          (if (member i subset)
+                              ;; If this index is in the subset, replace with hole
+                              (string->symbol (format "hole~a" i))
+                              ;; Otherwise keep the original arg
+                              arg)))
+                      (sow (cons op new-args))))
+                  
+                  ;; -------------------------------------------
+
+                  (for ([arg args])
+                    (loop arg))]
+                 [_ (void)])]))))
+  subexprs)
+
 (define (remove-approxes expr)
   (match expr
     [(approx _ impl) (remove-approxes impl)]
