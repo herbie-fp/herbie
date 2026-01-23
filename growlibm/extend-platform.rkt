@@ -8,10 +8,16 @@
   "../src/syntax/platform-language.rkt")
 
 (activate-platform! "grow")
+(define (get-ctx expr)
+  (define free-vars (free-variables expr))
+  (context free-vars (get-representation 'binary64)
+           (make-list (length free-vars) (get-representation 'binary64))))
 
 (define filename (vector-ref (current-command-line-arguments) 0))
 
 (define count-list (call-with-input-file "reports/counts.rkt" read))
+
+(define cost-proc (platform-cost-proc (*active-platform*)))
 
 (define json (string->jsexpr (first (file->lines filename))))
 (define tests (hash-ref json 'tests))
@@ -20,15 +26,19 @@
     (define input-str (hash-ref t 'input))
     (define link (hash-ref t 'link))
     (define end-val (hash-ref t 'end))
+    (define spec (with-input-from-string input-str read))
+    (define prog (fpcore->prog spec (get-ctx spec)))
 
-    (define found-count (assoc (with-input-from-string input-str read) count-list))
+    (define found-count (assoc spec count-list))
     (define count (if found-count
                       (cdr found-count)
                       (begin
                         (displayln (format "~a not found" input-str))
                         0)))
+    
+    (define cost (cost-proc prog (get-representation 'binary64)))
     (define score (if (number? end-val)
-                      (* end-val count)
+                      (/ (* end-val count) cost)
                     0))
     (list input-str link end-val score)))
 
