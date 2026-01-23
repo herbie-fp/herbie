@@ -1,0 +1,286 @@
+; -*- mode: scheme -*-
+
+(FPCore E2f (Ecc e)
+  :pre (and (>= e 0) (< e 1))
+  (* 2
+     (atan2
+       (* (sqrt (+ 1 e)) (sin (/ Ecc 2)))
+       (* (sqrt (- 1 e)) (cos (/ Ecc 2))))))
+
+(FPCore E2M (Ecc e)
+  :pre (and (>= e 0) (< e 1))
+  (- Ecc (* e (sin Ecc))))
+
+(FPCore f2E (f e)
+  :pre (and (>= e 0) (< e 1))
+  (* 2
+     (atan2
+       (* (sqrt (- 1 e)) (sin (/ f 2)))
+       (* (sqrt (+ 1 e)) (cos (/ f 2))))))
+
+(FPCore f2H (f e)
+  :pre (> e 1)
+  (* 2
+     (atanh
+       (* (sqrt (/ (- e 1) (+ e 1)))
+          (tan (/ f 2))))))
+
+(FPCore H2f (H e)
+  :pre (> e 1)
+  (* 2
+     (atan
+       (* (sqrt (/ (+ e 1) (- e 1)))
+          (tanh (/ H 2))))))
+
+(FPCore H2N (H e)
+  :pre (> e 1)
+  (- (* e (sinh H)) H))
+
+(FPCore M2E (M e)
+  :pre (and (>= e 0) (< e 1))
+  (- M
+     (/ (- (- M (* e (sin M))) M)
+        (- 1 (* e (cos M))))))
+
+(FPCore N2H (N e)
+  :pre (> e 1)
+  (- N
+     (/ (- (- (* e (sinh N)) N) N)
+        (- (* e (cosh N)) 1))))
+
+(FPCore semi_latus_rectum (a e)
+  (* a (- 1 (* e e))))
+
+(FPCore orbit_radius (p e f)
+  (/ p (+ 1 (* e (cos f)))))
+
+(FPCore angular_momentum (mu p)
+  (sqrt (* mu p)))
+
+(FPCore rVec_x (r AN theta i)
+  (* r
+     (- (* (cos AN) (cos theta))
+        (* (sin AN) (sin theta) (cos i)))))
+
+(FPCore rVec_y (r AN theta i)
+  (* r
+     (+ (* (sin AN) (cos theta))
+        (* (cos AN) (sin theta) (cos i)))))
+
+(FPCore rVec_z (r theta i)
+  (* r
+     (* (sin theta) (sin i))))
+
+(FPCore vVec_x (mu h AN theta e AP i)
+  (* (- (/ mu h))
+     (+ (* (cos AN) (+ (sin theta) (* e (sin AP))))
+        (* (sin AN) (+ (cos theta) (* e (cos AP))) (cos i)))))
+
+(FPCore vVec_y (mu h AN theta e AP i)
+  (* (- (/ mu h))
+     (- (* (sin AN) (+ (sin theta) (* e (sin AP))))
+        (* (cos AN) (+ (cos theta) (* e (cos AP))) (cos i)))))
+
+(FPCore vVec_z (mu h theta e AP i)
+  (* (- (/ mu h))
+     (* (- (+ (cos theta) (* e (cos AP))))
+        (sin i))))
+
+(FPCore atmosphericDensity_poly (alt)
+  (pow 10
+       (+ (+ (+ (+ (+ (+ (* 0.34047 (pow (/ (- alt 526.8000) 292.8563) 6))
+                          (* (- 0.5889) (pow (/ (- alt 526.8000) 292.8563) 5)))
+                       (* (- 0.5269) (pow (/ (- alt 526.8000) 292.8563) 4)))
+                    (* 1.0036 (pow (/ (- alt 526.8000) 292.8563) 3)))
+                 (* 0.60713 (pow (/ (- alt 526.8000) 292.8563) 2)))
+              (* (- 2.3024) (/ (- alt 526.8000) 292.8563)))
+          (- 12.575))))
+
+(FPCore drag_accel_mag (density Cd A m v)
+  (/ (* (* (* (- 0.5) density)
+           (/ (* Cd A) m))
+        (pow (* v 1000) 2))
+     1000))
+
+(FPCore clMeanOscMap-ap (a e i omega f sgn J2 req)
+  (let ([eta (sqrt (- 1 (pow e 2)))]
+        [gamma2 (* (/ (* sgn J2) 2)
+                   (pow (/ req a) 2))]
+        [a_r (/ (+ 1 (* e (cos f)))
+                (pow (sqrt (- 1 (pow e 2))) 2))])
+    (+ a
+       (* a
+          (* gamma2
+             (+ (* (- (* 3 (pow (cos i) 2)) 1)
+                   (- (pow a_r 3)
+                      (/ 1 (pow eta 3))))
+                (* (* 3 (- 1 (pow (cos i) 2)))
+                   (* (pow a_r 3)
+                      (cos (+ (* 2 omega)
+                              (* 2 f)))))))))))
+
+(FPCore clMeanOscMap-de1 (e i omega sgn J2 req a)
+  (let ([eta (sqrt (- 1 (pow e 2)))]
+        [gamma2p
+         (/ (* (/ (* sgn J2) 2)
+               (pow (/ req a) 2))
+            (pow (sqrt (- 1 (pow e 2))) 4))])
+    (* (* (* (/ gamma2p 8) e)
+          (pow eta 2))
+       (* (+ (- 1 (* 11 (pow (cos i) 2)))
+             (- (/ (* 40 (pow (cos i) 4))
+                   (- 1 (* 5 (pow (cos i) 2))))))
+          (cos (* 2 omega))))))
+
+(FPCore clMeanOscMap-de (e i omega f sgn J2 req a)
+  (let ([eta (sqrt (- 1 (pow e 2)))]
+        [gamma2 (* (/ (* sgn J2) 2)
+                   (pow (/ req a) 2))]
+        [gamma2p
+         (/ (* (/ (* sgn J2) 2)
+               (pow (/ req a) 2))
+            (pow (sqrt (- 1 (pow e 2))) 4))])
+    (+ (clMeanOscMap-de1 e i omega sgn J2 req a)
+       (* (/ (pow eta 2) 2)
+          (- (* gamma2
+                (+ (+ (+ (* e eta)
+                         (/ e (+ 1 eta)))
+                      (+ (* 3 (cos f))
+                         (* (* 3 e) (pow (cos f) 2))))
+                   (* (pow e 2) (pow (cos f) 3))))
+             (* gamma2p
+                (* (* (/ (* 3 (- 1 (pow (cos i) 2)))
+                         (pow eta 6))
+                      (+ (+ e
+                            (+ (* 3 (cos f))
+                               (* (* 3 e) (pow (cos f) 2))))
+                         (* (pow e 2) (pow (cos f) 3))))
+                   (cos (+ (* 2 omega) (* 2 f))))))))))
+
+(FPCore clMeanOscMap-di (e i omega f sgn J2 req a)
+  (let ([eta (sqrt (- 1 (pow e 2)))]
+        [gamma2p
+         (/ (* (/ (* sgn J2) 2)
+               (pow (/ req a) 2))
+            (pow (sqrt (- 1 (pow e 2))) 4))])
+    (+ (- (/ (* (- e) (clMeanOscMap-de1 e i omega sgn J2 req a)) 
+             (* (pow eta 2) (tan i))))
+       (* (/ gamma2p 2)
+          (* (cos i)
+             (* (sqrt (- 1 (pow (cos i) 2)))
+                (+ (+ (* 3 (cos (+ (* 2 omega) (* 2 f))))
+                      (* (* 3 e) (cos (+ (* 2 omega) f))))
+                   (* e (cos (+ (* 2 omega) (* 3 f)))))))))))
+
+
+(FPCore clMeanOscMap-MpopOp (M omega Omega f e i sgn J2 req a)
+  (let ([eta (sqrt (- 1 (pow e 2)))]
+        [gamma2p
+         (/ (* (/ (* sgn J2) 2)
+               (pow (/ req a) 2))
+            (pow (sqrt (- 1 (pow e 2))) 4))])
+    (+ (+ (+ M omega) Omega)
+       (+ (- (* (/ gamma2p 8)
+                (* (* (pow eta 3)
+                      (+ (- 1
+                            (* 11 (pow (cos i) 2)))
+                         (- (/ (* 40 (pow (cos i) 4))
+                               (- 1 (* 5 (pow (cos i) 2)))))))
+                   (sin (* 2 omega))))
+             (* (/ gamma2p 16)
+                (* (+ (+ (+ 2 (pow e 2))
+                         (- (* (* 11 (+ 2 (* 3 (pow e 2))))
+                               (pow (cos i) 2))))
+                      (- (- (/ (* (* 40 (+ 2 (* 5 (pow e 2))))
+                                  (pow (cos i) 4))
+                               (- 1 (* 5 (pow (cos i) 2))))
+                            (/ (* (* 400 (pow e 2))
+                                  (pow (cos i) 6))
+                               (pow (- 1 (* 5 (pow (cos i) 2))) 2)))))
+                   (sin (* 2 omega)))))
+          (+ (* (/ gamma2p 4)
+                (+ (* (* (- (* 6 (- 1 (* 5 (pow (cos i) 2)))))
+                         (+ (- f M)
+                            (* e (sin f))))
+                   (* (- 3 (* 5 (pow (cos i) 2)))
+                      (+ (+ (* 3 (sin (+ (* 2 omega) (* 2 f))))
+                            (* (* 3 e) (sin (+ (* 2 omega) f))))
+                         (* e (sin (+ (* 2 omega) (* 3 f))))))))
+             (- (* (/ gamma2p 8)
+                   (* (* (pow e 2)
+                         (* (cos i)
+                            (+ (+ 11
+                                  (/ (* 80 (pow (cos i) 2))
+                                     (- 1 (* 5 (pow (cos i) 2)))))
+                               (/ (* 200 (pow (cos i) 4))
+                                  (pow (- 1 (* 5 (pow (cos i) 2))) 2)))))
+                      (sin (* 2 omega))))
+                (* (/ gamma2p 2)
+                   (* (cos i)
+                      (+ (+ (+ (* 6 (+ (- f M)
+                                       (* e (sin f))))
+                               (- (* 3 (sin (+ (* 2 omega) (* 2 f))))))
+                            (- (* (* 3 e) (sin (+ (* 2 omega) f)))))
+                         (- (* e (sin (+ (* 2 omega) (* 3 f)))))))))))))))
+
+(FPCore clMeanOscMap-edM (e i omega f sgn J2 req a)
+  (let ([eta (sqrt (- 1 (pow e 2)))]
+        [gamma2p
+         (/ (* (/ (* sgn J2) 2)
+               (pow (/ req a) 2))
+            (pow (sqrt (- 1 (pow e 2))) 4))]
+        [a_r (/ (+ 1 (* e (cos f)))
+                (pow (sqrt (- 1 (pow e 2))) 2))])
+    (- (* (* (* (/ gamma2p 8) e)
+             (pow eta 3))
+          (* (+ (- 1 (* 11 (pow (cos i) 2)))
+                (- (/ (* 40 (pow (cos i) 4))
+                      (- 1 (* 5 (pow (cos i) 2))))))
+             (sin (* 2 omega))))
+       (* (/ gamma2p 4)
+          (* (pow eta 3)
+             (+ (* (* (* 2 (- (* 3 (pow (cos i) 2)) 1))
+                      (+ (+ (pow (* a_r eta) 2) a_r) 1))
+                   (sin f))
+                (* (* 3 (- 1 (pow (cos i) 2)))
+                   (+ (* (- (- (pow (* a_r eta) 2) a_r) -1)
+                         (sin (+ (* 2 omega) f)))
+                      (* (+ (+ (pow (* a_r eta) 2) a_r) (/ 1 3))
+                         (sin (+ (* 2 omega) (* 3 f))))))))))))
+
+(FPCore clMeanOscMap-dOmega (e i omega f M sgn J2 req a)
+  (let ([gamma2p
+         (/ (* (/ (* sgn J2) 2)
+               (pow (/ req a) 2))
+            (pow (sqrt (- 1 (pow e 2))) 4))])
+    (- (* (/ gamma2p 8)
+          (* (* (pow e 2)
+                (* (cos i)
+                   (+ (+ 11
+                         (/ (* 80 (pow (cos i) 2))
+                            (- 1 (* 5 (pow (cos i) 2)))))
+                      (/ (* 200 (pow (cos i) 4))
+                         (pow (- 1 (* 5 (pow (cos i) 2))) 2)))))
+             (sin (* 2 omega))))
+       (* (/ gamma2p 2)
+          (* (cos i)
+             (+ (+ (+ (* 6 (+ (- f M) (* e (sin f))))
+                      (- (* 3 (sin (+ (* 2 omega) (* 2 f))))))
+                   (- (* (* 3 e) (sin (+ (* 2 omega) f)))))
+                (- (* e (sin (+ (* 2 omega) (* 3 f)))))))))))
+
+(FPCore clMeanOscMap-d3 (i Omega di dOmega)
+  (+ (* (+ (sin (/ i 2))
+           (* (/ (cos (/ i 2)) 2) di))
+        (sin Omega))
+     (* (sin (/ i 2))
+        dOmega
+        (cos Omega))))
+
+(FPCore d4 (i Omega di dOmega)
+  (- (* (+ (sin (/ i 2))
+           (* (/ (cos (/ i 2)) 2) di))
+        (cos Omega))
+     (* (sin (/ i 2))
+        dOmega
+        (sin Omega))))
