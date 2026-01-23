@@ -52,8 +52,142 @@
                   (for ([arg args])
                     (loop arg))]
                  [_ (void)])]))))
+    subexprs)
+
+(define (get-subexpressions2 expr)
+  (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
+  (define (comparison-op? op)
+    (and (symbol? op)
+         (member op comparison-bases)))
+  
+  (define subexprs
+    (reap [sow]
+          (let loop ([expr expr])
+            (match expr
+              [(or `(if ,test ,t ,f)
+                   `(if.f32 ,test ,t ,f)
+                   `(if.f64 ,test ,t ,f))
+               (loop test)
+               (loop t)
+               (loop f)]
+              [(approx _ impl)
+               (loop impl)]
+              [(list (? comparison-op?) lhs rhs)
+               (loop lhs)
+               (loop rhs)]
+              [_
+               (sow expr)
+               (match expr
+                 [(? number?) (void)]
+                 [(? literal?) (void)]
+                 [(? symbol?) (void)]
+                 [(list op args ...)
+                  ;; --- UPDATED LOGIC FOR ALL COMBINATIONS ---
+                  
+                  ;; 1. Get a list of indices: (0 1 2 ...)
+                  (define idxs (range (length args)))
+                  
+                  ;; 2. Get all subsets of indices to replace (excluding empty set)
+                  (define subsets (combinations idxs))
+                  
+                  (for ([subset subsets])
+                    (unless (null? subset) ;; Skip the case where nothing is replaced
+                      (define new-args
+                        (for/list ([arg args]
+                                   [i (in-naturals)])
+                          (if (member i subset)
+                              ;; If this index is in the subset, replace with hole
+                              (string->symbol (format "hole~a" i))
+                              ;; Otherwise keep the original arg
+                              arg)))
+                      (sow (cons op new-args))))
+                  
+                  ;; -------------------------------------------
+
+                  (for ([arg args])
+                    (loop arg))]
+                 [_ (void)])]))))
   subexprs)
 
+(define (get-subexpressions3 expr)
+  (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
+  (define (comparison-op? op)
+    (and (symbol? op)
+         (member op comparison-bases)))
+  
+  (define subexprs
+    (reap [sow]
+          (let loop ([expr expr])
+            (match expr
+              ;; Skip control flow and comparisons
+              [(or `(if ,test ,t ,f)
+                   `(if.f32 ,test ,t ,f)
+                   `(if.f64 ,test ,t ,f))
+               (loop test)
+               (loop t)
+               (loop f)]
+              [(approx _ impl)
+               (loop impl)]
+              [(list (? comparison-op?) lhs rhs)
+               (loop lhs)
+               (loop rhs)]
+              
+              ;; Process standard math expressions
+              [_
+               (sow expr)
+               (match expr
+                 [(? number?) (void)]
+                 [(? literal?) (void)]
+                 [(? symbol?) (void)]
+                 [(list op args ...)
+                  
+                  ;; Setup for Unified Holes (Content-based)
+                  (define content-map (make-hash)) 
+                  (define next-id 0)
+                  (define (get-content-id arg)
+                    (if (hash-has-key? content-map arg)
+                        (hash-ref content-map arg)
+                        (begin
+                          (hash-set! content-map arg next-id)
+                          (set! next-id (+ next-id 1))
+                          (sub1 next-id))))
+
+                  ;; Generate all combinations of children to replace
+                  (define idxs (range (length args)))
+                  (define subsets (combinations idxs))
+                  
+                  (for ([subset subsets])
+                    (unless (null? subset)
+                      
+                      ;; VARIANT A: Distinct Holes (Positional)
+                      ;; Always produces (+ hole0 hole1) regardless of content
+                      (define distinct-args
+                        (for/list ([arg args]
+                                   [i (in-naturals)])
+                          (if (member i subset)
+                              (string->symbol (format "hole~a" i))
+                              arg)))
+                      (sow (cons op distinct-args))
+
+                      ;; VARIANT B: Unified Holes (Content-based)
+                      ;; Produces (+ hole0 hole0) if content matches
+                      (define unified-args
+                        (for/list ([arg args]
+                                   [i (in-naturals)])
+                          (if (member i subset)
+                              (string->symbol (format "hole~a" (get-content-id arg)))
+                              arg)))
+                      
+                      ;; Only sow Variant B if it is different from Variant A
+                      ;; (Avoids duplicates when inputs are already distinct)
+                      (unless (equal? distinct-args unified-args)
+                        (sow (cons op unified-args)))))
+                  
+                  ;; Recurse
+                  (for ([arg args])
+                    (loop arg))]
+                 [_ (void)])]))))
+  subexprs)
 (define (remove-approxes expr)
   (match expr
     [(approx _ impl) (remove-approxes impl)]
@@ -131,7 +265,7 @@
 (define alpha-renamed-roots (map alpha-rename roots))
 (define canonical-roots (run-egg alpha-renamed-roots))
 
-(define subexprs (append* (map get-subexpressions canonical-roots)))
+(define subexprs (append* (map get-subexpressions3 canonical-roots)))
 (print-info "subexprs" (length subexprs))
 
 (define filtered-subexprs
