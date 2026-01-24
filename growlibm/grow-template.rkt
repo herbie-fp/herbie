@@ -1,4 +1,4 @@
-#lang s-exp "../syntax/platform-language.rkt"
+#lang s-exp "../src/syntax/platform-language.rkt"
 
 (require math/flonum)
 

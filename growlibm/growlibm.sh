@@ -11,9 +11,12 @@ make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
+# BENCHDIR="bench/mathematics/statistics.fpcore"
 BENCHDIR="bench/orbitalMotion.fpcore"
 REPORTDIR="reports"
 NUMITERS=10
+
+cp growlibm/grow-template.rkt growlibm/grow.rkt
 
 mkdir -p "$REPORTDIR"
 rm -rf "reports"/* || echo "nothing to delete"
@@ -22,16 +25,17 @@ rm -rf "reports"/* || echo "nothing to delete"
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
         --dump-exprs \
-        --platform "no-accelerators" \
+        --platform "grow" \
         --disable "generate:taylor" \
         --disable "generate:evaluate" \
         "$BENCHDIR" \
         "$REPORTDIR/start" > "$REPORTDIR/expr_dump.txt"
 
 # generate accelerator candidates
-racket -y growlibm/generate-candidates2.rkt "$REPORTDIR"
+racket -y growlibm/generate-candidates.rkt "$REPORTDIR"
  
-racket -y growlibm/to-json.rkt 
+racket -y growlibm/to-json.rkt counts 
+racket -y growlibm/to-json.rkt costs 
 
 # extend platform loop
 for ((i = 0; i < $NUMITERS; i++)) do
@@ -56,9 +60,6 @@ racket -y "src/main.rkt" report \
         --disable "generate:evaluate" \
         "$BENCHDIR" \
         "$REPORTDIR/end"
-
-# print the new platform
-cat "src/platforms/grow.rkt" > "$REPORTDIR/grow_platform.txt"
 
 # generate the html report page
 python3 growlibm/generate-html.py $NUMITERS $REPORTDIR

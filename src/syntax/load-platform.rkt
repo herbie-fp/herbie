@@ -8,7 +8,7 @@
 (define-runtime-module-path herbie10-platform "../platforms/herbie10.rkt")
 (define-runtime-module-path herbie20-platform "../platforms/herbie20.rkt")
 (define-runtime-module-path no-accelerators-platform "../platforms/no-accelerators.rkt")
-(define-runtime-module-path grow-platform "../platforms/grow.rkt")
+(define-runtime-module-path grow-platform "../../growlibm/grow.rkt")
 (define-runtime-module-path c-platform "../platforms/c.rkt")
 (define-runtime-module-path c-windows-platform "../platforms/c-windows.rkt")
 (define-runtime-module-path racket-platform "../platforms/racket.rkt")
