@@ -17,132 +17,79 @@
   "../src/syntax/platform.rkt"
   "../src/syntax/types.rkt")
 
+;;; ------------------------- SETUP ---------------------------------
 (activate-platform! "no-accelerators")
 (*node-limit* 50000)
-(define (all-subexpressions* expr)
-  (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
-  (define (comparison-op? op)
-    (and (symbol? op)
-         (member op comparison-bases)))
-  (define subexprs
-    (reap [sow]
-          (let loop ([expr expr])
-            (match expr
-              [(or `(if ,test ,t ,f)
-                   `(if.f32 ,test ,t ,f)
-                   `(if.f64 ,test ,t ,f))
-               (loop test)
-               (loop t)
-               (loop f)]
-              [(approx _ impl)
-               (loop impl)]
-              [(list (? comparison-op?) lhs rhs)
-               (loop lhs)
-               (loop rhs)]
-              [_
-               (sow expr)
-               (match expr
-                 [(? number?) (void)]
-                 [(? literal?) (void)]
-                 [(? symbol?) (void)]
-                 [(list _ args ...)
-                  (for ([arg args])
-                    (loop arg))]
-                 [_ (void)])]))))
-  (remove-duplicates subexprs))
 
-(define (get-subexpressions expr)
+;;; ------------------------- HELPERS ---------------------------------
+(define (get-holey-subexpressions expr)
   (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
   (define (comparison-op? op)
-    (and (symbol? op)
-         (member op comparison-bases)))
-  (define subexprs
-    (reap [sow]
-          (let loop ([expr expr])
-            (match expr
-              [(or `(if ,test ,t ,f)
-                   `(if.f32 ,test ,t ,f)
-                   `(if.f64 ,test ,t ,f))
-               (loop test)
-               (loop t)
-               (loop f)]
-              [(approx _ impl)
-               (loop impl)]
-              [(list (? comparison-op?) lhs rhs)
-               (loop lhs)
-               (loop rhs)]
-              [_
-               (sow expr)
-               (match expr
-                 [(? number?) (void)]
-                 [(? literal?) (void)]
-                 [(? symbol?) (void)]
-                 [(list _ args ...)
-                  (for ([arg args])
-                    (loop arg))]
-                 [_ (void)])]))))
-    subexprs)
-
-(define (get-subexpressions2 expr)
-  (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
-  (define (comparison-op? op)
-    (and (symbol? op)
-         (member op comparison-bases)))
+    (and (symbol? op) (member op comparison-bases)))
   
-  (define subexprs
-    (reap [sow]
-          (let loop ([expr expr])
-            (match expr
-              [(or `(if ,test ,t ,f)
-                   `(if.f32 ,test ,t ,f)
-                   `(if.f64 ,test ,t ,f))
-               (loop test)
-               (loop t)
-               (loop f)]
-              [(approx _ impl)
-               (loop impl)]
-              [(list (? comparison-op?) lhs rhs)
-               (loop lhs)
-               (loop rhs)]
-              [_
-               (sow expr)
-               (match expr
-                 [(? number?) (void)]
-                 [(? literal?) (void)]
-                 [(? symbol?) (void)]
-                 [(list op args ...)
-                  ;; --- UPDATED LOGIC FOR ALL COMBINATIONS ---
-                  
-                  ;; 1. Get a list of indices: (0 1 2 ...)
-                  (define idxs (range (length args)))
-                  
-                  ;; 2. Get all subsets of indices to replace (excluding empty set)
-                  (define subsets (combinations idxs))
-                  
-                  (for ([subset subsets])
-                    (unless (null? subset) ;; Skip the case where nothing is replaced
-                      (define new-args
-                        (for/list ([arg args]
-                                   [i (in-naturals)])
-                          (if (member i subset)
-                              ;; If this index is in the subset, replace with hole
-                              (string->symbol (format "hole~a" i))
-                              ;; Otherwise keep the original arg
-                              arg)))
-                      (sow (cons op new-args))))
-                  
-                  ;; -------------------------------------------
+  (define hole 'hole)
+  
+  (define (cartesian-product lists)
+    (match lists
+      ['() '(())]
+      [(cons head tail)
+       (for*/list ([item head]
+                   [rest (cartesian-product tail)])
+         (cons item rest))]))
 
-                  (for ([arg args])
-                    (loop arg))]
-                 [_ (void)])]))))
-  subexprs)
+  (reap [sow]
+    (let loop ([expr expr])
+      (match expr
+        ;; 1. CONTROL FLOW (Transparent / Stripped)
+        ;; We recurse to find math inside, but we DO NOT sow the 'if' itself.
+        [(or `(if ,test ,t ,f)
+             `(if.f32 ,test ,t ,f)
+             `(if.f64 ,test ,t ,f))
+         (loop test)
+         (loop t)
+         (loop f)
+         ;; RETURN: We return the expr (so parents can build trees containing it)
+         ;; and 'hole (so parents can replace this block with a hole).
+         (list expr hole)]
+
+        ;; 2. COMPARISONS (Transparent / Stripped)
+        ;; We recurse, but DO NOT sow.
+        [(list (? comparison-op? op) lhs rhs)
+         (loop lhs)
+         (loop rhs)
+         ;; RETURN: Only expr. No hole (booleans aren't numerical holes).
+         (list expr)]
+
+        ;; 3. GENERIC OPS (The Engine)
+        [(list op args ...)
+         (define arg-variants-list (map loop args))
+         
+         (define current-variants
+           (for/list ([combo (cartesian-product arg-variants-list)])
+             `(,op ,@combo)))
+         
+         ;; Sow all generated variants of this math op
+         (for ([v current-variants]) (sow v))
+         
+         ;; Return 'hole + variants to parent
+         (cons hole current-variants)]
+
+        ;; 4. LEAVES (Symbols/Numbers)
+        [_ 
+         (sow expr)
+         ;; Return leaf only (no hole replacement for leaves)
+         (list expr)]))))
+
+(define cost-proc (platform-cost-proc (*active-platform*)))
 
 (define (remove-approxes expr)
   (match expr
     [(approx _ impl) (remove-approxes impl)]
     [(list op args ...) (cons op (map remove-approxes args))]
     [_ expr]))
+
+(define (get-cost expr)
+  (cost-proc expr (get-representation 'binary64)))
 
 (define (get-error expr)
   (with-handlers ([exn? (lambda (exn) 0)])
@@ -155,22 +102,22 @@
     (define err-score (errors-score error))
     err-score))
 
-(define (best-exprs exprs ctxs)
-  (*context* (max-ctx ctxs))
+(define (run-egg exprs)
+  (define ctxs (map get-ctx exprs))
+  (*context* (ctx-union ctxs))
+  (define schedule '(lift rewrite lower))
 
-  ; egg schedule (3-phases for mathematical rewrites and implementation selection)
-    (define schedule '(lift rewrite lower))
-
-  ; run egg
   (define-values (batch brfs)
     (progs->batch exprs))
 
-  (define runner (make-egraph batch brfs (map context-repr ctxs) schedule (max-ctx ctxs)))
-  ; batchrefss is a (listof (listof batchref))
-  (define batchrefss (egraph-best runner batch))
-  batchrefss)
+  (define runner (make-egraph batch brfs (map context-repr ctxs) schedule (ctx-union ctxs)))
+  ;;;   (define egglog-runner (make-egglog-runner batch brfs (map context-repr ctxs) schedule (ctx-union ctxs)))
 
-(define (rename-vars impl)
+  (define batchrefss (egraph-best runner batch))
+  ;;;   (define batchrefss (run-egglog egglog-runner batch #:extract 1000000))
+  (map (compose batch-pull first) batchrefss))
+
+(define (alpha-rename impl)
   (define free-vars (sort (free-variables impl) symbol<?))
   (define varDict
     (for/hash ([v free-vars]
@@ -179,32 +126,21 @@
   (define impl* (replace-vars varDict impl))
   impl*)
 
-(define (count-frequencies xs)
-  (define ht (make-hash))
-  (for ([x xs])
-    (hash-update! ht x add1 0))
-  ht)
-
-(define (max-ctx ctxs)
-  (foldl (lambda (a b) (if (> (length (context-vars a)) (length (context-vars b))) a b))
-         (context (list) (get-representation 'binary64) (list))
-         ctxs))
+(define (ctx-union ctxs)
+  (define vars '())
+  (define var-reprs '())
+  (for ([ctx ctxs])
+    (for ([var (context-vars ctx)]
+          [repr (context-var-reprs ctx)])
+      (unless (member var vars)
+        (set! vars (append vars (list var)))
+        (set! var-reprs (append var-reprs (list repr))))))
+  (context vars (get-representation 'binary64) var-reprs))
 
 (define (get-ctx expr)
   (define free-vars (free-variables expr))
   (context free-vars (get-representation 'binary64)
            (make-list (length free-vars) (get-representation 'binary64))))
-
-(define (deduplicate pairs)
-  (define exprs (map car pairs))
-  (define counts (map cdr pairs))
-  (define ctxs (map get-ctx exprs))
-  (define ht (make-hash))
-  (define best (best-exprs exprs ctxs))
-  (for ([b best]
-        [c counts])
-    (hash-update! ht (batch-pull (first b)) (lambda (n) (+ n c)) 0))
-  ht)
 
 (define (to-fpcore-str pair)
   (define expr (car pair))
@@ -212,56 +148,68 @@
   (define ctx (get-ctx expr))
   (format "(FPCore ~a ~a)" vars (prog->fpcore expr ctx)))
 
-(define (to-count-print p)
-  (define expr (car p))
-  (define count (cdr p))
-  (define ctx (get-ctx expr))
-  (cons (prog->fpcore expr ctx) count))
+(define (print-info name number)
+  (with-output-to-file (string-append report-dir "/info.txt")
+    (lambda () (display (format "~a, ~a\n" name number)))
+    #:exists 'append))
 
+;;; ------------------------- MAIN PIPELINE ---------------------------------
 (define report-dir (vector-ref (current-command-line-arguments) 0))
 
-(define lines (file->list (string-append report-dir "/expr_dump.txt")))
-(define unflattened-subexprs (map all-subexpressions* (map remove-approxes lines)))
+(define roots (file->list (string-append report-dir "/expr_dump.txt")))
+(print-info "roots" (length roots))
 
-(define subexprs (apply append unflattened-subexprs))
+(define alpha-renamed-roots (map alpha-rename roots))
+(define canonical-roots (run-egg alpha-renamed-roots))
+
+(define subexprs (append* (map get-holey-subexpressions canonical-roots)))
+(print-info "subexprs" (length subexprs))
 
 (define filtered-subexprs
   (filter (lambda (n)
-            (not (or (symbol? n)
-                     (literal? n)
-                     (number? n))))
+            (and (not (or (symbol? n) (literal? n) (number? n)))
+                 (> (length (free-variables n)) 0)
+                 (< (length (free-variables n)) 4)))
           subexprs))
 
-(define filtered-again (filter (lambda (n)
-                                 (and (> (length (free-variables n)) 0)
-                                      (< (length (free-variables n)) 4))) filtered-subexprs))
+(define alpha-renamed-subexprs (map alpha-rename filtered-subexprs))
+(print-info "filtered subexprs" (length alpha-renamed-subexprs))
 
-(define renamed-subexprs (map rename-vars filtered-again))
-(define pairs (hash->list (count-frequencies renamed-subexprs)))
+(define canonical-candidates (run-egg alpha-renamed-subexprs))
 
-(define deduplicated-pairs (hash->list (deduplicate pairs)))
+(define counts (make-hash))
+(for ([c canonical-candidates])
+  (hash-update! counts c add1 0))
 
-(define sorted-pairs (sort deduplicated-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
-(define first-2000 (take sorted-pairs (min (length sorted-pairs) 2000)))
+(define cand-count-pairs (hash->list counts))
+(print-info "deduped candidates" (length cand-count-pairs))
 
-(define filtered (filter (lambda (p) (< 0.1 (get-error (car p)))) first-2000))
+(define sorted-cand-count-pairs (sort cand-count-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
 
-;;; (define filtered first-2000)
+(define top-candidates (take sorted-cand-count-pairs (min (length sorted-cand-count-pairs) 2000)))
 
-(define first-500 (take filtered (min (length filtered) 500)))
-(define fpcores-out (map to-fpcore-str first-500))
-(define counts-out (map to-count-print first-500))
+(define high-error-candidates
+  (filter (lambda (p) (< 0.1 (get-error (car p)))) top-candidates))
+
+(print-info "high-error candidates" (length high-error-candidates))
+
+;; Output
+(define final-output (take high-error-candidates (min (length high-error-candidates) 500)))
+(define fpcores-out (map to-fpcore-str final-output))
+(define counts-out (map (lambda (p) (cons (prog->fpcore (car p) (get-ctx (car p))) (cdr p))) 
+                        final-output))
+
+(define costs-out (map (lambda (p) (cons (prog->fpcore (car p) (get-ctx (car p))) (get-cost (car p))))
+                        final-output))
 
 (with-output-to-file (string-append report-dir "/counts.rkt")
-  (lambda ()
-    (display counts-out))
+  (lambda () (display counts-out))
+  #:exists 'replace)
+
+(with-output-to-file (string-append report-dir "/costs.rkt")
+  (lambda () (display costs-out))
   #:exists 'replace)
 
 (with-output-to-file (string-append report-dir "/candidates.txt")
-  (lambda ()
-    (for-each displayln fpcores-out))
+  (lambda () (for-each displayln fpcores-out))
   #:exists 'replace)
-
-(module+ test
-  (require rackunit)
-  (check-equal? (rename-vars '(+ x y)) '(+ z0 z1)))
