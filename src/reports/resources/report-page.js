@@ -8,6 +8,7 @@ var diffAgainstFields = {}
 var otherJsonData = null
 var resultsJsonData = null
 var countsJsonData = null
+var costsJsonData = null
 
 function update() {
     let bodyNode = document.querySelector("body");
@@ -448,6 +449,8 @@ function buildBody(jsonData, otherJsonData) {
                 buildTableHeader("start"),
                 buildTableHeader("end", resultHelpText),
                 buildTableHeader("score"),
+                buildTableHeader("cost"),
+                buildTableHeader("count"),
                 buildTableHeader("target", targetHelpText),
                 buildTableHeader("time"),
             ]),
@@ -582,10 +585,20 @@ function getCountForTestName(name) {
     return Number.isFinite(n) ? n : 0;
 }
 
+function getCostForTestName(name) {
+    if (!costsJsonData) return 0;
+    const raw = costsJsonData[name];
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+}
+
 function getScore(test) {
-    const c = getCountForTestName(test.name);
+    const count = getCountForTestName(test.name);
+    const cost = getCostForTestName(test.name);
+    if (cost === 0)
+        return 0 
     const endVal = (test && typeof test.end === "number") ? test.end : 0;
-    return c * endVal;
+    return (endVal * count) / (cost / 1000);
 }
 
 // HACK I kinda hate this split lambda function, Zane
@@ -610,6 +623,8 @@ function buildRow(test, other) {
             Element("td", {}, [startAccuracy]),
             Element("td", {}, [resultAccuracy]),
             Element("td", {}, [String(Math.floor(getScore(test)))]),
+            Element("td", {}, [String(Math.floor(getCostForTestName(test.name)))]),
+            Element("td", {}, [String(Math.floor(getCountForTestName(test.name)))]),
             Element("td", {}, [targetAccuracy]),
             Element("td", {}, [formatTime(test.time)]),
             Element("td", {}, [
@@ -691,6 +706,8 @@ function buildRow(test, other) {
             tdStartAccuracy,
             tdResultAccuracy,
             Element("td", {}, [String(Math.floor(getScore(test)))]),
+            Element("td", {}, [String(Math.floor(getCostForTestName(test.name)))]),
+            Element("td", {}, [String(Math.floor(getCountForTestName(test.name)))]),
             tdTargetAccuracy,
             tdTime,
             Element("td", {}, [
@@ -972,6 +989,7 @@ async function getResultsJson() {
 
 async function getCountsJson() {
     if (countsJsonData != null) return;
+    let response;
     try {
         response = await fetch("../counts.json", {
             headers: { "content-type": "application/json" },
@@ -980,6 +998,20 @@ async function getCountsJson() {
         return showGetJsonError(err);
     }
     countsJsonData = await response.json();
+    update();
+}
+
+async function getCostsJson() {
+    if (costsJsonData != null) return;
+    let response;
+    try {
+        response = await fetch("../costs.json", {
+            headers: { "content-type": "application/json" },
+        });
+    } catch (err) {
+        return showGetJsonError(err);
+    }
+    costsJsonData = await response.json();
     update();
 }
 
@@ -1001,4 +1033,5 @@ function storeBenchmarks(tests) {
 }
 
 getCountsJson();
+getCostsJson();
 getResultsJson();

@@ -16,8 +16,7 @@
 (define filename (vector-ref (current-command-line-arguments) 0))
 
 (define count-list (call-with-input-file "reports/counts.rkt" read))
-
-(define cost-proc (platform-cost-proc (*active-platform*)))
+(define cost-list (call-with-input-file "reports/costs.rkt" read))
 
 (define json (string->jsexpr (first (file->lines filename))))
 (define tests (hash-ref json 'tests))
@@ -27,16 +26,23 @@
     (define link (hash-ref t 'link))
     (define end-val (hash-ref t 'end))
     (define spec (with-input-from-string input-str read))
-    (define prog (fpcore->prog spec (get-ctx spec)))
 
     (define found-count (assoc spec count-list))
+    (define found-cost (assoc spec cost-list))
+
     (define count (if found-count
                       (cdr found-count)
                       (begin
                         (displayln (format "~a not found" input-str))
                         0)))
+
+    (define cost (if found-cost
+                    (cdr found-cost)
+                    (begin
+                    (displayln (format "~a not found" input-str))
+                    0)))
     
-    (define cost (cost-proc prog (get-representation 'binary64)))
+    
     (define score (if (number? end-val)
                       (/ (* end-val count) cost)
                     0))
@@ -91,7 +97,7 @@
                             (string-join (map symbol->string (free-variables spec)))))
 
 
-(with-output-to-file "src/platforms/grow.rkt"
+(with-output-to-file "growlibm/grow.rkt"
   (lambda ()
    (displayln operator-strf64)
    (displayln operator-strf32))
