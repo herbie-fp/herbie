@@ -28,56 +28,58 @@
     (and (symbol? op) (member op comparison-bases)))
   
   (define hole 'hole)
-  
-  (define (cartesian-product lists)
-    (match lists
-      ['() '(())]
-      [(cons head tail)
-       (for*/list ([item head]
-                   [rest (cartesian-product tail)])
-         (cons item rest))]))
 
   (reap [sow]
     (let loop ([expr expr])
       (match expr
-        ;; 1. CONTROL FLOW (Transparent / Stripped)
-        ;; We recurse to find math inside, but we DO NOT sow the 'if' itself.
+        ;; 1. CONTROL FLOW
         [(or `(if ,test ,t ,f)
              `(if.f32 ,test ,t ,f)
              `(if.f64 ,test ,t ,f))
          (loop test)
          (loop t)
          (loop f)
-         ;; RETURN: We return the expr (so parents can build trees containing it)
-         ;; and 'hole (so parents can replace this block with a hole).
          (list expr hole)]
 
-        ;; 2. COMPARISONS (Transparent / Stripped)
-        ;; We recurse, but DO NOT sow.
+        ;; 2. COMPARISONS
         [(list (? comparison-op? op) lhs rhs)
          (loop lhs)
          (loop rhs)
-         ;; RETURN: Only expr. No hole (booleans aren't numerical holes).
          (list expr)]
 
-        ;; 3. GENERIC OPS (The Engine)
+        ;; 3. GENERIC OPS (Linear Expansion)
         [(list op args ...)
+         ;; Recurse to get variants for all children
          (define arg-variants-list (map loop args))
          
          (define current-variants
-           (for/list ([combo (cartesian-product arg-variants-list)])
-             `(,op ,@combo)))
+           (append
+            ;; A. Always include the original expression
+            (list expr)
+            
+            ;; B. Generate One-Hot Variants:
+            ;; Iterate through each child position 'i'
+            (for*/list ([i (in-range (length args))]
+                        [variant (list-ref arg-variants-list i)]
+                        ;; Optimization: Don't reconstruct if the variant is just the original child
+                        #:unless (equal? variant (list-ref args i)))
+              
+              ;; Construct: (op arg0 ... variant ... argN)
+              ;; We take the original args, but swap the i-th one with the variant
+              (append `(,op) 
+                      (take args i) 
+                      (list variant) 
+                      (drop args (add1 i))))))
          
-         ;; Sow all generated variants of this math op
+         ;; Sow valid variants
          (for ([v current-variants]) (sow v))
          
-         ;; Return 'hole + variants to parent
+         ;; Return 'hole + linear variants to parent
          (cons hole current-variants)]
 
-        ;; 4. LEAVES (Symbols/Numbers)
+        ;; 4. LEAVES
         [_ 
          (sow expr)
-         ;; Return leaf only (no hole replacement for leaves)
          (list expr)]))))
 
 (define cost-proc (platform-cost-proc (*active-platform*)))
