@@ -244,7 +244,7 @@
 (define-rules arithmetic
   [sqrt-prod (sqrt (* x y)) (* (sqrt (fabs x)) (sqrt (fabs y)))]
   [sqrt-div (sqrt (/ x y)) (/ (sqrt (fabs x)) (sqrt (fabs y)))]
-  [add-sqr-sqrt x (copysign (* (sqrt (fabs x)) (sqrt (fabs x))) x)])
+  #;[add-sqr-sqrt x (copysign (* (sqrt (fabs x)) (sqrt (fabs x))) x)])
 
 ; Cubing
 (define-rules arithmetic
@@ -268,8 +268,8 @@
   [cbrt-undiv (/ (cbrt x) (cbrt y)) (cbrt (/ x y))]
   [pow-cbrt (pow (cbrt x) y) (pow x (/ y 3))]
   [cbrt-pow (cbrt (pow x y)) (pow x (/ y 3))]
-  [add-cube-cbrt x (* (* (cbrt x) (cbrt x)) (cbrt x))]
-  [add-cbrt-cube x (cbrt (* (* x x) x))]
+  #;[add-cube-cbrt x (* (* (cbrt x) (cbrt x)) (cbrt x))]
+  #;[add-cbrt-cube x (cbrt (* (* x x) x))]
   [cube-unmult (* x (* x x)) (pow x 3)]
   [cbrt-neg (cbrt (neg x)) (neg (cbrt x))]
   [cbrt-neg-rev (neg (cbrt x)) (cbrt (neg x))]
@@ -285,7 +285,7 @@
 
 ; Exponentials
 (define-rules exponents
-  [add-log-exp x (log (exp x))]
+  #;[add-log-exp x (log (exp x))]
   #;[add-exp-log x (exp (log x)) #:unsound] ; unsound @ x = -1
   [rem-exp-log (exp (log x)) x]
   [rem-log-exp (log (exp x)) x])
