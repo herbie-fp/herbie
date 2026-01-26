@@ -78,7 +78,10 @@
 (define (run-taylor altns global-batch spec-batch reducer)
   (timeline-event! 'series)
   (define (key x)
-    (approx-impl (deref (alt-expr x))))
+    (define expr (deref (alt-expr x)))
+    (if (approx? expr)
+        (approx-impl expr)
+        expr))
 
   (define approxs (remove-duplicates (taylor-alts altns global-batch spec-batch reducer) #:key key))
   (define approxs* (remove-duplicates (run-lowering approxs global-batch) #:key key))
