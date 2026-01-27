@@ -190,13 +190,18 @@
 
 (define top-candidates (take sorted-cand-count-pairs (min (length sorted-cand-count-pairs) 2000)))
 
-(define high-error-candidates
+(define non-exact-candidates
   (filter (lambda (p) (< 0.1 (get-error (car p)))) top-candidates))
 
-(print-info "high-error candidates" (length high-error-candidates))
+(print-info "non-exact candidates" (length non-exact-candidates))
+(define non-exact-out (map (lambda (c) (format "~a, ~a\n" (prog->fpcore (car c) (get-ctx (car c))) (cdr c))) non-exact-candidates))
+
+(with-output-to-file (string-append report-dir "/full-candidates.txt")
+  (lambda () (display non-exact-out))
+  #:exists 'replace)
 
 ;; Output
-(define final-output (take high-error-candidates (min (length high-error-candidates) 500)))
+(define final-output (take non-exact-candidates (min (length non-exact-candidates) 500)))
 (define fpcores-out (map to-fpcore-str final-output))
 (define counts-out (map (lambda (p) (cons (prog->fpcore (car p) (get-ctx (car p))) (cdr p))) 
                         final-output))

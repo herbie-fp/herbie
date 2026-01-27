@@ -79,10 +79,13 @@ html_content = f"""
 <body>
     <h1>GrowLibm Report</h1>
     <p><a href="expr_dump.txt">Herbie Dump</a></p>
-    <p><a href="candidates.txt">Candidates</a></p>
-    <p><a href="counts.rkt">Candidate Counts</a></p>
-    <p><a href="grow_platform.txt">Grow Platform</a></p>
-    
+    <p><a href="full-candidates.txt">All Candidates</a></p>
+    <p><a href="candidates.txt">Top 500 Candidates</a></p>
+    <p><a href="counts.json">Candidate Counts</a></p>
+    <p><a href="costs.json">Candidate Costs</a></p>
+    <p><a href="info.txt">More info</a></p>
+    <p><a href="accelerators.json">Accelerators</a></p>
+
     <h2>Overall Summary</h2>
     <p><strong>Start:</strong> {start_accuracy_str} - <a href="{START_FOLDER}/">Folder</a></p>
     <p><strong>End:</strong> {end_accuracy_str} - <a href="{END_FOLDER}/">Folder</a></p>

@@ -8,10 +8,6 @@
   "../src/syntax/platform-language.rkt")
 
 (activate-platform! "grow")
-(define (get-ctx expr)
-  (define free-vars (free-variables expr))
-  (context free-vars (get-representation 'binary64)
-           (make-list (length free-vars) (get-representation 'binary64))))
 
 (define filename (vector-ref (current-command-line-arguments) 0))
 
@@ -37,16 +33,16 @@
                         0)))
 
     (define cost (if found-cost
-                    (cdr found-cost)
-                    (begin
-                    (displayln (format "~a not found" input-str))
-                    0)))
-    
-    
+                     (cdr found-cost)
+                     (begin
+                       (displayln (format "~a not found" input-str))
+                       0)))
+
+
     (define score (if (number? end-val)
                       (/ (* end-val count) cost)
-                    0))
-    (list input-str link end-val score)))
+                      0))
+    (list input-str link end-val score cost)))
 
 (define sorted-pairs (sort scored-pairs > #:key fourth))
 
@@ -57,6 +53,8 @@
 (define chosen-pair (first sorted-pairs))
 (define fpcore (with-input-from-string (first chosen-pair) read))
 (define link (second chosen-pair))
+(define cost (last chosen-pair))
+(define fake-cost (floor (/ cost 5)))
 
 (define accelerators-path "reports/accelerators.json")
 (define existing-accelerators
@@ -72,9 +70,9 @@
   (displayln (format "accelerator ~a already present; skipping" link))
   (exit 0))
 
-(define ctx (context (free-variables fpcore) 
-                     (get-representation 'binary64) 
-                     (make-list (length (free-variables fpcore)) 
+(define ctx (context (free-variables fpcore)
+                     (get-representation 'binary64)
+                     (make-list (length (free-variables fpcore))
                                 (get-representation 'binary64))))
 
 (define prog (fpcore->prog fpcore ctx))
@@ -82,25 +80,27 @@
 (define (render-var-f64 var) (format "[~a <binary64>]" var))
 (define (render-var-f32 var) (format "[~a <binary32>]" var))
 
-(define operator-strf64 (format "(define-operation (~a.f64 ~a) <binary64> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary64 (~a ~a)) #:cost 1000)"
-                            link
-                            (string-join (map render-var-f64 (free-variables spec)))
-                            spec
-                            link
-                            (string-join (map symbol->string (free-variables spec)))))
+(define operator-strf64 (format "(define-operation (~a.f64 ~a) <binary64> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary64 (~a ~a)) #:cost ~a)"
+                                link
+                                (string-join (map render-var-f64 (free-variables spec)))
+                                spec
+                                link
+                                (string-join (map symbol->string (free-variables spec)))
+                                fake-cost))
 
-(define operator-strf32 (format "(define-operation (~a.f32 ~a) <binary32> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary32 (~a ~a)) #:cost 1000)"
-                            link
-                            (string-join (map render-var-f32 (free-variables spec)))
-                            spec
-                            link
-                            (string-join (map symbol->string (free-variables spec)))))
+(define operator-strf32 (format "(define-operation (~a.f32 ~a) <binary32> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary32 (~a ~a)) #:cost ~a)"
+                                link
+                                (string-join (map render-var-f32 (free-variables spec)))
+                                spec
+                                link
+                                (string-join (map symbol->string (free-variables spec)))
+                                fake-cost))
 
 
 (with-output-to-file "growlibm/grow.rkt"
   (lambda ()
-   (displayln operator-strf64)
-   (displayln operator-strf32))
+    (displayln operator-strf64)
+    (displayln operator-strf32))
   #:exists 'append)
 
 (define new-entry (hash 'name link 'spec (format "~a" spec)))
