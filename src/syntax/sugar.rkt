@@ -126,15 +126,6 @@
                (list 'and out (list '!= term term2))
                (list '!= term term2))))
        (or out '(TRUE))]
-      ; function calls
-      [(list (? (curry hash-has-key? (*functions*)) fname) args ...)
-       (match-define (list vars _ body) (hash-ref (*functions*) fname))
-       (define env*
-         (for/fold ([env* '()])
-                   ([var (in-list vars)]
-                    [arg (in-list args)])
-           (dict-set env* var (loop arg env))))
-       (loop body env*)]
       ; applications
       [`(,op ,args ...) `(,op ,@(map (curryr loop env) args))]
       ; constants
