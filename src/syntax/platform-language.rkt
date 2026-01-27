@@ -11,6 +11,8 @@
 (provide define-representation
          define-operation
          define-operations
+         create-operator-impl!
+         platform-register-implementation!
          fpcore-context
          if-impl
          if-cost
@@ -130,7 +132,8 @@
                         (operator-impl-name impl)
                         (*platform-name*)))
   ; Update table
-  (hash-set! impls (operator-impl-name impl) impl))
+  (hash-set! impls (operator-impl-name impl) impl)
+  (reset-fpcore-op-cache!))
 
 ;; Macros for the core operations
 

@@ -37,6 +37,7 @@
          prog->spec
          batch-to-spec!
          get-fpcore-impl
+         reset-fpcore-op-cache!
          (struct-out $platform)
          ;; Platform API
          ;; Operator sets
@@ -197,6 +198,9 @@
     [body (values '() body)]))
 
 (define/reset op-hash #f)
+
+(define (reset-fpcore-op-cache!)
+  (op-hash #f))
 
 ;; For a given FPCore operator, rounding context, and input representations,
 ;; finds the best operator implementation. Panics if none can be found.

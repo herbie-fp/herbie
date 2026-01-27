@@ -1,9 +1,11 @@
 #lang racket
 
 (require "../core/programs.rkt"
+         "../core/compiler.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
          "platform.rkt"
+         (only-in "platform-language.rkt" create-operator-impl! platform-register-implementation!)
          "sugar.rkt"
          "syntax-check.rkt"
          "syntax.rkt"
@@ -33,6 +35,16 @@
     (for/list ([var vars])
       (get-representation (dict-ref (test-var-repr-names test) var))))
   (context (test-vars test) output-repr var-reprs))
+
+(define (register-fpcore-operator! name ctx body* spec*)
+  (define output-repr (context-repr ctx))
+  (define spec-expr (prog->spec spec*))
+  (define fl-proc (compile-prog body* ctx))
+  (define cost ((platform-cost-proc (*active-platform*)) body* output-repr))
+  (define fpcore-expr (cons name (context-vars ctx)))
+  (define impl
+    (create-operator-impl! name ctx #:spec spec-expr #:impl fl-proc #:fpcore fpcore-expr #:cost cost))
+  (platform-register-implementation! (*active-platform*) impl))
 
 ;; Unfortunately copied from `src/syntax/sugar.rkt`
 (define (expand stx)
@@ -169,10 +181,6 @@
   (define var-reprs (map get-representation var-precs))
   (define ctx (context var-names default-repr var-reprs))
 
-  ;; Named fpcores need to be added to function table
-  (when func-name
-    (register-function! func-name args default-prec body))
-
   ;; Try props first, then identifier, else the expression itself
   (define name (or (dict-ref prop-dict ':name #f) func-name body))
 
@@ -194,6 +202,10 @@
            (cons val #t))])))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
+
+  ;; Named fpcores become platform operators
+  (when func-name
+    (register-fpcore-operator! func-name ctx body* spec))
   (check-unused-variables var-names body* pre*)
   (check-weird-variables var-names)
 
@@ -286,22 +298,27 @@
   (define precision 'binary64)
   (define ctx (context '(x y z a) <binary64> (make-list 4 <binary64>)))
 
-  ;; inlining
+  ;; named FPCore operators
 
   ;; Test classic quadp and quadm examples
-  (register-function! 'discr (list 'a 'b 'c) precision `(sqrt (- (* b b) (* a c))))
+  (define discr-ctx (context '(a b c) <binary64> (make-list 3 <binary64>)))
+  (define discr-body `(sqrt (- (* b b) (* a c))))
+  (define discr-prog (fpcore->prog discr-body discr-ctx))
+  (register-fpcore-operator! 'discr discr-ctx discr-prog discr-prog)
   (define quadp `(/ (+ (- y) (discr x y z)) x))
   (define quadm `(/ (- (- y) (discr x y z)) x))
-  (check-equal? (fpcore->prog quadp ctx)
-                '(/.f64 (+.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 x z)))) x))
-  (check-equal? (fpcore->prog quadm ctx)
-                '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 x z)))) x))
+  (check-equal? (fpcore->prog quadp ctx) '(/.f64 (+.f64 (neg.f64 y) (discr x y z)) x))
+  (check-equal? (fpcore->prog quadm ctx) '(/.f64 (-.f64 (neg.f64 y) (discr x y z)) x))
 
   ;; x^5 = x^3 * x^2
-  (register-function! 'sqr (list 'x) precision '(* x x))
-  (register-function! 'cube (list 'x) precision '(* x x x))
+  (define sqr-ctx (context '(x) <binary64> (list <binary64>)))
+  (define sqr-prog (fpcore->prog '(* x x) sqr-ctx))
+  (register-fpcore-operator! 'sqr sqr-ctx sqr-prog sqr-prog)
+  (define cube-ctx (context '(x) <binary64> (list <binary64>)))
+  (define cube-prog (fpcore->prog '(* x x x) cube-ctx))
+  (register-fpcore-operator! 'cube cube-ctx cube-prog cube-prog)
   (define fifth '(* (cube a) (sqr a)))
-  (check-equal? (fpcore->prog fifth ctx) '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))
+  (check-equal? (fpcore->prog fifth ctx) '(*.f64 (cube a) (sqr a)))
 
   ;; casting edge cases
   (check-equal? (fpcore->prog `(cast x) ctx) 'x)
