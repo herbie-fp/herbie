@@ -209,5 +209,3 @@
                   #:cost 64)
 
 ;;;;;;;;;;;;;;;;;;;;;;; NEW ACCELERATORS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(define-operation (147-sqrtz1z0z0z1z0.f64 [z1 <binary64>] [z0 <binary64>]) <binary64> #:spec (+ (sqrt (* (+ z1 z0) (- z0 z1))) z0) #:impl (from-rival) #:fpcore (! :precision binary64 (147-sqrtz1z0z0z1z0 z1 z0)) #:cost 1000)
-(define-operation (147-sqrtz1z0z0z1z0.f32 [z1 <binary32>] [z0 <binary32>]) <binary32> #:spec (+ (sqrt (* (+ z1 z0) (- z0 z1))) z0) #:impl (from-rival) #:fpcore (! :precision binary32 (147-sqrtz1z0z0z1z0 z1 z0)) #:cost 1000)
