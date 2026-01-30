@@ -598,7 +598,7 @@ function getScore(test) {
     if (cost === 0)
         return 0 
     const endVal = (test && typeof test.end === "number") ? test.end : 0;
-    return (endVal * count) / (cost / 1000);
+    return ((endVal * count) / (cost / 1000)) * 1000;
 }
 
 // HACK I kinda hate this split lambda function, Zane

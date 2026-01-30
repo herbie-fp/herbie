@@ -2,15 +2,49 @@
 (require json)
 (require
   "../src/syntax/load-platform.rkt"
-  "../src/syntax/load-platform.rkt"
   "../src/syntax/sugar.rkt"
   "../src/core/programs.rkt"
+  "../src/syntax/syntax.rkt"
+  "growlibm-common.rkt"
+  "../src/api/sandbox.rkt"
+  "../src/syntax/types.rkt"
+  "../src/core/points.rkt"
+  "../src/core/rules.rkt"
+  "../src/config.rkt"
+  "../src/core/batch.rkt"
+  "../src/core/egg-herbie.rkt"
+  "../src/syntax/read.rkt"
+  "../src/syntax/load-platform.rkt"
+  "../src/syntax/types.rkt"
+  "../src/syntax/read.rkt"
+  "../src/syntax/platform.rkt"
+  "../src/syntax/sugar.rkt"
+  "../src/core/programs.rkt"
+  "../src/syntax/syntax.rkt"
+  "../src/reports/common.rkt"
   "../src/syntax/platform-language.rkt")
 
-(activate-platform! "grow")
+;;; ------------------------- SETUP ---------------------------------
+(activate-platform! "no-accelerators")
+(struct candidate (name spec score cost))
 
+
+;;; ------------------------- HELPERS ---------------------------------
+(define (register-op spec name)
+  (define ctx (get-ctx spec))
+  (define impl
+    (create-operator-impl!
+     name
+     ctx
+     #:spec spec
+     #:impl (from-rival)
+     #:fpcore '(! :precision binary64 (name z0 z1))
+     #:cost 0))
+  (platform-register-implementation! (*active-platform*) impl)
+  (void))
+
+;;; ------------------------- MAIN PIPELINE ---------------------------------
 (define filename (vector-ref (current-command-line-arguments) 0))
-
 (define count-list (call-with-input-file "reports/counts.rkt" read))
 (define cost-list (call-with-input-file "reports/costs.rkt" read))
 
@@ -19,7 +53,7 @@
 (define scored-pairs
   (for/list ([t tests])
     (define input-str (hash-ref t 'input))
-    (define link (hash-ref t 'link))
+    (define name (hash-ref t 'link))
     (define end-val (hash-ref t 'end))
     (define spec (with-input-from-string input-str read))
 
@@ -38,22 +72,21 @@
                        (displayln (format "~a not found" input-str))
                        0)))
 
-
     (define score (if (number? end-val)
                       (/ (* end-val count) cost)
                       0))
-    (list input-str link end-val score cost)))
+    (candidate name spec score cost)))
 
-(define sorted-pairs (sort scored-pairs > #:key fourth))
+(define sorted-cands (sort scored-pairs > #:key candidate-score))
 
-(when (null? sorted-pairs)
+(when (null? sorted-cands)
   (displayln "No accelerators discovered in this iteration.")
   (exit 0))
 
-(define chosen-pair (first sorted-pairs))
-(define fpcore (with-input-from-string (first chosen-pair) read))
-(define link (second chosen-pair))
-(define cost (last chosen-pair))
+(define chosen-cand (first sorted-cands))
+(define fpcore (candidate-spec chosen-cand))
+(define name (candidate-name chosen-cand))
+(define cost (candidate-cost chosen-cand))
 (define fake-cost (floor (/ cost 5)))
 
 (define accelerators-path "reports/accelerators.json")
@@ -66,8 +99,8 @@
           [else '()]))
       '()))
 
-(when (ormap (lambda (entry) (equal? (hash-ref entry 'name #f) link)) existing-accelerators)
-  (displayln (format "accelerator ~a already present; skipping" link))
+(when (ormap (lambda (entry) (equal? (hash-ref entry 'name #f) name)) existing-accelerators)
+  (displayln (format "accelerator ~a already present; skipping" name))
   (exit 0))
 
 (define ctx (context (free-variables fpcore)
@@ -81,18 +114,18 @@
 (define (render-var-f32 var) (format "[~a <binary32>]" var))
 
 (define operator-strf64 (format "(define-operation (~a.f64 ~a) <binary64> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary64 (~a ~a)) #:cost ~a)"
-                                link
+                                name
                                 (string-join (map render-var-f64 (free-variables spec)))
                                 spec
-                                link
+                                name
                                 (string-join (map symbol->string (free-variables spec)))
                                 fake-cost))
 
 (define operator-strf32 (format "(define-operation (~a.f32 ~a) <binary32> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary32 (~a ~a)) #:cost ~a)"
-                                link
+                                name
                                 (string-join (map render-var-f32 (free-variables spec)))
                                 spec
-                                link
+                                name
                                 (string-join (map symbol->string (free-variables spec)))
                                 fake-cost))
 
@@ -103,7 +136,7 @@
     (displayln operator-strf32))
   #:exists 'append)
 
-(define new-entry (hash 'name link 'spec (format "~a" spec)))
+(define new-entry (hash 'name name 'spec (format "~a" spec)))
 
 (define updated-accelerators
   (append existing-accelerators (list new-entry)))
@@ -113,4 +146,4 @@
     (write-json updated-accelerators out))
   #:exists 'truncate)
 
-(displayln (format "adding accelerator ~a, with spec: ~a" link spec))
+(displayln (format "adding accelerator ~a, with spec: ~a" name spec))

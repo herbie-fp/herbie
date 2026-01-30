@@ -1,27 +1,41 @@
 #lang racket
 
 (require
-  "../src/api/sandbox.rkt"
-  "../src/core/points.rkt"
-  "../src/core/batch.rkt"
-  "../src/core/egg-herbie.rkt"
-  "../src/syntax/load-platform.rkt"
-  "../src/core/points.rkt"
-  "../src/core/batch.rkt"
-  "../src/core/egg-herbie.rkt"
   "../src/syntax/load-platform.rkt"
   "../src/syntax/sugar.rkt"
   "../src/core/programs.rkt"
   "../src/syntax/syntax.rkt"
   "../src/utils/common.rkt"
+  "growlibm-common.rkt"
+  "../src/api/sandbox.rkt"
+  "../src/syntax/types.rkt"
+  "../src/core/points.rkt"
+  "../src/core/rules.rkt"
+  "../src/config.rkt"
+  "../src/core/batch.rkt"
+  "../src/core/egg-herbie.rkt"
+  "../src/syntax/read.rkt"
+  "../src/syntax/load-platform.rkt"
+  "../src/syntax/types.rkt"
+  "../src/syntax/read.rkt"
   "../src/syntax/platform.rkt"
-  "../src/syntax/types.rkt")
+  "../src/syntax/sugar.rkt"
+  "../src/core/programs.rkt"
+  "../src/syntax/syntax.rkt"
+  "../src/utils/common.rkt"
+  "../src/reports/common.rkt")
 
 ;;; ------------------------- SETUP ---------------------------------
 (activate-platform! "no-accelerators")
 (*node-limit* 50000)
+(define report-dir (vector-ref (current-command-line-arguments) 0))
 
 ;;; ------------------------- HELPERS ---------------------------------
+(define (get-cost expr)
+  (cost-proc expr (get-representation 'binary64)))
+
+(define cost-proc (platform-cost-proc (*active-platform*)))
+
 (define (get-holey-subexpressions expr)
   (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
   (define (comparison-op? op)
@@ -82,16 +96,12 @@
          (sow expr)
          (list expr)]))))
 
-(define cost-proc (platform-cost-proc (*active-platform*)))
 
 (define (remove-approxes expr)
   (match expr
     [(approx _ impl) (remove-approxes impl)]
     [(list op args ...) (cons op (map remove-approxes args))]
     [_ expr]))
-
-(define (get-cost expr)
-  (cost-proc expr (get-representation 'binary64)))
 
 (define (get-error expr)
   (with-handlers ([exn? (lambda (exn) 0)])
@@ -139,33 +149,26 @@
         (set! var-reprs (append var-reprs (list repr))))))
   (context vars (get-representation 'binary64) var-reprs))
 
-(define (get-ctx expr)
-  (define free-vars (free-variables expr))
-  (context free-vars (get-representation 'binary64)
-           (make-list (length free-vars) (get-representation 'binary64))))
-
 (define (to-fpcore-str pair)
   (define expr (car pair))
   (define vars (sort (free-variables expr) symbol<?))
   (define ctx (get-ctx expr))
   (format "(FPCore ~a ~a)" vars (prog->fpcore expr ctx)))
 
-(define (print-info name number)
+(define (log-info name number report-dir)
   (with-output-to-file (string-append report-dir "/info.txt")
     (lambda () (display (format "~a, ~a\n" name number)))
     #:exists 'append))
 
 ;;; ------------------------- MAIN PIPELINE ---------------------------------
-(define report-dir (vector-ref (current-command-line-arguments) 0))
-
 (define roots (file->list (string-append report-dir "/expr_dump.txt")))
-(print-info "roots" (length roots))
+(log-info "roots" (length roots) report-dir)
 
 (define alpha-renamed-roots (map alpha-rename roots))
 (define canonical-roots (run-egg alpha-renamed-roots))
 
 (define subexprs (append* (map get-holey-subexpressions canonical-roots)))
-(print-info "subexprs" (length subexprs))
+(log-info "subexprs" (length subexprs) report-dir)
 
 (define filtered-subexprs
   (filter (lambda (n)
@@ -175,7 +178,7 @@
           subexprs))
 
 (define alpha-renamed-subexprs (map alpha-rename filtered-subexprs))
-(print-info "filtered subexprs" (length alpha-renamed-subexprs))
+(log-info "filtered subexprs" (length alpha-renamed-subexprs) report-dir)
 
 (define canonical-candidates (run-egg alpha-renamed-subexprs))
 
@@ -184,7 +187,7 @@
   (hash-update! counts c add1 0))
 
 (define cand-count-pairs (hash->list counts))
-(print-info "deduped candidates" (length cand-count-pairs))
+(log-info "deduped candidates" (length cand-count-pairs) report-dir)
 
 (define sorted-cand-count-pairs (sort cand-count-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
 
@@ -193,7 +196,7 @@
 (define non-exact-candidates
   (filter (lambda (p) (< 0.1 (get-error (car p)))) top-candidates))
 
-(print-info "non-exact candidates" (length non-exact-candidates))
+(log-info "non-exact candidates" (length non-exact-candidates) report-dir)
 (define non-exact-out (map (lambda (c) (format "~a, ~a\n" (prog->fpcore (car c) (get-ctx (car c))) (cdr c))) non-exact-candidates))
 
 (with-output-to-file (string-append report-dir "/full-candidates.txt")
@@ -203,11 +206,11 @@
 ;; Output
 (define final-output (take non-exact-candidates (min (length non-exact-candidates) 500)))
 (define fpcores-out (map to-fpcore-str final-output))
-(define counts-out (map (lambda (p) (cons (prog->fpcore (car p) (get-ctx (car p))) (cdr p))) 
+(define counts-out (map (lambda (p) (cons (prog->fpcore (car p) (get-ctx (car p))) (cdr p)))
                         final-output))
 
 (define costs-out (map (lambda (p) (cons (prog->fpcore (car p) (get-ctx (car p))) (get-cost (car p))))
-                        final-output))
+                       final-output))
 
 (with-output-to-file (string-append report-dir "/counts.rkt")
   (lambda () (display counts-out))
