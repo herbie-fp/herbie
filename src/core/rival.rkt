@@ -8,7 +8,8 @@
 #lang racket
 
 (require math/bigfloat
-         rival)
+         (prefix-in r2: rival)
+         (prefix-in r3: rival3-racket))
 
 (require "../config.rkt"
          "../utils/errors.rkt"
@@ -17,7 +18,107 @@
          "../syntax/types.rkt"
          "../syntax/batch.rkt")
 
+(define (use-rival3?)
+  (flag-set? 'sampling 'rival3))
+
+(define (rival-compile exprs vars discs)
+  (if (use-rival3?)
+      (r3:rival-compile exprs vars discs)
+      (r2:rival-compile exprs vars discs)))
+
+(define (rival-apply machine pt hint)
+  (if (use-rival3?)
+      (r3:rival-apply machine pt hint)
+      (r2:rival-apply machine pt hint)))
+
+(define (rival-analyze-with-hints machine rect hint)
+  (if (use-rival3?)
+      (r3:rival-analyze-with-hints machine rect hint)
+      (r2:rival-analyze-with-hints machine rect hint)))
+
+(define (rival-profile machine param)
+  (if (use-rival3?)
+      (r3:rival-profile machine param)
+      (r2:rival-profile machine param)))
+
+(define (boolean-discretization)
+  (if (use-rival3?) r3:boolean-discretization r2:boolean-discretization))
+
+(define (discretization bits convert distance)
+  (if (use-rival3?)
+      (r3:discretization bits convert distance 'f64)
+      (r2:discretization bits convert distance)))
+
+(define (exn:rival:invalid? e)
+  (or (r2:exn:rival:invalid? e) (r3:exn:rival:invalid? e)))
+
+(define (exn:rival:unsamplable? e)
+  (or (r2:exn:rival:unsamplable? e) (r3:exn:rival:unsamplable? e)))
+
+(define *rival-max-precision*
+  (make-derived-parameter r2:*rival-max-precision*
+                          identity
+                          (lambda (v)
+                            (r3:*rival-max-precision* v)
+                            v)))
+
+(define *rival-max-iterations*
+  (make-derived-parameter r2:*rival-max-iterations*
+                          identity
+                          (lambda (v)
+                            (r3:*rival-max-iterations* v)
+                            v)))
+
+(define (*rival-profile-executions*)
+  (if (use-rival3?)
+      (r3:*rival-profile-executions*)
+      (r2:*rival-profile-executions*)))
+
+(define (execution-name exec)
+  (if (use-rival3?)
+      (r3:execution-name exec)
+      (r2:execution-name exec)))
+
+(define (execution-precision exec)
+  (if (use-rival3?)
+      (r3:execution-precision exec)
+      (r2:execution-precision exec)))
+
+(define (execution-time exec)
+  (if (use-rival3?)
+      (r3:execution-time exec)
+      (r2:execution-time exec)))
+
+(define (execution-memory exec)
+  (if (use-rival3?)
+      (r3:execution-memory exec)
+      (r2:execution-memory exec)))
+
+(struct herbie-ival (lo hi) #:transparent)
+
+(define (ival? x)
+  (or (herbie-ival? x) (r2:ival? x) (r3:ival? x)))
+
+(define (ival lo hi)
+  (herbie-ival lo hi))
+
+(define (ival-lo iv)
+  (cond
+    [(herbie-ival? iv) (herbie-ival-lo iv)]
+    [(r3:ival? iv) (r3:ival-lo iv)]
+    [else (r2:ival-lo iv)]))
+
+(define (ival-hi iv)
+  (cond
+    [(herbie-ival? iv) (herbie-ival-hi iv)]
+    [(r3:ival? iv) (r3:ival-hi iv)]
+    [else (r2:ival-hi iv)]))
+
 (provide (struct-out real-compiler)
+         ival
+         ival?
+         ival-lo
+         ival-hi
          (contract-out
           [make-real-compiler
            (->i
@@ -26,13 +127,9 @@
              [ctxs (brfs) (and/c unified-contexts? (lambda (ctxs) (= (length brfs) (length ctxs))))])
             (#:pre [pre any/c])
             [c real-compiler?])]
-          [real-apply
-           (->* (real-compiler? vector?) ((or/c (vectorof any/c) boolean?)) (values symbol? any/c))]
+          [real-apply (->* (real-compiler? vector?) (any/c) (values symbol? any/c))]
           [real-compiler-clear! (-> real-compiler-clear! void?)]
-          [real-compiler-analyze
-           (->* (real-compiler? (vectorof ival?))
-                ((or/c (vectorof any/c) boolean?))
-                (listof any/c))]))
+          [real-compiler-analyze (->* (real-compiler? (vectorof ival?)) (any/c) (listof any/c))]))
 
 (define (unified-contexts? ctxs)
   (cond
@@ -50,9 +147,14 @@
       1))
 
 (define (repr->discretization repr)
-  (discretization (representation-total-bits repr)
-                  (representation-bf->repr repr)
-                  (lambda (x y) (- (ulp-difference x y repr) 1))))
+  (if (use-rival3?)
+      (r3:discretization 53
+                         (representation-bf->repr repr)
+                         (lambda (x y) (- (ulp-difference x y repr) 1))
+                         'f64)
+      (r2:discretization (representation-total-bits repr)
+                         (representation-bf->repr repr)
+                         (lambda (x y) (- (ulp-difference x y repr) 1)))))
 
 ;; Herbie's wrapper around the Rival machine abstraction.
 (struct real-compiler (pre vars var-reprs exprs reprs machine dump-file))
@@ -69,7 +171,7 @@
   (define specs (map (batch-exprs batch) brfs))
   ; create the machine
   (define exprs (cons `(assert ,pre) specs))
-  (define discs (cons boolean-discretization (map repr->discretization reprs)))
+  (define discs (cons (boolean-discretization) (map repr->discretization reprs)))
   (define machine (rival-compile exprs vars discs))
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre) (map expr-size specs))
@@ -109,6 +211,11 @@
       (format "#i~a" float) ; The #i explicitly means nearest float
       (number->string real))) ; Backup is print as rational
 
+(define (execution-name->string name)
+  (if (string? name)
+      name
+      (symbol->string name)))
+
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
   (match-define (real-compiler _ vars var-reprs _ _ machine dump-file) compiler)
@@ -134,25 +241,38 @@
           #:extra (for/list ([var (in-vector vars)]
                              [val (in-vector pt)])
                     (format "~a = ~a" var val))))
-  (define executions (rival-profile machine 'executions))
-  (when (>= (vector-length executions) (*rival-profile-executions*))
-    (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
-  (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
-  (define mixsample-table (make-hash))
-  (for ([execution (in-vector executions)])
-    (define name (symbol->string (execution-name execution)))
-    (define precision
-      (- (execution-precision execution) (remainder (execution-precision execution) prec-threshold)))
-    (define key (cons name precision))
-    ;; Uses vectors to avoid allocation; this is really allocation-heavy
-    (define data (hash-ref! mixsample-table key (lambda () (make-vector 2 0))))
-    (vector-set! data 0 (+ (vector-ref data 0) (execution-time execution)))
-    (vector-set! data 1 (+ (vector-ref data 1) (execution-memory execution))))
-  (for ([(key val) (in-hash mixsample-table)])
-    (timeline-push!/unsafe 'mixsample (vector-ref val 0) (car key) (cdr key) (vector-ref val 1)))
+  (define-values (iterations mixsample-data)
+    (if (use-rival3?)
+        (match-let ([(list summary bumps iters) (rival-profile machine 'summary)])
+          (values iters
+                  (for/list ([entry (in-vector summary)])
+                    (match-define (list name prec-bucket total-time count) entry)
+                    (list total-time name prec-bucket 0))))
+        (let ()
+          (define executions (rival-profile machine 'executions))
+          (when (>= (vector-length executions) (*rival-profile-executions*))
+            (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
+          (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
+          (define mixsample-table (make-hash))
+          (for ([execution (in-vector executions)])
+            (define name (execution-name->string (execution-name execution)))
+            (define precision
+              (- (execution-precision execution)
+                 (remainder (execution-precision execution) prec-threshold)))
+            (define key (cons name precision))
+            ;; Uses vectors to avoid allocation; this is really allocation-heavy
+            (define data (hash-ref! mixsample-table key (lambda () (make-vector 2 0))))
+            (vector-set! data 0 (+ (vector-ref data 0) (execution-time execution)))
+            (vector-set! data 1 (+ (vector-ref data 1) (execution-memory execution))))
+          (values (rival-profile machine 'iterations)
+                  (for/list ([(key val) (in-hash mixsample-table)])
+                    (list (vector-ref val 0) (car key) (cdr key) (vector-ref val 1)))))))
+  (for ([entry (in-list mixsample-data)])
+    (match-define (list time name prec memory) entry)
+    (timeline-push!/unsafe 'mixsample time name prec memory))
   (timeline-push!/unsafe 'outcomes
                          (- (current-inexact-milliseconds) start)
-                         (rival-profile machine 'iterations)
+                         iterations
                          (symbol->string status)
                          1)
   (values status value))
@@ -166,4 +286,10 @@
 ;; for the given inputs range. The result is an interval representing
 ;; how certain the result is: no, maybe, yes.
 (define (real-compiler-analyze compiler input-ranges [hint #f])
-  (rival-analyze-with-hints (real-compiler-machine compiler) input-ranges hint))
+  (define rect*
+    (for/vector #:length (vector-length input-ranges)
+                ([iv (in-vector input-ranges)])
+      (if (use-rival3?)
+          (r3:ival (ival-lo iv) (ival-hi iv))
+          (r2:ival (ival-lo iv) (ival-hi iv)))))
+  (rival-analyze-with-hints (real-compiler-machine compiler) rect* hint))

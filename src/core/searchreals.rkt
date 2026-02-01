@@ -1,7 +1,6 @@
 #lang racket
 
-(require math/bigfloat
-         rival)
+(require math/bigfloat)
 
 (require "../utils/errors.rkt"
          "../utils/float.rkt"
@@ -41,18 +40,20 @@
                [other-hints* '()])
               ([rect (in-list other)]
                [hint (in-list other-hints)])
-      (match-define (list (ival err err?) hint* converged?)
+      (match-define (list err-ival hint* converged?)
         (real-compiler-analyze compiler (list->vector rect) hint))
+      (define err (ival-lo err-ival))
+      (define err? (ival-hi err-ival))
       (when (eq? err 'unsamplable)
         (warn 'ground-truth
               #:url "faq.html#ground-truth"
               "could not determine a ground truth"
               #:extra (for/list ([var (in-vector vars)]
                                  [repr (in-vector reprs)]
-                                 [ival rect])
+                                 [iv rect])
                         (define val
                           (value->string ((representation-bf->repr repr)
-                                          (bigfloat-pick-point (ival-lo ival) (ival-hi ival)))
+                                          (bigfloat-pick-point (ival-lo iv) (ival-hi iv)))
                                          repr))
                         (format "~a = ~a" var val))))
       (cond
