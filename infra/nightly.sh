@@ -25,6 +25,7 @@ for bench in "$BENCHDIR"/*; do
 
   racket -y "src/main.rkt" report \
          --seed "$SEED" \
+         --enable sampling:rival3 \
          "$@" \
          "$bench" "$REPORTDIR"/"$name"
   
