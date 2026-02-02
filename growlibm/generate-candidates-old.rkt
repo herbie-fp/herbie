@@ -144,16 +144,16 @@
     [(list op args ...) (cons op (map remove-approxes args))]
     [_ expr]))
 
-(define (get-error expr)
-  (with-handlers ([exn? (lambda (exn) 0)])
-    (define ctx (get-ctx expr))
-    (define spec (prog->spec expr))
-    (*num-points* 8000)
-    (*context* ctx)
-    (define pcon (get-spec-sample spec))
-    (define error (errors expr pcon ctx))
-    (define err-score (errors-score error))
-    err-score))
+;;; (define (get-error expr)
+;;;   (with-handlers ([exn? (lambda (exn) 0)])
+;;;     (define ctx (get-ctx expr))
+;;;     (define spec (prog->spec expr))
+;;;     (*num-points* 8000)
+;;;     (*context* ctx)
+;;;     (define pcon (get-spec-sample spec))
+;;;     (define error (errors expr pcon ctx))
+;;;     (define err-score (errors-score error))
+;;;     err-score))
 
 (define (best-exprs exprs ctxs)
   (*context* (max-ctx ctxs))
@@ -244,11 +244,11 @@
 (define sorted-pairs (sort deduplicated-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
 (define first-2000 (take sorted-pairs (min (length sorted-pairs) 2000)))
 
-(define filtered (filter (lambda (p) (< 0.1 (get-error (car p)))) first-2000))
+;;; (define filtered (filter (lambda (p) (< 0.1 (get-error (car p)))) first-2000))
 
 ;;; (define filtered first-2000)
 
-(define first-500 (take filtered (min (length filtered) 500)))
+(define first-500 (take first-2000 (min (length first-2000) 500)))
 (define fpcores-out (map to-fpcore-str first-500))
 (define counts-out (map to-count-print first-500))
 

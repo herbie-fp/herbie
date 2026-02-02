@@ -11,7 +11,7 @@
   "../src/core/points.rkt"
   "../src/core/rules.rkt"
   "../src/config.rkt"
-  "../src/core/batch.rkt"
+  "../src/syntax/batch.rkt"
   "../src/core/mainloop.rkt"
   "../src/core/egg-herbie.rkt"
   "../src/syntax/read.rkt"

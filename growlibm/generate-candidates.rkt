@@ -12,7 +12,7 @@
   "../src/core/points.rkt"
   "../src/core/rules.rkt"
   "../src/config.rkt"
-  "../src/core/batch.rkt"
+  "../src/syntax/batch.rkt"
   "../src/core/egg-herbie.rkt"
   "../src/syntax/read.rkt"
   "../src/syntax/load-platform.rkt"
@@ -26,9 +26,8 @@
   "../src/reports/common.rkt")
 
 ;;; ------------------------- SETUP ---------------------------------
-(activate-platform! "no-accelerators")
+(activate-platform! "grow")
 (*node-limit* 50000)
-(*num-points* 1000)
 (define report-dir (vector-ref (current-command-line-arguments) 0))
 ;;; ------------------------- HELPERS ---------------------------------
 (define (get-cost expr)
@@ -66,7 +65,7 @@
                   (for ([arg args])
                     (loop arg))]
                  [_ (void)])]))))
-    subexprs)
+  subexprs)
 
 
 (define (remove-approxes expr)
@@ -76,29 +75,25 @@
     [_ expr]))
 
 (define (get-error expr)
-  (with-handlers ([exn? (lambda (exn) 0)])
-    (define ctx (get-ctx expr))
-    (define spec (prog->spec expr))
-    (*num-points* 8000)
+    (*num-points* 1000)
+  (define ctx (get-ctx expr))
     (*context* ctx)
-    (define pcon (get-spec-sample spec))
+    (define pcon (get-sample (expr->test expr #:precision 'binary64)))
     (define error (errors expr pcon ctx))
     (define err-score (errors-score error))
-    err-score))
+    err-score)
 
 (define (run-egg exprs)
   (define ctxs (map get-ctx exprs))
   (*context* (ctx-union ctxs))
   (define schedule '(lift rewrite lower))
-
   (define-values (batch brfs)
     (progs->batch exprs))
-
   (define runner (make-egraph batch brfs (map context-repr ctxs) schedule (ctx-union ctxs)))
   ;;;   (define egglog-runner (make-egglog-runner batch brfs (map context-repr ctxs) schedule (ctx-union ctxs)))
-
   (define batchrefss (egraph-best runner batch))
   ;;;   (define batchrefss (run-egglog egglog-runner batch #:extract 1000000))
+  (define batch-pull (batch-exprs batch))
   (map (compose batch-pull first) batchrefss))
 
 (define (alpha-rename impl)

@@ -32,7 +32,7 @@
          (struct-out job-result)
          (struct-out improve-result)
          (struct-out alt-analysis)
-         get-spec-sample)
+         get-sample)
 
 (struct job-result (command test status time timeline profile warnings backend))
 (struct improve-result (pcontext start target end))
@@ -139,13 +139,6 @@
   (define sample
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (sample-points precondition batch brfs (list (*context*)))))
-  (apply mk-pcontext sample))
-
-(define (get-spec-sample spec)
-  (random) ;; Tick the random number generator, for backwards compatibility
-  (define sample
-    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-points `(TRUE) (list spec) (list (*context*)))))
   (apply mk-pcontext sample))
 
 ;;
