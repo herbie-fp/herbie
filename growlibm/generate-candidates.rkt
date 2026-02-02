@@ -29,7 +29,7 @@
 (activate-platform! "no-accelerators")
 (*node-limit* 50000)
 (define report-dir (vector-ref (current-command-line-arguments) 0))
-;;; (*num-points* 500)
+(*num-points* 1000)
 ;;; ------------------------- HELPERS ---------------------------------
 (define (get-cost expr)
   (cost-proc expr (get-representation 'binary64)))
@@ -37,63 +37,65 @@
 (define cost-proc (platform-cost-proc (*active-platform*)))
 
 (define (get-holey-subexpressions expr)
-  (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
+  (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 
+                             <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
   (define (comparison-op? op)
     (and (symbol? op) (member op comparison-bases)))
   
   (define hole 'hole)
 
+  (define (interesting? e)
+    (and (pair? e) (not (null? e))))
+
   (reap [sow]
     (let loop ([expr expr])
       (match expr
-        ;; 1. CONTROL FLOW
+        ;; 1. CONTROL FLOW (Transparent)
         [(or `(if ,test ,t ,f)
              `(if.f32 ,test ,t ,f)
              `(if.f64 ,test ,t ,f))
          (loop test)
          (loop t)
          (loop f)
-         (list expr hole)]
+         (list hole)]
 
-        ;; 2. COMPARISONS
+        ;; 2. COMPARISONS (Transparent)
         [(list (? comparison-op? op) lhs rhs)
          (loop lhs)
          (loop rhs)
-         (list expr)]
+         (list hole)]
 
-        ;; 3. GENERIC OPS (Linear Expansion)
+        ;; 3. ARITHMETIC / GENERIC OPS (The Payload)
         [(list op args ...)
-         ;; Recurse to get variants for all children
          (define arg-variants-list (map loop args))
          
          (define current-variants
            (append
-            ;; A. Always include the original expression
             (list expr)
-            
-            ;; B. Generate One-Hot Variants:
-            ;; Iterate through each child position 'i'
             (for*/list ([i (in-range (length args))]
                         [variant (list-ref arg-variants-list i)]
-                        ;; Optimization: Don't reconstruct if the variant is just the original child
                         #:unless (equal? variant (list-ref args i)))
-              
-              ;; Construct: (op arg0 ... variant ... argN)
-              ;; We take the original args, but swap the i-th one with the variant
               (append `(,op) 
                       (take args i) 
                       (list variant) 
                       (drop args (add1 i))))))
          
-         ;; Sow valid variants
-         (for ([v current-variants]) (sow v))
+         ;; Only sow if it is a list (variant might be 'hole, which we skip now)
+         (for ([v current-variants] #:when (interesting? v)) (sow v))
          
-         ;; Return 'hole + linear variants to parent
          (cons hole current-variants)]
 
-        ;; 4. LEAVES
+        ;; 4. LEAVES (Inputs for Parents only)
+        [(? symbol?)
+         ;; Return variable to parent, but DO NOT sow it.
+         (list expr)]
+
+        [(? number?)
+         ;; Return constant (and hole option) to parent, but DO NOT sow it.
+         (list expr hole)]
+        
         [_ 
-         (sow expr)
+         ;; Fallback for anything else (rare)
          (list expr)]))))
 
 
