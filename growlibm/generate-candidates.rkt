@@ -75,13 +75,14 @@
     [_ expr]))
 
 (define (get-error expr)
+  (with-handlers ([exn? (lambda (exn) (displayln (format "Error getting error for expr ~a: ~a" expr exn)) 0)])
     (*num-points* 1000)
-  (define ctx (get-ctx expr))
+    (define ctx (get-ctx expr))
     (*context* ctx)
     (define pcon (get-sample (expr->test expr #:precision 'binary64)))
     (define error (errors expr pcon ctx))
     (define err-score (errors-score error))
-    err-score)
+    err-score))
 
 (define (run-egg exprs)
   (define ctxs (map get-ctx exprs))
