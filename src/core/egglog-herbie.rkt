@@ -66,7 +66,7 @@
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
   (for ([step (in-list schedule)])
-    (unless (memq step '(lift lower rewrite))
+    (unless (memq step '(lift lower unsound rewrite))
       (oops! "unknown schedule step `~a`" step)))
 
   ; make the runner
@@ -141,6 +141,7 @@
     (match step
       ['lift (egglog-send subproc '(run-schedule (saturate lift)))]
       ['lower (egglog-send subproc '(run-schedule (saturate lower)))]
+      ['unsound (egglog-send subproc '(run-schedule (saturate unsound)))]
       ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
       ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
@@ -184,6 +185,7 @@
                        `(constructor do-lift (MTy) M :unextractable)
                        `(ruleset lower)
                        `(ruleset lift)
+                       `(ruleset unsound)
                        `(function bad-merge? () bool :merge (or old new))
                        `(ruleset bad-merge-rule)
                        `(set (bad-merge?) false)
@@ -197,6 +199,7 @@
                  (num-lowering-rules)
                  (num-lifting-rules)
                  (list (approx-lifting-rule))
+                 (egglog-rewrite-rules (*sound-removal-rules*) 'unsound)
                  (list `(ruleset rewrite))
                  (egglog-rewrite-rules (*rules*) 'rewrite)))
 
@@ -308,7 +311,7 @@
   (for/list ([impl (in-list (platform-impls pform))])
     (define spec-expr (impl-info impl 'spec))
     (define arity (length (impl-info impl 'itype)))
-    `(rule ((= e ,(expr->egglog-spec-serialized (add-unsound spec-expr) ""))
+    `(rule ((= e ,(expr->egglog-spec-serialized spec-expr ""))
             ,@(for/list ([v (in-list (impl-info impl 'vars))]
                          [vt (in-list (impl-info impl 'itype))])
                 `(= ,(string->symbol (string-append "t" (symbol->string v)))

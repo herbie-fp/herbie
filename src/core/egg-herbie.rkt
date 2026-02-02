@@ -436,7 +436,7 @@
                         (lambda ()
                           (define name (sym-append 'lower- impl))
                           (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                          (list (rule name (add-unsound spec-expr) impl-expr '(lowering))))))))
+                          (list (rule name spec-expr impl-expr '(lowering))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
@@ -1178,7 +1178,7 @@
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
   (for ([step (in-list schedule)])
-    (unless (memq step '(lift lower rewrite))
+    (unless (memq step '(lift lower unsound rewrite))
       (oops! "unknown schedule step `~a`" step)))
 
   (define-values (root-ids egg-graph) (egraph-run-schedule batch brfs schedule ctx))

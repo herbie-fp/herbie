@@ -167,7 +167,7 @@
   (timeline-event! 'rewrite)
 
   ; egg schedule (4-phases for mathematical rewrites, sound-X removal, and implementation selection)
-  (define schedule '(lift rewrite lower))
+  (define schedule '(lift rewrite unsound lower))
 
   (define brfs (map alt-expr altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
