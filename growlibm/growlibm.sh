@@ -61,5 +61,7 @@ racket -y "src/main.rkt" report \
         "$BENCHDIR" \
         "$REPORTDIR/end"
 
+cat growlibm/grow.rkt
+
 # generate the html report page
 python3 growlibm/generate-html.py $NUMITERS $REPORTDIR
