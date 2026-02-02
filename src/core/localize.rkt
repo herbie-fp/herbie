@@ -8,7 +8,7 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../syntax/platform.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "compiler.rkt"
          "points.rkt"
          "programs.rkt"
@@ -23,8 +23,8 @@
          eval-progs-real
          local-error-as-tree)
 
-(define (eval-progs-real specs ctxs)
-  (define compiler (make-real-compiler specs ctxs))
+(define (eval-progs-real batch brfs ctxs)
+  (define compiler (make-real-compiler batch brfs ctxs))
   (define bad-pt
     (for/list ([ctx* (in-list ctxs)])
       ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
@@ -71,21 +71,22 @@
   (define-values (expr-batch brfs) (progs->batch exprs-list))
   (define roots (list->vector (map batchref-idx brfs)))
 
-  (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
+  (define-values (spec-batch spec-brfs) (progs->batch (map prog->spec exprs-list)))
+  (define subexprs-fn (eval-progs-real spec-batch spec-brfs ctx-list))
 
   (define errs (make-matrix roots pcontext))
 
   (for ([(pt ex) (in-pcontext pcontext)]
         [pt-idx (in-naturals)])
     (define exacts (list->vector (subexprs-fn pt)))
-    (define (get-exact idx)
-      (vector-ref exacts (vector-member idx roots)))
+    (define (get-exact brf)
+      (vector-ref exacts (vector-member (batchref-idx brf) roots)))
     (for ([expr (in-list exprs-list)]
           [brf brfs]
           [repr (in-list reprs-list)]
           [exact (in-vector exacts)]
           [expr-idx (in-naturals)])
-      (define err (local-error exact (batch-ref expr-batch (batchref-idx brf)) repr get-exact))
+      (define err (local-error exact (deref brf) repr get-exact))
       (vector-set! (vector-ref errs expr-idx) pt-idx err)))
 
   (define n 0)
@@ -120,7 +121,8 @@
     (for/list ([subexpr (in-list exprs-list)]
                [repr (in-list reprs-list)])
       (struct-copy context ctx [repr repr])))
-  (define subexprs-fn (eval-progs-real spec-list ctx-list))
+  (define-values (spec-batch spec-brfs) (progs->batch spec-list))
+  (define subexprs-fn (eval-progs-real spec-batch spec-brfs ctx-list))
 
   ;; And the absolute difference between the two
   (define exact-var-names
@@ -138,7 +140,8 @@
       (match (representation-type repr)
         ['bool 0] ; We can't subtract booleans so ignore them
         ['real `(fabs (- ,spec ,var))])))
-  (define delta-fn (eval-progs-real compare-specs (map (const delta-ctx) compare-specs)))
+  (define-values (compare-batch compare-brfs) (progs->batch compare-specs))
+  (define delta-fn (eval-progs-real compare-batch compare-brfs (map (const delta-ctx) compare-specs)))
 
   (define-values (expr-batch brfs) (progs->batch exprs-list))
   (define roots (list->vector (map batchref-idx brfs)))
@@ -154,8 +157,8 @@
         [pt-idx (in-naturals)])
 
     (define exacts (list->vector (subexprs-fn pt)))
-    (define (get-exact idx)
-      (vector-ref exacts (vector-member idx roots)))
+    (define (get-exact brf)
+      (vector-ref exacts (vector-member (batchref-idx brf) roots)))
 
     (define actuals (actual-value-fn pt))
     (define pt* (vector-append pt (remove-infinities actuals reprs-list)))
@@ -167,7 +170,7 @@
           [actual (in-vector actuals)]
           [delta (in-vector deltas)]
           [expr-idx (in-naturals)])
-      (define ulp-err (local-error exact (batch-ref expr-batch (batchref-idx brf)) repr get-exact))
+      (define ulp-err (local-error exact (deref brf) repr get-exact))
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref approx-out expr-idx) pt-idx actual)
       (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)

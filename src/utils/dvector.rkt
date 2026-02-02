@@ -68,7 +68,8 @@
      (dvector-add! dvec elem)]
     [else
      (vector-set! vec len elem)
-     (set-dvector-length! dvec (add1 len))]))
+     (set-dvector-length! dvec (add1 len))
+     len]))
 
 (define (dvector-set! dvec idx elem)
   (match-define (dvector vec len _) dvec)

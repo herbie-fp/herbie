@@ -6,7 +6,7 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../config.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "../utils/common.rkt"
          "egglog-subprocess.rkt")
 
@@ -80,11 +80,6 @@
   ;;;; SUBPROCESS START ;;;;
   (define subproc (create-new-egglog-subprocess label))
 
-  (thread (lambda ()
-            (with-handlers ([exn:fail? (lambda (_) (void))])
-              (for ([line (in-lines (egglog-subprocess-error subproc))])
-                (void)))))
-
   ;; 1. Add the Prelude (includes all rules) - send directly to egglog
   (prelude subproc #:mixed-egraph? #t)
 
@@ -151,8 +146,10 @@
 
   ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
   (define stdout-content
-    (for/list ([constructor-name extract-bindings])
-      (egglog-extract subproc `(extract (,constructor-name) ,extract))))
+    (egglog-multi-extract subproc
+                          `(multi-extract ,extract
+                                          ,@(for/list ([constructor-name extract-bindings])
+                                              `(,constructor-name)))))
 
   ;; Close everything subprocess related
   (egglog-subprocess-close subproc)
@@ -207,35 +204,35 @@
 
 (define (const-fold-rules)
   `((ruleset const-fold)
-    (let ?0 ,(real->bigrat 0)
+    (let $0 ,(real->bigrat 0)
       )
-    (let ?1 ,(real->bigrat 1)
+    (let $1 ,(real->bigrat 1)
       )
     (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
     (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
     (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
     ; TODO : Non-total operator
-    (rule ((= e (Div (Num x) (Num y))) (!= ?0 y)) ((union e (Num (/ x y)))) :ruleset const-fold)
+    (rule ((= e (Div (Num x) (Num y))) (!= $0 y)) ((union e (Num (/ x y)))) :ruleset const-fold)
     (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
     ;; Power rules -> only case missing is 0^0 making it non-total
     ;; 0^y where y > 0
-    (rule ((= e (Pow (Num x) (Num y))) (= ?0 x) (> y ?0)) ((union e (Num ?0))) :ruleset const-fold)
+    (rule ((= e (Pow (Num x) (Num y))) (= $0 x) (> y $0)) ((union e (Num $0))) :ruleset const-fold)
     ;; x^0 where x != 0
-    (rule ((= e (Pow (Num x) (Num y))) (= ?0 y) (!= ?0 x)) ((union e (Num ?1))) :ruleset const-fold)
+    (rule ((= e (Pow (Num x) (Num y))) (= $0 y) (!= $0 x)) ((union e (Num $1))) :ruleset const-fold)
     ;; x^y when y is a whole number and y > 0 and x != 0
-    (rule ((= e (Pow (Num x) (Num y))) (> y ?0) (!= ?0 x) (= y (round y)))
+    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (= y (round y)))
           ((union e (Num (pow x y))))
           :ruleset
           const-fold)
     ;; New rule according to Rust : x^y where y is not a whole number
-    (rule ((= e (Pow (Num x) (Num y))) (> y ?0) (!= ?0 x) (!= y (round y)))
+    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (!= y (round y)))
           ((union e (Num (pow x (round y)))))
           :ruleset
           const-fold)
     ;; Sqrt rules -> Non-total but egglog implementation handles it
     (rule ((= e (Sqrt (Num n))) (sqrt n)) ((union e (Num (sqrt n)))) :ruleset const-fold)
-    (rewrite (Log (Num ?1)) (Num ?0) :ruleset const-fold)
-    (rewrite (Cbrt (Num ?1)) (Num ?1) :ruleset const-fold)
+    (rewrite (Log (Num $1)) (Num $0) :ruleset const-fold)
+    (rewrite (Cbrt (Num $1)) (Num $1) :ruleset const-fold)
     (rewrite (Fabs (Num x)) (Num (abs x)) :ruleset const-fold)
     (rewrite (Floor (Num x)) (Num (floor x)) :ruleset const-fold)
     (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
@@ -575,157 +572,23 @@
   (values (reverse all-bindings) curr-bindings))
 
 (define (egglog-unsound-detected-subprocess tag subproc)
-
   (define node-limit (*node-limit*))
   (define iter-limit (*default-egglog-iter-limit*))
 
-  ;; Algorithm:
-  ;; 1. Run (PUSH) to the save the above state of the egraph
-  ;; 2. Repeat rules based on their ruleset tag once
-  ;; 3. Run the bad-merge-rule ruleset once
-  ;; 4. Extract the (bad-merge?) function that returns a bool
-  ;; 5. If (bad-merge?) function returns "true", we have a bad merge, so go to Step 10 for ROLLBACK
-  ;; 6. Run (print-size) to get nodes of the form "node_name : num_nodes" for all nodes in egraph
-  ;; 7. If the total number of nodes is more than node-limit, do NOT ROLLBACK and go to Step 11
-  ;; 8. Repeat rules based on the const-fold tag once and repeat Steps 3-7
-  ;; 9. Increment curr-iter by 1, and if it has not reach iter-limit, restart from Step 1
-  ;; 10. If we reach the ROLLBACK stage, the optimal number of iterations for this ruleset is one
-  ;;    below current. Therefore, we run (POP) to ROLLBACK to the last valid state.
-  ;;    Then run the whole thing one last time from the ideal number of iterations
-  ;; 11. Exit the unsound detection process
+  ;; Use egglog's :until guard with get-size! to stop when node limit is reached.
+  ;; After each iteration, we check for unsound merges via bad-merge-rule.
+  ;; The schedule runs until:
+  ;;   1. Node limit is reached (get-size! >= node-limit)
+  ;;   2. Saturation (no more progress)
+  ;;   3. Iter limit is reached
+  ;;   4. Unsoundness is detected (bad-merge? becomes true)
 
-  ; Saturation detection by verifying the previous number of nodes and nw ones
-  (define prev-number-nodes -1)
-
-  ;; Loop to check unsoundness
-  (let loop ([curr-iter 1])
-    (cond
-      ; Note we do NOT (pop) here
-      ; Return that we do not need to run again because we did not pop
-      [(> curr-iter iter-limit) (values iter-limit #f)]
-      [else
-
-       ;; Run the ruleset once more
-       (define math-schedule
-         (list '(push)
-               `(run-schedule (repeat 1 ,tag))
-               '(print-size)
-               '(run bad-merge-rule 1)
-               '(extract (bad-merge?))))
-
-       ;; Get egglog output
-       (define-values (math-unsound? math-node-limit? math-total-nodes)
-         (get-egglog-output math-schedule subproc node-limit))
-
-       (cond
-         ;;  There are two condiitons where we exit unsoundness dteection WITHOUT running (pop)
-         ;;  1. Saturation: when the number of nodes stays the same between iterations.
-         ;;  2. Node limit: when the e-graph exceeds the allowed number of nodes.
-         ;;  If either condition is met, return the current iteration limit and avoid running another
-         ;;  iteration.
-
-         ;; TODO : This saturation condition below is problematic. Simply checking unchanged node
-         ;;        count is misleading as we could, theoretically, have a ruleset that merges e-classes
-         ;;        without increasing number of nodes, meaning further iterations "could" make
-         ;;        progress. This logic incorrectly considers it saturated. Consider modifying the
-         ;;        logic or submit a feature request to Egglog for more accurate saturation detection.
-         [(equal? math-total-nodes prev-number-nodes) (values curr-iter #f)]
-
-         ;; TODO : This logic below is also algorithmally incorrect.  If we hit the node limit, we
-         ;;        should "stop" at that iteration, not rollback by 1. The correct line should be
-         ;;        [math-node-limit? (values curr-iter #f)]
-         ;;
-         ;;        However, we currently use this rollback logic for performance reasons due to
-         ;;        extraction. While we have tested that the extraction time linearly increases with
-         ;;        larger e-graphs (that indicates we have not done something majorly wrong).
-         ;;        However, even 0.1s can be considered too high for a reltively small (~2000 nodes)
-         ;;        e-graph while extracting. For now, popping provides a smaller e-graph and gives
-         ;;        performance comparable to Egg-Herbie, thought it doesn't affect correctness too much
-         [math-node-limit?
-          (egglog-send subproc '(pop))
-          (values (sub1 curr-iter) #t)]
-
-         ;; If Unsoundness detected or node-limit reached, then return the
-         ;; optimal iter limit (one less than current) and run (pop)
-         [math-unsound?
-          ;; Pop once at the end since the egraph isn't valid
-          (egglog-send subproc '(pop))
-
-          ;; Return one less than current iteration and indicate that we need to run again because pop
-          (values (sub1 curr-iter) #t)]
-
-         ;; Continue to next iteration of the math rules
-         [else
-          ;; set for the constant folding iteration
-          (set! prev-number-nodes math-total-nodes)
-
-          ;; 3. Run const-fold
-          (define const-schedule
-            (list '(push)
-                  `(run-schedule (repeat 1 const-fold))
-                  '(print-size)
-                  '(run bad-merge-rule 1)
-                  '(extract (bad-merge?))))
-
-          (define-values (const-unsound? const-node-limit? const-total-nodes)
-            (get-egglog-output const-schedule subproc node-limit))
-
-          (cond
-            ;; TODO:  See the TODO from above
-            [(equal? const-total-nodes prev-number-nodes) (values curr-iter #f)]
-            [const-node-limit?
-             (egglog-send subproc '(pop))
-             (values (sub1 curr-iter) #t)]
-
-            [const-unsound?
-             (egglog-send subproc '(pop))
-             (values (sub1 curr-iter) #t)]
-
-            [else
-             ;; Update state for the next iteration
-             (set! prev-number-nodes const-total-nodes)
-
-             (loop (add1 curr-iter))])])])))
-
-(define (get-egglog-output curr-schedule subproc node-limit)
-  (define-values (node-values unsound?) (egglog-send-unsound-detection subproc curr-schedule))
-
-  ;  (when unsound?
-  ;    (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
-
-  (define total_nodes (calculate-nodes node-values))
-
-  ;; There are 3 cases when we can exit the unsound detection
-  ;;  1. Unsoundness is detected in the egraph
-  ;;  2. We have reached or exceeded the set node limit
-  ;;  3. Saturation check which is done in parent function
-
-  (values unsound? (>= total_nodes node-limit) total_nodes))
-
-(define (calculate-nodes lines)
-  ;; Don't start from last index, but previous to last index - as last has current unsoundness result
-  (define process-lines
-    (reverse (if (empty? lines)
-                 lines ;; Has no nodes or first iteration
-                 (drop-right lines 1))))
-
-  ;; Break when we reach the previous unsoundness result -> NOTE: "true" should technically never be reached
-  (for/fold ([total_nodes 0]) ([line (in-list process-lines)])
-    #:break (or (equal? line "true") (equal? line "false"))
-
-    ;; We need to add the total number of nodes for this one of the format
-    ;; "node_name : num_nodes"
-    ;; break up into (list node_name num_nodes) with spaces
-    (define parts (string-split line ":"))
-
-    ;; Get num_nodes in number
-    ; (define num_nodes (string->number (string-trim (cadr parts))))
-    (define num_nodes
-      (if (> (length parts) 0)
-          (string->number (string-trim (cadr parts)))
-          0))
-
-    (values (+ total_nodes num_nodes))))
+  (egglog-send subproc
+               `(run-schedule (repeat ,iter-limit
+                                      (seq (run ,tag :until (<= ,node-limit (get-size!)))
+                                           (run const-fold :until (<= ,node-limit (get-size!)))
+                                           (run bad-merge-rule :until (bad-merge?))))))
+  (void))
 
 (define (egglog-num? id)
   (string-prefix? (symbol->string id) "Num"))

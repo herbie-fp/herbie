@@ -8,6 +8,7 @@
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
          "../syntax/platform.rkt"
+         "../syntax/batch.rkt"
          "localize.rkt"
          "points.rkt"
          "programs.rkt"
@@ -72,9 +73,10 @@
   (define repr-hash
     (make-immutable-hash (map (lambda (e ctx) (cons e (context-repr ctx))) subexprs ctxs)))
 
+  (define-values (batch brfs) (progs->batch spec-list))
   (define subexprs-fn
     (parameterize ([*max-mpfr-prec* 128])
-      (eval-progs-real spec-list ctxs)))
+      (eval-progs-real batch brfs ctxs)))
   (values subexprs repr-hash subexprs-fn))
 
 (define (predict-errors ctx pctx subexprs-list repr-hash subexprs-fn)

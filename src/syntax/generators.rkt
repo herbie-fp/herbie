@@ -7,7 +7,8 @@
 
 (require "../core/rival.rkt"
          "../config.rkt"
-         "types.rkt")
+         "types.rkt"
+         "batch.rkt")
 
 (provide from-rival
          from-ffi
@@ -34,7 +35,8 @@
                   (hash-clear! cache))))
 
 (define-generator ((from-rival #:cache? [cache? #t]) spec ctx)
-  (define compiler (make-real-compiler (list spec) (list ctx)))
+  (define-values (batch brfs) (progs->batch (list spec)))
+  (define compiler (make-real-compiler batch brfs (list ctx)))
   (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
   (define (compute . pt)
     (define-values (_ exs) (real-apply compiler (list->vector pt)))

@@ -8,7 +8,7 @@
          "../syntax/types.rkt"
          "alt-table.rkt"
          "bsearch.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "derivations.rkt"
          "patch.rkt"
          "points.rkt"
@@ -34,7 +34,7 @@
 (define/reset ^table^ #f)
 
 ;; Starting program for the current run
-(define *start-prog* (make-parameter #f))
+(define *start-brf* (make-parameter #f))
 (define *pcontext* (make-parameter #f))
 (define *preprocessing* (make-parameter '()))
 
@@ -54,7 +54,6 @@
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
-  (*start-prog* initial)
 
   (parameterize ([*global-batch* (batch-empty)])
     (define global-spec-batch (batch-empty))
@@ -62,6 +61,7 @@
 
     (*preprocessing* preprocessing)
     (define initial-brf (batch-add! (*global-batch*) initial))
+    (*start-brf* initial-brf)
     (define start-alt (alt initial-brf 'start '()))
     (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
 
@@ -79,12 +79,13 @@
 
 (define (extract!)
   (timeline-push-alts! '())
-  (define all-alts (unbatchify-alts (*global-batch*) (atab-all-alts (^table^))))
-  (define joined-alts (make-regime! all-alts (*start-prog*))) ;; HERE
+  (define all-alts (atab-all-alts (^table^)))
+  (define joined-alts (make-regime! (*global-batch*) all-alts (*start-brf*)))
   (define annotated-alts (add-derivations! joined-alts))
+  (define unbatched-alts (unbatchify-alts (*global-batch*) annotated-alts))
 
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
-  (map car (sort-alts annotated-alts)))
+  (map car (sort-alts unbatched-alts)))
 
 ;; The next few functions are for interactive use in a REPL, usually for debugging
 ;; In Emacs, you can install racket-mode and then use C-c C-k to start that REPL
@@ -147,13 +148,12 @@
                (list-ref altns** (- (* i div-size) 1))))]))
 
 (define (timeline-push-alts! picked-alts)
-  (define exprs (batch-exprs (*global-batch*)))
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define repr (context-repr (*context*)))
   (for ([alt (atab-active-alts (^table^))]
         [sc (in-list (batch-score-alts (atab-active-alts (^table^))))])
     (timeline-push! 'alts
-                    (~a (exprs (alt-expr alt)))
+                    (batch->jsexpr (*global-batch*) (list (alt-expr alt)))
                     (cond
                       [(set-member? picked-alts alt) "next"]
                       [(set-member? fresh-alts alt) "fresh"]
@@ -172,31 +172,29 @@
 
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
-  ;; takes a patch and converts it to a full alt
-  (define (reconstruct-alt altn loc0 orig)
-    (let loop ([altn altn])
-      (match-define (alt _ event prevs) altn)
-      (match event
-        ['patch orig]
-        [_
+  (timeline-event! 'reconstruct)
+
+  (define (reconstruct-alt altn orig)
+    (define (loop altn)
+      (match-define (alt patch-expr event prevs) altn)
+      (match altn
+        [(alt start-expr 'patch '()) (values orig start-expr)]
+        [(alt cur-expr event (list prev))
+         (define-values (prev-altn start-expr) (loop prev))
          (define event*
            (match event
-             [(list 'evaluate) (list 'evaluate loc0)]
-             [(list 'taylor name var) (list 'taylor loc0 name var)]
-             [(list 'rr input proof) (list 'rr loc0 input proof)]))
-         (define expr* (batch-location-set (*global-batch*) (alt-expr orig) loc0 (alt-expr altn)))
-         (alt expr* event* (list (loop (first prevs))))])))
+             [(list 'evaluate) (list 'evaluate start-expr)]
+             [(list 'taylor name var) (list 'taylor start-expr name var)]
+             [(list 'rr input proof) (list 'rr (alt-expr prev) cur-expr input proof)]))
+         (define expr* (batch-replace-subexpr (*global-batch*) (alt-expr orig) start-expr cur-expr))
+         (values (alt expr* event* (list prev-altn)) start-expr)]))
+    (define-values (result-alt _) (loop altn))
+    result-alt)
 
-  (^patched^ (remove-duplicates
-              (reap [sow]
-                    (for ([altn (in-list alts)])
-                      (define start-expr (get-starting-expr altn))
-                      (for ([full-altn (in-list (^next-alts^))])
-                        (define expr (alt-expr full-altn))
-                        (sow (for/fold ([full-altn full-altn])
-                                       ([loc (in-list (batch-get-locations expr start-expr))])
-                               (reconstruct-alt altn loc full-altn))))))
-              #:key (compose batchref-idx alt-expr)))
+  (^patched^ (remove-duplicates (for*/list ([altn (in-list alts)]
+                                            [full-altn (in-list (^next-alts^))])
+                                  (reconstruct-alt altn full-altn))
+                                #:key (compose batchref-idx alt-expr)))
 
   (void))
 
@@ -248,13 +246,15 @@
   (define brfs (map alt-expr (^next-alts^)))
   (define brfs* (batch-reachable (*global-batch*) brfs #:condition node-is-impl?))
 
-  (reconstruct! (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer))
+  (define results (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer))
+  (reconstruct! results)
   (finalize-iter!)
   (void))
 
-(define (make-regime! alts start-prog)
+(define (make-regime! batch alts start-prog)
   (define ctx (*context*))
   (define repr (context-repr ctx))
+  (define alt-costs (alt-batch-costs batch))
 
   (cond
     [(and (flag-set? 'reduce 'regimes)
@@ -264,10 +264,16 @@
           (get-fpcore-impl 'if '() (list <bool> repr repr))
           (get-fpcore-impl '<= '() (list repr repr)))
      (define opts
-       (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) start-prog ctx (*pcontext*)))
+       (pareto-regimes batch
+                       (sort alts < #:key (compose (curryr alt-costs repr) alt-expr))
+                       start-prog
+                       ctx
+                       (*pcontext*)))
      (for/list ([opt (in-list opts)])
-       (combine-alts opt start-prog ctx (*pcontext*)))]
-    [else (list (argmin score-alt alts))]))
+       (combine-alts batch opt start-prog ctx (*pcontext*)))]
+    [else
+     (define scores (batch-score-alts alts))
+     (list (cdr (argmin car (map (λ (a s) (cons s a)) alts scores))))]))
 
 (define (add-derivations! alts)
   (cond

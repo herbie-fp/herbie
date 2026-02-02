@@ -32,27 +32,21 @@
                          ""
                          (format " < ~a" (value->string end repr))))))
 
+;; Finds the Rewrite marker in a proof step and returns (dir rule next-step)
+;; where next-step has the marker replaced with its sub-expression
 (define (splice-proof-step step)
   (let/ec k
-    (let loop ([expr step]
-               [loc '()])
+    (let loop ([expr step])
       (match expr
-        [(list 'Rewrite=> rule sub)
-         (define loc* (reverse loc))
-         (k 'Rewrite=> rule loc* (location-set loc* step sub))]
-        [(list 'Rewrite<= rule sub)
-         (define loc* (reverse loc))
-         (k 'Rewrite<= rule loc* (location-set loc* step sub))]
+        [(list 'Rewrite=> rule sub) (k 'Rewrite=> rule (replace-expression step expr sub))]
+        [(list 'Rewrite<= rule sub) (k 'Rewrite<= rule (replace-expression step expr sub))]
         [(approx spec impl)
-         (loop spec (cons 1 loc))
-         (loop impl (cons 2 loc))]
-        [(hole prec spec) (loop spec (cons 1 loc))]
-        [(list op args ...)
-         (for ([arg (in-list args)]
-               [i (in-naturals 1)])
-           (loop arg (cons i loc)))]
+         (loop spec)
+         (loop impl)]
+        [(hole prec spec) (loop spec)]
+        [(list op args ...) (for-each loop args)]
         [_ (void)]))
-    (k 'Goal #f '() step)))
+    (k 'Goal #f step)))
 
 (define (altn-errors altn pcontext ctx errcache mask)
   (define repr (context-repr ctx))
@@ -93,14 +87,14 @@
           (match altn
             [(alt prog 'start (list)) (void)]
             [(alt prog 'add-preprocessing `(,prev)) (loop prev)]
-            [(alt prog `(evaluate ,loc) `(,prev)) (loop prev)]
+            [(alt prog `(evaluate ,start-expr) `(,prev)) (loop prev)]
             [(alt _ `(regimes ,splitpoints) prevs) (for-each loop prevs)]
-            [(alt prog `(taylor ,loc ,pt ,var) `(,prev)) (loop prev)]
-            [(alt prog `(rr ,loc ,input ,proof) `(,prev))
+            [(alt prog `(taylor ,start-expr ,pt ,var) `(,prev)) (loop prev)]
+            [(alt prog `(rr ,start-expr ,end-expr ,input ,proof) `(,prev))
              (loop prev)
              (when proof
                (for ([step proof])
-                 (define-values (dir rule loc expr) (splice-proof-step step))
+                 (define-values (dir rule expr) (splice-proof-step step))
                  (when (impl-prog? expr)
                    (sow expr))))]))))
 
@@ -135,25 +129,25 @@
        (li ((class "event")) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
     ["taylor"
-     (define-values (prev pt var loc) (apply values (map (curry hash-ref json) '(prev pt var loc))))
+     (define-values (prev pt var) (apply values (map (curry hash-ref json) '(prev pt var))))
      `(,@(render-history prev ctx)
        (li (p "Taylor expanded in " ,var " around " ,pt)
-           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog #:loc loc) "\\]")))]
+           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]
 
     ["evaluate"
-     (define-values (prev loc) (apply values (map (curry hash-ref json) '(prev loc))))
+     (define prev (hash-ref json 'prev))
      `(,@(render-history prev ctx)
        (li (p "Evaluated real constant" (span ((class "error")) ,err))
-           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog #:loc loc) "\\]")))]
+           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]
 
     ["rr"
-     (define-values (prev loc proof) (apply values (map (curry hash-ref json) '(prev loc proof))))
+     (define-values (prev proof) (apply values (map (curry hash-ref json) '(prev proof))))
      `(,@(render-history prev ctx)
        (li ,(if (eq? proof (json-null))
                 ""
                 (render-proof proof ctx)))
        (li (p "Applied rewrites" (span ((class "error")) ,err))
-           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog #:loc loc) "\\]")))]))
+           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]))
 
 (define (errors-score-masked errs mask)
   (if (ormap identity mask)
@@ -164,28 +158,26 @@
       (errors-score errs)))
 
 (define (render-proof proof-json ctx)
-  `(div
-    ((class "proof"))
-    (details
-     (summary "Step-by-step derivation")
-     (ol ,@
-         (for/list ([step (in-list proof-json)])
-           (define-values (direction err loc rule prog-str)
-             (apply values (map (curry hash-ref step) '(direction error loc rule program))))
-           (define dir
-             (match direction
-               ["goal" "goal"]
-               ["rtl" "right to left"]
-               ["ltr" "left to right"]))
-           (define prog (read (open-input-string prog-str)))
-           (if (equal? dir "goal")
-               ""
-               `(li (p (code ([title ,dir]) ,rule)
-                       (span ((class "error"))
-                             ,(if (number? err)
-                                  (format-accuracy err (context-repr ctx) #:unit "%")
-                                  err)))
-                    (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog #:loc loc) "\\]"))))))))
+  `(div ((class "proof"))
+        (details
+         (summary "Step-by-step derivation")
+         (ol ,@(for/list ([step (in-list proof-json)])
+                 (define-values (direction err rule prog-str)
+                   (apply values (map (curry hash-ref step) '(direction error rule program))))
+                 (define dir
+                   (match direction
+                     ["goal" "goal"]
+                     ["rtl" "right to left"]
+                     ["ltr" "left to right"]))
+                 (define prog (read (open-input-string prog-str)))
+                 (if (equal? dir "goal")
+                     ""
+                     `(li (p (code ([title ,dir]) ,rule)
+                             (span ((class "error"))
+                                   ,(if (number? err)
+                                        (format-accuracy err (context-repr ctx) #:unit "%")
+                                        err)))
+                          (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]"))))))))
 
 (define (render-json altn pcontext ctx errcache [mask (make-list (pcontext-length pcontext) #f)])
   (define repr (context-repr ctx))
@@ -217,30 +209,27 @@
                         (define mask* (map and-fn mask new-mask))
                         (render-json entry pcontext ctx errcache mask*))))]
 
-    [(alt prog `(taylor ,loc ,pt ,var) `(,prev))
+    [(alt prog `(taylor ,start-expr ,pt ,var) `(,prev))
      `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
             (type . "taylor")
             (prev . ,(render-json prev pcontext ctx errcache mask))
             (pt . ,(~a pt))
             (var . ,(~a var))
-            (loc . ,loc)
             (error . ,err))]
 
-    [(alt prog `(evaluate ,loc) `(,prev))
+    [(alt prog `(evaluate ,start-expr) `(,prev))
      `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
             (type . "evaluate")
             (prev . ,(render-json prev pcontext ctx errcache mask))
-            (loc . ,loc)
             (error . ,err))]
 
-    [(alt prog `(rr ,loc ,input ,proof) `(,prev))
+    [(alt prog `(rr ,start-expr ,end-expr ,input ,proof) `(,prev))
      `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
             (type . "rr")
             (prev . ,(render-json prev pcontext ctx errcache mask))
             (proof . ,(if proof
                           (render-proof-json proof pcontext ctx errcache mask)
                           (json-null)))
-            (loc . ,loc)
             (error . ,err))]
 
     [(alt prog 'add-preprocessing `(,prev))
@@ -251,7 +240,7 @@
 
 (define (render-proof-json proof pcontext ctx errcache mask)
   (for/list ([step proof])
-    (define-values (dir rule loc expr) (splice-proof-step step))
+    (define-values (dir rule expr) (splice-proof-step step))
     (define-values (err fpcore)
       (cond
         [(impl-prog? expr)
@@ -264,5 +253,4 @@
                            ['Rewrite<= "rtl"]
                            ['Rewrite=> "ltr"]
                            ['Goal "goal"]))
-           (rule . ,(~a rule))
-           (loc . ,loc))))
+           (rule . ,(~a rule)))))

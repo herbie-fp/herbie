@@ -497,6 +497,7 @@
     [("julia") core->julia]
     [("matlab") core->matlab]
     [("wls") core->wls]
+    [("reflow") core->reflow]
     [("tex") core->tex]
     [("js") core->js]
     [else (error "Unsupported target language:" target-lang)]))
