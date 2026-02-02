@@ -1,0 +1,81 @@
+; -*- mode: scheme -*-
+
+(FPCore (e cos_omega sin_omega)
+ :name "Eccentric anomaly seed"
+ :pre (and (<= 0 e) (< e 1))
+ (let* ([opsw (+ 1 sin_omega)]
+        [num (* (sqrt (- 1 e)) cos_omega)]
+        [den (* (sqrt (+ 1 e)) opsw)])
+   (* 2 (atan2 num den))))
+
+(FPCore (e cos_omega sin_omega)
+ :name "Mean anomaly seed"
+ :pre (and (<= 0 e) (< e 1))
+ (let* ([opsw (+ 1 sin_omega)]
+        [num (* (sqrt (- 1 e)) cos_omega)]
+        [den (* (sqrt (+ 1 e)) opsw)]
+        [E0 (* 2 (atan2 num den))])
+   (- E0 (* e (sin E0)))))
+
+(FPCore (duration period b ror)
+ :name "Transit a/R from duration"
+ (let* ([b2 (* b b)]
+        [opk (+ 1 ror)]
+        [opk2 (* opk opk)]
+        [phi (/ (* PI duration) period)]
+        [sinp (sin phi)]
+        [cosp (cos phi)]
+        [cosp2 (* cosp cosp)]
+        [num (sqrt (- opk2 (* b2 cosp2)))])
+   (/ num sinp)))
+
+(FPCore (duration period b ror)
+ :name "Transit a/R duration Jacobian"
+ (let* ([b2 (* b b)]
+        [opk (+ 1 ror)]
+        [opk2 (* opk opk)]
+        [phi (/ (* PI duration) period)]
+        [sinp (sin phi)]
+        [cosp (cos phi)]
+        [cosp2 (* cosp cosp)]
+        [num (sqrt (- opk2 (* b2 cosp2)))]
+        [sinp2 (* sinp sinp)]
+        [numterm (* (* PI cosp) (- b2 opk2))]
+        [denterm (* num (* period sinp2))])
+   (/ numterm denterm)))
+
+(FPCore (az z0 z vz c_light)
+ :name "Delay accel branch"
+ (let* ([vz_over_c (/ vz c_light)]
+        [t (+ 1 vz_over_c)]
+        [t2 (* t t)]
+        [dz (- z0 z)]
+        [c2 (* c_light c_light)]
+        [disc (- t2 (/ (* 2 (* az dz)) c2))])
+   (* (/ c_light az) (- t (sqrt disc)))))
+
+(FPCore (duration period aor e sin_omega)
+ :name "Duration impact parameter"
+ :pre (and (<= 0 e) (< e 1))
+ (let* ([e2 (* e e)]
+        [ome2 (- 1 e2)]
+        [incl_factor (/ (+ 1 (* e sin_omega)) ome2)]
+        [phi (/ (* (* PI duration) incl_factor) period)]
+        [c (sin phi)]
+        [c2 (* c c)]
+        [esinw (* e sin_omega)]
+        [esinw2 (* esinw esinw)]
+        [aor2 (* aor aor)]
+        [num (- (* aor2 c2) 1)]
+        [term1 (* c2 esinw2)]
+        [term2 (* 2 (* c2 esinw))]
+        [term3 c2]
+        [term5 (* 2 e2)]
+        [e4 (* e2 e2)]
+        [sum1 (+ term1 term2)]
+        [sum2 (+ sum1 term3)]
+        [sum3 (+ sum2 term5)]
+        [sum4 (- sum3 e4)]
+        [den (- sum4 1)]
+        [b (sqrt (/ num den))])
+   (* b (- 1 e2))))

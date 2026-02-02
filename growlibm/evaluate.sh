@@ -11,7 +11,7 @@ make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
-BENCHDIR="bench/PROJ/"
+BENCHDIR="bench/keplerian.fpcore"
 REPORTDIR="reports"
 
 mkdir -p "$REPORTDIR"
@@ -30,20 +30,20 @@ racket -y "src/main.rkt" report \
         "$BENCHDIR" \
         "$REPORTDIR/vanilla_base" 
 
-racket -y "src/main.rkt" report \
-        --seed "$SEED" \
-        --platform "vanilla" \
-        --disable "generate:taylor" \
-        "$BENCHDIR" \
-        "$REPORTDIR/vanilla_no_taylor"
+# racket -y "src/main.rkt" report \
+#         --seed "$SEED" \
+#         --platform "vanilla" \
+#         --disable "generate:taylor" \
+#         "$BENCHDIR" \
+#         "$REPORTDIR/vanilla_no_taylor"
 
-racket -y "src/main.rkt" report \
-        --seed "$SEED" \
-        --platform "vanilla" \
-        --disable "generate:taylor" \
-        --disable "reduce:regimes" \
-        "$BENCHDIR" \
-        "$REPORTDIR/vanilla_no_taylor_regimes" 
+# racket -y "src/main.rkt" report \
+#         --seed "$SEED" \
+#         --platform "vanilla" \
+#         --disable "generate:taylor" \
+#         --disable "reduce:regimes" \
+#         "$BENCHDIR" \
+#         "$REPORTDIR/vanilla_no_taylor_regimes" 
 
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
@@ -51,20 +51,20 @@ racket -y "src/main.rkt" report \
         "$BENCHDIR" \
         "$REPORTDIR/herbie20_base" 
 
-racket -y "src/main.rkt" report \
-        --seed "$SEED" \
-        --platform "herbie20" \
-        --disable "generate:taylor" \
-        "$BENCHDIR" \
-        "$REPORTDIR/herbie20_no_taylor" 
+# racket -y "src/main.rkt" report \
+#         --seed "$SEED" \
+#         --platform "herbie20" \
+#         --disable "generate:taylor" \
+#         "$BENCHDIR" \
+#         "$REPORTDIR/herbie20_no_taylor" 
 
-racket -y "src/main.rkt" report \
-        --seed "$SEED" \
-        --platform "herbie20" \
-        --disable "generate:taylor" \
-        --disable "reduce:regimes" \
-        "$BENCHDIR" \
-        "$REPORTDIR/herbie20_no_taylor_regimes" 
+# racket -y "src/main.rkt" report \
+#         --seed "$SEED" \
+#         --platform "herbie20" \
+#         --disable "generate:taylor" \
+#         --disable "reduce:regimes" \
+#         "$BENCHDIR" \
+#         "$REPORTDIR/herbie20_no_taylor_regimes" 
 
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
@@ -72,20 +72,20 @@ racket -y "src/main.rkt" report \
         "$BENCHDIR" \
         "$REPORTDIR/growlibm_base" 
 
-racket -y "src/main.rkt" report \
-        --seed "$SEED" \
-        --platform "growlibm" \
-        --disable "generate:taylor" \
-        "$BENCHDIR" \
-        "$REPORTDIR/growlibm_no_taylor" 
+# racket -y "src/main.rkt" report \
+#         --seed "$SEED" \
+#         --platform "growlibm" \
+#         --disable "generate:taylor" \
+#         "$BENCHDIR" \
+#         "$REPORTDIR/growlibm_no_taylor" 
 
-racket -y "src/main.rkt" report \
-        --seed "$SEED" \
-        --platform "growlibm" \
-        --disable "generate:taylor" \
-        --disable "reduce:regimes" \
-        "$BENCHDIR" \
-        "$REPORTDIR/growlibm_no_taylor_regimes" 
+# racket -y "src/main.rkt" report \
+#         --seed "$SEED" \
+#         --platform "growlibm" \
+#         --disable "generate:taylor" \
+#         --disable "reduce:regimes" \
+#         "$BENCHDIR" \
+#         "$REPORTDIR/growlibm_no_taylor_regimes" 
 
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
@@ -93,20 +93,20 @@ racket -y "src/main.rkt" report \
         "$BENCHDIR" \
         "$REPORTDIR/herbie20plus_base" 
 
-racket -y "src/main.rkt" report \
-        --seed "$SEED" \
-        --platform "herbie20plus" \
-        --disable "generate:taylor" \
-        "$BENCHDIR" \
-        "$REPORTDIR/herbie20plus_no_taylor" 
+# racket -y "src/main.rkt" report \
+#         --seed "$SEED" \
+#         --platform "herbie20plus" \
+#         --disable "generate:taylor" \
+#         "$BENCHDIR" \
+#         "$REPORTDIR/herbie20plus_no_taylor" 
 
-racket -y "src/main.rkt" report \
-        --seed "$SEED" \
-        --platform "herbie20plus" \
-        --disable "generate:taylor" \
-        --disable "reduce:regimes" \
-        "$BENCHDIR" \
-        "$REPORTDIR/herbie20plus_no_taylor_regimes" 
+# racket -y "src/main.rkt" report \
+#         --seed "$SEED" \
+#         --platform "herbie20plus" \
+#         --disable "generate:taylor" \
+#         --disable "reduce:regimes" \
+#         "$BENCHDIR" \
+#         "$REPORTDIR/herbie20plus_no_taylor_regimes" 
 
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
