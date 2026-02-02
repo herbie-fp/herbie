@@ -29,7 +29,6 @@
 (activate-platform! "no-accelerators")
 (*node-limit* 50000)
 (define report-dir (vector-ref (current-command-line-arguments) 0))
-(*num-points* 4000)
 ;;; ------------------------- HELPERS ---------------------------------
 (define (get-cost expr)
   (cost-proc expr (get-representation 'binary64)))
