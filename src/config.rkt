@@ -24,7 +24,8 @@
         [reduce . (avg-error simplify)]
         [rules . (numerics special bools branches)]))
 
-(define debug-flags #hash([generate . (egglog)] [dump . (egg rival egglog trace)] [sampling . (rival3)]))
+(define debug-flags
+  #hash([generate . (egglog)] [dump . (egg rival egglog trace)] [sampling . (rival3)]))
 
 (define all-flags (hash-union default-flags deprecated-flags debug-flags #:combine set-union))
 

@@ -44,10 +44,26 @@
 (define (boolean-discretization)
   (if (use-rival3?) r3:boolean-discretization r2:boolean-discretization))
 
-(define (discretization bits convert distance)
-  (if (use-rival3?)
-      (r3:discretization bits convert distance 'f64)
-      (r2:discretization bits convert distance)))
+;; TODO: hacky
+(define (repr->rival3-disc-type repr)
+  (cond
+    [(eq? repr <binary32>) 'f32]
+    [(eq? repr <binary64>) 'f64]
+    [else 'f64]))
+
+(define (rival3-shared-target reprs)
+  (apply max (map representation-total-bits reprs)))
+
+(define (repr->rival2-discretization repr)
+  (r2:discretization (representation-total-bits repr)
+                     (representation-bf->repr repr)
+                     (lambda (x y) (- (ulp-difference x y repr) 1))))
+
+(define (repr->rival3-discretization repr target)
+  (r3:discretization target
+                     (representation-bf->repr repr)
+                     (lambda (x y) (- (ulp-difference x y repr) 1))
+                     (repr->rival3-disc-type repr)))
 
 (define (exn:rival:invalid? e)
   (or (r2:exn:rival:invalid? e) (r3:exn:rival:invalid? e)))
@@ -147,14 +163,7 @@
       1))
 
 (define (repr->discretization repr)
-  (if (use-rival3?)
-      (r3:discretization 53
-                         (representation-bf->repr repr)
-                         (lambda (x y) (- (ulp-difference x y repr) 1))
-                         'f64)
-      (r2:discretization (representation-total-bits repr)
-                         (representation-bf->repr repr)
-                         (lambda (x y) (- (ulp-difference x y repr) 1)))))
+  (repr->rival2-discretization repr))
 
 ;; Herbie's wrapper around the Rival machine abstraction.
 (struct real-compiler (pre vars var-reprs exprs reprs machine dump-file))
@@ -171,7 +180,12 @@
   (define specs (map (batch-exprs batch) brfs))
   ; create the machine
   (define exprs (cons `(assert ,pre) specs))
-  (define discs (cons (boolean-discretization) (map repr->discretization reprs)))
+  (define discs
+    (if (use-rival3?)
+        (let* ([target (rival3-shared-target reprs)]
+               [bool-disc (struct-copy r3:discretization r3:boolean-discretization [target target])])
+          (cons bool-disc (map (lambda (repr) (repr->rival3-discretization repr target)) reprs)))
+        (cons (boolean-discretization) (map repr->rival2-discretization reprs))))
   (define machine (rival-compile exprs vars discs))
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre) (map expr-size specs))
@@ -192,6 +206,7 @@
                         ,@specs)
                      dump-file
                      1)
+       (flush-output dump-file)
        dump-file]
       [else #f]))
 
@@ -227,7 +242,8 @@
       ((representation-repr->bf repr) val)))
   (when dump-file
     (define args (map bigfloat->readable-string (vector->list pt*)))
-    (fprintf dump-file "(eval f ~a)\n" (string-join args " ")))
+    (fprintf dump-file "(eval f ~a)\n" (string-join args " "))
+    (flush-output dump-file))
   (define-values (status value)
     (with-handlers ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
                     [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
