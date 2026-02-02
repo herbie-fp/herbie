@@ -27,7 +27,8 @@
 
 ;;; ------------------------- SETUP ---------------------------------
 (activate-platform! "no-accelerators")
-(*node-limit* 50000)
+(*node-limit* 100000)
+(*num-points* 1000)
 (define report-dir (vector-ref (current-command-line-arguments) 0))
 ;;; ------------------------- HELPERS ---------------------------------
 (define (get-cost expr)
