@@ -27,9 +27,9 @@
 
 ;;; ------------------------- SETUP ---------------------------------
 (activate-platform! "grow")
-(struct candidate (name spec score cost))
+(struct candidate (name spec score cost error))
 
-(define implication-threshold 1.0)
+(define implication-threshold 0.5)
 (define top-k 5)
 
 ;;; ------------------------- HELPERS ---------------------------------
@@ -44,11 +44,14 @@
 (define (candidate-name->symbol cand)
   (string->symbol (candidate-name->string cand)))
 
-(define (register-op! platform spec name cost)
+(define (register-op! platform fpcore name cost)
   (parameterize ([*active-platform* platform])
+    (define impl (fpcore->prog fpcore (get-ctx fpcore)))
+    (define spec (prog->spec impl))
     (define ctx (get-ctx spec))
     (define vars (context-vars ctx))
-    (define impl
+
+    (define op-impl
       (create-operator-impl!
        name
        ctx
@@ -56,7 +59,7 @@
        #:impl (from-rival)
        #:fpcore `(! :precision binary64 (,name ,@vars))
        #:cost cost))
-    (platform-register-implementation! platform impl)
+    (platform-register-implementation! platform op-impl)
     (void)))
 
 (define (expr->test expr
@@ -88,42 +91,38 @@
         out-repr-name
         var-repr-names))
 
-(define (run-herbie-expr expr
+(define (run-herbie-expr expr platform
                          #:seed [seed #f]
                          #:name [name "scratch"]
                          #:precision [precision (*default-precision*)])
-  (define test (expr->test expr #:name name #:precision precision))
-  (define result (run-herbie 'improve test #:seed seed))
-  (match (job-result-status result)
-    ['success
-     (define backend (job-result-backend result))
-     (define end (improve-result-end backend))
-     (define end-best (first end))
-     (displayln end-best)
-     (define final-error (errors-score (alt-analysis-errors end-best)))
-     (printf "final-error-bits: ~a\n" final-error)]
-    ['failure
-     (define backend (job-result-backend result))
-     (when (exn? backend)
-       (printf "herbie-error: ~a\n" (exn-message backend)))]
-    ['timeout (printf "herbie-timeout\n")])
-  result)
+  (parameterize ([*active-platform* platform])
+    (define test (expr->test expr #:name name #:precision precision))
+    (define result (run-herbie 'improve test #:seed seed))
+    (disable-flag! 'generate 'taylor)
+    (match (job-result-status result)
+      ['success
+       (define backend (job-result-backend result))
+       (define end (improve-result-end backend))
+       (define end-best (first end))
+       (define final-error (errors-score (alt-analysis-errors end-best)))
+       final-error]
+      [_
+       (raise-arguments-error 'run-herbie-expr "Herbie run failed" "expr" expr)])))
 
-(define (improve-error-bits expr platform)
-  (with-handlers ([exn? (lambda (_exn) +inf.0)])
-    (reset!)
-    (parameterize ([*active-platform* platform])
-      (define test (expr->test expr))
-      (*context* (test-context test))
-      (define spec (prog->spec (or (test-spec test) (test-input test))))
-      (define pcontext (get-spec-sample spec))
-      (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) pcontext))
-      (cond
-        [(null? alternatives) +inf.0]
-        [else
-         (define sorted-alts (sort-alts alternatives))
-         (define best-errs (cdr (first sorted-alts)))
-         (errors-score best-errs)]))))
+;;; (define (improve-error-bits expr platform)
+;;;     (reset!)
+;;;     (parameterize ([*active-platform* platform])
+;;;       (define test (expr->test expr))
+;;;       (*context* (test-context test))
+;;;       (define spec (prog->spec (or (test-spec test) (test-input test))))
+;;;       (define pcontext (get-spec-sample spec))
+;;;       (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) pcontext))
+;;;       (cond
+;;;         [(null? alternatives) +inf.0]
+;;;         [else
+;;;          (define sorted-alts (sort-alts alternatives))
+;;;          (define best-errs (cdr (first sorted-alts)))
+;;;          (errors-score best-errs)])))
 
 ;;; ------------------------- MAIN PIPELINE ---------------------------------
 (define filename (vector-ref (current-command-line-arguments) 0))
@@ -157,7 +156,7 @@
     (define score (if (number? end-val)
                       (/ (* end-val count) cost)
                       0))
-    (candidate name spec score cost)))
+    (candidate name spec score cost end-val)))
 
 (define sorted-cands (sort scored-pairs > #:key candidate-score))
 
@@ -191,18 +190,36 @@
 (define base-platform (platform-copy (*active-platform*)))
 (define implied-by (make-hash))
 
+(for-each (lambda (cand)
+            (displayln (format "~a: ~a"
+                               (candidate-name->string cand)
+                               (candidate-spec cand))))
+          top-cands)
+
 (when (> (length top-cands) 1)
   (for ([cand-a (in-list top-cands)])
+    (displayln "")
+    (displayln (format "considering implication from ~a: ~a" (candidate-name->string cand-a) (candidate-spec cand-a)))
     (define platform-a (platform-copy base-platform))
     (define name-a (candidate-name->string cand-a))
     (define spec-a (candidate-spec cand-a))
-    (define fake-cost-a (floor (/ (candidate-cost cand-a) 5)))
+    (define fake-cost-a 0)
     (register-op! platform-a spec-a (candidate-name->symbol cand-a) fake-cost-a)
     (for ([cand-b (in-list top-cands)]
-          #:unless (equal? (candidate-name->string cand-b) name-a)
-          #:unless (hash-has-key? implied-by (candidate-name->string cand-b)))
-      (define err (improve-error-bits (candidate-spec cand-b) platform-a))
-      (when (< err implication-threshold)
+          #:unless (equal? (candidate-name->string cand-b) name-a))
+
+      (define err (run-herbie-expr (candidate-spec cand-b) platform-a))
+      (define diff (- (candidate-error cand-b) err))
+      (define original-err (candidate-error cand-b))
+      (define improvement-ratio
+        (if (<= original-err 0)
+            0.0
+            (/ diff original-err)))
+      (displayln  (format "     ~a: ~a, ~a ~a ~a" (candidate-name->string cand-b) (candidate-spec cand-b) err diff improvement-ratio))
+
+      (when (> improvement-ratio implication-threshold)
+
+        (displayln (format "     -> IMPLICATION DETECTED: ~a implies ~a" name-a (candidate-name->string cand-b)))
         (hash-set! implied-by (candidate-name->string cand-b) name-a)))))
 
 (define chosen-cand
@@ -245,7 +262,6 @@
                                 name
                                 (string-join (map symbol->string (free-variables spec)))
                                 fake-cost))
-
 
 (with-output-to-file "growlibm/grow.rkt"
   (lambda ()

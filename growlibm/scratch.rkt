@@ -30,7 +30,13 @@
 ;;; (define expr '(*.f64 (cos.f64 (*.f64 #s(literal -6.2831854820251465 binary64) z0)) (sqrt.f64 z1)))
 ;;; (define cost-proc (platform-cost-proc (*active-platform*)))
 ;;; (displayln (cost-proc expr (get-representation 'binary64)))
-
+(define (get-ctx expr)
+  (define free-vars  (sort (free-variables expr) symbol<?))
+  (context
+   free-vars
+   (get-representation 'binary64)
+   (make-list (length free-vars)
+              (get-representation 'binary64))))
 
 (define (best-exprs exprs ctxs)
   (define rules (*rules*))
@@ -49,22 +55,39 @@
   ; batchrefss is a (listof (listof batchref))
   (define batchrefss (egraph-best runner batch))
   batchrefss)
+(define (register-op! platform fpcore name cost)
+  (parameterize ([*active-platform* platform])
+    (define impl (fpcore->prog fpcore (get-ctx fpcore)))
+    (define spec (prog->spec impl))
+    (define ctx (get-ctx spec))
+    (define vars (context-vars ctx))
 
-(define expr1 '(*.f64 z0 z0))
-(define expr2 '(/.f64 z0 z1))
-(define (get-ctx expr)
-  (define free-vars  (sort (free-variables expr) symbol<?))
-  (context
-   free-vars
-   (get-representation 'binary64)
-   (make-list (length free-vars)
-              (get-representation 'binary64))))
+    (define op-impl
+      (create-operator-impl!
+       name
+       ctx
+       #:spec spec
+       #:impl (from-rival)
+       #:fpcore `(! :precision binary64 (,name ,@vars))
+       #:cost cost))
+    (platform-register-implementation! platform op-impl)
+    (void)))
 
-(define exprs (list expr1 expr2))
-(define ctxs (map get-ctx exprs))
+;;; (define expr1 '(*.f64 z0 z0))
+;;; (define expr2 '(/.f64 z0 z1))
+;;; (define (get-ctx expr)
+;;;   (define free-vars  (sort (free-variables expr) symbol<?))
+;;;   (context
+;;;    free-vars
+;;;    (get-representation 'binary64)
+;;;    (make-list (length free-vars)
+;;;               (get-representation 'binary64))))
+
+;;; (define exprs (list expr1 expr2))
+;;; (define ctxs (map get-ctx exprs))
 ;;; (best-exprs exprs ctxs)
 
-(register-op '(sqrt (+ (* z0 z0) (* z1 z1))) 'hypoot)
+;;; (register-op! (*active-platform*) '(/ (+ (sqrt (* (+ z2 z1) (- z1 z2))) z1) z0) 'hehe 0)
 
 ;; Build a test from an expression and run Herbie on it.
 (define (expr->test expr
@@ -117,4 +140,4 @@
     ['timeout (printf "herbie-timeout\n")])
   result)
 
-(void (run-herbie-expr '(+ (sqrt (+ (* z0 z0) (* z1 z1))) z0)))
+(void (run-herbie-expr '(cbrt (/ (+ (sqrt (* (+ z2 z1) (- z1 z2))) z1) z0))))
