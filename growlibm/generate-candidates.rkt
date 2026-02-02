@@ -36,67 +36,37 @@
 
 (define cost-proc (platform-cost-proc (*active-platform*)))
 
-(define (get-holey-subexpressions expr)
-  (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 
-                             <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
+(define (get-subexpressions expr)
+  (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
   (define (comparison-op? op)
-    (and (symbol? op) (member op comparison-bases)))
-  
-  (define hole 'hole)
-
-  (define (interesting? e)
-    (and (pair? e) (not (null? e))))
-
-  (reap [sow]
-    (let loop ([expr expr])
-      (match expr
-        ;; 1. CONTROL FLOW (Transparent)
-        [(or `(if ,test ,t ,f)
-             `(if.f32 ,test ,t ,f)
-             `(if.f64 ,test ,t ,f))
-         (loop test)
-         (loop t)
-         (loop f)
-         (list hole)]
-
-        ;; 2. COMPARISONS (Transparent)
-        [(list (? comparison-op? op) lhs rhs)
-         (loop lhs)
-         (loop rhs)
-         (list hole)]
-
-        ;; 3. ARITHMETIC / GENERIC OPS (The Payload)
-        [(list op args ...)
-         (define arg-variants-list (map loop args))
-         
-         (define current-variants
-           (append
-            (list expr)
-            (for*/list ([i (in-range (length args))]
-                        [variant (list-ref arg-variants-list i)]
-                        #:unless (equal? variant (list-ref args i)))
-              (append `(,op) 
-                      (take args i) 
-                      (list variant) 
-                      (drop args (add1 i))))))
-         
-         ;; Only sow if it is a list (variant might be 'hole, which we skip now)
-         (for ([v current-variants] #:when (interesting? v)) (sow v))
-         
-         (cons hole current-variants)]
-
-        ;; 4. LEAVES (Inputs for Parents only)
-        [(? symbol?)
-         ;; Return variable to parent, but DO NOT sow it.
-         (list expr)]
-
-        [(? number?)
-         ;; Return constant (and hole option) to parent, but DO NOT sow it.
-         (list expr hole)]
-        
-        [_ 
-         ;; Fallback for anything else (rare)
-         (list expr)]))))
+    (and (symbol? op)
+         (member op comparison-bases)))
+  (define subexprs
+    (reap [sow]
+          (let loop ([expr expr])
+            (match expr
+              [(or `(if ,test ,t ,f)
+                   `(if.f32 ,test ,t ,f)
+                   `(if.f64 ,test ,t ,f))
+               (loop test)
+               (loop t)
+               (loop f)]
+              [(approx _ impl)
+               (loop impl)]
+              [(list (? comparison-op?) lhs rhs)
+               (loop lhs)
+               (loop rhs)]
+              [_
+               (sow expr)
+               (match expr
+                 [(? number?) (void)]
+                 [(? literal?) (void)]
+                 [(? symbol?) (void)]
+                 [(list _ args ...)
+                  (for ([arg args])
+                    (loop arg))]
+                 [_ (void)])]))))
+    subexprs)
 
 
 (define (remove-approxes expr)
@@ -169,7 +139,7 @@
 (define alpha-renamed-roots (map alpha-rename roots))
 (define canonical-roots (run-egg alpha-renamed-roots))
 
-(define subexprs (append* (map get-holey-subexpressions canonical-roots)))
+(define subexprs (append* (map get-subexpressions canonical-roots)))
 (log-info "subexprs" (length subexprs) report-dir)
 
 (define filtered-subexprs
