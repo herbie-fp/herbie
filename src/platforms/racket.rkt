@@ -89,11 +89,8 @@
 
 (define-operation (//1 [x <binary64>]) <binary64> #:spec (/ 1 x) #:impl / #:cost 1)
 
-(define-operation (log/2 [x <binary64>] [y <binary64>])
-                  <binary64>
-                  #:spec (/ (log x) (log y))
-                  #:impl log
-                  #:cost 1)
+(define-operation (log/2 [x <binary64>] [y <binary64>]) <binary64>
+  #:spec (/ (log x) (log y)) #:impl log #:fpcore (log x y) #:cost 1)
 
 (define-operation (flsingle [x <binary64>])
                   <binary64>

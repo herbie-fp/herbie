@@ -82,6 +82,8 @@
          (define mode (~a (vector-ref data 1)))
          (define start (exact-floor (* 1000 (vector-ref data 9))))
          (define end (exact-floor (* 1000 (vector-ref data 10))))
+         (define post-amount (vector-ref data 5))
+         (define post-admin-amount (vector-ref data 6))
          (call-with-output-file "dump-trace.json"
                                 #:exists 'append
                                 (λ (out)
@@ -100,6 +102,20 @@
                                                     (equal-hash-code 'gc)
                                                     'args
                                                     (hash))
+                                              out)
+                                  (fprintf out ",")
+                                  (write-json (hash 'name
+                                                    "Memory"
+                                                    'ph
+                                                    "C"
+                                                    'ts
+                                                    end
+                                                    'pid
+                                                    0
+                                                    'tid
+                                                    (equal-hash-code 'gc)
+                                                    'args
+                                                    (hash 'live post-amount 'admin post-admin-amount))
                                               out)))
          (drain)]))))
 

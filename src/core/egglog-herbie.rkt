@@ -6,7 +6,7 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../config.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "../utils/common.rkt"
          "egglog-subprocess.rkt")
 
@@ -32,7 +32,10 @@
 
 ;; [Copied from egg-herbie.rkt] Returns all representatations (and their types) in the current platform.
 (define (all-repr-names [pform (*active-platform*)])
-  (remove-duplicates (map (lambda (repr) (representation-name repr)) (platform-reprs pform))))
+  (map representation-name (platform-reprs pform)))
+
+(define (real->bigrat val)
+  `(bigrat (from-string ,(~s (numerator val))) (from-string ,(~s (denominator val)))))
 
 ; Types handled
 ; - rationals
@@ -77,11 +80,6 @@
 
   ;;;; SUBPROCESS START ;;;;
   (define subproc (create-new-egglog-subprocess label))
-
-  (thread (lambda ()
-            (with-handlers ([exn:fail? (lambda (_) (void))])
-              (for ([line (in-lines (egglog-subprocess-error subproc))])
-                (void)))))
 
   ;; 1. Add the Prelude (includes all rules) - send directly to egglog
   (prelude subproc #:mixed-egraph? #t)
@@ -143,59 +141,29 @@
   (for ([step (in-list (egglog-runner-schedule runner))])
     (match step
       ['lift (egglog-send subproc '(run-schedule (saturate lift)))]
-
       ['lower (egglog-send subproc '(run-schedule (saturate lower)))]
-
       ['unsound (egglog-send subproc '(run-schedule (saturate unsound)))]
-
       ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
       ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
   ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
-  (define extract-commands
-    (for/list ([constructor-name extract-bindings])
-      `(extract (,constructor-name) ,extract)))
+  (define stdout-content
+    (egglog-multi-extract subproc
+                          `(multi-extract ,extract
+                                          ,@(for/list ([constructor-name extract-bindings])
+                                              `(,constructor-name)))))
 
-  (define stdout-content (egglog-extract subproc extract-commands))
+  ;; Close everything subprocess related
+  (egglog-subprocess-close subproc)
 
   ;; (Listof (Listof exprs))
   (define herbie-exprss
     (for/list ([next-expr (in-list stdout-content)])
       (map e2->expr next-expr)))
 
-  (define result
-    (for/list ([variants (in-list herbie-exprss)])
-      (remove-duplicates
-       (for/list ([v (in-list variants)])
-         (egglog->batchref v output-batch (context-repr (egglog-runner-ctx runner))))
-       #:key batchref-idx)))
-
-  ;; Close everything subprocess related
-  (egglog-subprocess-close subproc)
-
-  ;; (Listof (Listof batchref))
-  result)
-
-(define (egglog->batchref expr batch type)
-  (define idx
-    (let loop ([expr expr]
-               [type type])
-      (define term
-        (match expr
-          [(? number?)
-           (if (representation? type)
-               (literal expr (representation-name type))
-               expr)]
-          [(? symbol?) expr]
-          [(approx spec impl) (approx (loop spec #f) (loop impl type))]
-          [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
-          [(list op args ...)
-           (define args*
-             (for/list ([arg (in-list args)])
-               (loop arg #f)))
-           (cons op args*)]))
-      (batchref-idx (batch-push! batch term))))
-  (batchref batch idx))
+  (for/list ([variants (in-list herbie-exprss)])
+    (for/list ([v (in-list variants)])
+      (batch-add! output-batch v))))
 
 ;; Egglog requires integer costs, but Herbie uses floating-point costs.
 ;; Scale by 1000 to convert Herbie's float costs to Egglog's integer costs.
@@ -205,9 +173,7 @@
 (define (prelude subproc #:mixed-egraph? [mixed-egraph? #t])
   (define pform (*active-platform*))
 
-  (egglog-send
-   subproc
-   `(datatype M (Num BigRat :cost 4294967295) (Var String :cost 4294967295) ,@(platform-spec-nodes)))
+  (egglog-send subproc `(datatype M ,@(platform-spec-nodes)))
 
   (apply egglog-send
          subproc
@@ -218,7 +184,6 @@
                                   ,@(platform-impl-nodes pform))
                        `(constructor do-lower (M String) MTy :unextractable)
                        `(constructor do-lift (MTy) M :unextractable)
-                       `(ruleset const-fold)
                        `(ruleset lower)
                        `(ruleset lift)
                        `(ruleset unsound)
@@ -229,7 +194,7 @@
                               ((set (bad-merge?) true))
                               :ruleset
                               bad-merge-rule))
-                 const-fold
+                 (const-fold-rules)
                  (impl-lowering-rules pform)
                  (impl-lifting-rules pform)
                  (num-lowering-rules)
@@ -241,109 +206,91 @@
 
   (void))
 
-(define const-fold
-  `((let ?zero (bigrat
-                [from-string "0"]
-                [from-string "1"])
+(define (const-fold-rules)
+  `((ruleset const-fold)
+    (let $0 ,(real->bigrat 0)
+      )
+    (let $1 ,(real->bigrat 1)
       )
     (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
     (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
     (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
     ; TODO : Non-total operator
-    (rule ((= e (Div (Num x) (Num y))) (!= ?zero y)) ((union e (Num (/ x y)))) :ruleset const-fold)
+    (rule ((= e (Div (Num x) (Num y))) (!= $0 y)) ((union e (Num (/ x y)))) :ruleset const-fold)
     (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
     ;; Power rules -> only case missing is 0^0 making it non-total
     ;; 0^y where y > 0
-    (rule ((= e (Pow (Num x) (Num y))) (= ?zero x) (> y ?zero))
-          ((union e (Num ?zero)))
-          :ruleset
-          const-fold)
+    (rule ((= e (Pow (Num x) (Num y))) (= $0 x) (> y $0)) ((union e (Num $0))) :ruleset const-fold)
     ;; x^0 where x != 0
-    (rule ((= e (Pow (Num x) (Num y))) (= ?zero y) (!= ?zero x))
-          ((union e (Num (bigrat (from-string "1") (from-string "1")))))
-          :ruleset
-          const-fold)
+    (rule ((= e (Pow (Num x) (Num y))) (= $0 y) (!= $0 x)) ((union e (Num $1))) :ruleset const-fold)
     ;; x^y when y is a whole number and y > 0 and x != 0
-    (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (= y (round y)))
+    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (= y (round y)))
           ((union e (Num (pow x y))))
           :ruleset
           const-fold)
     ;; New rule according to Rust : x^y where y is not a whole number
-    (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (!= y (round y)))
+    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (!= y (round y)))
           ((union e (Num (pow x (round y)))))
           :ruleset
           const-fold)
     ;; Sqrt rules -> Non-total but egglog implementation handles it
     (rule ((= e (Sqrt (Num n))) (sqrt n)) ((union e (Num (sqrt n)))) :ruleset const-fold)
-    (rule ((= e (Log (Num x))) (= (numer x) (denom x))) ((union e (Num ?zero))) :ruleset const-fold)
-    (rule ((= e (Cbrt (Num x))) (= (numer x) (denom x)))
-          ((union e (Num (bigrat (from-string "1") (from-string "1")))))
-          :ruleset
-          const-fold)
+    (rewrite (Log (Num $1)) (Num $0) :ruleset const-fold)
+    (rewrite (Cbrt (Num $1)) (Num $1) :ruleset const-fold)
     (rewrite (Fabs (Num x)) (Num (abs x)) :ruleset const-fold)
     (rewrite (Floor (Num x)) (Num (floor x)) :ruleset const-fold)
     (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
     (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
 
 (define (platform-spec-nodes)
-  (append* (for/list ([op (in-list (all-operators))])
-             (hash-set! (id->e1) op (serialize-op op))
-             (hash-set! (e1->id) (serialize-op op) op)
-
-             ; Unsound versions of operations
-             (define unsound-op (sym-append "unsound-" op))
-             (hash-set! (id->e1) unsound-op (serialize-op unsound-op))
-             (hash-set! (e1->id) (serialize-op unsound-op) unsound-op)
-
-             (define sound-op (sym-append "sound-" op))
-             (hash-set! (id->e1) sound-op (serialize-op sound-op))
-             (hash-set! (e1->id) (serialize-op sound-op) sound-op)
-
-             (define arity (length (operator-info op 'itype)))
-             (list `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295)
-                   `(,(serialize-op sound-op) ,@(make-list arity 'M) M :cost 4294967295)
-                   `(,(serialize-op unsound-op) ,@(make-list arity 'M) :cost 4294967295)))))
+  (for ([op '(sound-/ sound-log sound-pow)])
+    (hash-set! (id->e1) op (serialize-op op))
+    (hash-set! (e1->id) (serialize-op op) op))
+  (list* '(Num BigRat :cost 4294967295)
+         '(Var String :cost 4294967295)
+         '(Sound-/ M M M :cost 4294967295)
+         '(Sound-Log M M :cost 4294967295)
+         '(Sound-Pow M M M :cost 4294967295)
+         (for/list ([op (in-list (all-operators))])
+           (define arity (length (operator-info op 'itype)))
+           (hash-set! (id->e1) op (serialize-op op))
+           (hash-set! (e1->id) (serialize-op op) op)
+           `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295))))
 
 (define (platform-impl-nodes pform)
   (for/list ([impl (in-list (platform-impls pform))])
     (define arity (length (impl-info impl 'itype)))
-    (define typed-name (string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty")))
+    (define typed-name (string->symbol (format "~aTy" (serialize-impl impl))))
     (hash-set! (id->e2) impl typed-name)
     (hash-set! (e2->id) typed-name impl)
-    `(,typed-name ,@(for/list ([i (in-range arity)])
-                      'MTy)
-                  :cost
-                  ,(normalize-cost (impl-info impl 'cost)))))
+    (define cost (normalize-cost (impl-info impl 'cost)))
+    `(,typed-name ,@(make-list arity 'MTy) :cost ,cost)))
 
 (define (typed-num-id repr-name)
-  (string->symbol (string-append "Num" (symbol->string repr-name))))
+  (string->symbol (format "Num~a" repr-name)))
 
 (define (typed-var-id repr-name)
-  (string->symbol (string-append "Var" (symbol->string repr-name))))
+  (string->symbol (format "Var~a" repr-name)))
 
 (define (num-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))]
              #:when (not (eq? repr 'bool)))
-    `(,(typed-num-id repr) BigRat
-                           :cost
-                           ,(normalize-cost (platform-repr-cost pform (get-representation repr))))))
+    (define cost (normalize-cost (platform-repr-cost pform (get-representation repr))))
+    `(,(typed-num-id repr) BigRat :cost ,cost)))
 
 (define (var-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))])
-    `(,(typed-var-id repr) String
-                           :cost
-                           ,(normalize-cost (platform-repr-cost pform (get-representation repr))))))
+    (define cost (normalize-cost (platform-repr-cost pform (get-representation repr))))
+    `(,(typed-var-id repr) String :cost ,cost)))
 
 (define (num-lowering-rules)
   (for/list ([repr (in-list (all-repr-names))]
              #:when (not (eq? repr 'bool)))
     `(rule ((= e (Num n)))
-           ((let tx ,(symbol->string repr)
-              )
-            (let etx (,(typed-num-id repr)
+           ((let etx (,(typed-num-id repr)
                       n)
               )
-            (union (do-lower e tx) etx))
+            (union (do-lower e ,(symbol->string repr)) etx))
            :ruleset
            lower)))
 
@@ -400,9 +347,7 @@
 (define (expr->egglog-spec-serialized expr s)
   (let loop ([expr expr])
     (match expr
-      [(? number?)
-       `(Num (bigrat (from-string ,(number->string (numerator expr)))
-                     (from-string ,(number->string (denominator expr)))))]
+      [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) (string->symbol (string-append s (symbol->string expr)))]
       [(list op args ...)
        `(,(hash-ref (if (hash-has-key? (id->e1) op)
@@ -425,36 +370,11 @@
         ""))
   (string->symbol (string-append (symbol->string (serialize-op op)) type)))
 
-(define (expr->e2-pattern expr repr)
-  (let loop ([expr expr]
-             [repr repr])
-    (match expr
-      [(? literal?)
-       `(,(typed-num-id (representation-name repr))
-         (bigrat (from-string ,(number->string (numerator (literal-value expr))))
-                 (from-string ,(number->string (denominator (literal-value expr))))))]
-      [(? symbol?) expr]
-      [(list op args ...)
-       `(,(hash-ref (id->e2) op) ,@(for/list ([arg (in-list args)]
-                                              [itype (in-list (impl-info op 'itype))])
-                                     (loop arg itype)))])))
-
 (define (expr->e1-pattern expr)
   (let loop ([expr expr])
     (match expr
-      [(? number?)
-       `(Num (bigrat (from-string ,(number->string (numerator expr)))
-                     (from-string ,(number->string (denominator expr)))))]
+      [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) expr]
-      [(list op args ...) `(,(hash-ref (id->e1) op) ,@(map loop args))])))
-
-(define (expr->e1-expr expr)
-  (let loop ([expr expr])
-    (match expr
-      [(? number?)
-       `(Num (bigrat (from-string ,(number->string (numerator expr)))
-                     (from-string ,(number->string (denominator expr)))))]
-      [(? symbol?) `(Var ,(symbol->string expr))]
       [(list op args ...) `(,(hash-ref (id->e1) op) ,@(map loop args))])))
 
 (define (egglog-rewrite-rules rules tag)
@@ -511,19 +431,15 @@
               #t ;; appl with op -> Is a spec
               #f)])))) ;; appl impl -> Not a spec
 
-  (for ([brf brfs])
+  (for ([brf (in-list brfs)])
     (vector-set! root-mask (batchref-idx brf) #t))
   (for ([node (in-batch batch)]
         [root? (in-vector root-mask)]
         [n (in-naturals)])
     (define node*
       (match node
-        [(literal v repr)
-         `(,(typed-num-id repr) (bigrat (from-string ,(number->string (numerator v)))
-                                        (from-string ,(number->string (denominator v)))))]
-        [(? number?)
-         `(Num (bigrat (from-string ,(number->string (numerator node)))
-                       (from-string ,(number->string (denominator node)))))]
+        [(literal v repr) `(,(typed-num-id repr) ,(real->bigrat v))]
+        [(? number?) `(Num ,(real->bigrat node))]
         [(? symbol?) #f]
         [(approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
         [(list impl args ...)
@@ -543,32 +459,30 @@
       (set! root-bindings (cons (vector-ref mappings n) root-bindings))))
 
   ; Var-lowering-rules
-  (apply egglog-send
-         subproc
-         (for/list ([var (in-list (context-vars ctx))]
-                    [repr (in-list (context-var-reprs ctx))])
-           `(rule ((= e (Var ,(symbol->string var))))
-                  ((let ty ,(symbol->string (representation-name repr))
-                     )
-                   (let ety (,(typed-var-id (representation-name repr))
-                             ,(symbol->string var))
-                     )
-                   (union (do-lower e ty) ety))
-                  :ruleset
-                  lower)))
+  (for ([var (in-list (context-vars ctx))]
+        [repr (in-list (context-var-reprs ctx))])
+    (egglog-send subproc
+                 `(rule ((= e (Var ,(symbol->string var))))
+                        ((let ty ,(symbol->string (representation-name repr))
+                           )
+                         (let ety (,(typed-var-id (representation-name repr))
+                                   ,(symbol->string var))
+                           )
+                         (union (do-lower e ty) ety))
+                        :ruleset
+                        lower)))
 
   ; Var-lifting-rules
-  (apply egglog-send
-         subproc
-         (for/list ([var (in-list (context-vars ctx))]
-                    [repr (in-list (context-var-reprs ctx))])
-           `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
-                  ((let se (Var
-                            ,(symbol->string var))
-                     )
-                   (union (do-lift e) se))
-                  :ruleset
-                  lift)))
+  (for ([var (in-list (context-vars ctx))]
+        [repr (in-list (context-var-reprs ctx))])
+    (egglog-send subproc
+                 `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
+                        ((let se (Var
+                                  ,(symbol->string var))
+                           )
+                         (union (do-lift e) se))
+                        :ruleset
+                        lift)))
 
   (define all-bindings '())
   (define binding->constructor (make-hash)) ; map from binding name to constructor name
@@ -662,157 +576,23 @@
   (values (reverse all-bindings) curr-bindings))
 
 (define (egglog-unsound-detected-subprocess tag subproc)
-
   (define node-limit (*node-limit*))
   (define iter-limit (*default-egglog-iter-limit*))
 
-  ;; Algorithm:
-  ;; 1. Run (PUSH) to the save the above state of the egraph
-  ;; 2. Repeat rules based on their ruleset tag once
-  ;; 3. Run the bad-merge-rule ruleset once
-  ;; 4. Extract the (bad-merge?) function that returns a bool
-  ;; 5. If (bad-merge?) function returns "true", we have a bad merge, so go to Step 10 for ROLLBACK
-  ;; 6. Run (print-size) to get nodes of the form "node_name : num_nodes" for all nodes in egraph
-  ;; 7. If the total number of nodes is more than node-limit, do NOT ROLLBACK and go to Step 11
-  ;; 8. Repeat rules based on the const-fold tag once and repeat Steps 3-7
-  ;; 9. Increment curr-iter by 1, and if it has not reach iter-limit, restart from Step 1
-  ;; 10. If we reach the ROLLBACK stage, the optimal number of iterations for this ruleset is one
-  ;;    below current. Therefore, we run (POP) to ROLLBACK to the last valid state.
-  ;;    Then run the whole thing one last time from the ideal number of iterations
-  ;; 11. Exit the unsound detection process
+  ;; Use egglog's :until guard with get-size! to stop when node limit is reached.
+  ;; After each iteration, we check for unsound merges via bad-merge-rule.
+  ;; The schedule runs until:
+  ;;   1. Node limit is reached (get-size! >= node-limit)
+  ;;   2. Saturation (no more progress)
+  ;;   3. Iter limit is reached
+  ;;   4. Unsoundness is detected (bad-merge? becomes true)
 
-  ; Saturation detection by verifying the previous number of nodes and nw ones
-  (define prev-number-nodes -1)
-
-  ;; Loop to check unsoundness
-  (let loop ([curr-iter 1])
-    (cond
-      ; Note we do NOT (pop) here
-      ; Return that we do not need to run again because we did not pop
-      [(> curr-iter iter-limit) (values iter-limit #f)]
-      [else
-
-       ;; Run the ruleset once more
-       (define math-schedule
-         (list '(push)
-               `(run-schedule (repeat 1 ,tag))
-               '(print-size)
-               '(run bad-merge-rule 1)
-               '(extract (bad-merge?))))
-
-       ;; Get egglog output
-       (define-values (math-unsound? math-node-limit? math-total-nodes)
-         (get-egglog-output math-schedule subproc node-limit))
-
-       (cond
-         ;;  There are two condiitons where we exit unsoundness dteection WITHOUT running (pop)
-         ;;  1. Saturation: when the number of nodes stays the same between iterations.
-         ;;  2. Node limit: when the e-graph exceeds the allowed number of nodes.
-         ;;  If either condition is met, return the current iteration limit and avoid running another
-         ;;  iteration.
-
-         ;; TODO : This saturation condition below is problematic. Simply checking unchanged node
-         ;;        count is misleading as we could, theoretically, have a ruleset that merges e-classes
-         ;;        without increasing number of nodes, meaning further iterations "could" make
-         ;;        progress. This logic incorrectly considers it saturated. Consider modifying the
-         ;;        logic or submit a feature request to Egglog for more accurate saturation detection.
-         [(equal? math-total-nodes prev-number-nodes) (values curr-iter #f)]
-
-         ;; TODO : This logic below is also algorithmally incorrect.  If we hit the node limit, we
-         ;;        should "stop" at that iteration, not rollback by 1. The correct line should be
-         ;;        [math-node-limit? (values curr-iter #f)]
-         ;;
-         ;;        However, we currently use this rollback logic for performance reasons due to
-         ;;        extraction. While we have tested that the extraction time linearly increases with
-         ;;        larger e-graphs (that indicates we have not done something majorly wrong).
-         ;;        However, even 0.1s can be considered too high for a reltively small (~2000 nodes)
-         ;;        e-graph while extracting. For now, popping provides a smaller e-graph and gives
-         ;;        performance comparable to Egg-Herbie, thought it doesn't affect correctness too much
-         [math-node-limit?
-          (egglog-send subproc '(pop))
-          (values (sub1 curr-iter) #t)]
-
-         ;; If Unsoundness detected or node-limit reached, then return the
-         ;; optimal iter limit (one less than current) and run (pop)
-         [math-unsound?
-          ;; Pop once at the end since the egraph isn't valid
-          (egglog-send subproc '(pop))
-
-          ;; Return one less than current iteration and indicate that we need to run again because pop
-          (values (sub1 curr-iter) #t)]
-
-         ;; Continue to next iteration of the math rules
-         [else
-          ;; set for the constant folding iteration
-          (set! prev-number-nodes math-total-nodes)
-
-          ;; 3. Run const-fold
-          (define const-schedule
-            (list '(push)
-                  `(run-schedule (repeat 1 const-fold))
-                  '(print-size)
-                  '(run bad-merge-rule 1)
-                  '(extract (bad-merge?))))
-
-          (define-values (const-unsound? const-node-limit? const-total-nodes)
-            (get-egglog-output const-schedule subproc node-limit))
-
-          (cond
-            ;; TODO:  See the TODO from above
-            [(equal? const-total-nodes prev-number-nodes) (values curr-iter #f)]
-            [const-node-limit?
-             (egglog-send subproc '(pop))
-             (values (sub1 curr-iter) #t)]
-
-            [const-unsound?
-             (egglog-send subproc '(pop))
-             (values (sub1 curr-iter) #t)]
-
-            [else
-             ;; Update state for the next iteration
-             (set! prev-number-nodes const-total-nodes)
-
-             (loop (add1 curr-iter))])])])))
-
-(define (get-egglog-output curr-schedule subproc node-limit)
-  (define-values (node-values unsound?) (egglog-send-unsound-detection subproc curr-schedule))
-
-  ;  (when unsound?
-  ;    (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
-
-  (define total_nodes (calculate-nodes node-values))
-
-  ;; There are 3 cases when we can exit the unsound detection
-  ;;  1. Unsoundness is detected in the egraph
-  ;;  2. We have reached or exceeded the set node limit
-  ;;  3. Saturation check which is done in parent function
-
-  (values unsound? (>= total_nodes node-limit) total_nodes))
-
-(define (calculate-nodes lines)
-  ;; Don't start from last index, but previous to last index - as last has current unsoundness result
-  (define process-lines
-    (reverse (if (empty? lines)
-                 lines ;; Has no nodes or first iteration
-                 (take lines (- (length lines) 1)))))
-
-  ;; Break when we reach the previous unsoundness result -> NOTE: "true" should technically never be reached
-  (for/fold ([total_nodes 0]) ([line (in-list process-lines)])
-    #:break (or (equal? line "true") (equal? line "false"))
-
-    ;; We need to add the total number of nodes for this one of the format
-    ;; "node_name : num_nodes"
-    ;; break up into (list node_name num_nodes) with spaces
-    (define parts (string-split line ":"))
-
-    ;; Get num_nodes in number
-    ; (define num_nodes (string->number (string-trim (cadr parts))))
-    (define num_nodes
-      (if (> (length parts) 0)
-          (string->number (string-trim (cadr parts)))
-          0))
-
-    (values (+ total_nodes num_nodes))))
+  (egglog-send subproc
+               `(run-schedule (repeat ,iter-limit
+                                      (seq (run ,tag :until (<= ,node-limit (get-size!)))
+                                           (run const-fold :until (<= ,node-limit (get-size!)))
+                                           (run bad-merge-rule :until (bad-merge?))))))
+  (void))
 
 (define (egglog-num? id)
   (string-prefix? (symbol->string id) "Num"))
@@ -823,25 +603,16 @@
 (define (egglog-var? id)
   (string-prefix? (symbol->string id) "Var"))
 
-(define (egglog-expr-typed? expr)
-  (match expr
-    [(? number?) #t]
-    [(? symbol?) #t]
-    [`(,impl ,args ...) (and (not (eq? impl 'typed-id)) (andmap egglog-expr-typed? args))]))
-
 (define (e1->expr expr)
-  (let loop ([expr expr])
-    (match expr
-      [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
-       (/ (string->number n) (string->number d))]
-      [`(,(? egglog-var? var) ,v) (string->symbol v)]
-      [`(,op ,args ...) `(,(hash-ref (e1->id) op) ,@(map loop args))])))
+  (match expr
+    [`(Num (bigrat (from-string ,n) (from-string ,d))) (/ (string->number n) (string->number d))]
+    [`(Var ,v) (string->symbol v)]
+    [`(,op ,args ...) `(,(hash-ref (e1->id) op) ,@(map e1->expr args))]))
 
 (define (e2->expr expr)
-  (let loop ([expr expr])
-    (match expr
-      [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
-       (/ (string->number n) (string->number d))]
-      [`(,(? egglog-var? var) ,v) (string->symbol v)]
-      [`(Approx ,spec ,impl) (approx (e1->expr spec) (loop impl))] ;;; todo approx bug or not?
-      [`(,impl ,args ...) `(,(hash-ref (e2->id) impl) ,@(map loop args))])))
+  (match expr
+    [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
+     (literal (/ (string->number n) (string->number d)) (egglog-num-repr num))]
+    [`(,(? egglog-var? var) ,v) (string->symbol v)]
+    [`(Approx ,spec ,impl) (approx (e1->expr spec) (e2->expr impl))] ;;; todo approx bug or not?
+    [`(,impl ,args ...) `(,(hash-ref (e2->id) impl) ,@(map e2->expr args))]))

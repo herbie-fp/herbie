@@ -9,7 +9,7 @@
          "syntax.rkt"
          "../utils/float.rkt"
          "generators.rkt"
-         "../core/batch.rkt")
+         "batch.rkt")
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just

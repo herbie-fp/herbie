@@ -21,6 +21,8 @@ jobs:
         with:
             toolchain: stable
             components: rustfmt, clippy
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
       - uses: actions/checkout@v5
       - name: "Install dependencies"
         run: make install
@@ -57,8 +59,10 @@ jobs:
           racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs0
           racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs1
           racket infra/diff.rkt graphs0 graphs1
+
+      # Test egglog mode
       - name: "Run Herbie with egglog"
-        run: racket -l herbie report --timeout 600 +o generate:egglog --seed 1 bench/hamming/trigonometry.fpcore graphs2
+        run: racket -y infra/ci.rkt --egglog --precision binary64 --seed 1 bench/tutorial.fpcore
 
       # Test the egg-herbie Rust code
       - run: cd egg-herbie && cargo clippy --tests
