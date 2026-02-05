@@ -162,7 +162,7 @@ dependencies = [
 [[package]]
 name = "rival"
 version = "0.1.0"
-source = "git+https://github.com/herbie-fp/rival-rs#f280119c5f9f4624833c5dd519cbe7a81c4be08b"
+source = "git+https://github.com/herbie-fp/rival3#bc957391c8f1598325f8b8e9841d6e5dba669fd7"
 dependencies = [
  "ascii_table",
  "gmp-mpfr-sys",
