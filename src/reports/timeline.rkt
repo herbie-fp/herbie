@@ -321,14 +321,13 @@
                         ,@
                         (for/list ([rec (in-list alts)])
                           (match-define (list batch-jsexpr status score repr-name) rec)
-                          (define expr (car (jsexpr->batch-exprs batch-jsexpr)))
                           (define repr (get-representation (read (open-input-string repr-name))))
                           `(tr ,(match status
                                   ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
                                   ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
                                   ["fresh" `(td)])
                                (td ,(format-accuracy score repr #:unit "%") "")
-                               (td (pre ,expr)))))))))
+                               (td (pre ,(jsexpr->batch-exprs batch-jsexpr))))))))))
 
 (define (render-phase-times times)
   (define hist-id (make-id))
@@ -342,8 +341,7 @@
                ,@(for/list ([rec (in-list (sort times > #:key first))]
                             [_ (in-range 5)])
                    (match-define (list time batch-jsexpr) rec)
-                   (define expr (car (jsexpr->batch-exprs batch-jsexpr)))
-                   `(tr (td ,(format-time time)) (td (pre ,expr))))))))
+                   `(tr (td ,(format-time time)) (td (pre ,(jsexpr->batch-exprs batch-jsexpr)))))))))
 
 (define (render-phase-series times)
   (define hist-id (make-id))
@@ -378,12 +376,11 @@
                               (thead (tr (th "Accuracy") (th "Segments") (th "Branch")))
                               ,@(for/list ([rec (in-list branches)])
                                   (match-define (list batch-jsexpr score splits repr-name) rec)
-                                  (define expr (car (jsexpr->batch-exprs batch-jsexpr)))
                                   (define repr
                                     (get-representation (read (open-input-string repr-name))))
                                   `(tr (td ,(format-accuracy score repr #:unit "%") "")
                                        (td ,(~a splits))
-                                       (td (code ,expr))))))))
+                                       (td (pre ,(jsexpr->batch-exprs batch-jsexpr)))))))))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Samples") (dd (table ((class "times"))
@@ -400,21 +397,17 @@
 (define (jsexpr->exprs x)
   (if (batch-jsexpr? x)
       (jsexpr->batch-exprs x)
-      (map ~a x)))
+      (string-join (map ~a x) "\n")))
 
 (define (render-phase-inputs inputs outputs)
   `((dt "Calls") (dd ,@(for/list ([input-jsexpr inputs]
                                   [output-jsexpr outputs]
                                   [n (in-naturals 1)])
-                         (define input-exprs (jsexpr->exprs input-jsexpr))
-                         (define output-exprs (jsexpr->exprs output-jsexpr))
                          `(details (summary "Call " ,(~a n))
                                    (table (thead (tr (th "Inputs")))
-                                          ,@(for/list ([arg input-exprs])
-                                              `(tr (td (pre ,arg)))))
+                                          (tr (td (pre ,(jsexpr->exprs input-jsexpr)))))
                                    (table (thead (tr (th "Outputs")))
-                                          ,@(for/list ([out output-exprs])
-                                              `(tr (td (pre ,out))))))))))
+                                          (tr (td (pre ,(jsexpr->exprs output-jsexpr))))))))))
 
 (define (render-phase-allocations allocations)
   (define sorted (sort allocations > #:key second))

@@ -19,19 +19,16 @@
 
 ;; The specific test is whether or not it's part of the Racket
 ;; standard library (called the "collects")
-(define collects-dir (path->string (find-collects-dir)))
+(define collects-dir (let ([dir (find-collects-dir)]) (and dir (path->string dir))))
 
 (define (profile-focus? id src)
-  (define dominated?
-    (cond
-      [(not src) #f]
-      [else
-       (define path (srcloc-source src))
-       (cond
-         [(path? path) (string-prefix? (path->string path) collects-dir)]
-         [(string? path) (string-prefix? path "...")] ; abbreviated collects paths
-         [else #f])]))
-  (not dominated?))
+  (define path (and src (srcloc-source src)))
+  (cond
+    [(not src) #t]
+    [(not collects-dir) #t]
+    [(path? path) (not (string-prefix? (path->string path) collects-dir))]
+    [(string? path) (not (string-prefix? path "..."))] ; abbreviated collects paths
+    [else #t]))
 
 ;; Filter a stack for edge computation. Keep non-focused functions at the
 ;; front (self position), then filter them out once we hit a focused function.

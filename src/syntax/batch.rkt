@@ -51,6 +51,10 @@
   (match expr
     [(approx spec impl) (approx (f spec) (f impl))]
     [(hole precision spec) (hole precision (f spec))]
+    [(list op) (list op)]
+    [(list op arg1) (list op (f arg1))]
+    [(list op arg1 arg2) (list op (f arg1) (f arg2))]
+    [(list op arg1 arg2 arg3) (list op (f arg1) (f arg2) (f arg3))]
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
 
@@ -59,13 +63,7 @@
 
 (define (batch-push! b term)
   (define hashcons (batch-index b))
-  (hash-ref! hashcons
-             term
-             (lambda ()
-               (define idx (hash-count hashcons))
-               (hash-set! hashcons term idx)
-               (dvector-add! (batch-nodes b) term)
-               (batchref b idx))))
+  (batchref b (hash-ref! hashcons term (lambda () (dvector-add! (batch-nodes b) term)))))
 
 (define (batch-add! b expr)
   (define (munge prog)
@@ -192,11 +190,25 @@
         [_ (~a node)])))
   (hash 'nodes nodes 'roots (map batchref-idx brfs*)))
 
-;; Converts a jsexpr batch back to expression strings
-;; Returns a list of expression strings, one per root
+;; Converts a jsexpr batch to a single SSA-style string with O(n) size
 (define (jsexpr->batch-exprs jsexpr)
   (define nodes (hash-ref jsexpr 'nodes))
   (define roots (hash-ref jsexpr 'roots))
+
+  ;; Pass 1: count references to each node
+  (define ref-counts (make-vector (length nodes) 0))
+  (for ([root roots])
+    (vector-set! ref-counts root (+ 1 (vector-ref ref-counts root))))
+  (for ([i (in-naturals)]
+        [node (in-list nodes)])
+    (match node
+      [(list op args ...)
+       (for ([arg args])
+         (vector-set! ref-counts arg (+ 1 (vector-ref ref-counts arg))))]
+      ;; Never dedup constants & variables
+      [_ (vector-set! ref-counts i -inf.0)]))
+
+  ;; Pass 2: build expressions, using %N for multiply-referenced nodes
   (define exprs (make-vector (length nodes) #f))
   (for ([node (in-list nodes)]
         [i (in-naturals)])
@@ -204,14 +216,26 @@
                  i
                  (match node
                    [(list op args ...)
-                    (format "(~a~a)"
+                    (format "(~a ~a)"
                             op
-                            (apply string-append
-                                   (for/list ([arg args])
-                                     (format " ~a" (vector-ref exprs arg)))))]
-                   [_ node])))
-  (for/list ([root roots])
-    (vector-ref exprs root)))
+                            (string-join (for/list ([arg args])
+                                           (if (> (vector-ref ref-counts arg) 1)
+                                               (format "%~a" arg)
+                                               (vector-ref exprs arg)))))]
+                   [_ (~a node)])))
+
+  ;; Output: one line per multi-ref node, then root expressions
+  (define bindings
+    (for/list ([i (in-naturals)]
+               [node (in-list nodes)]
+               #:when (> (vector-ref ref-counts i) 1))
+      (format "%~a = ~a" i (vector-ref exprs i))))
+  (define return-exprs
+    (for/list ([root roots])
+      (if (> (vector-ref ref-counts root) 1)
+          (format "%~a" root)
+          (vector-ref exprs root))))
+  (string-join (append bindings return-exprs) "\n"))
 ;; --------------------------------- TESTS ---------------------------------------
 
 ; Tests for progs->batch and batch-exprs
@@ -266,15 +290,19 @@
    (zombie-test #:nodes (create-dvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
                 #:roots (list 7 3))))
 
-; Tests for batch->jsexpr and jsexpr->batch-exprs roundtrip
+; Tests for batch->jsexpr and jsexpr->batch-exprs
 (module+ test
   (require rackunit)
-  (define (test-json-roundtrip expr)
+  (define (test-json-tostring expr expected)
     (define-values (batch brfs) (progs->batch (list expr)))
     (define jsexpr (batch->jsexpr batch brfs))
-    (define strs (jsexpr->batch-exprs jsexpr))
-    (check-equal? strs (map (compose ~a (batch-exprs batch)) brfs)))
+    (define str (jsexpr->batch-exprs jsexpr))
+    (check-equal? str expected))
 
-  (test-json-roundtrip '(+ x y))
-  (test-json-roundtrip '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))))
-  (test-json-roundtrip '(sqrt (+ (* x x) (* y y)))))
+  ; No sharing - just the expression
+  (test-json-tostring '(+ x y) "(+ x y)")
+  ; Shared subexpressions get their own bindings
+  (test-json-tostring '(* 1/2 (+ (exp x) (neg (/ 1 (exp x)))))
+                      "%2 = (exp x)\n(* 1/2 (+ %2 (neg (/ 1 %2))))")
+  ; Shared constants/variables are inlined
+  (test-json-tostring '(sqrt (+ (* x x) (* y y))) "(sqrt (+ (* x x) (* y y)))"))

@@ -34,7 +34,7 @@ rival-herbie:
 	raco pkg install ./rival-herbie
 
 egglog-herbie:
-	cargo install --git "https://github.com/egraphs-good/egglog" --rev "33f79948ca25ec170b585515fb47809368ad2897" egglog
+	cargo install --git "https://github.com/egraphs-good/egglog-experimental" --branch main egglog-experimental
 
 
 distribution: minimal-distribution
@@ -51,7 +51,7 @@ minimal-distribution:
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 nightly:
-	bash infra/nightly.sh bench/ reports/ --threads 4
+	bash infra/nightly.sh bench/ reports/ --threads 2
 
 upgrade:
 	git pull

@@ -7,6 +7,8 @@ set -e -x
 export PATH="$HOME/.cargo/bin/:$PATH"
 rustup update
 
+# Keep nightly installs isolated and consistent across install/run steps.
+export PLTADDONDIR="${PLTADDONDIR:-pltlibs}"
 make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
@@ -33,4 +35,3 @@ done
 
 # merge reports
 racket -y infra/merge.rkt "$REPORTDIR" $dirs
-
