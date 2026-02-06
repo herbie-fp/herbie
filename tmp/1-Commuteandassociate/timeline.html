@@ -1,0 +1,135 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>Metrics for Commute and associate</title><link rel="stylesheet" type="text/css" href="../report.css"/><script src="../report.js"></script></head><body><header><h1>Commute and associate</h1><img src="../logo-car.png"/><nav><ul><li><a href="graph.html">Details</a></li></ul></nav></header><section id="process-info"><p class="header">Time bar (total: <span class="number">715.0ms</span>)</p><div class="timeline"><div class="timeline-phase timeline-start" data-id="timeline0" data-type="start" data-timespan="0.02294921875"></div><div class="timeline-phase timeline-analyze" data-id="timeline1" data-type="analyze" data-timespan="0.208984375"></div><div class="timeline-phase timeline-sample" data-id="timeline2" data-type="sample" data-timespan="526.760009765625"></div><div class="timeline-phase timeline-preprocess" data-id="timeline3" data-type="preprocess" data-timespan="24.359130859375"></div><div class="timeline-phase timeline-sample" data-id="timeline4" data-type="sample" data-timespan="0.02685546875"></div><div class="timeline-phase timeline-series" data-id="timeline5" data-type="series" data-timespan="6.317138671875"></div><div class="timeline-phase timeline-rewrite" data-id="timeline6" data-type="rewrite" data-timespan="56.19091796875"></div><div class="timeline-phase timeline-reconstruct" data-id="timeline7" data-type="reconstruct" data-timespan="0.094970703125"></div><div class="timeline-phase timeline-eval" data-id="timeline8" data-type="eval" data-timespan="2.175048828125"></div><div class="timeline-phase timeline-prune" data-id="timeline9" data-type="prune" data-timespan="0.825927734375"></div><div class="timeline-phase timeline-sample" data-id="timeline10" data-type="sample" data-timespan="0.119140625"></div><div class="timeline-phase timeline-series" data-id="timeline11" data-type="series" data-timespan="1.06201171875"></div><div class="timeline-phase timeline-rewrite" data-id="timeline12" data-type="rewrite" data-timespan="63.716064453125"></div><div class="timeline-phase timeline-reconstruct" data-id="timeline13" data-type="reconstruct" data-timespan="0.0078125"></div><div class="timeline-phase timeline-eval" data-id="timeline14" data-type="eval" data-timespan="0.10205078125"></div><div class="timeline-phase timeline-prune" data-id="timeline15" data-type="prune" data-timespan="0.3720703125"></div><div class="timeline-phase timeline-regimes" data-id="timeline16" data-type="regimes" data-timespan="3.5849609375"></div><div class="timeline-phase timeline-derivations" data-id="timeline17" data-type="derivations" data-timespan="11.673095703125"></div><div class="timeline-phase timeline-preprocess" data-id="timeline18" data-type="preprocess" data-timespan="17.52294921875"></div><div class="timeline-phase timeline-end" data-id="timeline19" data-type="end" data-timespan="0.009033203125"></div></div><div class="timeline-block timeline-start" id="timeline0"><h3><a href="#timeline0">start</a><span class="time">0.0ms (0.0%)</span></h3><dl><dt>Memory</dt><dd>0.0MiB live, 0.0MiB allocated; 0ms collecting garbage</dd></dl></div><div class="timeline-block timeline-analyze" id="timeline1"><h3><a href="#timeline1">analyze</a><span class="time">0.0ms (0.0%)</span></h3><dl><dt>Memory</dt><dd>0.1MiB live, 0.1MiB allocated; 0ms collecting garbage</dd><dt>Algorithm</dt><dd><table class="times"><tr><td>1×</td><td>search</td></tr></table></dd><dt>Search</dt><dd><table class="times"><tr><th>Probability</th><th>Valid</th><th>Unknown</th><th>Precondition</th><th>Infinite</th><th>Domain</th><th>Can't</th><th>Iter</th></tr><tr><td>0.0%</td><td>0.0%</td><td>99.9%</td><td>0.1%</td><td>0.0%</td><td>0.0%</td><td>0.0%</td><td>0</td></tr><tr><td>100.0%</td><td>99.9%</td><td>0.0%</td><td>0.1%</td><td>0.0%</td><td>0.0%</td><td>0.0%</td><td>1</td></tr></table></dd><dt>Compiler</dt><dd><p>Compiled 13 to 10 computations (23.1% saved)</p></dd></dl></div><div class="timeline-block timeline-sample" id="timeline2"><h3><a href="#timeline2">sample</a><span class="time">527.0ms (73.7%)</span></h3><dl><dt>Memory</dt><dd>-4.0MiB live, 284.0MiB allocated; 14ms collecting garbage</dd><dt>Samples</dt><dd><table class="times"><tr><td>253.0ms</td><td>4 122×</td><td>2</td><td>valid</td></tr><tr><td>164.0ms</td><td>4 133×</td><td>1</td><td>valid</td></tr><tr><td>0.0ms</td><td>1×</td><td>0</td><td>valid</td></tr></table></dd><dt>Precisions</dt><dd><details><summary>Click to see histograms. Total time spent on operations: 281.0ms</summary><details><summary><code>adjust</code>: 161.0ms (57.4% of total, 26.7 MiB)</summary><canvas id="calls-2606" title="Histogram of precisions of the used operation"></canvas><script>histogram("calls-2606", [800,0,2000], [110.978759765625,2.571533203125,47.61669921875], {"max" : 10000})</script></details><details><summary><code>ival-add!</code>: 97.0ms (34.6% of total, 44.7 MiB)</summary><canvas id="calls-73766" title="Histogram of precisions of the used operation"></canvas><script>histogram("calls-73766", [1600,1200,400,800,0,2400,2000], [5.1103515625,17.34521484375,9.56005859375,11.39599609375,44.8466796875,4.43212890625,4.736328125], {"max" : 10000})</script></details><details><summary><code>ival-sub!</code>: 22.0ms (7.8% of total, 11.4 MiB)</summary><canvas id="calls-27468" title="Histogram of precisions of the used operation"></canvas><script>histogram("calls-27468", [0], [22.034423828125], {"max" : 10000})</script></details></details></dd><dt>Bogosity</dt><dd><div class="bogosity"><div class="bogosity-valid" data-id="bogosity-valid" data-type="valid" data-timespan="0.998535871389322" title="valid (99.9%)"></div><div class="bogosity-unknown" data-id="bogosity-unknown" data-type="unknown" data-timespan="0" title="unknown (0.0%)"></div><div class="bogosity-infinite" data-id="bogosity-infinite" data-type="infinite" data-timespan="0" title="infinite (0.0%)"></div><div class="bogosity-unsamplable" data-id="bogosity-unsamplable" data-type="unsamplable" data-timespan="0" title="unsamplable (0.0%)"></div><div class="bogosity-invalid" data-id="bogosity-invalid" data-type="invalid" data-timespan="0.0" title="invalid (0.0%)"></div><div class="bogosity-precondition" data-id="bogosity-precondition" data-type="precondition" data-timespan="0.0014641286106780171" title="precondition (0.1%)"></div></div></dd></dl></div><div class="timeline-block timeline-preprocess" id="timeline3"><h3><a href="#timeline3">preprocess</a><span class="time">24.0ms (3.4%)</span></h3><dl><dt>Memory</dt><dd>6.6MiB live, 6.6MiB allocated; 0ms collecting garbage</dd><dt>Iterations</dt><dd><p>Useful iterations: 1 (0.0ms)</p><table class="times"><tr><th>Iter</th><th>Nodes</th><th>Cost</th></tr><tr><td>0</td><td>39</td><td>110</td></tr><tr><td>1</td><td>207</td><td>10</td></tr><tr><td>2</td><td>819</td><td>10</td></tr><tr><td>3</td><td>3945</td><td>10</td></tr></table></dd><dt>Stop Event</dt><dd><table class="times"><tr><td>1×</td><td>node-limit</td></tr></table></dd><dt>Alt Table</dt><dd><details><summary>Click to see full alt table</summary><table class="times"><thead><tr><th>Status</th><th>Accuracy</th><th>Program</th></tr></thead><tr><td><span title="Selected for next iteration">▶</span></td><td>100.0%</td><td><pre>(-.f64 (+.f64 (+.f64 x y) z) (+.f64 x (+.f64 y z)))</pre></td></tr></table></details></dd><dt>Symmetry</dt><dd><p>(abs x)</p><p>(abs y)</p><p>(abs z)</p><p>(negabs x)</p><p>(negabs y)</p><p>(negabs z)</p><p>(sort x y)</p><p>(sort x z)</p><p>(sort y z)</p></dd><dt>Compiler</dt><dd><p>Compiled 22 to 16 computations (27.3% saved)</p></dd></dl></div><div class="timeline-block timeline-sample" id="timeline4"><h3><a href="#timeline4">sample</a><span class="time">0.0ms (0.0%)</span></h3><dl><dt>Memory</dt><dd>0.0MiB live, 0.0MiB allocated; 0ms collecting garbage</dd><dt>Calls</dt><dd><details><summary>Call 1</summary><table><thead><tr><th>Inputs</th></tr></thead><tr><td><pre></pre></td></tr></table><table><thead><tr><th>Outputs</th></tr></thead><tr><td><pre></pre></td></tr></table></details></dd></dl></div><div class="timeline-block timeline-series" id="timeline5"><h3><a href="#timeline5">series</a><span class="time">6.0ms (0.9%)</span></h3><dl><dt>Memory</dt><dd>-3.2MiB live, 4.6MiB allocated; 1ms collecting garbage</dd><dt>Iterations</dt><dd><p>Useful iterations: 0 (0.0ms)</p><table class="times"><tr><th>Iter</th><th>Nodes</th><th>Cost</th></tr><tr><td>0</td><td>87</td><td>264</td></tr></table></dd><dt>Stop Event</dt><dd><table class="times"><tr><td>1×</td><td>iter-limit</td></tr></table></dd><dt>Counts</dt><dd>8 → 22</dd><dt>Calls</dt><dd><details><summary>Call 1</summary><table><thead><tr><th>Inputs</th></tr></thead><tr><td><pre>%2 = (+.f64 x y)
+%4 = (+.f64 %2 z)
+%5 = (+.f64 y z)
+%6 = (+.f64 x %5)
+x
+y
+%2
+z
+%4
+%5
+%6
+(-.f64 %4 %6)</pre></td></tr></table><table><thead><tr><th>Outputs</th></tr></thead><tr><td><pre>%5 = (+ x y)
+%7 = (+.f64 x y)
+%10 = (+ %5 z)
+%11 = (+.f64 y z)
+%16 = (/.f64 y x)
+%37 = (+.f64 x z)
+%39 = (+ y z)
+%41 = (/.f64 x y)
+%45 = (/.f64 z y)
+%70 = (/.f64 y z)
+(approx x #s(literal 0 binary64))
+(approx x x)
+(approx %5 y)
+(approx %5 %7)
+(approx %10 %11)
+(approx %10 (+.f64 x %11))
+(approx %5 (*.f64 x (+.f64 #s(literal 1 binary64) %16)))
+(approx %10 (*.f64 x (+.f64 #s(literal 1 binary64) (+.f64 %16 (/.f64 z x)))))
+(approx %5 (*.f64 #s(literal -1 binary64) (*.f64 x (-.f64 (*.f64 #s(literal -1 binary64) %16) #s(literal 1 binary64)))))
+(approx %10 (*.f64 #s(literal -1 binary64) (*.f64 x (-.f64 (*.f64 #s(literal -1 binary64) (/.f64 %11 x)) #s(literal 1 binary64)))))
+(approx %10 %37)
+(approx %39 z)
+(approx %5 (*.f64 y (+.f64 #s(literal 1 binary64) %41)))
+(approx %10 (*.f64 y (+.f64 #s(literal 1 binary64) (+.f64 %41 %45))))
+(approx %39 (*.f64 y (+.f64 #s(literal 1 binary64) %45)))
+(approx %5 (*.f64 #s(literal -1 binary64) (*.f64 y (-.f64 (*.f64 #s(literal -1 binary64) %41) #s(literal 1 binary64)))))
+(approx %10 (*.f64 #s(literal -1 binary64) (*.f64 y (-.f64 (*.f64 #s(literal -1 binary64) (/.f64 %37 y)) #s(literal 1 binary64)))))
+(approx %39 (*.f64 #s(literal -1 binary64) (*.f64 y (-.f64 (*.f64 #s(literal -1 binary64) %45) #s(literal 1 binary64)))))
+(approx %10 (*.f64 z (+.f64 #s(literal 1 binary64) (+.f64 (/.f64 x z) %70))))
+(approx %39 (*.f64 z (+.f64 #s(literal 1 binary64) %70)))
+(approx %10 (*.f64 #s(literal -1 binary64) (*.f64 z (-.f64 (*.f64 #s(literal -1 binary64) (/.f64 %7 z)) #s(literal 1 binary64)))))
+(approx %39 (*.f64 #s(literal -1 binary64) (*.f64 z (-.f64 (*.f64 #s(literal -1 binary64) %70) #s(literal 1 binary64)))))</pre></td></tr></table></details></dd><dt>Calls</dt><dd><p>9 calls:</p><canvas id="calls-1" title="Weighted histogram; height corresponds to percentage of runtime in that bucket."></canvas><script>histogram('calls-1', [0.18505859375,0.131103515625,0.052978515625,1.63916015625,0.153076171875,0.4150390625,0.22998046875,0.22900390625,0.111083984375])</script><table class="times"><thead><tr><th>Time</th><th>Variable</th><th>Point</th></tr></thead><tr><td>2.0ms</td><td><pre>y</pre></td><td>-inf</td></tr><tr><td>0.0ms</td><td><pre>y</pre></td><td>0</td></tr><tr><td>0.0ms</td><td><pre>x</pre></td><td>-inf</td></tr><tr><td>0.0ms</td><td><pre>x</pre></td><td>inf</td></tr><tr><td>0.0ms</td><td><pre>z</pre></td><td>-inf</td></tr></table></dd></dl></div><div class="timeline-block timeline-rewrite" id="timeline6"><h3><a href="#timeline6">rewrite</a><span class="time">56.0ms (7.9%)</span></h3><dl><dt>Memory</dt><dd>-0.3MiB live, 30.8MiB allocated; 1ms collecting garbage</dd><dt>Iterations</dt><dd><p>Useful iterations: 1 (0.0ms)</p><table class="times"><tr><th>Iter</th><th>Nodes</th><th>Cost</th></tr><tr><td>0</td><td>8</td><td>30</td></tr><tr><td>0</td><td>13</td><td>30</td></tr><tr><td>1</td><td>46</td><td>20</td></tr><tr><td>2</td><td>175</td><td>20</td></tr><tr><td>3</td><td>1137</td><td>20</td></tr><tr><td>0</td><td>4179</td><td>20</td></tr><tr><td>0</td><td>4179</td><td>20</td></tr></table></dd><dt>Stop Event</dt><dd><table class="times"><tr><td>1×</td><td>iter-limit</td></tr><tr><td>1×</td><td>saturated</td></tr><tr><td>1×</td><td>node-limit</td></tr><tr><td>1×</td><td>iter-limit</td></tr></table></dd><dt>Counts</dt><dd>8 → 53</dd><dt>Calls</dt><dd><details><summary>Call 1</summary><table><thead><tr><th>Inputs</th></tr></thead><tr><td><pre>%2 = (+.f64 x y)
+%4 = (+.f64 %2 z)
+%5 = (+.f64 y z)
+%6 = (+.f64 x %5)
+x
+y
+%2
+z
+%4
+%5
+%6
+(-.f64 %4 %6)</pre></td></tr></table><table><thead><tr><th>Outputs</th></tr></thead><tr><td><pre>%2 = (+.f64 y x)
+%5 = (neg.f64 x)
+%6 = (-.f64 %5 y)
+%9 = (neg.f64 y)
+%11 = (neg.f64 %5)
+%15 = (+.f64 z %2)
+%16 = (pow.f64 %15 #s(literal 1 binary64))
+%17 = (-.f64 %9 z)
+%19 = (neg.f64 (-.f64 %17 x))
+%20 = (+.f64 z x)
+%21 = (-.f64 %20 %9)
+%22 = (+.f64 z y)
+%23 = (-.f64 %22 %5)
+%24 = (-.f64 z %6)
+%25 = (neg.f64 z)
+%26 = (-.f64 %2 %25)
+%28 = (-.f64 y (-.f64 %5 z))
+%30 = (-.f64 y (+.f64 %5 %25))
+%32 = (-.f64 y (-.f64 %25 x))
+%33 = (-.f64 x %17)
+%34 = (+.f64 %11 %22)
+%35 = (+.f64 %20 y)
+%36 = (+.f64 %22 %11)
+%37 = (+.f64 %22 x)
+%38 = (+.f64 %2 z)
+%39 = (+.f64 y %20)
+%40 = (+.f64 x %22)
+x
+y
+(pow.f64 %2 #s(literal 1 binary64))
+(neg.f64 %6)
+(-.f64 y %5)
+(-.f64 x %9)
+(+.f64 y %11)
+%2
+(+.f64 x y)
+z
+%16
+%19
+%21
+%23
+%24
+%26
+%28
+%30
+%32
+%33
+%34
+%35
+%36
+%37
+%15
+%38
+%39
+%40
+(pow.f64 %22 #s(literal 1 binary64))
+(neg.f64 %17)
+(-.f64 z %9)
+(-.f64 y %25)
+%22
+(+.f64 y z)
+%16
+%19
+%21
+%23
+%24
+%26
+%28
+%30
+%32
+%33
+%34
+%35
+%36
+%37
+%15
+%38
+%39
+%40
+#s(literal 0 binary64)</pre></td></tr></table></details></dd></dl></div><div class="timeline-block timeline-reconstruct" id="timeline7"><h3><a href="#timeline7">reconstruct</a><span class="time">0.0ms (0.0%)</span></h3><dl><dt>Memory</dt><dd>0.2MiB live, 0.2MiB allocated; 0ms collecting garbage</dd></dl></div><div class="timeline-block timeline-eval" id="timeline8"><h3><a href="#timeline8">eval</a><span class="time">2.0ms (0.3%)</span></h3><dl><dt>Memory</dt><dd>3.3MiB live, 3.3MiB allocated; 0ms collecting garbage</dd><dt>Compiler</dt><dd><p>Compiled 879 to 190 computations (78.4% saved)</p></dd></dl></div><div class="timeline-block timeline-prune" id="timeline9"><h3><a href="#timeline9">prune</a><span class="time">1.0ms (0.1%)</span></h3><dl><dt>Memory</dt><dd>1.8MiB live, 1.8MiB allocated; 0ms collecting garbage</dd><dt>Pruning</dt><dd><p>1 alts after pruning (1 fresh and 0 done)</p><table class="states"><thead><tr><th></th><th>Pruned</th><th>Kept</th><th>Total</th></tr></thead><tbody><tr><th>New</th><td>68</td><td>1</td><td>69</td></tr><tr><th>Fresh</th><td>0</td><td>0</td><td>0</td></tr><tr><th>Picked</th><td>1</td><td>0</td><td>1</td></tr><tr><th>Done</th><td>0</td><td>0</td><td>0</td></tr></tbody><tfoot><tr><th>Total</th><td>69</td><td>1</td><td>70</td></tr></tfoot></table></dd><dt>Accuracy</dt><dd>100.0%</dd><dt>Counts</dt><dd>70 → 1</dd><dt>Alt Table</dt><dd><details><summary>Click to see full alt table</summary><table class="times"><thead><tr><th>Status</th><th>Accuracy</th><th>Program</th></tr></thead><tr><td><span title="Selected for next iteration">▶</span></td><td>100.0%</td><td><pre>#s(literal 0 binary64)</pre></td></tr></table></details></dd><dt>Compiler</dt><dd><p>Compiled 1 to 1 computations (0.0% saved)</p></dd></dl></div><div class="timeline-block timeline-sample" id="timeline10"><h3><a href="#timeline10">sample</a><span class="time">0.0ms (0.0%)</span></h3><dl><dt>Memory</dt><dd>0.1MiB live, 0.1MiB allocated; 0ms collecting garbage</dd><dt>Calls</dt><dd><details><summary>Call 1</summary><table><thead><tr><th>Inputs</th></tr></thead><tr><td><pre>0</pre></td></tr></table><table><thead><tr><th>Outputs</th></tr></thead><tr><td><pre>#s(literal 0 binary64)</pre></td></tr></table></details></dd><dt>Samples</dt><dd><table class="times"><tr><td>0.0ms</td><td>1×</td><td>0</td><td>valid</td></tr></table></dd><dt>Compiler</dt><dd><p>Compiled 3 to 3 computations (0.0% saved)</p></dd><dt>Precisions</dt><dd><details><summary>Click to see histograms. Total time spent on operations: 0.0ms</summary><details><summary><code>adjust</code>: 0.0ms (0.0% of total, 0.0 MiB)</summary><canvas id="calls-91202" title="Histogram of precisions of the used operation"></canvas><script>histogram("calls-91202", [0], [0.0009765625], {"max" : 10000})</script></details></details></dd></dl></div><div class="timeline-block timeline-series" id="timeline11"><h3><a href="#timeline11">series</a><span class="time">1.0ms (0.1%)</span></h3><dl><dt>Memory</dt><dd>-10.2MiB live, 0.4MiB allocated; 0ms collecting garbage</dd><dt>Iterations</dt><dd><p>Useful iterations: 0 (0.0ms)</p><table class="times"><tr><th>Iter</th><th>Nodes</th><th>Cost</th></tr><tr><td>0</td><td>2</td><td>3</td></tr></table></dd><dt>Stop Event</dt><dd><table class="times"><tr><td>1×</td><td>saturated</td></tr></table></dd><dt>Counts</dt><dd>1 → 1</dd><dt>Calls</dt><dd><details><summary>Call 1</summary><table><thead><tr><th>Inputs</th></tr></thead><tr><td><pre>#s(literal 0 binary64)</pre></td></tr></table><table><thead><tr><th>Outputs</th></tr></thead><tr><td><pre>(approx 0 #s(literal 0 binary64))</pre></td></tr></table></details></dd><dt>Calls</dt><dd><p>9 calls:</p><canvas id="calls-2" title="Weighted histogram; height corresponds to percentage of runtime in that bucket."></canvas><script>histogram('calls-2', [0.001953125,0.002197265625,0.0009765625,0.0009765625,0.001953125,0.0009765625,0.001953125,0.0029296875,0.010009765625])</script><table class="times"><thead><tr><th>Time</th><th>Variable</th><th>Point</th></tr></thead><tr><td>0.0ms</td><td><pre>x</pre></td><td>0</td></tr><tr><td>0.0ms</td><td><pre>x</pre></td><td>inf</td></tr><tr><td>0.0ms</td><td><pre>z</pre></td><td>inf</td></tr><tr><td>0.0ms</td><td><pre>z</pre></td><td>-inf</td></tr><tr><td>0.0ms</td><td><pre>y</pre></td><td>inf</td></tr></table></dd></dl></div><div class="timeline-block timeline-rewrite" id="timeline12"><h3><a href="#timeline12">rewrite</a><span class="time">64.0ms (8.9%)</span></h3><dl><dt>Memory</dt><dd>2.5MiB live, 24.0MiB allocated; 1ms collecting garbage</dd><dt>Iterations</dt><dd><p>Useful iterations: 0 (0.0ms)</p><table class="times"><tr><th>Iter</th><th>Nodes</th><th>Cost</th></tr><tr><td>0</td><td>1</td><td>1</td></tr><tr><td>0</td><td>1</td><td>1</td></tr><tr><td>1</td><td>4</td><td>1</td></tr><tr><td>2</td><td>15</td><td>1</td></tr><tr><td>3</td><td>59</td><td>1</td></tr><tr><td>4</td><td>512</td><td>1</td></tr><tr><td>0</td><td>4506</td><td>1</td></tr><tr><td>0</td><td>4556</td><td>1</td></tr></table></dd><dt>Stop Event</dt><dd><table class="times"><tr><td>1×</td><td>iter-limit</td></tr><tr><td>1×</td><td>iter-limit</td></tr><tr><td>1×</td><td>node-limit</td></tr><tr><td>1×</td><td>saturated</td></tr></table></dd><dt>Counts</dt><dd>1 → 1</dd><dt>Calls</dt><dd><details><summary>Call 1</summary><table><thead><tr><th>Inputs</th></tr></thead><tr><td><pre>#s(literal 0 binary64)</pre></td></tr></table><table><thead><tr><th>Outputs</th></tr></thead><tr><td><pre>#s(literal 0 binary64)</pre></td></tr></table></details></dd></dl></div><div class="timeline-block timeline-reconstruct" id="timeline13"><h3><a href="#timeline13">reconstruct</a><span class="time">0.0ms (0.0%)</span></h3><dl><dt>Memory</dt><dd>0.0MiB live, 0.0MiB allocated; 0ms collecting garbage</dd></dl></div><div class="timeline-block timeline-eval" id="timeline14"><h3><a href="#timeline14">eval</a><span class="time">0.0ms (0.0%)</span></h3><dl><dt>Memory</dt><dd>0.1MiB live, 0.1MiB allocated; 0ms collecting garbage</dd><dt>Compiler</dt><dd><p>Compiled 2 to 1 computations (50.0% saved)</p></dd></dl></div><div class="timeline-block timeline-prune" id="timeline15"><h3><a href="#timeline15">prune</a><span class="time">0.0ms (0.1%)</span></h3><dl><dt>Memory</dt><dd>0.4MiB live, 0.4MiB allocated; 0ms collecting garbage</dd><dt>Pruning</dt><dd><p>1 alts after pruning (0 fresh and 1 done)</p><table class="states"><thead><tr><th></th><th>Pruned</th><th>Kept</th><th>Total</th></tr></thead><tbody><tr><th>New</th><td>2</td><td>0</td><td>2</td></tr><tr><th>Fresh</th><td>0</td><td>0</td><td>0</td></tr><tr><th>Picked</th><td>0</td><td>1</td><td>1</td></tr><tr><th>Done</th><td>0</td><td>0</td><td>0</td></tr></tbody><tfoot><tr><th>Total</th><td>2</td><td>1</td><td>3</td></tr></tfoot></table></dd><dt>Accuracy</dt><dd>100.0%</dd><dt>Counts</dt><dd>3 → 1</dd><dt>Alt Table</dt><dd><details><summary>Click to see full alt table</summary><table class="times"><thead><tr><th>Status</th><th>Accuracy</th><th>Program</th></tr></thead><tr><td><span title="Selected in a prior iteration">✓</span></td><td>100.0%</td><td><pre>#s(literal 0 binary64)</pre></td></tr></table></details></dd><dt>Compiler</dt><dd><p>Compiled 1 to 1 computations (0.0% saved)</p></dd></dl></div><div class="timeline-block timeline-regimes" id="timeline16"><h3><a href="#timeline16">regimes</a><span class="time">4.0ms (0.5%)</span></h3><dl><dt>Memory</dt><dd>4.3MiB live, 4.3MiB allocated; 0ms collecting garbage</dd><dt>Counts</dt><dd>2 → 1</dd><dt>Calls</dt><dd><details><summary>Call 1</summary><table><thead><tr><th>Inputs</th></tr></thead><tr><td><pre>#s(literal 0 binary64)
+(-.f64 (+.f64 (+.f64 x y) z) (+.f64 x (+.f64 y z)))</pre></td></tr></table><table><thead><tr><th>Outputs</th></tr></thead><tr><td><pre>#s(literal 0 binary64)</pre></td></tr></table></details></dd><dt>Calls</dt><dd><p>4 calls:</p><canvas id="calls-3" title="Weighted histogram; height corresponds to percentage of runtime in that bucket."></canvas><script>histogram('calls-3', [0.503173828125,0.8837890625,0.870849609375,0.89794921875])</script><table class="times"><tr><td>1.0ms</td><td><pre>z</pre></td></tr><tr><td>1.0ms</td><td><pre>x</pre></td></tr><tr><td>1.0ms</td><td><pre>y</pre></td></tr><tr><td>1.0ms</td><td><pre>(-.f64 (+.f64 (+.f64 x y) z) (+.f64 x (+.f64 y z)))</pre></td></tr></table></dd><dt>Results</dt><dd><table class="times"><thead><tr><th>Accuracy</th><th>Segments</th><th>Branch</th></tr></thead><tr><td>100.0%</td><td>1</td><td><pre>(-.f64 (+.f64 (+.f64 x y) z) (+.f64 x (+.f64 y z)))</pre></td></tr><tr><td>100.0%</td><td>1</td><td><pre>x</pre></td></tr><tr><td>100.0%</td><td>1</td><td><pre>y</pre></td></tr><tr><td>100.0%</td><td>1</td><td><pre>z</pre></td></tr></table></dd><dt>Compiler</dt><dd><p>Compiled 26 to 17 computations (34.6% saved)</p></dd></dl></div><div class="timeline-block timeline-derivations" id="timeline17"><h3><a href="#timeline17">derivations</a><span class="time">12.0ms (1.6%)</span></h3><dl><dt>Memory</dt><dd>0.2MiB live, 0.2MiB allocated; 0ms collecting garbage</dd><dt>Stop Event</dt><dd><table class="times"><tr><td>1×</td><td>done</td></tr></table></dd><dt>Compiler</dt><dd><p>Compiled 1 to 1 computations (0.0% saved)</p></dd></dl></div><div class="timeline-block timeline-preprocess" id="timeline18"><h3><a href="#timeline18">preprocess</a><span class="time">18.0ms (2.5%)</span></h3><dl><dt>Memory</dt><dd>-5.3MiB live, 21.0MiB allocated; 1ms collecting garbage</dd><dt>Compiler</dt><dd><p>Compiled 30 to 27 computations (10.0% saved)</p></dd></dl></div><div class="timeline-block timeline-end" id="timeline19"><h3><a href="#timeline19">end</a><span class="time">0.0ms (0.0%)</span></h3><dl><dt>Memory</dt><dd>0.0MiB live, 0.0MiB allocated; 0ms collecting garbage</dd></dl></div></section><section id="profile"><h1>Profiling</h1><p class="load-text">Loading profile data...</p></section></body></html>
