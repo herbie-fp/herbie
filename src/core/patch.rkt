@@ -118,10 +118,15 @@
 (define (run-evaluate altns global-batch)
   (timeline-event! 'sample)
   (define free-vars (batch-free-vars global-batch))
-  (define real-altns (filter (compose set-empty? free-vars alt-expr) altns))
+  (define repr-of (batch-reprs global-batch (*context*)))
+  (define real-altns
+    (for/list ([altn (in-list altns)]
+               #:when (set-empty? (free-vars (alt-expr altn)))
+               #:when (equal? (representation-type (repr-of (alt-expr altn))) 'real))
+      altn))
 
   (define brfs (map alt-expr real-altns))
-  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+  (define reprs (map repr-of brfs))
   (define contexts
     (for/list ([repr (in-list reprs)])
       (context '() repr '())))
@@ -140,12 +145,7 @@
                [ctx (in-list contexts)]
                #:when (equal? status 'valid))
       (define repr (context-repr ctx))
-      (match (representation-type repr)
-        ['bool
-         (if pt
-             '(TRUE)
-             '(FALSE))]
-        ['real (literal (repr->real pt repr) (representation-name repr))])))
+      (literal (repr->real pt repr) (representation-name repr))))
 
   (define final-altns
     (for/list ([literal (in-list literals)]
