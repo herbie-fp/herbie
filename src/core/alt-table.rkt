@@ -7,7 +7,7 @@
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
          "../syntax/platform.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "points.rkt"
          "programs.rkt")
 

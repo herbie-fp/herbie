@@ -16,7 +16,7 @@
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "batch.rkt"
+         "../syntax/batch.rkt"
          "programs.rkt"
          "rules.rkt")
 
@@ -50,25 +50,8 @@
 ;; - FFIRule: struct defined in egg-herbie
 ;; - EgraphIter: struct defined in egg-herbie
 
-;; Wrapper around Rust-allocated egg runner
-(struct egraph-data
-        (egraph-pointer ; FFI pointer to runner
-         id->spec)) ; map from e-class id to an approx-spec or #f
-
-; Makes a new egraph that is managed by Racket's GC
-(define (make-egraph-data)
-  (egraph-data (egraph_create) (make-hash)))
-
 ; Adds expressions returning the root ids
-(define (egraph-add-exprs egg-data batch brfs ctx)
-  (match-define (egraph-data ptr id->spec) egg-data)
-
-  ; normalizes an approx spec
-  (define (normalize-spec expr)
-    (match expr
-      [(? number?) expr]
-      [(? symbol?) (var->egg-var expr ctx)]
-      [(list op args ...) (cons op (map normalize-spec args))]))
+(define (egraph-add-exprs ptr batch brfs ctx)
 
   ; pre-allocated id vectors for all the common cases
   (define 0-vec (make-u32vector 0))
@@ -103,23 +86,17 @@
 
   (define reprs (batch-reprs batch ctx))
   (define add-to-egraph
-    (batch-recurse batch
-                   (λ (brf recurse)
-                     (define node (deref brf))
-                     (match node
-                       [(literal v _) (insert-node! v)]
-                       [(? number?) (insert-node! node)]
-                       [(? symbol?) (insert-node! (var->egg-var node ctx))]
-                       [(hole prec spec) (recurse spec)] ; "hole" terms currently disappear
-                       [(approx spec impl)
-                        (hash-ref! id->spec ; Save original (spec, type) for extraction
-                                   (recurse spec)
-                                   (lambda ()
-                                     (define spec* (normalize-spec (batch-pull spec)))
-                                     (define type (representation-type (reprs impl)))
-                                     (cons spec* type)))
-                        (insert-node! (list '$approx (recurse spec) (recurse impl)))]
-                       [(list op (app recurse args) ...) (insert-node! (cons op args))]))))
+    (batch-recurse
+     batch
+     (λ (brf recurse)
+       (define node (deref brf))
+       (match node
+         [(literal v _) (insert-node! v)]
+         [(? number?) (insert-node! node)]
+         [(? symbol?) (insert-node! (var->egg-var node ctx))]
+         [(hole prec spec) (recurse spec)] ; "hole" terms currently disappear
+         [(approx spec impl) (insert-node! (list '$approx (recurse spec) (recurse impl)))]
+         [(list op (app recurse args) ...) (insert-node! (cons op args))]))))
 
   (for/list ([brf (in-list brfs)])
     (define brf-id (add-to-egraph brf)) ; remapping of brf
@@ -127,7 +104,7 @@
     brf-id))
 
 ;; runs rules on an egraph (optional iteration limit)
-(define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler)
+(define (egraph-run ptr ffi-rules node-limit iter-limit scheduler)
   (define u32_max 4294967295) ; since we can't send option types
   (define node_limit (if node-limit node-limit u32_max))
   (define iter_limit (if iter-limit iter-limit u32_max))
@@ -136,44 +113,23 @@
       ['backoff #f]
       ['simple #t]
       [_ (error 'egraph-run "unknown scheduler: `~a`" scheduler)]))
-  (egraph_run (egraph-data-egraph-pointer egraph-data)
-              ffi-rules
-              iter_limit
-              node_limit
-              simple_scheduler?))
+  (egraph_run ptr ffi-rules iter_limit node_limit simple_scheduler?))
 
-(define (egraph-get-simplest egraph-data node-id iteration ctx)
-  (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
+(define (egraph-get-simplest ptr node-id iteration ctx)
+  (define expr (egraph_get_simplest ptr node-id iteration))
   (egg-expr->expr expr ctx))
 
-(define (egraph-get-variants egraph-data node-id orig-expr ctx)
+(define (egraph-get-variants ptr node-id orig-expr ctx)
   (define egg-expr (expr->egg-expr orig-expr ctx))
-  (define exprs (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id egg-expr))
+  (define exprs (egraph_get_variants ptr node-id egg-expr))
   (for/list ([expr (in-list exprs)])
     (egg-expr->expr expr ctx)))
-
-(define (egraph-is-unsound-detected egraph-data)
-  (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))
-
-(define (egraph-get-cost egraph-data node-id iteration)
-  (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id iteration))
-
-(define (egraph-get-times-applied egraph-data rule)
-  (egraph_get_times_applied (egraph-data-egraph-pointer egraph-data) (FFIRule-name rule)))
-
-(define (egraph-stop-reason egraph-data)
-  (egraph_get_stop_reason (egraph-data-egraph-pointer egraph-data)))
-
-;; Extracts the eclasses of an e-graph as a u32vector
-(define (egraph-eclasses egraph-data)
-  (egraph_get_eclasses (egraph-data-egraph-pointer egraph-data)))
 
 (define empty-u32vec (make-u32vector 0))
 
 ;; Extracts the nodes of an e-class as a vector
 ;; where each enode is either a symbol, number, or list
-(define (egraph-get-eclass egraph-data id)
-  (define ptr (egraph-data-egraph-pointer egraph-data))
+(define (egraph-get-eclass ptr id)
   (define eclass (egraph_get_eclass ptr id))
   ; need to fix up any constant operators
   (for ([enode (in-vector eclass)]
@@ -182,19 +138,16 @@
     (vector-set! eclass i (cons enode empty-u32vec)))
   eclass)
 
-(define (egraph-find egraph-data id)
-  (egraph_find (egraph-data-egraph-pointer egraph-data) id))
-
-(define (egraph-expr-equal? egraph-data expr goal ctx)
+(define (egraph-expr-equal? ptr expr goal ctx)
   (define-values (batch brfs) (progs->batch (list expr goal)))
-  (match-define (list id1 id2) (egraph-add-exprs egraph-data batch brfs ctx))
+  (match-define (list id1 id2) (egraph-add-exprs ptr batch brfs ctx))
   (= id1 id2))
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
-(define (egraph-get-proof egraph-data expr goal ctx)
+(define (egraph-get-proof ptr expr goal ctx)
   (define egg-expr (expr->egg-expr expr ctx))
   (define egg-goal (expr->egg-expr goal ctx))
-  (define str (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
+  (define str (egraph_get_proof ptr egg-expr egg-goal))
   (cond
     [(<= (string-length str) (*proof-max-string-length*))
      (define converted
@@ -280,8 +233,8 @@
              type))
        (approx (loop spec spec-type) (loop impl type))]
       [`(Explanation ,body ...) `(Explanation ,@(map (lambda (e) (loop e type)) body))]
-      [(list 'Rewrite=> rule expr) (list 'Rewrite=> (get-canon-rule-name rule rule) (loop expr type))]
-      [(list 'Rewrite<= rule expr) (list 'Rewrite<= (get-canon-rule-name rule rule) (loop expr type))]
+      [(list 'Rewrite=> rule expr) (list 'Rewrite=> rule (loop expr type))]
+      [(list 'Rewrite<= rule expr) (list 'Rewrite<= rule (loop expr type))]
       [(list op args ...)
        #:when (string-prefix? (symbol->string op) "sound-")
        (define op* (string->symbol (substring (symbol->string op) (string-length "sound-"))))
@@ -322,7 +275,7 @@
           (cons '(cos.f32 (PI.f32)) '(cos.f32 (PI.f32)))
           (cons '(if.f64 (TRUE) x y) '(if.f64 (TRUE) $var0 $var1))))
 
-  (let ([egg-graph (make-egraph-data)])
+  (let ([egg-graph (egraph_create)])
     (for ([(in expected-out) (in-dict test-exprs)])
       (define out (expr->egg-expr in ctx))
       (define computed-in (egg-expr->expr out ctx))
@@ -352,7 +305,7 @@
           `(*.f64 ,(literal 23/54 'binary64) r)
           `(+.f64 ,(literal 3/2 'binary64) ,(literal 14/10 'binary64))))
 
-  (let ([egg-graph (make-egraph-data)])
+  (let ([egg-graph (egraph_create)])
     (for ([expr extended-expr-list])
       (define egg-expr (expr->egg-expr expr ctx))
       (check-equal? (egg-expr->expr egg-expr ctx) expr))))
@@ -437,62 +390,19 @@
 
   (check-equal? (expand-proof-term '(Explanation (+ x y) (+ y x)) (box 10)) '((+ x y))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Rule expansion
-;;
-;; Expansive rules are the only problematic rules.
-;; We only support expansive rules where the LHS is a spec.
-
-;; Translates a Herbie rule into an egg rule
-(define (rule->egg-rule ru)
-  (struct-copy rule
-               ru
-               [input (expr->egg-pattern (rule-input ru))]
-               [output (expr->egg-pattern (rule-output ru))]))
-
-(define (rule->egg-rules ru)
-  (define input (rule-input ru))
-  (cond
-    [(symbol? input)
-     ; expansive rules
-     (for/list ([op (all-operators)]
-                #:when (eq? (operator-info op 'otype) 'real))
-       (define itypes (operator-info op 'itype))
-       (define vars (map (lambda (_) (gensym)) itypes))
-       (rule (sym-append (rule-name ru) '-expand- op)
-             (cons op vars)
-             (replace-expression (rule-output ru) input (cons op vars))
-             (rule-tags ru)))]
-    ; non-expansive rule
-    [else (list (rule->egg-rule ru))]))
-
-;; egg rule cache: rule -> (cons/c rule FFI-rule)
+;; egg rule cache: rule -> FFI-rule
 (define/reset *egg-rule-cache* (make-hasheq))
-
-;; Cache mapping (expanded) rule name to its canonical rule name
-(define/reset *canon-names* (make-hasheq))
-
-;; Tries to look up the canonical name of a rule using the cache.
-;; Obviously dangerous if the cache is invalid.
-(define (get-canon-rule-name name [failure #f])
-  (hash-ref (*canon-names*) name failure))
 
 ;; Expand and convert the rules for egg.
 ;; Uses a cache to only expand each rule once.
-(define (expand-rules rules)
-  (reap [sow]
-        (for ([rule (in-list rules)])
-          (define egg&ffi-rules
-            (hash-ref! (*egg-rule-cache*)
-                       rule
-                       (lambda ()
-                         (for/list ([egg-rule (in-list (rule->egg-rules rule))])
-                           (define name (rule-name egg-rule))
-                           (define ffi-rule
-                             (make-ffi-rule name (rule-input egg-rule) (rule-output egg-rule)))
-                           (hash-set! (*canon-names*) name (rule-name rule))
-                           (cons egg-rule ffi-rule)))))
-          (for-each sow egg&ffi-rules))))
+(define (convert-rules rules)
+  (for/list ([ru (in-list rules)])
+    (hash-ref! (*egg-rule-cache*)
+               ru
+               (lambda ()
+                 (define input (expr->egg-pattern (rule-input ru)))
+                 (define output (expr->egg-pattern (rule-output ru)))
+                 (make-ffi-rule (rule-name ru) input output)))))
 
 ;; Rules from impl to spec (fixed for a particular platform)
 (define/reset *lifting-rules* (make-hash))
@@ -540,11 +450,10 @@
 ;; - types: vector-map from e-class to type/representation
 ;; - leaf?: vector-map from e-class to boolean indicating if it contains a leaf node
 ;; - constants: vector-map from e-class to a number or #f
-;; - specs: vector-map from e-class to an approx spec or #f
 ;; - parents: vector-map from e-class to its parent e-classes (as a vector)
 ;; - canon: map from (Rust) e-class, type to (Racket) e-class
 ;; - ctx: the standard variable context
-(struct regraph (eclasses types leaf? constants specs parents canon ctx))
+(struct regraph (eclasses types leaf? constants parents canon ctx))
 
 ;; Returns all representatations (and their types) in the current platform.
 (define (all-reprs/types [pform (*active-platform*)])
@@ -612,8 +521,8 @@
 
 ;; Splits untyped eclasses into typed eclasses.
 ;; Nodes are duplicated across their possible types.
-(define (split-untyped-eclasses egraph-data ctx)
-  (define eclass-ids (egraph-eclasses egraph-data))
+(define (split-untyped-eclasses ptr ctx)
+  (define eclass-ids (egraph_get_eclasses ptr))
   (define max-id
     (for/fold ([current-max 0]) ([egg-id (in-u32vector eclass-ids)])
       (max current-max egg-id)))
@@ -651,7 +560,7 @@
   ; to their position in untyped eclasses
   (for ([eid (in-u32vector eclass-ids)]
         [idx (in-naturals)])
-    (define enodes (egraph-get-eclass egraph-data eid))
+    (define enodes (egraph-get-eclass ptr eid))
     (for ([enode (in-vector enodes)])
       ; get all possible types for the enode
       ; lookup its correct eclass and add the rebuilt node
@@ -783,10 +692,10 @@
 
 ;; Splits untyped eclasses into typed eclasses,
 ;; keeping only the subset of enodes that are well-typed.
-(define (make-typed-eclasses egraph-data ctx)
+(define (make-typed-eclasses ptr ctx)
   ;; Step 1: split Rust-eclasses by type
   (define-values (id->eclass id->parents id->leaf? eclass-ids egg-id->idx type->idx)
-    (split-untyped-eclasses egraph-data ctx))
+    (split-untyped-eclasses ptr ctx))
 
   ;; Step 2: keep well-typed e-nodes
   ;; An e-class is well-typed if it has one well-typed node
@@ -830,25 +739,15 @@
 
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
-(define (make-regraph egraph-data ctx)
-  (define id->spec (egraph-data-id->spec egraph-data))
-
+(define (make-regraph ptr ctx)
   ;; split the e-classes by type
-  (define-values (eclasses types canon) (make-typed-eclasses egraph-data ctx))
-  (define n (vector-length eclasses))
+  (define-values (eclasses types canon) (make-typed-eclasses ptr ctx))
 
   ;; analyze each eclass
   (define-values (parents leaf? constants) (analyze-eclasses eclasses))
 
-  ;; rebuild id->spec map for typed e-classes
-  (define specs (make-vector n #f))
-  (for ([(id spec&repr) (in-hash id->spec)])
-    (match-define (cons spec repr) spec&repr)
-    (define id* (hash-ref canon (cons (egraph-find egraph-data id) repr)))
-    (vector-set! specs id* spec))
-
   ; construct the `regraph` instance
-  (regraph eclasses types leaf? constants specs parents canon ctx))
+  (regraph eclasses types leaf? constants parents canon ctx))
 
 (define (regraph-nodes->json regraph)
   (define cost (platform-node-cost-proc (*active-platform*)))
@@ -1023,41 +922,12 @@
   ; run the analysis
   (regraph-analyze regraph eclass-set-cost! #:analysis costs)
 
-  (define id->spec (regraph-specs regraph))
-
   (define ctx (regraph-ctx regraph))
-  (define-values (add-id add-enode) (egg-nodes->batch costs id->spec batch-extract-to ctx))
+  (define-values (add-id add-enode) (egg-nodes->batch costs batch-extract-to ctx))
   ;; These functions provide a setup to extract nodes into batch-extract-to from nodes
   (list add-id add-enode))
 
-(define (egg-nodes->batch egg-nodes id->spec batch ctx)
-  ; This fuction here is only because of cycles in loads:( Can not be imported from egg-herbie.rkt
-  (define (egg-parsed->expr expr type)
-    (let loop ([expr expr]
-               [type type])
-      (match expr
-        [(? number?)
-         (if (representation? type)
-             (literal expr (representation-name type))
-             expr)]
-        [(? symbol?)
-         (if (string-prefix? (symbol->string expr) "$var")
-             (egg-var->var expr ctx)
-             (list expr))]
-        [(list '$approx spec impl)
-         (define spec-type
-           (if (representation? type)
-               (representation-type type)
-               type))
-         (approx (loop spec spec-type) (loop impl type))]
-        [(list op args ...)
-         (cons op
-               (map loop
-                    args
-                    (if (representation? type)
-                        (impl-info op 'itype)
-                        (operator-info op 'itype))))])))
-
+(define (egg-nodes->batch egg-nodes batch ctx)
   (define (eggref id)
     (cdr (vector-ref egg-nodes id)))
 
@@ -1075,17 +945,12 @@
              (if (string-prefix? (symbol->string enode) "$var")
                  (egg-var->var enode ctx)
                  enode)]
-            [(list '$approx spec (app eggref impl))
-             (define spec* (vector-ref id->spec spec))
-             (unless spec*
-               (error 'regraph-extract-variants "no initial approx node in eclass"))
+            [(list '$approx (app eggref spec) (app eggref impl))
              (define spec-type
                (if (representation? type)
                    (representation-type type)
                    type))
-             (define final-spec (egg-parsed->expr spec* spec-type))
-             (define final-spec-idx (batchref-idx (batch-add! batch final-spec)))
-             (approx final-spec-idx (loop impl type))]
+             (approx (loop spec spec-type) (loop impl type))]
             [(list impl (app eggref args) ...)
              (define args*
                (for/list ([arg (in-list args)]
@@ -1185,7 +1050,6 @@
 (define (regraph-extract-variants regraph extract id type)
   ; regraph fields
   (define eclasses (regraph-eclasses regraph))
-  (define id->spec (regraph-specs regraph))
   (define canon (regraph-canon regraph))
   ; Functions for egg-extraction
   (match-define (list _ extract-enode) extract)
@@ -1207,67 +1071,48 @@
 ;; A mini-interpreter for egraph "schedules" including running egg,
 ;; pruning certain kinds of nodes, extracting expressions, etc.
 
-; Creates a new runner using an existing egraph.
-; Useful for multi-phased rule application
-(define (egraph-copy eg-data)
-  (struct-copy egraph-data
-               eg-data
-               [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
-
 ;; Runs rules over the egraph with the given egg parameters.
 (define (egraph-run-rules egg-graph0
                           egg-rules
                           #:node-limit [node-limit #f]
                           #:iter-limit [iter-limit #f]
                           #:scheduler [scheduler 'backoff])
-  (define ffi-rules (map cdr egg-rules))
-
   ;; run the rules
-  (define egg-graph (egraph-copy egg-graph0))
-  (define iteration-data (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
+  (define egg-graph (egraph_copy egg-graph0))
+  (define iteration-data (egraph-run egg-graph egg-rules node-limit iter-limit scheduler))
 
-  (when (egraph-is-unsound-detected egg-graph)
+  (when (egraph_is_unsound_detected egg-graph)
     (warn 'unsound-egraph #:url "faq.html#unsound-egraph" "unsoundness detected in the egraph"))
-  (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
+  (timeline-push! 'stop (~a (egraph_get_stop_reason egg-graph)) 1)
   (values egg-graph iteration-data))
 
 (define (egraph-analyze-rewrite-impact batch brfs ctx iter)
-  (define egg-graph (make-egraph-data))
+  (define egg-graph (egraph_create))
   (egraph-add-exprs egg-graph batch brfs ctx)
-  (define lifting-rules (expand-rules (platform-lifting-rules)))
+  (define lifting-rules (convert-rules (platform-lifting-rules)))
   (define-values (egg-graph1 _1)
     (egraph-run-rules egg-graph lifting-rules #:iter-limit 1 #:scheduler 'simple))
   (define-values (egg-graph2 iter-data2)
     (if (> iter 0)
-        (egraph-run-rules egg-graph1 (expand-rules (*rules*)) #:iter-limit iter)
+        (egraph-run-rules egg-graph1 (convert-rules (*rules*)) #:iter-limit iter)
         (values egg-graph1 _1)))
   (define-values (egg-graph3 iter-data3) (egraph-run-rules egg-graph2 '()))
   (define initial-size (iteration-data-num-nodes (last iter-data3)))
   (define results
     (for/list ([rule (in-list (*rules*))])
       (define-values (egg-graph5 iter-data5)
-        (egraph-run-rules egg-graph3 (expand-rules (list rule)) #:iter-limit 2))
+        (egraph-run-rules egg-graph3 (convert-rules (list rule)) #:iter-limit 2))
       (define size (iteration-data-num-nodes (last (if (empty? iter-data5) iter-data3 iter-data5))))
       (cons rule (- size initial-size))))
-  (define sorted-results (sort results > #:key cdr))
   (define final-size
     (let-values ([(egg-graph6 iter-data6)
-                  (egraph-run-rules egg-graph3 (expand-rules (*rules*)) #:iter-limit 2)])
+                  (egraph-run-rules egg-graph3 (convert-rules (*rules*)) #:iter-limit 2)])
       (iteration-data-num-nodes (last (if (empty? iter-data6) iter-data3 iter-data6)))))
-
-  (printf "=== Iteration ~a: ~a -> ~a nodes ===\n" iter initial-size final-size)
-  (for ([(rule delta) (in-dict sorted-results)]
-        [_ (in-range 10)]
-        #:unless (= delta 0))
-    (eprintf "~a (~a%): ~a\n"
-             delta
-             (~r (/ (* 100.0 delta) final-size) #:precision '(= 1))
-             (rule-name rule)))
-  (newline))
+  (values initial-size final-size results))
 
 (define (egraph-run-schedule batch brfs schedule ctx)
   ; allocate the e-graph
-  (define egg-graph (make-egraph-data))
+  (define egg-graph (egraph_create))
 
   ; insert expressions into the e-graph
   (define root-ids (egraph-add-exprs egg-graph batch brfs ctx))
@@ -1278,29 +1123,29 @@
       (define-values (egg-graph* iteration-data)
         (match step
           ['lift
-           (define rules (expand-rules (platform-lifting-rules)))
+           (define rules (convert-rules (platform-lifting-rules)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['lower
-           (define rules (expand-rules (platform-lowering-rules)))
+           (define rules (convert-rules (platform-lowering-rules)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['unsound
-           (define rules (expand-rules (*sound-removal-rules*)))
+           (define rules (convert-rules (*sound-removal-rules*)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['rewrite
-           (define rules (expand-rules (*rules*)))
+           (define rules (convert-rules (*rules*)))
            (egraph-run-rules egg-graph rules #:node-limit (*node-limit*))]))
 
       ; get cost statistics
       (for ([iter (in-list iteration-data)]
             [i (in-naturals)])
         (define cnt (iteration-data-num-nodes iter))
-        (define cost (for/sum ([id (in-list root-ids)]) (egraph-get-cost egg-graph* id i)))
+        (define cost (for/sum ([id (in-list root-ids)]) (egraph_get_cost egg-graph* id i)))
         (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
 
       egg-graph*))
 
   ; root eclasses may have changed
-  (define root-ids* (map (lambda (id) (egraph-find egg-graph* id)) root-ids))
+  (define root-ids* (map (lambda (id) (egraph_find egg-graph* id)) root-ids))
   ; return what we need
   (values root-ids* egg-graph*))
 
@@ -1367,9 +1212,13 @@
   (define egg-graph (egg-runner-egg-graph runner))
   (egraph-expr-equal? egg-graph start end ctx))
 
-(define (egraph-prove runner start end)
+(define (egraph-prove runner start-brf end-brf)
   (define ctx (egg-runner-ctx runner))
   (define egg-graph (egg-runner-egg-graph runner))
+  (define batch (egg-runner-batch runner))
+  (define exprs (batch-exprs batch))
+  (define start (exprs start-brf))
+  (define end (exprs end-brf))
 
   (unless (egraph-expr-equal? egg-graph start end ctx)
     (error 'egraph-prove "cannot prove ~a is equal to ~a; not equal" start end))
@@ -1385,7 +1234,7 @@
 
   ; Return empty results if unsound
   (cond
-    [(egraph-is-unsound-detected egg-graph) (map (const empty) root-ids)]
+    [(egraph_is_unsound_detected egg-graph) (map (const empty) root-ids)]
     [else
      (define regraph (make-regraph egg-graph ctx))
      (define reprs (egg-runner-reprs runner))
@@ -1406,7 +1255,7 @@
 
   ; Return empty results if unsound
   (cond
-    [(egraph-is-unsound-detected egg-graph) (map (const empty) root-ids)]
+    [(egraph_is_unsound_detected egg-graph) (map (const empty) root-ids)]
     [else
      (define regraph (make-regraph egg-graph ctx))
      (define reprs (egg-runner-reprs runner))

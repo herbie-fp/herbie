@@ -15,7 +15,7 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Uninstalled old egg-herbie" || :
 
 update:
-	raco pkg install --skip-installed --no-docs --auto --name herbie src/
+	raco pkg install --update-deps --no-docs --auto --name herbie src/
 	raco pkg update --auto rival
 	raco pkg update --name herbie --deps search-auto src/
 
@@ -29,7 +29,7 @@ egg-herbie:
 	raco pkg install ./egg-herbie
 
 egglog-herbie:
-	cargo install egglog --version 1.0.0
+	cargo install --git "https://github.com/egraphs-good/egglog-experimental" --branch main egglog-experimental
 
 
 distribution: minimal-distribution
@@ -46,7 +46,7 @@ minimal-distribution:
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 nightly:
-	bash infra/nightly.sh bench/ reports/ --threads 4
+	bash infra/nightly.sh bench/ reports/ --threads 2
 
 upgrade:
 	git pull

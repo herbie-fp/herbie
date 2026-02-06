@@ -5,7 +5,7 @@
          "../syntax/platform.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
-         "batch.rkt")
+         "../syntax/batch.rkt")
 
 (provide compile-progs
          compile-batch
