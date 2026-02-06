@@ -11,8 +11,14 @@ make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
 BENCHDIR="$1"; shift
 REPORTDIR="$1"; shift
+
+if [[ "$BRANCH" == egglog-* ]]; then
+  set -- "$@" --enable generate:egglog
+fi
 
 mkdir -p "$REPORTDIR"
 rm -rf "reports"/* || echo "nothing to delete"
@@ -33,4 +39,3 @@ done
 
 # merge reports
 racket -y infra/merge.rkt "$REPORTDIR" $dirs
-
