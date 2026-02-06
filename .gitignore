@@ -9,6 +9,7 @@ demo.log
 test.fpcore
 tmp
 dump-*
+.codex
 
 # Related repositories
 /reports
