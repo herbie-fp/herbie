@@ -287,8 +287,7 @@
                          *reeval-pts*
                          *node-limit*
                          *max-find-range-depth*
-                         *platform-name*
-                         *functions*)
+                         *platform-name*)
    (activate-platform! (*platform-name*))
    ; not sure if the above code is actaully needed.
    (define busy-workers (make-hash))
@@ -412,8 +411,7 @@
                          *reeval-pts*
                          *node-limit*
                          *max-find-range-depth*
-                         *platform-name*
-                         *functions*)
+                         *platform-name*)
    (activate-platform! (*platform-name*))
    (define worker-thread
      (thread (λ ()

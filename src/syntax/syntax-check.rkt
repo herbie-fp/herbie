@@ -86,16 +86,10 @@
          (loop arg vars))]
       [#`(#,f-syntax #,args ...)
        (define f (syntax->datum f-syntax))
-       (cond
-         [(operator-exists? f)
-          (define arity (length (operator-info f 'itype)))
-          (unless (= arity (length args))
-            (error! stx "Operator ~a given ~a arguments (expects ~a)" f (length args) arity))]
-         [(hash-has-key? (*functions*) f)
-          (match-define (list vars _ _) (hash-ref (*functions*) f))
-          (unless (= (length vars) (length args))
-            (error! stx "Function ~a given ~a arguments (expects ~a)" f (length args) (length vars)))]
-         [else (error! stx "Unknown operator ~a" f)])
+       (when (operator-exists? f)
+         (define arity (length (operator-info f 'itype)))
+         (unless (= arity (length args))
+           (error! stx "Operator ~a given ~a arguments (expects ~a)" f (length args) arity)))
        (for ([arg args])
          (loop arg vars))]
       [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))])))
