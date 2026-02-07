@@ -76,7 +76,7 @@
 
 (define (get-error expr)
   (with-handlers ([exn? (lambda (exn) (displayln (format "Error getting error for expr ~a: ~a" expr exn)) 0)])
-    (*num-points* 1000)
+    (*num-points* 500)
     (define ctx (get-ctx expr))
     (*context* ctx)
     (define pcon (get-sample (expr->test expr #:precision 'binary64)))
