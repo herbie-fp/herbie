@@ -8,6 +8,7 @@ www/demo
 demo.log
 test.fpcore
 tmp
+tmp-*
 dump-*
 
 # Related repositories
