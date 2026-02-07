@@ -22,7 +22,7 @@
 
 ;; The Herbie main loop goes through a simple iterative process:
 ;;
-;; - Choose a subset of candidates
+;; - Choose all unfinished candidates
 ;; - Generating new candidates based on them
 ;; - Evaluate all the new and old candidates and prune to the best
 ;;
@@ -122,50 +122,23 @@
 ;; Herbie. These often wrap other Herbie components, but add logging
 ;; and timeline data.
 
-(define (score-alt alt)
-  (errors-score (errors (alt-expr alt) (*pcontext*) (*context*))))
-(define (batch-score-alts altns)
-  (map errors-score (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*) (*context*))))
+(define (batch-score-alts alts)
+  (map errors-score (batch-errors (*global-batch*) (map alt-expr alts) (*pcontext*) (*context*))))
 
-; Pareto mode alt picking
-(define (choose-mult-alts altns)
+(define (timeline-push-alts! next-alts)
+  (define pending-alts (atab-not-done-alts (^table^)))
+  (define active-alts (atab-active-alts (^table^)))
   (define repr (context-repr (*context*)))
-  (cond
-    [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
-    [else
-     (define scores (batch-score-alts altns))
-     (define best (list-ref altns (index-of scores (argmin identity scores))))
-     (define alt-costs (alt-batch-costs (*global-batch*)))
-     (define altns* (sort (set-remove altns best) < #:key (compose (curryr alt-costs repr) alt-expr)))
-     (define simplest (car altns*))
-     (define altns** (cdr altns*))
-     (define div-size (round (/ (length altns**) (- (*pareto-pick-limit*) 1))))
-     (append (list best simplest)
-             (for/list ([i (in-range 1 (- (*pareto-pick-limit*) 1))])
-               (list-ref altns** (- (* i div-size) 1))))]))
-
-(define (timeline-push-alts! picked-alts)
-  (define fresh-alts (atab-not-done-alts (^table^)))
-  (define repr (context-repr (*context*)))
-  (for ([alt (atab-active-alts (^table^))]
-        [sc (in-list (batch-score-alts (atab-active-alts (^table^))))])
+  (for ([alt (in-list active-alts)]
+        [score (in-list (batch-score-alts active-alts))])
     (timeline-push! 'alts
                     (batch->jsexpr (*global-batch*) (list (alt-expr alt)))
                     (cond
-                      [(set-member? picked-alts alt) "next"]
-                      [(set-member? fresh-alts alt) "fresh"]
+                      [(set-member? next-alts alt) "next"]
+                      [(set-member? pending-alts alt) "fresh"]
                       [else "done"])
-                    sc
+                    score
                     (~a (representation-name repr)))))
-
-(define (choose-alts!)
-  (define fresh-alts (atab-not-done-alts (^table^)))
-  (define alts (choose-mult-alts fresh-alts))
-
-  (timeline-push-alts! alts)
-  (^next-alts^ alts)
-  (^table^ (atab-set-picked (^table^) alts))
-  (void))
 
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
@@ -238,9 +211,13 @@
 
 (define (run-iteration! global-spec-batch spec-reducer)
   (unless (^next-alts^)
-    (choose-alts!))
+    (define pending-alts (atab-not-done-alts (^table^)))
+    (timeline-push-alts! pending-alts)
+    (^next-alts^ pending-alts)
+    (^table^ (atab-set-picked (^table^) pending-alts)))
 
-  (define brfs (map alt-expr (^next-alts^)))
+  (define next-alts (^next-alts^))
+  (define brfs (map alt-expr next-alts))
   (define brfs* (batch-reachable (*global-batch*) brfs #:condition node-is-impl?))
 
   (define results (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer))
