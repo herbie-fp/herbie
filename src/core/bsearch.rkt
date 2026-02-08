@@ -94,6 +94,14 @@
   (define vars* (set-subtract (list->set (context-vars ctx)) (free-vars pattern-brf)))
   (and (subset? (free-vars body-brf) (set-add vars* var)) body-brf))
 
+(define (deterministic-branch-var ctx)
+  (define used-vars (list->set (context-vars ctx)))
+  (let loop ([n 0])
+    (define var (string->symbol (format "branch-~a" n)))
+    (if (set-member? used-vars var)
+        (loop (add1 n))
+        var)))
+
 (define (prepend-argument evaluator val pcontext)
   (define pts
     (for/list ([(pt ex) (in-pcontext pcontext)])
@@ -132,7 +140,7 @@
 
   (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf) ctx)))
 
-  (define var (gensym 'branch))
+  (define var (deterministic-branch-var ctx))
   (define ctx* (context-extend ctx var repr))
   (define progs
     (for/list ([alt (in-list alts)])
