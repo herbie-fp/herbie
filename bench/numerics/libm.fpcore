@@ -6,3 +6,8 @@
  (! :herbie-platform c -1)
 
  (- (fma x y z) (+ 1 (+ (* x y) z))))
+
+(FPCore (x)
+  :name "find-atanh"
+  :alt (* 2 (atanh x))
+  (log (/ (+ 1 x) (- 1 x))))

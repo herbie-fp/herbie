@@ -108,5 +108,6 @@
     num
     "The number of iterations to use for the main loop"
     (*num-iterations* (string->number num))]
+   [("--timeout") s "Timeout per test in seconds" (*timeout* (* 1000 (string->number s)))]
    #:args bench-dir
    (exit (if (apply run-tests bench-dir) 0 1))))

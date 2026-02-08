@@ -6,6 +6,7 @@
          create-new-egglog-subprocess
          egglog-send
          egglog-extract
+         egglog-multi-extract
          egglog-subprocess-close)
 
 ;; Struct to hold egglog subprocess handles
@@ -24,7 +25,9 @@
 ;; If the flag is set to dump the egglog file, creates a new dump file in dump-egglog/ directory
 (define (create-new-egglog-subprocess [label #f])
   (define egglog-path
-    (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
+    (or (find-executable-path "egglog-experimental")
+        (find-executable-path "egglog")
+        (error "egglog-experimental executable not found in PATH")))
 
   (define-values (egglog-process egglog-output egglog-in err)
     (subprocess #f #f (current-error-port) egglog-path "--mode=interactive"))
@@ -69,3 +72,11 @@
   (match-define (list "(" results ... ")") (first (egglog-send subproc extract-command)))
   (for/list ([result (in-list results)])
     (read (open-input-string result))))
+
+(define (egglog-multi-extract subproc extract-command)
+  (define raw-lines (first (egglog-send subproc extract-command)))
+  (define combined (string-join raw-lines " "))
+  (define parsed (read (open-input-string combined)))
+  (for/list ([result-list (in-list parsed)])
+    (for/list ([result (in-list result-list)])
+      result)))

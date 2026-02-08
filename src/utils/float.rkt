@@ -1,7 +1,8 @@
 #lang racket
 
-(require math/bigfloat
-         math/base)
+(require math/base
+         math/bigfloat
+         math/flonum)
 (require "../utils/common.rkt"
          "../syntax/types.rkt"
          "../utils/errors.rkt")
@@ -38,7 +39,9 @@
      (apply max (map (lambda (a b) (ulp-difference a b elem-repr)) xs ys))]
     [_
      (define ->ordinal (representation-repr->ordinal repr))
-     (+ 1 (abs (- (->ordinal y) (->ordinal x))))]))
+     (if (eq? repr <binary64>)
+         (+ 1 (abs (flonums-between x y)))
+         (+ 1 (abs (- (->ordinal y) (->ordinal x)))))]))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint

@@ -51,16 +51,16 @@ There's an exact real-number answer, a one followed by 99 zeros and
 then another 1, but the closest <em>floating-point</em> value is the
 same as <code>1e100</code>.</p>
 
-<p>Errors like this can cause problems. In the example above, the
-answers differ by one part per googol, which is pretty small. But the
-error can grow. For example, since <code>1e100 + 1</code> rounds to
-the same value as <code>1e100</code>, the larger computation
+  <p>Errors like this can cause problems. In the example above, the
+  answers differ by one part per googol, which is pretty small. But the
+  error can grow. For example, since <code>1e100 + 1</code> rounds to
+  the same value as <code>1e100</code>, the larger computation</p>
 
-<pre>(1e100 + 1) - 1e100</pre>
+  <pre>(1e100 + 1) - 1e100</pre>
 
-returns <code>0</code> instead of the correct answer, <code>1</code>.
-Now the difference is pretty stark, and can grow even bigger through
-later operations.</p>
+  <p>returns <code>0</code> instead of the correct answer, <code>1</code>.
+  Now the difference is pretty stark, and can grow even bigger through
+  later operations.</p>
 
 <h2>Bits of error</h2>
 
