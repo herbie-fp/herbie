@@ -232,8 +232,8 @@
              type))
        (approx (loop spec spec-type) (loop impl type))]
       [`(Explanation ,body ...) `(Explanation ,@(map (lambda (e) (loop e type)) body))]
-      [(list 'Rewrite=> rule expr) (list 'Rewrite=> (get-canon-rule-name rule rule) (loop expr type))]
-      [(list 'Rewrite<= rule expr) (list 'Rewrite<= (get-canon-rule-name rule rule) (loop expr type))]
+      [(list 'Rewrite=> rule expr) (list 'Rewrite=> rule (loop expr type))]
+      [(list 'Rewrite<= rule expr) (list 'Rewrite<= rule (loop expr type))]
       [(list op args ...)
        #:when (string-prefix? (symbol->string op) "sound-")
        (define op* (string->symbol (substring (symbol->string op) (string-length "sound-"))))
@@ -389,62 +389,19 @@
 
   (check-equal? (expand-proof-term '(Explanation (+ x y) (+ y x)) (box 10)) '((+ x y))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Rule expansion
-;;
-;; Expansive rules are the only problematic rules.
-;; We only support expansive rules where the LHS is a spec.
-
-;; Translates a Herbie rule into an egg rule
-(define (rule->egg-rule ru)
-  (struct-copy rule
-               ru
-               [input (expr->egg-pattern (rule-input ru))]
-               [output (expr->egg-pattern (rule-output ru))]))
-
-(define (rule->egg-rules ru)
-  (define input (rule-input ru))
-  (cond
-    [(symbol? input)
-     ; expansive rules
-     (for/list ([op (all-operators)]
-                #:when (eq? (operator-info op 'otype) 'real))
-       (define itypes (operator-info op 'itype))
-       (define vars (map (lambda (_) (gensym)) itypes))
-       (rule (sym-append (rule-name ru) '-expand- op)
-             (cons op vars)
-             (replace-expression (rule-output ru) input (cons op vars))
-             (rule-tags ru)))]
-    ; non-expansive rule
-    [else (list (rule->egg-rule ru))]))
-
-;; egg rule cache: rule -> (cons/c rule FFI-rule)
+;; egg rule cache: rule -> FFI-rule
 (define/reset *egg-rule-cache* (make-hasheq))
-
-;; Cache mapping (expanded) rule name to its canonical rule name
-(define/reset *canon-names* (make-hasheq))
-
-;; Tries to look up the canonical name of a rule using the cache.
-;; Obviously dangerous if the cache is invalid.
-(define (get-canon-rule-name name [failure #f])
-  (hash-ref (*canon-names*) name failure))
 
 ;; Expand and convert the rules for egg.
 ;; Uses a cache to only expand each rule once.
-(define (expand-rules rules)
-  (reap [sow]
-        (for ([rule (in-list rules)])
-          (define egg&ffi-rules
-            (hash-ref! (*egg-rule-cache*)
-                       rule
-                       (lambda ()
-                         (for/list ([egg-rule (in-list (rule->egg-rules rule))])
-                           (define name (rule-name egg-rule))
-                           (define ffi-rule
-                             (make-ffi-rule name (rule-input egg-rule) (rule-output egg-rule)))
-                           (hash-set! (*canon-names*) name (rule-name rule))
-                           (cons egg-rule ffi-rule)))))
-          (for-each sow egg&ffi-rules))))
+(define (convert-rules rules)
+  (for/list ([ru (in-list rules)])
+    (hash-ref! (*egg-rule-cache*)
+               ru
+               (lambda ()
+                 (define input (expr->egg-pattern (rule-input ru)))
+                 (define output (expr->egg-pattern (rule-output ru)))
+                 (make-ffi-rule (rule-name ru) input output)))))
 
 ;; Rules from impl to spec (fixed for a particular platform)
 (define/reset *lifting-rules* (make-hash))
@@ -1119,11 +1076,9 @@
                           #:node-limit [node-limit #f]
                           #:iter-limit [iter-limit #f]
                           #:scheduler [scheduler 'backoff])
-  (define ffi-rules (map cdr egg-rules))
-
   ;; run the rules
   (define egg-graph (egraph_copy egg-graph0))
-  (define iteration-data (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
+  (define iteration-data (egraph-run egg-graph egg-rules node-limit iter-limit scheduler))
 
   (when (egraph_is_unsound_detected egg-graph)
     (warn 'unsound-egraph #:url "faq.html#unsound-egraph" "unsoundness detected in the egraph"))
@@ -1133,24 +1088,24 @@
 (define (egraph-analyze-rewrite-impact batch brfs ctx iter)
   (define egg-graph (egraph_create))
   (egraph-add-exprs egg-graph batch brfs ctx)
-  (define lifting-rules (expand-rules (platform-lifting-rules)))
+  (define lifting-rules (convert-rules (platform-lifting-rules)))
   (define-values (egg-graph1 _1)
     (egraph-run-rules egg-graph lifting-rules #:iter-limit 1 #:scheduler 'simple))
   (define-values (egg-graph2 iter-data2)
     (if (> iter 0)
-        (egraph-run-rules egg-graph1 (expand-rules (*rules*)) #:iter-limit iter)
+        (egraph-run-rules egg-graph1 (convert-rules (*rules*)) #:iter-limit iter)
         (values egg-graph1 _1)))
   (define-values (egg-graph3 iter-data3) (egraph-run-rules egg-graph2 '()))
   (define initial-size (iteration-data-num-nodes (last iter-data3)))
   (define results
     (for/list ([rule (in-list (*rules*))])
       (define-values (egg-graph5 iter-data5)
-        (egraph-run-rules egg-graph3 (expand-rules (list rule)) #:iter-limit 2))
+        (egraph-run-rules egg-graph3 (convert-rules (list rule)) #:iter-limit 2))
       (define size (iteration-data-num-nodes (last (if (empty? iter-data5) iter-data3 iter-data5))))
       (cons rule (- size initial-size))))
   (define final-size
     (let-values ([(egg-graph6 iter-data6)
-                  (egraph-run-rules egg-graph3 (expand-rules (*rules*)) #:iter-limit 2)])
+                  (egraph-run-rules egg-graph3 (convert-rules (*rules*)) #:iter-limit 2)])
       (iteration-data-num-nodes (last (if (empty? iter-data6) iter-data3 iter-data6)))))
   (values initial-size final-size results))
 
@@ -1167,16 +1122,16 @@
       (define-values (egg-graph* iteration-data)
         (match step
           ['lift
-           (define rules (expand-rules (platform-lifting-rules)))
+           (define rules (convert-rules (platform-lifting-rules)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['lower
-           (define rules (expand-rules (platform-lowering-rules)))
+           (define rules (convert-rules (platform-lowering-rules)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['unsound
-           (define rules (expand-rules (*sound-removal-rules*)))
+           (define rules (convert-rules (*sound-removal-rules*)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['rewrite
-           (define rules (expand-rules (*rules*)))
+           (define rules (convert-rules (*rules*)))
            (egraph-run-rules egg-graph rules #:node-limit (*node-limit*))]))
 
       ; get cost statistics

@@ -101,7 +101,7 @@
   <h2>Defining Representations</h2>
 
   <p>The typical platform starts by defining the representations it
-  uses and their costs with <code>define-representation<code>:</p>
+  uses and their costs with <code>define-representation</code>:</p>
 
   <pre>(define-representation &lt;bool&gt; #:cost 1)
 (define-representation &lt;binary64&gt; #:cost 1.5)</pre>
@@ -261,7 +261,7 @@
 
   <p>Comparison operations return <code>&lt;bool&gt;</code>:</p>
 
-  <pre>(define-operations ([x &lt;binary64&gt;] [y &lt;binary64&gt;]) <bool>
+  <pre>(define-operations ([x &lt;binary64&gt;] [y &lt;binary64&gt;]) &lt;bool&gt;
   [==.f64 #:spec (== x y) #:impl =          #:cost 1]
   [!=.f64 #:spec (!= x y) #:impl (negate =) #:cost 1]
   [&lt;.f64  #:spec (&lt; x y)  #:impl &lt;          #:cost 1]
@@ -287,7 +287,7 @@
 
   <p>Conditionals can be defined as operations with a boolean argument:</p>
 
-  <pre>(define-operation (if-f64 [c <bool>] [t &lt;binary64&gt;] [f &lt;binary64&gt;]) &lt;binary64&gt;
+  <pre>(define-operation (if-f64 [c &lt;bool&gt;] [t &lt;binary64&gt;] [f &lt;binary64&gt;]) &lt;binary64&gt;
   #:spec (if c t f) #:impl if-impl
   #:cost (if-cost 14) )</pre>
 
