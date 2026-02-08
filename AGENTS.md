@@ -11,6 +11,7 @@
   `racket src/main.rkt report bench/tutorial.fpcore tmp`. This should
   take about 5-10 seconds and all of the tests should pass with
   perfect accuracy. You can also use other benchmark suites if asked.
+- If you need to store two reports name the folders `tmp-X` for some X.
 - Arguments come after the word `report` before any other arguments.
 - Herbie prints a seed every time it runs; you can pass `--seed N`
   after the "report" argument to fix the seed reproducibly.
