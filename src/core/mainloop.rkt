@@ -5,6 +5,7 @@
          "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../syntax/platform.rkt"
+         "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "alt-table.rkt"
          "bsearch.rkt"
@@ -171,9 +172,63 @@
 (define (reconstruct! alts)
   (timeline-event! 'reconstruct)
 
-  (define (reconstruct-alt altn orig)
+  (define (build-impl-parents batch roots)
+    (define parents (make-vector (batch-length batch) '()))
+    (define relevant? (make-vector (batch-length batch) #f))
+    (let loop ([work (map batchref-idx roots)])
+      (cond
+        [(null? work) (values parents relevant?)]
+        [else
+         (define idx (car work))
+         (define rest (cdr work))
+         (if (vector-ref relevant? idx)
+             (loop rest)
+             (let ([node (deref (batchref batch idx))])
+               (vector-set! relevant? idx #t)
+               (match node
+                 [(approx _ impl)
+                  (define impl-idx (batchref-idx impl))
+                  (vector-set! parents impl-idx (cons idx (vector-ref parents impl-idx)))
+                  (loop (cons impl-idx rest))]
+                 [_
+                  (let ([work* rest])
+                    (expr-recurse
+                     node
+                     (lambda (child)
+                       (define child-idx (batchref-idx child))
+                       (vector-set! parents child-idx (cons idx (vector-ref parents child-idx)))
+                       (set! work* (cons child-idx work*))))
+                    (loop work*))])))])))
+
+  (define (compute-referrers parents idx)
+    (define seen (make-hasheq))
+    (let loop ([work (list idx)])
+      (cond
+        [(null? work) seen]
+        [else
+         (define cur (car work))
+         (define rest (cdr work))
+         (if (hash-has-key? seen cur)
+             (loop rest)
+             (begin
+               (hash-set! seen cur #t)
+               (loop (foldl cons rest (vector-ref parents cur)))))])))
+
+  (define full-altns (^next-alts^))
+  (define-values (parents relevant?) (build-impl-parents (*global-batch*) (map alt-expr full-altns)))
+  (define referrers-cache (make-hasheq))
+  (define (referrers-of start-expr)
+    (define start-idx (batchref-idx start-expr))
+    (hash-ref! referrers-cache
+               start-idx
+               (lambda ()
+                 (if (vector-ref relevant? start-idx)
+                     (compute-referrers parents start-idx)
+                     (make-hasheq)))))
+
+  (define (reconstruct-alt altn orig can-refer)
     (define (loop altn)
-      (match-define (alt patch-expr event prevs) altn)
+      (match-define (alt _ event _) altn)
       (match altn
         [(alt start-expr 'patch '()) (values orig start-expr)]
         [(alt cur-expr event (list prev))
@@ -183,15 +238,20 @@
              [(list 'evaluate) (list 'evaluate start-expr)]
              [(list 'taylor name var) (list 'taylor start-expr name var)]
              [(list 'rr input proof) (list 'rr (alt-expr prev) cur-expr input proof)]))
-         (define expr* (batch-replace-subexpr (*global-batch*) (alt-expr orig) start-expr cur-expr))
+         (define expr*
+           (batch-replace-subexpr (*global-batch*) (alt-expr orig) start-expr cur-expr can-refer))
          (values (alt expr* event* (list prev-altn)) start-expr)]))
     (define-values (result-alt _) (loop altn))
     result-alt)
 
-  (^patched^ (remove-duplicates (for*/list ([altn (in-list alts)]
-                                            [full-altn (in-list (^next-alts^))])
-                                  (reconstruct-alt altn full-altn))
-                                #:key (compose batchref-idx alt-expr)))
+  (^patched^ (remove-duplicates
+              (for*/list ([altn (in-list alts)]
+                          [start-expr (in-value (get-starting-expr altn))]
+                          [can-refer (in-value (referrers-of start-expr))]
+                          [full-altn (in-list full-altns)]
+                          #:when (hash-has-key? can-refer (batchref-idx (alt-expr full-altn))))
+                (reconstruct-alt altn full-altn can-refer))
+              #:key (compose batchref-idx alt-expr)))
 
   (void))
 
