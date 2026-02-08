@@ -65,7 +65,7 @@
     (define start-alt (alt initial-brf 'start '()))
     (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
 
-    (for ([iteration (in-range (*num-iterations*))]
+    (for ([_ (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
       (run-iteration! global-spec-batch spec-reducer))
     (define alternatives (extract!))
@@ -123,8 +123,6 @@
 ;; Herbie. These often wrap other Herbie components, but add logging
 ;; and timeline data.
 
-(define (score-alt alt)
-  (errors-score (errors (alt-expr alt) (*pcontext*) (*context*))))
 (define (batch-score-alts altns)
   (map errors-score (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*) (*context*))))
 
@@ -146,10 +144,11 @@
                (list-ref altns** (- (* i div-size) 1))))]))
 
 (define (timeline-push-alts! picked-alts)
+  (define active-alts (atab-active-alts (^table^)))
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define repr (context-repr (*context*)))
-  (for ([alt (atab-active-alts (^table^))]
-        [sc (in-list (batch-score-alts (atab-active-alts (^table^))))])
+  (for ([alt active-alts]
+        [sc (in-list (batch-score-alts active-alts))])
     (timeline-push! 'alts
                     (batch->jsexpr (*global-batch*) (list (alt-expr alt)))
                     (cond
@@ -261,6 +260,7 @@
   (define orig-all-alts (atab-active-alts (^table^)))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract orig-all-alts (atab-not-done-alts (^table^))))
+  (define picked-alts (or (^next-alts^) empty))
 
   (define-values (errss costs) (atab-eval-altns (^table^) (*global-batch*) (^patched^) (*context*)))
   (timeline-event! 'prune)
@@ -277,12 +277,11 @@
           'fresh
           (list (length orig-fresh-alts) (length (set-intersect orig-fresh-alts final-fresh-alts)))
           'done
-          (list (- (length orig-done-alts) (length (or (^next-alts^) empty)))
+          (list (- (length orig-done-alts) (length picked-alts))
                 (- (length (set-intersect orig-done-alts final-done-alts))
-                   (length (set-intersect final-done-alts (or (^next-alts^) empty)))))
+                   (length (set-intersect final-done-alts picked-alts))))
           'picked
-          (list (length (or (^next-alts^) empty))
-                (length (set-intersect final-done-alts (or (^next-alts^) empty))))))
+          (list (length picked-alts) (length (set-intersect final-done-alts picked-alts)))))
   (timeline-push! 'kept data)
 
   (define repr (context-repr (*context*)))
