@@ -225,7 +225,7 @@
     (cond
       [(< idx from-idx) brf]
       [(= idx from-idx) to]
-      [(and can-refer (not (hash-has-key? can-refer idx))) brf]
+      [(and can-refer (not (vector-ref can-refer idx))) brf]
       [else
        (hash-ref! cache
                   idx

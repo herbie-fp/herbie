@@ -200,35 +200,29 @@
                        (set! work* (cons child-idx work*))))
                     (loop work*))])))])))
 
-  (define (compute-referrers parents idx)
-    (define seen (make-hasheq))
-    (let loop ([work (list idx)])
-      (cond
-        [(null? work) seen]
-        [else
-         (define cur (car work))
-         (define rest (cdr work))
-         (if (hash-has-key? seen cur)
-             (loop rest)
-             (begin
-               (hash-set! seen cur #t)
-               (loop (foldl cons rest (vector-ref parents cur)))))])))
+  (define (compute-referrers parents relevant? idx)
+    (define seen (make-vector (vector-length parents) #f))
+    (when (vector-ref relevant? idx)
+      (let loop ([work (list idx)])
+        (unless (null? work)
+          (define cur (car work))
+          (define rest (cdr work))
+          (if (vector-ref seen cur)
+              (loop rest)
+              (begin
+                (vector-set! seen cur #t)
+                (loop (foldl cons rest (vector-ref parents cur))))))))
+    seen)
 
   (define full-altns (^next-alts^))
+  (define full-altn+idxs
+    (for/list ([full-altn (in-list full-altns)])
+      (cons full-altn (batchref-idx (alt-expr full-altn)))))
   (define-values (parents relevant?) (build-impl-parents (*global-batch*) (map alt-expr full-altns)))
-  (define referrers-cache (make-hasheq))
-  (define (referrers-of start-expr)
-    (define start-idx (batchref-idx start-expr))
-    (hash-ref! referrers-cache
-               start-idx
-               (lambda ()
-                 (if (vector-ref relevant? start-idx)
-                     (compute-referrers parents start-idx)
-                     (make-hasheq)))))
+  (define grouped-alts (group-by get-starting-expr alts))
 
   (define (reconstruct-alt altn orig can-refer)
     (define (loop altn)
-      (match-define (alt _ event _) altn)
       (match altn
         [(alt start-expr 'patch '()) (values orig start-expr)]
         [(alt cur-expr event (list prev))
@@ -245,12 +239,15 @@
     result-alt)
 
   (^patched^ (remove-duplicates
-              (for*/list ([altn (in-list alts)]
-                          [start-expr (in-value (get-starting-expr altn))]
-                          [can-refer (in-value (referrers-of start-expr))]
-                          [full-altn (in-list full-altns)]
-                          #:when (hash-has-key? can-refer (batchref-idx (alt-expr full-altn))))
-                (reconstruct-alt altn full-altn can-refer))
+              (for*/list ([start-alts (in-list grouped-alts)]
+                          [can-refer (in-value (compute-referrers
+                                                parents
+                                                relevant?
+                                                (batchref-idx (get-starting-expr (car start-alts)))))]
+                          [altn (in-list start-alts)]
+                          [full-altn+idx (in-list full-altn+idxs)]
+                          #:when (vector-ref can-refer (cdr full-altn+idx)))
+                (reconstruct-alt altn (car full-altn+idx) can-refer))
               #:key (compose batchref-idx alt-expr)))
 
   (void))
