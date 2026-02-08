@@ -28,68 +28,31 @@
 ;;; ------------------------- SETUP ---------------------------------
 (activate-platform! "grow")
 (struct candidate (name spec score cost error))
+(define accelerators-path "reports/accelerators.json")
+(define grow-platform-path "growlibm/grow.rkt")
 
 (define implication-threshold 0.5)
 (define top-k 5)
 
 ;;; ------------------------- HELPERS ---------------------------------
-(define (normalize-name name)
-  (cond
-    [(symbol? name) (symbol->string name)]
-    [else (~a name)]))
-
-(define (candidate-name->string cand)
-  (normalize-name (candidate-name cand)))
-
-(define (candidate-name->symbol cand)
-  (string->symbol (candidate-name->string cand)))
-
 (define (register-op! platform fpcore name cost)
   (parameterize ([*active-platform* platform])
     (define impl (fpcore->prog fpcore (get-ctx fpcore)))
     (define spec (prog->spec impl))
     (define ctx (get-ctx spec))
     (define vars (context-vars ctx))
+    (define name* (string->symbol name))
 
     (define op-impl
       (create-operator-impl!
-       name
+       name*
        ctx
        #:spec spec
        #:impl (from-rival)
-       #:fpcore `(! :precision binary64 (,name ,@vars))
+       #:fpcore `(! :precision binary64 (,name* ,@vars))
        #:cost cost))
     (platform-register-implementation! platform op-impl)
     (void)))
-
-(define (expr->test expr
-                    #:name [name "scratch"]
-                    #:precision [precision (*default-precision*)])
-  (define vars (sort (free-variables expr) symbol<?))
-  (define default-repr (get-representation precision))
-  (define default-ctx
-    (context vars default-repr (make-list (length vars) default-repr)))
-  (define impl-expr
-    (cond
-      [(impl-prog? expr) expr]
-      [(spec-prog? expr) (fpcore->prog expr default-ctx)]
-      [else (raise-arguments-error 'expr->test "not a Herbie expression" "expr" expr)]))
-  (define out-repr (repr-of impl-expr default-ctx))
-  (define out-repr-name (representation-name out-repr))
-  (define var-repr-names
-    (for/list ([var (in-list vars)])
-      (cons var out-repr-name)))
-  (define spec impl-expr)
-  (test name
-        #f
-        vars
-        impl-expr
-        '()
-        #t
-        spec
-        '(TRUE)
-        out-repr-name
-        var-repr-names))
 
 (define (run-herbie-expr expr platform
                          #:seed [seed #f]
@@ -109,20 +72,54 @@
       [_
        (raise-arguments-error 'run-herbie-expr "Herbie run failed" "expr" expr)])))
 
-;;; (define (improve-error-bits expr platform)
-;;;     (reset!)
-;;;     (parameterize ([*active-platform* platform])
-;;;       (define test (expr->test expr))
-;;;       (*context* (test-context test))
-;;;       (define spec (prog->spec (or (test-spec test) (test-input test))))
-;;;       (define pcontext (get-spec-sample spec))
-;;;       (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) pcontext))
-;;;       (cond
-;;;         [(null? alternatives) +inf.0]
-;;;         [else
-;;;          (define sorted-alts (sort-alts alternatives))
-;;;          (define best-errs (cdr (first sorted-alts)))
-;;;          (errors-score best-errs)])))
+(define (add-accelerator cand)
+  (define name (candidate-name cand))
+  (define spec (candidate-spec cand))
+  (define cost (candidate-cost cand))
+  (define fake-cost (floor (/ cost 5)))
+
+  (define ctx (context (free-variables spec)
+                       (get-representation 'binary64)
+                       (make-list (length (free-variables spec))
+                                  (get-representation 'binary64))))
+
+  (define prog (fpcore->prog spec ctx))
+  (define spec* (prog->spec prog))
+  (define free-vars (free-variables spec*))
+
+  (define (render-var-f64 var) (format "[~a <binary64>]" var))
+  (define (render-var-f32 var) (format "[~a <binary32>]" var))
+
+  (define operator-strf64 (format "(define-operation (~a.f64 ~a) <binary64> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary64 (~a ~a)) #:cost ~a)"
+                                  name
+                                  (string-join (map render-var-f64 free-vars))
+                                  spec*
+                                  name
+                                  (string-join (map symbol->string free-vars))
+                                  fake-cost))
+
+  (define operator-strf32 (format "(define-operation (~a.f32 ~a) <binary32> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary32 (~a ~a)) #:cost ~a)"
+                                  name
+                                  (string-join (map render-var-f32 free-vars))
+                                  spec*
+                                  name
+                                  (string-join (map symbol->string free-vars))
+                                  fake-cost))
+
+  (with-output-to-file grow-platform-path
+    (lambda ()
+      (displayln operator-strf64)
+      (displayln operator-strf32))
+    #:exists 'append)
+
+  (displayln (format "adding accelerator ~a, with spec: ~a" name spec)))
+
+(define (can-reach? start-name target-name implied-by)
+  (let loop ([curr start-name] [visited (set)])
+    (cond [(equal? curr target-name) #t]
+          [(set-member? visited curr) #f]
+          [else (for/or ([neighbor (hash-ref implied-by curr (set))])
+                  (loop neighbor (set-add visited curr)))])))
 
 ;;; ------------------------- MAIN PIPELINE ---------------------------------
 (define filename (vector-ref (current-command-line-arguments) 0))
@@ -160,7 +157,6 @@
 
 (define sorted-cands (sort scored-pairs > #:key candidate-score))
 
-(define accelerators-path "reports/accelerators.json")
 (define existing-accelerators
   (if (file-exists? accelerators-path)
       (let ([data (call-with-input-file accelerators-path read-json)])
@@ -174,11 +170,11 @@
 (for ([entry (in-list existing-accelerators)])
   (define entry-name (hash-ref entry 'name #f))
   (when entry-name
-    (hash-set! existing-name-set (normalize-name entry-name) #t)))
+    (hash-set! existing-name-set  entry-name #t)))
 
 (define filtered-cands
   (filter (lambda (cand)
-            (not (hash-has-key? existing-name-set (candidate-name->string cand))))
+            (not (hash-has-key? existing-name-set (candidate-name cand))))
           sorted-cands))
 
 (when (null? filtered-cands)
@@ -192,21 +188,21 @@
 
 (for-each (lambda (cand)
             (displayln (format "~a: ~a"
-                               (candidate-name->string cand)
+                               (candidate-name cand)
                                (candidate-spec cand))))
           top-cands)
 
 (when (> (length top-cands) 1)
   (for ([cand-a (in-list top-cands)])
     (displayln "")
-    (displayln (format "considering implication from ~a: ~a" (candidate-name->string cand-a) (candidate-spec cand-a)))
+    (displayln (format "considering implication from ~a: ~a" (candidate-name cand-a) (candidate-spec cand-a)))
     (define platform-a (platform-copy base-platform))
-    (define name-a (candidate-name->string cand-a))
+    (define name-a (candidate-name cand-a))
     (define spec-a (candidate-spec cand-a))
     (define fake-cost-a 0)
-    (register-op! platform-a spec-a (candidate-name->symbol cand-a) fake-cost-a)
+    (register-op! platform-a spec-a (candidate-name cand-a) fake-cost-a)
     (for ([cand-b (in-list top-cands)]
-          #:unless (equal? (candidate-name->string cand-b) name-a))
+          #:unless (equal? (candidate-name cand-b) name-a))
 
       (define err (run-herbie-expr (candidate-spec cand-b) platform-a))
       (define diff (- (candidate-error cand-b) err))
@@ -215,68 +211,45 @@
         (if (<= original-err 0)
             0.0
             (/ diff original-err)))
-      (displayln  (format "     ~a: ~a, ~a ~a ~a" (candidate-name->string cand-b) (candidate-spec cand-b) err diff improvement-ratio))
-
+      (displayln  (format "     ~a: ~a, ~a ~a ~a" (candidate-name cand-b) (candidate-spec cand-b) err diff improvement-ratio))
       (when (> improvement-ratio implication-threshold)
+        (displayln (format "     -> IMPLICATION DETECTED: ~a implies ~a" name-a (candidate-name cand-b)))
+        (define name-b (candidate-name cand-b))
+        (hash-set! implied-by name-b (set-add (hash-ref implied-by name-b (set)) name-a))))))
 
-        (displayln (format "     -> IMPLICATION DETECTED: ~a implies ~a" name-a (candidate-name->string cand-b)))
-        (hash-set! implied-by (candidate-name->string cand-b) name-a)))))
+(define (get-final-candidate-structs top-cands implied-by)
+  (define name->struct
+    (make-hash (map (lambda (c) (cons (candidate-name c) c)) top-cands)))
+  (define all-names (hash-keys name->struct))
+  (define reaches? (lambda (u v) (can-reach? v u implied-by)))
+  (define is-source? (lambda (name)
+                       (for/and ([other all-names])
+                         (if (and (reaches? other name) (not (reaches? name other)))
+                             #f #t))))
+  (define source-names (filter is-source? all-names))
+  (define unique-names (remove-duplicates source-names (lambda (a b) (reaches? a b))))
 
-(define chosen-cand
-  (or (for/first ([cand (in-list top-cands)]
-                  #:unless (hash-has-key? implied-by (candidate-name->string cand)))
-        cand)
-      (first top-cands)))
+  (map (lambda (name) (hash-ref name->struct name)) unique-names))
 
-(define fpcore (candidate-spec chosen-cand))
-(define name (candidate-name->string chosen-cand))
-(define cost (candidate-cost chosen-cand))
-(define fake-cost (floor (/ cost 5)))
+(define to-add (get-final-candidate-structs top-cands implied-by))
 
-(when (ormap (lambda (entry) (equal? (hash-ref entry 'name #f) name)) existing-accelerators)
-  (displayln (format "accelerator ~a already present; skipping" name))
-  (exit 0))
+(define new-json-entries
+  (for/list ([cand (in-list to-add)])
+    (add-accelerator cand) 
+    (hash 'name (candidate-name cand) 
+          'spec (format "~a" (candidate-spec cand)))))
 
-(define ctx (context (free-variables fpcore)
-                     (get-representation 'binary64)
-                     (make-list (length (free-variables fpcore))
-                                (get-representation 'binary64))))
+(define current-file-content
+  (if (file-exists? accelerators-path)
+      (let ([data (call-with-input-file accelerators-path read-json)])
+        (cond [(vector? data) (vector->list data)]
+              [(list? data) data]
+              [else '()]))
+      '()))
 
-(define prog (fpcore->prog fpcore ctx))
-(define spec (prog->spec prog))
-(define (render-var-f64 var) (format "[~a <binary64>]" var))
-(define (render-var-f32 var) (format "[~a <binary32>]" var))
-
-(define operator-strf64 (format "(define-operation (~a.f64 ~a) <binary64> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary64 (~a ~a)) #:cost ~a)"
-                                name
-                                (string-join (map render-var-f64 (free-variables spec)))
-                                spec
-                                name
-                                (string-join (map symbol->string (free-variables spec)))
-                                fake-cost))
-
-(define operator-strf32 (format "(define-operation (~a.f32 ~a) <binary32> #:spec ~a #:impl (from-rival) #:fpcore (! :precision binary32 (~a ~a)) #:cost ~a)"
-                                name
-                                (string-join (map render-var-f32 (free-variables spec)))
-                                spec
-                                name
-                                (string-join (map symbol->string (free-variables spec)))
-                                fake-cost))
-
-(with-output-to-file "growlibm/grow.rkt"
-  (lambda ()
-    (displayln operator-strf64)
-    (displayln operator-strf32))
-  #:exists 'append)
-
-(define new-entry (hash 'name name 'spec (format "~a" spec)))
-
-(define updated-accelerators
-  (append existing-accelerators (list new-entry)))
+(define final-list (append current-file-content new-json-entries))
 
 (call-with-output-file accelerators-path
   (lambda (out)
-    (write-json updated-accelerators out))
+    (write-json final-list out))
   #:exists 'truncate)
-
-(displayln (format "adding accelerator ~a, with spec: ~a" name spec))
