@@ -229,10 +229,24 @@
        (hash-ref! cache
                   idx
                   (lambda ()
-                    (batch-add! batch
-                                (match (deref brf)
-                                  [(approx spec impl) (approx spec (loop impl))]
-                                  [node (expr-recurse node loop)]))))])))
+                    (match (deref brf)
+                      [(approx spec impl)
+                       (define impl* (loop impl))
+                       (if (= (batchref-idx impl*) (batchref-idx impl))
+                           brf
+                           (batch-push! batch (approx (batchref-idx spec) (batchref-idx impl*))))]
+                      [node
+                       (define unchanged? #t)
+                       (define node*
+                         (expr-recurse node
+                                       (lambda (arg)
+                                         (define arg* (loop arg))
+                                         (unless (= (batchref-idx arg*) (batchref-idx arg))
+                                           (set! unchanged? #f))
+                                         (batchref-idx arg*))))
+                       (if unchanged?
+                           brf
+                           (batch-push! batch node*))])))])))
 
 (module+ test
   (require rackunit)
