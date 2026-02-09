@@ -126,6 +126,25 @@
 
         [_ (void)]))))
 
+(define (push-holes-exhaustive expr)
+  (reap [sow]
+    (let loop ([current-expr expr]
+               [context (lambda (hole) hole)]) 
+      (match current-expr
+        [(list op args ...)
+         (define candidate (context 'hole))
+         
+         ;; 1. Check current level
+         (when (and (not (eq? candidate 'hole))
+                    (> (get-error candidate) err-threshold))
+           (sow candidate))
+
+         ;; 2. ALWAYS recurse (No 'else', no stopping)
+         (for ([arg args] [i (in-naturals)])
+           (loop arg (lambda (h) 
+                       (context (cons op (list-set args i h))))))]
+        [_ (void)]))))
+
 (define (get-error expr)
   (with-handlers ([exn:fail:user:herbie:sampling? (lambda (exn) (displayln (format "Error getting error for expr ~a: ~a" expr exn)) 0)])
     (*num-points* 100)
@@ -201,7 +220,7 @@
 
 (for ([(root-expr mult) (in-hash root-counts)])
 
-  (define subexprs (push-holes root-expr))
+  (define subexprs (push-holes-exhaustive root-expr))
   (define filtered-subexprs
     (filter (lambda (n)
               (and (not (or (symbol? n) (literal? n) (number? n)))
