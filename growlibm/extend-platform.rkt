@@ -4,25 +4,13 @@
   "../src/syntax/load-platform.rkt"
   "../src/syntax/sugar.rkt"
   "../src/core/programs.rkt"
-  "../src/syntax/syntax.rkt"
   "growlibm-common.rkt"
   "../src/api/sandbox.rkt"
-  "../src/syntax/types.rkt"
   "../src/core/points.rkt"
-  "../src/core/rules.rkt"
   "../src/config.rkt"
-  "../src/syntax/batch.rkt"
-  "../src/core/mainloop.rkt"
-  "../src/core/egg-herbie.rkt"
-  "../src/syntax/read.rkt"
   "../src/syntax/load-platform.rkt"
-  "../src/syntax/types.rkt"
-  "../src/syntax/read.rkt"
-  "../src/syntax/platform.rkt"
   "../src/syntax/sugar.rkt"
   "../src/core/programs.rkt"
-  "../src/syntax/syntax.rkt"
-  "../src/reports/common.rkt"
   "../src/syntax/platform-language.rkt")
 
 ;;; ------------------------- SETUP ---------------------------------
@@ -32,7 +20,7 @@
 (define grow-platform-path "growlibm/grow.rkt")
 
 (define implication-threshold 0.5)
-(define top-k 5)
+(define top-k 10)
 
 ;;; ------------------------- HELPERS ---------------------------------
 (define (register-op! platform fpcore name cost)

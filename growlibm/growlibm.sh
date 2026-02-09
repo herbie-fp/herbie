@@ -14,7 +14,7 @@ SEED=$(date "+%Y%j")
 # BENCHDIR="bench/mathematics/statistics.fpcore"
 BENCHDIR="bench/proj"
 REPORTDIR="reports"
-NUMITERS=10
+NUMITERS=2
 
 cp growlibm/grow-template.rkt growlibm/grow.rkt
 

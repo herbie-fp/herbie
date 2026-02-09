@@ -10,30 +10,64 @@
   "../src/api/sandbox.rkt"
   "../src/syntax/types.rkt"
   "../src/core/points.rkt"
-  "../src/core/rules.rkt"
-  "../src/config.rkt"
   "../src/syntax/batch.rkt"
   "../src/core/egg-herbie.rkt"
-  "../src/syntax/read.rkt"
   "../src/syntax/load-platform.rkt"
   "../src/syntax/types.rkt"
-  "../src/syntax/read.rkt"
   "../src/syntax/platform.rkt"
   "../src/syntax/sugar.rkt"
   "../src/core/programs.rkt"
   "../src/syntax/syntax.rkt"
   "../src/utils/common.rkt"
-  "../src/reports/common.rkt")
+  "../src/utils/errors.rkt")
 
 ;;; ------------------------- SETUP ---------------------------------
 (activate-platform! "grow")
 (*node-limit* 50000)
 (define report-dir (vector-ref (current-command-line-arguments) 0))
+(define err-threshold 0.1)
+
 ;;; ------------------------- HELPERS ---------------------------------
+(define cost-proc (platform-cost-proc (*active-platform*)))
+
 (define (get-cost expr)
   (cost-proc expr (get-representation 'binary64)))
 
-(define cost-proc (platform-cost-proc (*active-platform*)))
+(define (eliminate-ifs expr)
+  (define comparison-bases
+    '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64
+            <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
+
+  (define (comparison-op? op) (member op comparison-bases))
+
+  (define (pure-math? e)
+    (let check ([e e])
+      (match e
+        [(or `(if.f32 ,_ ,_ ,_)
+             `(if.f64 ,_ ,_ ,_)) #f]
+        [(list (? comparison-op?) _ _) #f]
+        [(list _ args ...)
+         (andmap check args)]
+        [_ #t])))
+
+  (reap [sow]
+        (let loop ([expr expr])
+          (match expr
+            [(or `(if ,test ,t ,f)
+                 `(if.f32 ,test ,t ,f)
+                 `(if.f64 ,test ,t ,f))
+             (loop test) (loop t) (loop f)]
+
+            [(list (? comparison-op?) lhs rhs)
+             (loop lhs) (loop rhs)]
+
+            [(list op args ...)
+             (if (pure-math? expr)
+                 (sow expr)
+                 (for ([arg args])
+                   (loop arg)))]
+
+            [_ (void)]))))
 
 (define (get-subexpressions expr)
   (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
@@ -67,16 +101,34 @@
                  [_ (void)])]))))
   subexprs)
 
+(define (push-holes expr)
+  (reap [sow]
+    (let loop ([current-expr expr]
+               [context (lambda (hole) hole)]) 
 
-(define (remove-approxes expr)
-  (match expr
-    [(approx _ impl) (remove-approxes impl)]
-    [(list op args ...) (cons op (map remove-approxes args))]
-    [_ expr]))
+      (match current-expr
+        [(list op args ...)
+         (define candidate (context 'hole))
+         
+         (cond
+           [(and (not (eq? candidate 'hole))
+                 (> (get-error candidate) err-threshold))
+            (sow candidate)
+
+            (when (> (get-error current-expr) err-threshold)
+              (for ([arg args] [i (in-naturals)])
+                (loop arg (lambda (h) 
+                            (cons op (list-set args i h))))))]
+           [else
+            (for ([arg args] [i (in-naturals)])
+              (loop arg (lambda (h) 
+                          (context (cons op (list-set args i h))))))])]
+
+        [_ (void)]))))
 
 (define (get-error expr)
-  (with-handlers ([exn? (lambda (exn) (displayln (format "Error getting error for expr ~a: ~a" expr exn)) 0)])
-    (*num-points* 500)
+  (with-handlers ([exn:fail:user:herbie:sampling? (lambda (exn) (displayln (format "Error getting error for expr ~a: ~a" expr exn)) 0)])
+    (*num-points* 100)
     (define ctx (get-ctx expr))
     (*context* ctx)
     (define pcon (get-sample (expr->test expr #:precision 'binary64)))
@@ -129,50 +181,47 @@
     #:exists 'append))
 
 ;;; ------------------------- MAIN PIPELINE ---------------------------------
+(define root-counts (make-hash))
+(define candidate-counts (make-hash))
+
 (define roots (file->list (string-append report-dir "/expr_dump.txt")))
 (log-info "roots" (length roots) report-dir)
 
-(define alpha-renamed-roots (map alpha-rename roots))
-(define canonical-roots (run-egg alpha-renamed-roots))
+(define pure-math (append* (map eliminate-ifs roots)))
 
-(define subexprs (append* (map get-subexpressions canonical-roots)))
-(log-info "subexprs" (length subexprs) report-dir)
+(define alpha-renamed (map alpha-rename pure-math))
+(define canonical (run-egg alpha-renamed))
 
-(define filtered-subexprs
-  (filter (lambda (n)
-            (and (not (or (symbol? n) (literal? n) (number? n)))
-                 (> (length (free-variables n)) 0)
-                 (< (length (free-variables n)) 4)))
-          subexprs))
+(for ([c canonical])
+  (hash-update! root-counts c add1 0))
 
-(define alpha-renamed-subexprs (map alpha-rename filtered-subexprs))
-(log-info "filtered subexprs" (length alpha-renamed-subexprs) report-dir)
+(for ([(root-expr mult) (in-hash root-counts)])
 
-(define canonical-candidates (run-egg alpha-renamed-subexprs))
+  (define subexprs (push-holes root-expr))
+  (define filtered-subexprs
+    (filter (lambda (n)
+              (and (not (or (symbol? n) (literal? n) (number? n)))
+                   (> (length (free-variables n)) 0)
+                   (< (length (free-variables n)) 4)))
+            subexprs))
+  (define alpha-renamed-subexprs (map alpha-rename filtered-subexprs))
+  (define canonical-subexprs (run-egg alpha-renamed-subexprs))
+  (for ([c canonical-subexprs])
+    (hash-update! candidate-counts c (lambda (old) (+ old mult)) 0)))
 
-(define counts (make-hash))
-(for ([c canonical-candidates])
-  (hash-update! counts c add1 0))
-
-(define cand-count-pairs (hash->list counts))
+(define cand-count-pairs (hash->list candidate-counts))
 (log-info "deduped candidates" (length cand-count-pairs) report-dir)
 
 (define sorted-cand-count-pairs (sort cand-count-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
 
-(define top-candidates (take sorted-cand-count-pairs (min (length sorted-cand-count-pairs) 2000)))
-
-(define non-exact-candidates
-  (filter (lambda (p) (< 0.1 (get-error (car p)))) top-candidates))
-
-(log-info "non-exact candidates" (length non-exact-candidates) report-dir)
-(define non-exact-out (map (lambda (c) (format "~a, ~a\n" (prog->fpcore (car c) (get-ctx (car c))) (cdr c))) non-exact-candidates))
+(define full-cands (map (lambda (c) (format "~a, ~a\n" (prog->fpcore (car c) (get-ctx (car c))) (cdr c))) sorted-cand-count-pairs))
 
 (with-output-to-file (string-append report-dir "/full-candidates.txt")
-  (lambda () (display non-exact-out))
+  (lambda () (for-each display full-cands))
   #:exists 'replace)
 
 ;; Output
-(define final-output (take non-exact-candidates (min (length non-exact-candidates) 500)))
+(define final-output (take sorted-cand-count-pairs (min (length sorted-cand-count-pairs) 500)))
 (define fpcores-out (map to-fpcore-str final-output))
 (define counts-out (map (lambda (p) (cons (prog->fpcore (car p) (get-ctx (car p))) (cdr p)))
                         final-output))
