@@ -189,11 +189,15 @@
 
 (define pure-math (append* (map eliminate-ifs roots)))
 
+(log-info "no-ifs" (length pure-math) report-dir)
+
 (define alpha-renamed (map alpha-rename pure-math))
 (define canonical (run-egg alpha-renamed))
 
 (for ([c canonical])
   (hash-update! root-counts c add1 0))
+
+(log-info "canonical roots" (hash-count root-counts) report-dir)
 
 (for ([(root-expr mult) (in-hash root-counts)])
 
@@ -209,8 +213,9 @@
   (for ([c canonical-subexprs])
     (hash-update! candidate-counts c (lambda (old) (+ old mult)) 0)))
 
+(log-info "canonical subexprs" (hash-count candidate-counts) report-dir)
+
 (define cand-count-pairs (hash->list candidate-counts))
-(log-info "deduped candidates" (length cand-count-pairs) report-dir)
 
 (define sorted-cand-count-pairs (sort cand-count-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
 
