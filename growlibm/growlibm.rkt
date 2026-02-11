@@ -166,46 +166,72 @@
   [fmod.f64      #:spec (fmod x y)      #:impl (from-libm 'fmod)      #:cost 6400]
   [remainder.f64 #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 6400])
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; CASTS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define-operation (sinprod.f64 [x <binary64>] [y <binary64>])
+  <binary64>
+  #:spec (sin (* x y))
+  #:impl (from-accelerators 'sinprod)
+  #:fpcore (! :precision binary64 (sinprod x y))
+  #:cost 12800)
 
-(define-operation (binary64->binary32 [x <binary64>]) <binary32>
-  #:spec x #:fpcore (! :precision binary32 (cast x)) #:impl flsingle #:cost 64)
+(define-operation (cosprod.f64 [x <binary64>] [y <binary64>])
+  <binary64>
+  #:spec (cos (* x y))
+  #:impl (from-accelerators 'cosprod)
+  #:fpcore (! :precision binary64 (cosprod x y))
+  #:cost 12800)
 
-(define-operation (binary32->binary64 [x <binary32>]) <binary64>
-  #:spec x #:fpcore (! :precision binary64 (cast x)) #:impl identity #:cost 64)
+(define-operation (sinquot.f64 [x <binary64>] [y <binary64>])
+  <binary64>
+  #:spec (sin (/ x y))
+  #:impl (from-accelerators 'sinquot)
+  #:fpcore (! :precision binary64 (sinquot x y))
+  #:cost 0)
 
-
-(define-operation (sin_xy.f64 [x <binary64>] [y <binary64>])
-                  <binary64>
-                  #:spec (sin (* x y))
-                  #:impl (from-accelerators 'sin_xy)
-                  #:fpcore (! :precision binary64 (sin_xy x y))
-                  #:cost 12800)
-
-(define-operation (cos_xy.f64 [x <binary64>] [y <binary64>])
-                  <binary64>
-                  #:spec (cos (* x y))
-                  #:impl (from-accelerators 'cos_xy)
-                  #:fpcore (! :precision binary64 (cos_xy x y))
-                  #:cost 12800)
-
-(define-operation (sin_quotient_xy.f64 [x <binary64>] [y <binary64>])
-                  <binary64>
-                  #:spec (sin (/ x y))
-                  #:impl (from-accelerators 'sin_quotient_xy)
-                  #:fpcore (! :precision binary64 (sin_quotient_xy x y))
-                  #:cost 12800)
-
-(define-operation (cos_quotient_xy.f64 [x <binary64>] [y <binary64>])
-                  <binary64>
-                  #:spec (cos (/ x y))
-                  #:impl (from-accelerators 'cos_quotient_xy)
-                  #:fpcore (! :precision binary64 (cos_quotient_xy x y))
-                  #:cost 12800)
+(define-operation (cosquot.f64 [x <binary64>] [y <binary64>])
+  <binary64>
+  #:spec (cos (/ x y))
+  #:impl (from-accelerators 'cosquot)
+  #:fpcore (! :precision binary64 (cosquot x y))
+  #:cost 0)
 
 (define-operation (log1pmd.f64 [x <binary64>])
-                  <binary64>
-                  #:spec (log (/ (+ 1 x) (- 1 x)))
-                  #:impl (from-accelerators 'log1pmd)
-                  #:fpcore (! :precision binary64 (log1pmd x))
-                  #:cost 3200)
+  <binary64>
+  #:spec (log (/ (+ 1 x) (- 1 x)))
+  #:impl (from-accelerators 'log1pmd)
+  #:fpcore (! :precision binary64 (log1pmd x))
+  #:cost 3200)
+
+(define-operation (logtan.f64 [x <binary64>])
+  <binary64>
+  #:spec (log (tan (* (+ (+ x x) (PI)) 1/4)))
+  #:impl (from-accelerators 'logtan)
+  #:fpcore (! :precision binary64 (logtan x))
+  #:cost 0)
+
+(define-operation (sindivpz.f64 [x <binary64>] [y <binary64>] [z <binary64>])
+  <binary64>
+  #:spec (sin (+ (/ x y) z))
+  #:impl (from-accelerators 'sindivpz)
+  #:fpcore (! :precision binary64 (sindivpz x y z))
+  #:cost 0)
+
+(define-operation (cosdivpz.f64 [x <binary64>] [y <binary64>] [z <binary64>])
+  <binary64>
+  #:spec (cos (+ (/ x y) z))
+  #:impl (from-accelerators 'cosdivpz)
+  #:fpcore (! :precision binary64 (cosdivpz x y z))
+  #:cost 0)
+
+(define-operation (hypot.f64 [x <binary64>] [y <binary64>])
+  <binary64>
+  #:spec (sqrt (+ (* x x) (* y y)))
+  #:impl (from-accelerators 'hypot)
+  #:fpcore (! :precision binary64 (hypot x y))
+  #:cost 0)
+
+(define-operation (verdcos.f64 [x <binary64>] [y <binary64>])
+  <binary64>
+  #:spec (- (cos (+ z0 z0)) 1)
+  #:impl (from-accelerators 'verdcos)
+  #:fpcore (! :precision binary64 (verdcos x y))
+  #:cost 0)

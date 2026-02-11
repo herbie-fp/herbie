@@ -10,6 +10,8 @@ double cos_xy(double x, double y);
 double sin_quotient_xy(double x, double y);
 double cos_quotient_xy(double x, double y);
 double log1pmd(double x);
+double logtan(double x);
+
 
 #ifdef __cplusplus
 }
