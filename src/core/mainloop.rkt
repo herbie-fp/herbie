@@ -147,7 +147,7 @@
   (define active-alts (atab-active-alts (^table^)))
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define repr (context-repr (*context*)))
-  (for ([alt active-alts]
+  (for ([alt (in-list active-alts)]
         [sc (in-list (batch-score-alts active-alts))])
     (timeline-push! 'alts
                     (batch->jsexpr (*global-batch*) (list (alt-expr alt)))
