@@ -267,7 +267,6 @@
      (batch-add! (global-batch)
                  `(- ,(make-addition-node* pos) ,(make-addition-node* (map negate-term neg))))]))
 
-;; TODO : Use (- x y) when it is simpler
 (define (make-addition-node* terms)
   (match terms
     ['() (batch-push! (global-batch) 0)]
