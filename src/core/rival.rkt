@@ -21,30 +21,22 @@
 (define (use-rival3?)
   (flag-set? 'sampling 'rival3))
 
-(define (rival-compile exprs vars discs)
-  (if (use-rival3?)
-      (r3:rival-compile exprs vars discs)
-      (r2:rival-compile exprs vars discs)))
+(define-syntax-rule (define/rival (name args ...) r2-impl r3-impl)
+  (define (name args ...)
+    (if (use-rival3?)
+        (r3-impl args ...)
+        (r2-impl args ...))))
 
-(define (rival-apply machine pt hint)
-  (if (use-rival3?)
-      (r3:rival-apply machine pt hint)
-      (r2:rival-apply machine pt hint)))
-
-(define (rival-analyze-with-hints machine rect hint)
-  (if (use-rival3?)
-      (r3:rival-analyze-with-hints machine rect hint)
-      (r2:rival-analyze-with-hints machine rect hint)))
-
-(define (rival-profile machine param)
-  (if (use-rival3?)
-      (r3:rival-profile machine param)
-      (r2:rival-profile machine param)))
+(define/rival (rival-compile exprs vars discs) r2:rival-compile r3:rival-compile)
+(define/rival (rival-apply machine pt hint) r2:rival-apply r3:rival-apply)
+(define/rival (rival-analyze-with-hints machine rect hint)
+              r2:rival-analyze-with-hints
+              r3:rival-analyze-with-hints)
+(define/rival (rival-profile machine param) r2:rival-profile r3:rival-profile)
 
 (define (boolean-discretization)
   (if (use-rival3?) r3:boolean-discretization r2:boolean-discretization))
 
-;; TODO: hacky
 (define (repr->rival3-disc-type repr)
   (cond
     [(eq? repr <binary32>) 'f32]
@@ -60,10 +52,7 @@
                      (lambda (x y) (- (ulp-difference x y repr) 1))))
 
 (define (repr->rival3-discretization repr target)
-  (r3:discretization target
-                     (representation-bf->repr repr)
-                     (lambda (x y) (- (ulp-difference x y repr) 1))
-                     (repr->rival3-disc-type repr)))
+  (r3:discretization (repr->rival3-disc-type repr) target (representation-bf->repr repr)))
 
 (define (exn:rival:invalid? e)
   (or (r2:exn:rival:invalid? e) (r3:exn:rival:invalid? e)))
@@ -90,25 +79,10 @@
       (r3:*rival-profile-executions*)
       (r2:*rival-profile-executions*)))
 
-(define (execution-name exec)
-  (if (use-rival3?)
-      (r3:execution-name exec)
-      (r2:execution-name exec)))
-
-(define (execution-precision exec)
-  (if (use-rival3?)
-      (r3:execution-precision exec)
-      (r2:execution-precision exec)))
-
-(define (execution-time exec)
-  (if (use-rival3?)
-      (r3:execution-time exec)
-      (r2:execution-time exec)))
-
-(define (execution-memory exec)
-  (if (use-rival3?)
-      (r3:execution-memory exec)
-      (r2:execution-memory exec)))
+(define/rival (execution-name exec) r2:execution-name r3:execution-name)
+(define/rival (execution-precision exec) r2:execution-precision r3:execution-precision)
+(define/rival (execution-time exec) r2:execution-time r3:execution-time)
+(define/rival (execution-memory exec) r2:execution-memory r3:execution-memory)
 
 (struct herbie-ival (lo hi) #:transparent)
 
@@ -144,7 +118,7 @@
             (#:pre [pre any/c])
             [c real-compiler?])]
           [real-apply (->* (real-compiler? vector?) (any/c) (values symbol? any/c))]
-          [real-compiler-clear! (-> real-compiler-clear! void?)]
+          [real-compiler-clear! (-> real-compiler? void?)]
           [real-compiler-analyze (->* (real-compiler? (vectorof ival?)) (any/c) (listof any/c))]))
 
 (define (unified-contexts? ctxs)
@@ -161,9 +135,6 @@
   (if (list? expr)
       (apply + 1 (map expr-size (cdr expr)))
       1))
-
-(define (repr->discretization repr)
-  (repr->rival2-discretization repr))
 
 ;; Herbie's wrapper around the Rival machine abstraction.
 (struct real-compiler (pre vars var-reprs exprs reprs machine dump-file))
@@ -249,7 +220,10 @@
                     [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
       (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
                      [*rival-max-iterations* 5])
-        (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
+        (define result (rival-apply machine pt* hint))
+        (define value
+          (for/list ([i (in-range 1 (vector-length result))])
+            (vector-ref result i)))
         (values 'valid value))))
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth
@@ -295,7 +269,8 @@
 
 ;; Clears profiling data.
 (define (real-compiler-clear! compiler)
-  (rival-profile (real-compiler-machine compiler) 'executions)
+  (unless (use-rival3?)
+    (r2:rival-profile (real-compiler-machine compiler) 'executions))
   (void))
 
 ;; Returns whether the machine is guaranteed to raise an exception
