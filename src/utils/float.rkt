@@ -86,10 +86,10 @@
   (match (representation-type repr)
     ['array
      (define elem-repr (array-representation-elem repr))
-     (define bits (sub1 (representation-total-bits elem-repr)))
      (define len (apply * (array-representation-dims repr)))
-     ((representation-ordinal->repr repr) (for/list ([i (in-range len)])
-                                            (random-integer (- (expt 2 bits)) (expt 2 bits))))]
+     (for/list ([i (in-range len)])
+       (random-generate elem-repr))]
+    ['bool (zero? (random-integer 0 2))]
     [_
      (define bits (sub1 (representation-total-bits repr)))
      ((representation-ordinal->repr repr) (random-integer (- (expt 2 bits)) (expt 2 bits)))]))
