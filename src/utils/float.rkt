@@ -36,12 +36,16 @@
        (raise-herbie-error "Mismatched array lengths for ulp-difference: ~a vs ~a"
                            (length xs)
                            (length ys)))
-     (apply max (map (lambda (a b) (ulp-difference a b elem-repr)) xs ys))]
+     (apply + (map (lambda (a b) (ulp-difference a b elem-repr)) xs ys))]
     [_
      (define ->ordinal (representation-repr->ordinal repr))
-     (if (eq? repr <binary64>)
-         (+ 1 (abs (flonums-between x y)))
-         (+ 1 (abs (- (->ordinal y) (->ordinal x)))))]))
+     (define special? (representation-special-value? repr))
+     (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
+     (if (or (special? x) (special? y))
+         max-error
+         (if (eq? repr <binary64>)
+             (+ 1 (abs (flonums-between x y)))
+             (+ 1 (abs (- (->ordinal y) (->ordinal x))))))]))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint

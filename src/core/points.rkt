@@ -82,39 +82,8 @@
 (define (generate-errors fn pcontext ctx num-exprs)
   (define repr (context-repr ctx))
 
-  (define (flatten-value val repr)
-    (match (representation-type repr)
-      ['array
-       (define elem-repr (array-representation-elem repr))
-       (define elems
-         (cond
-           [(vector? val) (vector->list val)]
-           [(list? val) val]
-           [else (list val)]))
-       (apply append (map (λ (v) (flatten-value v elem-repr)) elems))]
-      [_ (list (cons val repr))]))
-
   ;; This generates the errors array in reverse because that's how lists work
   (define num-points (pcontext-length pcontext))
-  (define (error-at-point out exact)
-    (define flat-out (flatten-value out repr))
-    (define flat-exact (flatten-value exact repr))
-    (unless (= (length flat-out) (length flat-exact))
-      (error 'generate-errors
-             "Mismatched array sizes: ~a vs ~a"
-             (length flat-out)
-             (length flat-exact)))
-    (define elem-errors
-      (for/list ([out* (in-list flat-out)]
-                 [exact* (in-list flat-exact)])
-        (match-define (cons out-val out-repr) out*)
-        (match-define (cons exact-val _) exact*)
-        (define special? (representation-special-value? out-repr))
-        (define max-error (+ 1 (expt 2 (representation-total-bits out-repr))))
-        (if (special? out-val)
-            max-error
-            (ulp-difference out-val exact-val out-repr))))
-    (average elem-errors))
 
   (define results (make-vector num-exprs '()))
   (for ([point (in-vector (pcontext-points pcontext) (- num-points 1) -1 -1)]
@@ -122,5 +91,5 @@
     (define outs (fn point))
     (for ([out (in-vector outs)]
           [i (in-naturals)])
-      (vector-set! results i (cons (error-at-point out exact) (vector-ref results i)))))
+      (vector-set! results i (cons (ulp-difference out exact repr) (vector-ref results i)))))
   (vector->list results))
