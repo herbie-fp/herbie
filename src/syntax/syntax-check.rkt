@@ -62,8 +62,7 @@
        (define val (syntax-e idx))
        (unless (integer? val)
          (error! idx "Array index must be a literal integer, got ~a" idx))
-       (loop arr vars)
-       (loop idx vars)]
+       (loop arr vars)]
       [#`(cast #,arg) (loop arg vars)]
       [#`(cast #,args ...)
        (error! stx "Invalid `cast` expression with ~a arguments (expects 1)" (length args))

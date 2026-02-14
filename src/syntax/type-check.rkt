@@ -123,9 +123,6 @@
   (define (assert-bool who ty)
     (unless (bool-type? ty)
       (error! who "Expected boolean type, got ~a" (type->string ty))))
-  (define (assert-scalar who ty purpose)
-    (unless (representation? ty)
-      (error! who purpose (type->string ty))))
   (define (array-literal-type elem-types current-dict)
     (cond
       [(null? elem-types)
@@ -210,8 +207,6 @@
        (array-literal-type elem-types prop-dict)]
       [#`(ref #,arr #,idx)
        (define arr-type (loop arr prop-dict ctx))
-       (define idx-type (loop idx prop-dict ctx))
-       (assert-scalar arr idx-type "Reference index must be scalar, got ~a")
        (define raw (syntax-e idx))
        (unless (integer? raw)
          (error! idx "Array index must be a literal integer, got ~a" idx))
