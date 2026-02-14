@@ -55,10 +55,7 @@
 ;; all points in a pcontext.
 
 (define (average . s)
-  (define flat (flatten s))
-  (unless (and (list? flat) (not (null? flat)))
-    (error 'average "Cannot average empty list ~a" s))
-  (/ (apply + flat) (length flat)))
+  (/ (apply + s) (length s)))
 
 (define (errors-score e)
   (apply average (map ulps->bits e)))
