@@ -285,15 +285,9 @@
     [(literal +inf.0 _) 'INFINITY]
     [(literal v (or 'binary64 'binary32)) (exact->inexact v)]
     [(literal v prec)
-     (define repr (get-representation prec))
-     (match (representation-type repr)
-       ['array
-        (define elems
-          (if (vector? v)
-              (vector->list v)
-              v))
-        `(array ,@elems)]
-       [_ v])]))
+     (unless (real? v)
+       (error 'literal->fpcore "Expected scalar real literal, got ~a for ~a" v prec))
+     v]))
 
 ;; Step 1.
 ;; Translates from LImpl to a series of let bindings such that each
