@@ -21,17 +21,46 @@
          repr->real)
 
 (define (ulp-difference x y repr)
-  (define ->ordinal (representation-repr->ordinal repr))
-  (if (eq? repr <binary64>)
-      (+ 1 (abs (flonums-between x y)))
-      (+ 1 (abs (- (->ordinal y) (->ordinal x))))))
+  (match (representation-type repr)
+    ['array
+     (define elem-repr (array-representation-elem repr))
+     (unless (and (vector? x) (vector? y))
+       (raise-herbie-error "Expected vector array values, got ~a and ~a" x y))
+     (unless (= (vector-length x) (vector-length y))
+       (raise-herbie-error "Mismatched array lengths for ulp-difference: ~a vs ~a"
+                           (vector-length x)
+                           (vector-length y)))
+     (for/sum ([x1 (in-vector x)] [y1 (in-vector y)]) (ulp-difference x1 y1 elem-repr))]
+    [_
+     (define ->ordinal (representation-repr->ordinal repr))
+     (define special? (representation-special-value? repr))
+     (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
+     (if (or (special? x) (special? y))
+         max-error
+         (if (eq? repr <binary64>)
+             (+ 1 (abs (flonums-between x y)))
+             (+ 1 (abs (- (->ordinal y) (->ordinal x))))))]))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint
 (define (midpoint p1 p2 repr)
-  ((representation-ordinal->repr repr) (floor (/ (+ ((representation-repr->ordinal repr) p1)
-                                                    ((representation-repr->ordinal repr) p2))
-                                                 2))))
+  (match (representation-type repr)
+    ['array
+     (define elem-repr (array-representation-elem repr))
+     (unless (and (vector? p1) (vector? p2))
+       (raise-herbie-error "Expected vector array values, got ~a and ~a" p1 p2))
+     (unless (= (vector-length p1) (vector-length p2))
+       (raise-herbie-error "Mismatched array lengths for midpoint: ~a vs ~a"
+                           (vector-length p1)
+                           (vector-length p2)))
+     (for/vector #:length (vector-length p1)
+                 ([x1 (in-vector p1)]
+                  [y1 (in-vector p2)])
+       (midpoint x1 y1 elem-repr))]
+    [_
+     ((representation-ordinal->repr repr) (floor (/ (+ ((representation-repr->ordinal repr) p1)
+                                                       ((representation-repr->ordinal repr) p2))
+                                                    2)))]))
 
 (define (repr-round repr dir point)
   ((representation-repr->bf repr) (parameterize ([bf-rounding-mode dir])
@@ -53,8 +82,17 @@
   (real->double-flonum (log x 2)))
 
 (define (random-generate repr)
-  (define bits (sub1 (representation-total-bits repr)))
-  ((representation-ordinal->repr repr) (random-integer (- (expt 2 bits)) (expt 2 bits))))
+  (match (representation-type repr)
+    ['array
+     (define elem-repr (array-representation-elem repr))
+     (define len (apply * (array-representation-dims repr)))
+     (for/vector #:length len
+                 ([i (in-range len)])
+       (random-generate elem-repr))]
+    ['bool (zero? (random-integer 0 2))]
+    [_
+     (define bits (sub1 (representation-total-bits repr)))
+     ((representation-ordinal->repr repr) (random-integer (- (expt 2 bits)) (expt 2 bits)))]))
 
 (define (=/total x1 x2 repr)
   (define ->ordinal (representation-repr->ordinal repr))
@@ -122,9 +160,36 @@
 
 (define (real->repr x repr)
   (parameterize ([bf-precision (representation-total-bits repr)])
-    ((representation-bf->repr repr) (bf x))))
+    (match (representation-type repr)
+      ['array
+       (define len (apply * (array-representation-dims repr)))
+       (define vals
+         (cond
+           [(vector? x)
+            (unless (= (vector-length x) len)
+              (error 'real->repr
+                     "Expected vector of length ~a for ~a, got ~a"
+                     len
+                     (representation-name repr)
+                     x))
+            x]
+           [(real? x) (make-vector len x)]
+           [else
+            (error 'real->repr
+                   "Expected real or vector input for ~a, got ~a"
+                   (representation-name repr)
+                   x)]))
+       ((representation-bf->repr repr) (for/vector #:length len
+                                                   ([v (in-vector vals)])
+                                         (bf v)))]
+      [_ ((representation-bf->repr repr) (bf x))])))
 
 (define (repr->real x repr)
   (match x
     [(? boolean?) x]
-    [_ (bigfloat->real ((representation-repr->bf repr) x))]))
+    [_
+     (match (representation-type repr)
+       ['array
+        (for/vector ([v (in-vector ((representation-repr->bf repr) x))])
+          (bigfloat->real v))]
+       [_ (bigfloat->real ((representation-repr->bf repr) x))])]))

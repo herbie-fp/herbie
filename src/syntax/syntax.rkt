@@ -31,20 +31,24 @@
 
 ;; Checks if an operator has been registered.
 (define (operator-exists? op)
-  (hash-has-key? rival-functions op))
+  (or (hash-has-key? rival-functions op) (equal? op 'ref) (equal? op 'array)))
 
 ;; Returns all operators.
 (define (all-operators)
-  (sort (hash-keys rival-functions) symbol<?))
+  (sort (append (hash-keys rival-functions) (list 'array 'ref)) symbol<?))
 
 ;; Looks up a property `field` of a real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (operator-info op field)
   (-> symbol? (or/c 'itype 'otype) any/c)
   (define info
-    (hash-ref rival-functions
-              op
-              (lambda () (raise-arguments-error 'operator-info "Unknown operator" "op" op))))
+    (cond
+      [(equal? op 'ref) '(real array real)]
+      [(equal? op 'array) '(array real real)]
+      [else
+       (hash-ref rival-functions
+                 op
+                 (lambda () (raise-arguments-error 'operator-info "Unknown operator" "op" op)))]))
   (match-define (cons otype itypes) info)
   (case field
     [(itype) itypes]

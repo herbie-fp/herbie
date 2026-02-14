@@ -78,21 +78,15 @@
 
 (define (generate-errors fn pcontext ctx num-exprs)
   (define repr (context-repr ctx))
-  (define special? (representation-special-value? repr))
-  (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
 
   ;; This generates the errors array in reverse because that's how lists work
   (define num-points (pcontext-length pcontext))
+
   (define results (make-vector num-exprs '()))
   (for ([point (in-vector (pcontext-points pcontext) (- num-points 1) -1 -1)]
         [exact (in-vector (pcontext-exacts pcontext) (- num-points 1) -1 -1)])
     (define outs (fn point))
     (for ([out (in-vector outs)]
           [i (in-naturals)])
-      (vector-set! results
-                   i
-                   (cons (if (special? out)
-                             max-error
-                             (ulp-difference out exact repr))
-                         (vector-ref results i)))))
+      (vector-set! results i (cons (ulp-difference out exact repr) (vector-ref results i)))))
   (vector->list results))

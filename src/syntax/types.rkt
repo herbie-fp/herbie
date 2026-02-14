@@ -2,9 +2,11 @@
 
 (require math/bigfloat
          math/base
-         math/flonum)
+         math/flonum
+         "../utils/errors.rkt")
 
 (provide (struct-out representation)
+         (struct-out array-representation)
          repr->prop
          shift
          unshift
@@ -16,7 +18,8 @@
          context-extend
          context-lookup
          define-type
-         make-representation)
+         make-representation
+         make-array-representation)
 
 ;; Types
 
@@ -29,6 +32,7 @@
 
 (define-type real)
 (define-type bool)
+(define-type array)
 
 ;; Representations
 
@@ -39,11 +43,16 @@
   [(define (write-proc repr port mode)
      (fprintf port "#<representation ~a>" (representation-name repr)))])
 
+(struct array-representation representation (elem dims) #:transparent)
+
 ;; Converts a representation into a rounding property
 (define (repr->prop repr)
-  (match (representation-type repr)
-    ['bool '()]
-    ['real (list (cons ':precision (representation-name repr)))]))
+  (match repr
+    [(? representation?)
+     (match (representation-type repr)
+       ['bool '()]
+       ['real (list (cons ':precision (representation-name repr)))]
+       ['array (repr->prop (array-representation-elem repr))])]))
 
 (define (make-representation #:name name
                              #:bf->repr bf->repr
@@ -53,6 +62,40 @@
                              #:total-bits total-bits
                              #:special-value? special-value?)
   (representation name 'real bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value?))
+
+(define (make-array-representation #:elem elem-repr #:dims dims)
+  (unless (and (list? dims) (= (length dims) 1) (andmap exact-positive-integer? dims))
+    (raise-herbie-error "Arrays currently support rank-1 positive dimensions, got ~a" dims))
+  (define name
+    (string->symbol
+     (format "array~a-~a" (representation-name elem-repr) (string-join (map ~a dims) "x"))))
+  (define len (apply * dims))
+  (define elem-bf->repr (representation-bf->repr elem-repr))
+  (define elem-repr->bf (representation-repr->bf elem-repr))
+  (define elem-ordinal->repr (representation-ordinal->repr elem-repr))
+  (define elem-repr->ordinal (representation-repr->ordinal elem-repr))
+  (define elem-special? (representation-special-value? elem-repr))
+  (define total-bits (* len (representation-total-bits elem-repr)))
+  (array-representation name
+                        'array
+                        (lambda (xs)
+                          (for/vector ([x (in-vector xs)])
+                            (elem-bf->repr x)))
+                        (lambda (xs)
+                          (for/vector ([x (in-vector xs)])
+                            (elem-repr->bf x)))
+                        (lambda (xs)
+                          (for/vector ([x (in-vector xs)])
+                            (elem-ordinal->repr x)))
+                        (lambda (xs)
+                          (for/vector ([x (in-vector xs)])
+                            (elem-repr->ordinal x)))
+                        total-bits
+                        (lambda (xs)
+                          (for/or ([x (in-vector xs)])
+                            (elem-special? x)))
+                        elem-repr
+                        dims))
 
 (module hairy racket/base
   (require (only-in math/private/bigfloat/mpfr get-mpfr-fun _mpfr-pointer _rnd_t bf-rounding-mode))

@@ -26,7 +26,14 @@
   (define env (map cons vars (map representation-type var-reprs)))
   (define otype (representation-type repr))
 
-  (match (rival-type spec env)
+  ; rival-type does not know about arrays yet
+  (define spec-type
+    (match spec
+      [(list 'array elem1 elem2) 'array]
+      [(list 'ref array idx) 'real] ;; Can be boolean in theory
+      [_ (rival-type spec env)]))
+
+  (match spec-type
     [(== otype) (void)]
     [#f (error name "expression ~a is ill-typed, expected `~a`" spec otype)]
     [actual-ty (error name "expression ~a has type `~a`, expected `~a`" spec actual-ty otype)]))
