@@ -70,15 +70,6 @@
     (string->symbol
      (format "array~a-~a" (representation-name elem-repr) (string-join (map ~a dims) "x"))))
   (define len (apply * dims))
-  (define (ensure-len xs who)
-    (define lst
-      (cond
-        [(vector? xs) (vector->list xs)]
-        [(list? xs) xs]
-        [else (raise-herbie-error "~a expected list/vector of length ~a, got ~a" who len xs)]))
-    (unless (= (length lst) len)
-      (raise-herbie-error "~a expected sequence of length ~a, got ~a" who len xs))
-    lst)
   (define elem-bf->repr (representation-bf->repr elem-repr))
   (define elem-repr->bf (representation-repr->bf elem-repr))
   (define elem-ordinal->repr (representation-ordinal->repr elem-repr))
@@ -87,12 +78,22 @@
   (define total-bits (* len (representation-total-bits elem-repr)))
   (array-representation name
                         'array
-                        (lambda (xs) (map elem-bf->repr (ensure-len xs 'bf->repr)))
-                        (lambda (xs) (map elem-repr->bf (ensure-len xs 'repr->bf)))
-                        (lambda (xs) (map elem-ordinal->repr (ensure-len xs 'ordinal->repr)))
-                        (lambda (xs) (map elem-repr->ordinal (ensure-len xs 'repr->ordinal)))
+                        (lambda (xs)
+                          (for/vector ([x (in-vector xs)])
+                            (elem-bf->repr x)))
+                        (lambda (xs)
+                          (for/vector ([x (in-vector xs)])
+                            (elem-repr->bf x)))
+                        (lambda (xs)
+                          (for/vector ([x (in-vector xs)])
+                            (elem-ordinal->repr x)))
+                        (lambda (xs)
+                          (for/vector ([x (in-vector xs)])
+                            (elem-repr->ordinal x)))
                         total-bits
-                        (lambda (xs) (ormap elem-special? (ensure-len xs 'special-value?)))
+                        (lambda (xs)
+                          (for/or ([x (in-vector xs)])
+                            (elem-special? x)))
                         elem-repr
                         dims))
 

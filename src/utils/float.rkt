@@ -20,23 +20,17 @@
          real->repr
          repr->real)
 
-(define (normalize-array val)
-  (cond
-    [(vector? val) (vector->list val)]
-    [(list? val) val]
-    [else (list val)]))
-
 (define (ulp-difference x y repr)
   (match (representation-type repr)
     ['array
      (define elem-repr (array-representation-elem repr))
-     (define xs (normalize-array x))
-     (define ys (normalize-array y))
-     (unless (= (length xs) (length ys))
+     (unless (and (vector? x) (vector? y))
+       (raise-herbie-error "Expected vector array values, got ~a and ~a" x y))
+     (unless (= (vector-length x) (vector-length y))
        (raise-herbie-error "Mismatched array lengths for ulp-difference: ~a vs ~a"
-                           (length xs)
-                           (length ys)))
-     (apply + (map (lambda (a b) (ulp-difference a b elem-repr)) xs ys))]
+                           (vector-length x)
+                           (vector-length y)))
+     (for/sum ([x1 (in-vector x)] [y1 (in-vector y)]) (ulp-difference x1 y1 elem-repr))]
     [_
      (define ->ordinal (representation-repr->ordinal repr))
      (define special? (representation-special-value? repr))
@@ -53,11 +47,16 @@
   (match (representation-type repr)
     ['array
      (define elem-repr (array-representation-elem repr))
-     (define xs (normalize-array p1))
-     (define ys (normalize-array p2))
-     (unless (= (length xs) (length ys))
-       (raise-herbie-error "Mismatched array lengths for midpoint: ~a vs ~a" (length xs) (length ys)))
-     (list->vector (map (lambda (a b) (midpoint a b elem-repr)) xs ys))]
+     (unless (and (vector? p1) (vector? p2))
+       (raise-herbie-error "Expected vector array values, got ~a and ~a" p1 p2))
+     (unless (= (vector-length p1) (vector-length p2))
+       (raise-herbie-error "Mismatched array lengths for midpoint: ~a vs ~a"
+                           (vector-length p1)
+                           (vector-length p2)))
+     (for/vector #:length (vector-length p1)
+                 ([x1 (in-vector p1)]
+                  [y1 (in-vector p2)])
+       (midpoint x1 y1 elem-repr))]
     [_
      ((representation-ordinal->repr repr) (floor (/ (+ ((representation-repr->ordinal repr) p1)
                                                        ((representation-repr->ordinal repr) p2))
@@ -87,7 +86,8 @@
     ['array
      (define elem-repr (array-representation-elem repr))
      (define len (apply * (array-representation-dims repr)))
-     (for/list ([i (in-range len)])
+     (for/vector #:length len
+                 ([i (in-range len)])
        (random-generate elem-repr))]
     ['bool (zero? (random-integer 0 2))]
     [_
@@ -163,12 +163,25 @@
     (match (representation-type repr)
       ['array
        (define len (apply * (array-representation-dims repr)))
-       (define lst
+       (define vals
          (cond
-           [(vector? x) (vector->list x)]
-           [(list? x) x]
-           [else (make-list len x)]))
-       ((representation-bf->repr repr) (map bf lst))]
+           [(vector? x)
+            (unless (= (vector-length x) len)
+              (error 'real->repr
+                     "Expected vector of length ~a for ~a, got ~a"
+                     len
+                     (representation-name repr)
+                     x))
+            x]
+           [(real? x) (make-vector len x)]
+           [else
+            (error 'real->repr
+                   "Expected real or vector input for ~a, got ~a"
+                   (representation-name repr)
+                   x)]))
+       ((representation-bf->repr repr) (for/vector #:length len
+                                                   ([v (in-vector vals)])
+                                         (bf v)))]
       [_ ((representation-bf->repr repr) (bf x))])))
 
 (define (repr->real x repr)
@@ -176,5 +189,7 @@
     [(? boolean?) x]
     [_
      (match (representation-type repr)
-       ['array (map bigfloat->real ((representation-repr->bf repr) x))]
+       ['array
+        (for/vector ([v (in-vector ((representation-repr->bf repr) x))])
+          (bigfloat->real v))]
        [_ (bigfloat->real ((representation-repr->bf repr) x))])]))

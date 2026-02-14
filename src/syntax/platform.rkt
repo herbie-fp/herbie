@@ -88,17 +88,7 @@
 ;; Translates an LImpl to a LSpec.
 (define (prog->spec expr)
   (match expr
-    [(? literal? lit)
-     (define repr (get-representation (literal-precision lit)))
-     (match (representation-type repr)
-       ['array
-        (define elems (literal-value lit))
-        (define elems-list
-          (if (vector? elems)
-              (vector->list elems)
-              elems))
-        `(array ,@elems-list)]
-       [_ (literal-value lit)])]
+    [(? literal? lit) (literal-value lit)]
     [(? symbol?) expr]
     [(approx spec _) spec]
     [`(if ,cond ,ift ,iff)
@@ -117,17 +107,7 @@
                    (lambda (brf recurse)
                      (define node (deref brf))
                      (match node
-                       [(? literal?)
-                        (define repr (get-representation (literal-precision node)))
-                        (match (representation-type repr)
-                          ['array
-                           (define elems (literal-value node))
-                           (define elems-list
-                             (if (vector? elems)
-                                 (vector->list elems)
-                                 elems))
-                           (batch-add! batch (cons 'array elems-list))]
-                          [_ (batch-push! batch (literal-value node))])]
+                       [(? literal?) (batch-push! batch (literal-value node))]
                        [(? number?) brf]
                        [(? symbol?) brf]
                        [(hole _ spec) (recurse spec)]
