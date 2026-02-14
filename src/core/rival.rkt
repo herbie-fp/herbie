@@ -233,10 +233,10 @@
                     (format "~a = ~a" var val))))
   (define-values (iterations mixsample-data)
     (if (use-rival3?)
-        (match-let ([(list summary bumps iters) (rival-profile machine 'summary)])
+        (match-let ([(list summary _ iters) (rival-profile machine 'summary)])
           (values iters
                   (for/list ([entry (in-vector summary)])
-                    (match-define (list name prec-bucket total-time count) entry)
+                    (match-define (list name prec-bucket total-time _) entry)
                     (list total-time name prec-bucket 0))))
         (let ()
           (define executions (rival-profile machine 'executions))

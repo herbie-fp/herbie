@@ -22,6 +22,10 @@ if [[ "$BRANCH" == egglog-* ]]; then
   set -- "$@" --enable generate:egglog
 fi
 
+if [[ "$BRANCH" == rival3-* || "$BRANCH" == "rival3" ]]; then
+    set -- "$@" --enable sampling:rival3
+fi
+
 mkdir -p "$REPORTDIR"
 rm -rf "reports"/* || echo "nothing to delete"
 
@@ -33,7 +37,6 @@ for bench in "$BENCHDIR"/*; do
 
   racket -y "src/main.rkt" report \
          --seed "$SEED" \
-         --enable sampling:rival3 \
          "$@" \
          "$bench" "$REPORTDIR"/"$name"
   
