@@ -34,25 +34,24 @@
               r3:rival-analyze-with-hints)
 (define/rival (rival-profile machine param) r2:rival-profile r3:rival-profile)
 
-(define (boolean-discretization)
-  (if (use-rival3?) r3:boolean-discretization r2:boolean-discretization))
-
-(define (repr->rival3-disc-type repr)
+(define (repr->disc-type repr)
   (cond
     [(eq? repr <binary32>) 'f32]
     [(eq? repr <binary64>) 'f64]
-    [else 'f64]))
+    [else (error 'repr->disc-type "unsupported repr ~a" (representation-name repr))]))
 
-(define (rival3-shared-target reprs)
-  (apply max (map representation-total-bits reprs)))
-
-(define (repr->rival2-discretization repr)
-  (r2:discretization (representation-total-bits repr)
-                     (representation-bf->repr repr)
-                     (lambda (x y) (- (ulp-difference x y repr) 1))))
-
-(define (repr->rival3-discretization repr target)
-  (r3:discretization (repr->rival3-disc-type repr) target (representation-bf->repr repr)))
+(define (make-discretizations reprs)
+  (if (use-rival3?)
+      ;; Rival 3 requires that all discretizations share the target precision for now
+      (let ([target (apply max (map representation-total-bits reprs))])
+        (cons (struct-copy r3:discretization r3:boolean-discretization [target target])
+              (for/list ([repr (in-list reprs)])
+                (r3:discretization (repr->disc-type repr) target (representation-bf->repr repr)))))
+      (cons r2:boolean-discretization
+            (for/list ([repr (in-list reprs)])
+              (r2:discretization (representation-total-bits repr)
+                                 (representation-bf->repr repr)
+                                 (lambda (x y) (- (ulp-difference x y repr) 1)))))))
 
 (define (exn:rival:invalid? e)
   (or (r2:exn:rival:invalid? e) (r3:exn:rival:invalid? e)))
@@ -151,12 +150,7 @@
   (define specs (map (batch-exprs batch) brfs))
   ; create the machine
   (define exprs (cons `(assert ,pre) specs))
-  (define discs
-    (if (use-rival3?)
-        (let* ([target (rival3-shared-target reprs)]
-               [bool-disc (struct-copy r3:discretization r3:boolean-discretization [target target])])
-          (cons bool-disc (map (lambda (repr) (repr->rival3-discretization repr target)) reprs)))
-        (cons (boolean-discretization) (map repr->rival2-discretization reprs))))
+  (define discs (make-discretizations reprs))
   (define machine (rival-compile exprs vars discs))
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre) (map expr-size specs))
@@ -197,11 +191,6 @@
       (format "#i~a" float) ; The #i explicitly means nearest float
       (number->string real))) ; Backup is print as rational
 
-(define (execution-name->string name)
-  (if (string? name)
-      name
-      (symbol->string name)))
-
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
   (match-define (real-compiler _ vars var-reprs _ _ machine dump-file) compiler)
@@ -240,20 +229,20 @@
                     (list total-time name prec-bucket 0))))
         (let ()
           (define executions (rival-profile machine 'executions))
-          (when (>= (vector-length executions) (*rival-profile-executions*))
+          (when (>= (vector-length executions) (r2:*rival-profile-executions*))
             (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
           (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
           (define mixsample-table (make-hash))
           (for ([execution (in-vector executions)])
-            (define name (execution-name->string (execution-name execution)))
+            (define name (format "~a" (r2:execution-name execution)))
             (define precision
-              (- (execution-precision execution)
-                 (remainder (execution-precision execution) prec-threshold)))
+              (- (r2:execution-precision execution)
+                 (remainder (r2:execution-precision execution) prec-threshold)))
             (define key (cons name precision))
             ;; Uses vectors to avoid allocation; this is really allocation-heavy
             (define data (hash-ref! mixsample-table key (lambda () (make-vector 2 0))))
-            (vector-set! data 0 (+ (vector-ref data 0) (execution-time execution)))
-            (vector-set! data 1 (+ (vector-ref data 1) (execution-memory execution))))
+            (vector-set! data 0 (+ (vector-ref data 0) (r2:execution-time execution)))
+            (vector-set! data 1 (+ (vector-ref data 1) (r2:execution-memory execution))))
           (values (rival-profile machine 'iterations)
                   (for/list ([(key val) (in-hash mixsample-table)])
                     (list (vector-ref val 0) (car key) (cdr key) (vector-ref val 1)))))))
