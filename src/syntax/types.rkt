@@ -63,9 +63,12 @@
                              #:special-value? special-value?)
   (representation name 'real bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value?))
 
-(define (make-array-representation #:name name #:elem elem-repr #:dims dims)
-  (unless (and (list? dims) (andmap (lambda (d) (equal? d 2)) dims))
-    (raise-herbie-error "Arrays must use fixed dimension 2, got ~a" dims))
+(define (make-array-representation #:elem elem-repr #:dims dims)
+  (unless (and (list? dims) (= (length dims) 1) (andmap exact-positive-integer? dims))
+    (raise-herbie-error "Arrays currently support rank-1 positive dimensions, got ~a" dims))
+  (define name
+    (string->symbol
+     (format "array~a-~a" (representation-name elem-repr) (string-join (map ~a dims) "x"))))
   (define len (apply * dims))
   (define (ensure-len xs who)
     (define lst

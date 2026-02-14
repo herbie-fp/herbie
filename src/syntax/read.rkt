@@ -164,16 +164,12 @@
     (values repr scalar-repr))
 
   (define (array-of dims elem)
-    (define names
-      (list (string->symbol (format "array~a" (representation-name elem)))
-            (string->symbol
-             (format "array~a-~a" (representation-name elem) (string-join (map ~a dims) "x")))))
-    (define existing
-      (for/or ([n (in-list names)])
-        (and (repr-exists? n)
-             (let ([r (get-representation n)])
-               (and (array-representation? r) (equal? (array-representation-dims r) dims) r)))))
-    (or existing (make-array-representation #:name (first names) #:elem elem #:dims dims)))
+    (unless (and (list? dims) (= (length dims) 1) (andmap exact-positive-integer? dims))
+      (raise-herbie-error "Arrays currently support rank-1 positive dimensions, got ~a" dims))
+    (define repr (make-array-representation #:elem elem #:dims dims))
+    (define name (representation-name repr))
+    (define existing (and (repr-exists? name) (get-representation name)))
+    (or existing repr))
 
   (define-values (default-repr default-scalar-repr) (split-precision default-prec))
 

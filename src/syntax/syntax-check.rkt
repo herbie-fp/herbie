@@ -54,14 +54,14 @@
        (check-properties* props '() error!)
        (loop body vars)]
       [#`(array #,elems ...)
-       (unless (= (length elems) 2)
-         (error! stx "Array literal must have exactly 2 elements"))
+       (unless (positive? (length elems))
+         (error! stx "Array literal must have at least one element"))
        (for ([elem (in-list elems)])
          (loop elem vars))]
       [#`(ref #,arr #,idx)
        (define val (syntax-e idx))
-       (unless (and (integer? val) (<= 0 val 1))
-         (error! idx "Array index must be literal 0 or 1, got ~a" idx))
+       (unless (integer? val)
+         (error! idx "Array index must be a literal integer, got ~a" idx))
        (loop arr vars)
        (loop idx vars)]
       [#`(cast #,arg) (loop arg vars)]
@@ -169,10 +169,12 @@
     (error! stx "Invalid arguments list ~a; must be a list" stx))
   (define (check-dimension dim)
     (cond
-      [(and (number? (syntax-e dim)) (= 2 (syntax-e dim))) (void)]
-      [(identifier? dim) (error! dim "Dimension names are unsupported; arrays are fixed-size 2")]
-      [(number? (syntax-e dim)) (error! dim "Invalid dimension ~a; arrays must be of size 2" dim)]
-      [else (error! dim "Invalid dimension ~a; must be the number 2" dim)]))
+      [(and (number? (syntax-e dim)) (exact-positive-integer? (syntax-e dim))) (void)]
+      [(identifier? dim)
+       (error! dim "Dimension names are unsupported; arrays require literal dimensions")]
+      [(number? (syntax-e dim))
+       (error! dim "Invalid dimension ~a; dimensions must be positive integers" dim)]
+      [else (error! dim "Invalid dimension ~a; must be a positive integer literal" dim)]))
   (define vars*
     (reap [sow]
           (when (list? vars)
@@ -183,6 +185,8 @@
                  (check-properties* props (immutable-bound-id-set '()) error!)
                  (cond
                    [(identifier? name)
+                    (when (> (length dims) 1)
+                      (error! var "Only rank-1 arrays are currently supported"))
                     (for ([dim (in-list dims)])
                       (check-dimension dim))
                     (sow name)]
@@ -190,6 +194,8 @@
                 [#`(#,name #,dims ...)
                  (unless (identifier? name)
                    (error! var "Invalid argument name ~a" name))
+                 (when (> (length dims) 1)
+                   (error! var "Only rank-1 arrays are currently supported"))
                  (for ([dim (in-list dims)])
                    (check-dimension dim))
                  (sow name)]
@@ -253,6 +259,7 @@
 
   (check-pred null? (get-errs #'(FPCore (x) (array 1 2))))
   (check-pred null? (get-errs #'(FPCore (x) (ref (array 1 2) 0))))
-  (check-pred (compose not null?) (get-errs #'(FPCore (x) (array 1 2 3))))
-  (check-pred (compose not null?) (get-errs #'(FPCore (x) (ref (array 1 2) 2))))
-  (check-pred (compose not null?) (get-errs #'(FPCore ((v 3)) v))))
+  (check-pred null? (get-errs #'(FPCore (x) (array 1 2 3))))
+  (check-pred null? (get-errs #'(FPCore (x) (ref (array 1 2) 2))))
+  (check-pred null? (get-errs #'(FPCore ((v 3)) v)))
+  (check-pred (compose not null?) (get-errs #'(FPCore ((v 2 2)) v))))

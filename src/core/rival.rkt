@@ -68,19 +68,18 @@
   (define (scalar-expr v who)
     (match v
       [`(scalar ,e) e]
-      [`(array ,_ ,_) (error who "Expected scalar expression, got array")]))
+      [`(array ,_ ...) (error who "Expected scalar expression, got array")]))
   (define (select-component arr idx who)
-    (unless (and (integer? idx) (<= 0 idx 1))
-      (error who "Array index must be literal 0 or 1, got ~a" idx))
+    (unless (and (integer? idx) (<= 0 idx))
+      (error who "Array index must be a non-negative literal integer, got ~a" idx))
     (match arr
-      [`(array ,a ,b) (if (zero? idx) a b)]
+      [`(array ,elems ...) (list-ref elems idx)]
       [_ (error who "ref expects an array value, got ~a" arr)]))
   (define (lower-arr expr env)
     (match expr
       [(? number?) `(scalar ,expr)]
       [(? symbol? s) (hash-ref env s `(scalar ,s))]
-      [`(array ,a ,b)
-       `(array ,(scalar-expr (lower-arr a env) 'array) ,(scalar-expr (lower-arr b env) 'array))]
+      [`(array ,elems ...) `(array ,@(map (lambda (e) (scalar-expr (lower-arr e env) 'array)) elems))]
       [`(ref ,arr ,idx)
        (define arr* (lower-arr arr env))
        (define selected
@@ -138,15 +137,15 @@
     (cond
       [(eq? (representation-type r) 'array)
        (define base (symbol->string v))
-       (define v0 (fresh base))
-       (set! taken (set-add taken v0))
-       (define v1 (fresh base))
-       (set! taken (set-add taken v1))
-       (hash-set! env v `(array ,v0 ,v1))
-       (set! new-vars (append new-vars (list v0 v1)))
-       (set! new-var-reprs
-             (append new-var-reprs
-                     (list (array-representation-elem r) (array-representation-elem r))))]
+       (define len (apply * (array-representation-dims r)))
+       (define vars
+         (for/list ([_ (in-range len)])
+           (define vi (fresh base))
+           (set! taken (set-add taken vi))
+           vi))
+       (hash-set! env v `(array ,@vars))
+       (set! new-vars (append new-vars vars))
+       (set! new-var-reprs (append new-var-reprs (make-list len (array-representation-elem r))))]
       [else
        (hash-set! env v `(scalar ,v))
        (set! new-vars (append new-vars (list v)))
@@ -162,8 +161,8 @@
                (cond
                  [(eq? (representation-type repr) 'array)
                   (define lowered (lower-any spec))
-                  (list (select-component lowered 0 'flatten-arrays-for-rival)
-                        (select-component lowered 1 'flatten-arrays-for-rival))]
+                  (for/list ([i (in-range (apply * (array-representation-dims repr)))])
+                    (select-component lowered i 'flatten-arrays-for-rival))]
                  [else (list (lower-scalar spec))]))))
   (define new-reprs
     (append* (for/list ([repr (in-list orig-reprs)])
@@ -332,13 +331,13 @@
 (module+ test
   (require rackunit)
   (define <b64> <binary64>)
-  (define arr-repr (make-array-representation #:name 'arraybinary64 #:elem <b64> #:dims '(2)))
+  (define arr-repr (make-array-representation #:elem <b64> #:dims '(3)))
   (define arr-ctx (context '(v) arr-repr (list arr-repr)))
   (define-values (specs* ctxs* pre* _assemble-pt _assemble-out reprs*)
     (flatten-arrays-for-rival (list 'v) (list arr-ctx) 'TRUE))
-  (check-equal? specs* '(v_0 v_1))
-  (check-equal? (map context-vars ctxs*) '((v_0 v_1)))
-  (check-equal? (map context-var-reprs ctxs*) (list (list <b64> <b64>)))
-  (check-equal? reprs* (list <b64> <b64>))
-  (check-equal? (_assemble-out '(1 2)) '(#(1 2)))
+  (check-equal? specs* '(v_0 v_1 v_2))
+  (check-equal? (map context-vars ctxs*) '((v_0 v_1 v_2)))
+  (check-equal? (map context-var-reprs ctxs*) (list (list <b64> <b64> <b64>)))
+  (check-equal? reprs* (list <b64> <b64> <b64>))
+  (check-equal? (_assemble-out '(1 2 3)) '(#(1 2 3)))
   (check-equal? pre* 'TRUE))

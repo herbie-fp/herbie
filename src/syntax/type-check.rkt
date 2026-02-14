@@ -37,18 +37,12 @@
     [else (values t '())]))
 
 (define (array-of dims elem)
-  (unless (and (list? dims) (andmap (lambda (d) (equal? d 2)) dims))
-    (error 'array-of "Arrays must have fixed dimension 2, got ~a" dims))
-  (define candidate-names
-    (list (string->symbol (format "array~a" (representation-name elem)))
-          (string->symbol
-           (format "array~a-~a" (representation-name elem) (string-join (map ~a dims) "x")))))
-  (define existing
-    (for/or ([n (in-list candidate-names)])
-      (and (repr-exists? n)
-           (let ([r (get-representation n)])
-             (and (array-representation? r) (equal? (array-representation-dims r) dims) r)))))
-  (or existing (make-array-representation #:name (first candidate-names) #:elem elem #:dims dims)))
+  (unless (and (list? dims) (= (length dims) 1) (andmap exact-positive-integer? dims))
+    (error 'array-of "Arrays currently support rank-1 positive dimensions, got ~a" dims))
+  (define repr (make-array-representation #:elem elem #:dims dims))
+  (define name (representation-name repr))
+  (define existing (and (repr-exists? name) (get-representation name)))
+  (or existing repr))
 
 (define (assert-program-typed! stx)
   (define-values (vars props body)
@@ -136,12 +130,11 @@
     (cond
       [(null? elem-types)
        (error! stx "Array literal must have at least one element")
-       (array-of '(2) (current-repr current-dict))]
-      [(not (= (length elem-types) 2))
-       (error! stx "Array literal must have exactly 2 elements")
-       (array-of '(2) (current-repr current-dict))]
+       (array-of '(1) (current-repr current-dict))]
       [else
        (define-values (base base-dims) (flatten-type (first elem-types)))
+       (unless (null? base-dims)
+         (error! stx "Only rank-1 arrays are currently supported"))
        (for ([t (in-list (rest elem-types))])
          (define-values (elem elem-dims) (flatten-type t))
          (unless (and (equal? elem base) (equal? elem-dims base-dims))
@@ -149,7 +142,7 @@
                    "Array elements have mismatched types: ~a vs ~a"
                    (type->string base)
                    (type->string t))))
-       (array-of (cons 2 base-dims) base)]))
+       (array-of (list (length elem-types)) base)]))
   (define (types-match? a b)
     (equal? a b))
   (define (id->sym x)
@@ -220,15 +213,16 @@
        (define idx-type (loop idx prop-dict ctx))
        (assert-scalar arr idx-type "Reference index must be scalar, got ~a")
        (define raw (syntax-e idx))
-       (unless (and (integer? raw) (<= 0 raw 1))
-         (error! idx "Array index must be literal 0 or 1, got ~a" idx))
+       (unless (integer? raw)
+         (error! idx "Array index must be a literal integer, got ~a" idx))
        (match arr-type
          [(? array-representation?)
           (define dims (array-representation-dims arr-type))
           (define elem (array-representation-elem arr-type))
-          (if (= (length dims) 1)
-              elem
-              (array-of (cdr dims) elem))]
+          (define len (first dims))
+          (when (and (integer? raw) (or (< raw 0) (>= raw len)))
+            (error! idx "Array index ~a out of bounds for length ~a" raw len))
+          elem]
          [_
           (error! stx "ref expects an array, got ~a" (type->string arr-type))
           (current-repr prop-dict)])]
@@ -326,14 +320,9 @@
 
     ;; Array-aware typing
     (define vec-type (array-of '(2) <b64>))
-    (define mat-type (array-of '(2 2) <b64>))
+    (define vec3-type (array-of '(3) <b64>))
     (check-types <b64> vec-type #'(array 1 2))
-    (define wrong-size #f)
-    (expression->type #'(array 1 2 3)
-                      (repr->prop <b64>)
-                      (context '() <b64> '())
-                      (lambda _ (set! wrong-size #t)))
-    (check-true wrong-size)
+    (check-types <b64> vec3-type #'(array 1 2 3))
     (define ragged-fail #f)
     (expression->type #'(array (array 1) (array 1 2))
                       (repr->prop <b64>)
@@ -341,18 +330,17 @@
                       (lambda _ (set! ragged-fail #t)))
     (check-true ragged-fail)
     (check-types <b64> <b64> #'(ref (array 5 6) 0))
-    (check-types <b64> (array-of '(2) <b64>) #'(ref A 0) #:env `((A . ,mat-type)))
+    (check-types <b64> <b64> #'(ref A 2) #:env `((A . ,vec3-type)))
+    (check-fails <b64> #'(ref A 3) #:env `((A . ,vec3-type)))
     (check-fails <b64> #'(ref x 0) #:env `((x . ,<b64>))))
 
   ;; Array precision should normalize to element precision for typing
   (check-not-exn (lambda ()
-                   (assert-program-typed! #'(FPCore () :precision arraybinary64 (array 1.0 2.0)))))
+                   (assert-program-typed! #'(FPCore () :precision arraybinary64-2 (array 1.0 2.0)))))
+  (check-not-exn (lambda () (assert-program-typed! #'(FPCore ((v 3)) :precision binary64 (ref v 2)))))
   (check-not-exn (lambda ()
-                   (assert-program-typed!
-                    #'(FPCore ((v 2)) :precision arraybinary64 (array (ref v 0) (ref v 1))))))
-  (check-not-exn (lambda ()
-                   (assert-program-typed! #'(FPCore ((a 2) (b 2))
+                   (assert-program-typed! #'(FPCore ((a 3) (b 3))
                                                     :precision
-                                                    arraybinary64
-                                                    (array (+ (ref a 0) (ref b 0))
-                                                           (+ (ref a 1) (ref b 1))))))))
+                                                    binary64
+                                                    (+ (+ (ref a 0) (ref b 0))
+                                                       (+ (ref a 2) (ref b 2))))))))
