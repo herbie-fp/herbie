@@ -144,71 +144,6 @@
       ; other
       [_ expr])))
 
-;; Lower rank-1 arrays into scalar expressions.
-(define (lower-arrays expr [env (make-immutable-hash)])
-  (define (scalar-expr v who)
-    (match v
-      [`(scalar ,e) e]
-      [`(array ,_ ...) (error who "Expected scalar expression, got array")]))
-  (define (strip v)
-    (match v
-      [`(scalar ,e) e]
-      [`(array ,elems ...) `(array ,@elems)]))
-  (define (select-component arr idx who)
-    (unless (and (integer? idx) (<= 0 idx))
-      (error who "Array index must be a non-negative literal integer, got ~a" idx))
-    (match arr
-      [`(array ,elems ...) (list-ref elems idx)]
-      [_ (error who "ref expects an array value, got ~a" arr)]))
-  (define (lower expr env)
-    (match expr
-      [(? number?) `(scalar ,expr)]
-      [(? symbol? s) (hash-ref env s `(scalar ,s))]
-      [`(array ,elems ...) `(array ,@(map (lambda (e) (strip (lower e env))) elems))]
-      [`(ref ,arr ,idx)
-       (define arr* (lower arr env))
-       (match arr*
-         [`(scalar ,a) `(scalar (ref ,a ,idx))]
-         [_
-          (define selected
-            (select-component arr*
-                              (if (syntax? idx)
-                                  (syntax-e idx)
-                                  idx)
-                              'ref))
-          `(scalar ,selected)])]
-      [`(let ([,ids ,vals] ...) ,body)
-       (define env* env)
-       (for ([id (in-list ids)]
-             [val (in-list vals)])
-         (define lowered (lower val env*))
-         (set! env* (hash-set env* id lowered)))
-       (lower body env*)]
-      [`(let* ([,ids ,vals] ...) ,body)
-       (define env* env)
-       (for ([id (in-list ids)]
-             [val (in-list vals)])
-         (define lowered (lower val env*))
-         (set! env* (hash-set env* id lowered)))
-       (lower body env*)]
-      [`(if ,c ,t ,f)
-       (let* ([c* (scalar-expr (lower c env) 'if)]
-              [t* (lower t env)]
-              [f* (lower f env)]
-              [t-expr (match t*
-                        [`(scalar ,t**) t**]
-                        [_ (error 'if "If branches must be scalars")])]
-              [f-expr (match f*
-                        [`(scalar ,f**) f**]
-                        [_ (error 'if "If branches must be scalars")])])
-         `(scalar (if ,c* ,t-expr ,f-expr)))]
-      [`(! ,props ... ,body) `(scalar (! ,@props ,(scalar-expr (lower body env) '!)))]
-      [`(,op ,args ...)
-       (define lowered-args (map (lambda (a) (scalar-expr (lower a env) op)) args))
-       `(scalar (,op ,@lowered-args))]
-      [_ `(scalar ,expr)]))
-  (strip (lower expr env)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FPCore -> LImpl
 
@@ -289,7 +224,7 @@
 
 ;; Translates from FPCore to an LImpl.
 (define (fpcore->prog prog ctx)
-  (let loop ([expr (lower-arrays (expand-expr prog))]
+  (let loop ([expr (expand-expr prog)]
              [prop-dict (repr->prop (context-repr ctx))])
     (match expr
       [(? number? n)
