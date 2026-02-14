@@ -323,7 +323,20 @@
                        ctx
                        (*pcontext*)))
      (for/list ([opt (in-list opts)])
-       (combine-alts batch opt start-prog ctx (*pcontext*)))]
+       (match-define (option splitindices opt-alts _ brf _) opt)
+       (timeline-event! 'bsearch)
+       (define exprs (batch-exprs batch))
+       (define branch-expr (exprs brf))
+       (define use-binary?
+         (and (flag-set? 'reduce 'binary-search)
+              (> (length splitindices) 1)
+              (critical-subexpression? (exprs start-prog) branch-expr)
+              (for/and ([alt (in-list opt-alts)])
+                (critical-subexpression? (exprs (alt-expr alt)) branch-expr))))
+       (cond
+         [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
+         [use-binary? (combine-alts/binary batch opt start-prog ctx (*pcontext*))]
+         [else (combine-alts batch opt ctx)]))]
     [else
      (define scores (batch-score-alts alts))
      (list (cdr (argmin car (map (λ (a s) (cons s a)) alts scores))))]))
