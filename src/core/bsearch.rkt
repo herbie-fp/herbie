@@ -93,11 +93,14 @@
         (values p1 p2)])]))
 
 (define (extract-subexpression batch brf var pattern-brf ctx)
-  (define free-vars (batch-free-vars batch))
   (define var-brf (batch-add! batch var))
-  (define body-brf (batch-replace-subexpr batch brf pattern-brf var-brf))
-  (define vars* (set-subtract (list->set (context-vars ctx)) (free-vars pattern-brf)))
-  (and (subset? (free-vars body-brf) (set-add vars* var)) body-brf))
+  (if (= (batchref-idx pattern-brf) (batchref-idx var-brf))
+      brf
+      (let ()
+        (define free-vars (batch-free-vars batch))
+        (define body-brf (batch-replace-subexpr batch brf pattern-brf var-brf))
+        (define vars* (set-subtract (list->set (context-vars ctx)) (free-vars pattern-brf)))
+        (and (subset? (free-vars body-brf) (set-add vars* var)) body-brf))))
 
 (define (deterministic-branch-var ctx)
   (define used-vars (list->set (context-vars ctx)))
@@ -169,7 +172,11 @@
       (listof sp?))
   (define repr ((batch-reprs batch ctx) brf))
   (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf) ctx)))
-  (define var (deterministic-branch-var ctx))
+  (define brf-node (deref brf))
+  (define var
+    (if (symbol? brf-node)
+        brf-node
+        (deterministic-branch-var ctx)))
   (define ctx* (context-extend ctx var repr))
   (define progs
     (for/list ([alt (in-list alts)])
