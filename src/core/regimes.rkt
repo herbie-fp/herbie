@@ -12,7 +12,8 @@
          "programs.rkt")
 (provide pareto-regimes
          (struct-out option)
-         (struct-out si))
+         (struct-out si)
+         critical-subexpression?)
 
 (module+ test
   (require rackunit

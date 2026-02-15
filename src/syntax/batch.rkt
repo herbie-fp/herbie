@@ -159,6 +159,7 @@
                    (define node (deref brf))
                    (cond
                      [(symbol? node) (set node)]
+                     [(approx? node) (recurse (approx-impl node))]
                      [else
                       (define arg-free-vars (mutable-set))
                       (expr-recurse node (lambda (i) (set-union! arg-free-vars (recurse i))))
