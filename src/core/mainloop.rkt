@@ -167,58 +167,23 @@
   (^table^ (atab-set-picked (^table^) alts))
   (void))
 
+(define (expr-recurse-impl expr f)
+  (match expr
+    [(approx _ impl) (f impl)]
+    [_ (expr-recurse expr f)]))
+
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
   (timeline-event! 'reconstruct)
 
-  (define (build-impl-parents batch roots)
-    (define parents (make-vector (batch-length batch) '()))
-    (define relevant? (make-vector (batch-length batch) #f))
-    (let loop ([work (map batchref-idx roots)])
-      (cond
-        [(null? work) (values parents relevant?)]
-        [else
-         (define idx (car work))
-         (define rest (cdr work))
-         (if (vector-ref relevant? idx)
-             (loop rest)
-             (let ([node (deref (batchref batch idx))])
-               (vector-set! relevant? idx #t)
-               (match node
-                 [(approx _ impl)
-                  (define impl-idx (batchref-idx impl))
-                  (vector-set! parents impl-idx (cons idx (vector-ref parents impl-idx)))
-                  (loop (cons impl-idx rest))]
-                 [_
-                  (let ([work* rest])
-                    (expr-recurse
-                     node
-                     (lambda (child)
-                       (define child-idx (batchref-idx child))
-                       (vector-set! parents child-idx (cons idx (vector-ref parents child-idx)))
-                       (set! work* (cons child-idx work*))))
-                    (loop work*))])))])))
-
-  (define (compute-referrers parents relevant? idx)
-    (define seen (make-vector (vector-length parents) #f))
-    (when (vector-ref relevant? idx)
-      (let loop ([work (list idx)])
-        (unless (null? work)
-          (define cur (car work))
-          (define rest (cdr work))
-          (if (vector-ref seen cur)
-              (loop rest)
-              (begin
-                (vector-set! seen cur #t)
-                (loop (foldl cons rest (vector-ref parents cur))))))))
+  (define (compute-referrers parents root)
+    (define seen (mutable-seteq))
+    (define (recurse! cur)
+      (unless (set-member? seen cur)
+        (set-add! seen cur)
+        (for-each recurse! (vector-ref parents cur))))
+    (recurse! (batchref-idx root))
     seen)
-
-  (define full-altns (^next-alts^))
-  (define full-altn+idxs
-    (for/list ([full-altn (in-list full-altns)])
-      (cons full-altn (batchref-idx (alt-expr full-altn)))))
-  (define-values (parents relevant?) (build-impl-parents (*global-batch*) (map alt-expr full-altns)))
-  (define grouped-alts (group-by get-starting-expr alts))
 
   (define (reconstruct-alt altn orig can-refer)
     (define (loop altn)
@@ -231,23 +196,34 @@
              [(list 'evaluate) (list 'evaluate start-expr)]
              [(list 'taylor name var) (list 'taylor start-expr name var)]
              [(list 'rr input proof) (list 'rr (alt-expr prev) cur-expr input proof)]))
-         (define expr*
-           (batch-replace-subexpr (*global-batch*) (alt-expr orig) start-expr cur-expr can-refer))
+         (define expr* (batch-replace-subexpr batch (alt-expr orig) start-expr cur-expr can-refer))
          (values (alt expr* event* (list prev-altn)) start-expr)]))
     (define-values (result-alt _) (loop altn))
     result-alt)
 
-  (^patched^ (remove-duplicates
-              (for*/list ([start-alts (in-list grouped-alts)]
-                          [can-refer (in-value (compute-referrers
-                                                parents
-                                                relevant?
-                                                (batchref-idx (get-starting-expr (car start-alts)))))]
-                          [altn (in-list start-alts)]
-                          [full-altn+idx (in-list full-altn+idxs)]
-                          #:when (vector-ref can-refer (cdr full-altn+idx)))
-                (reconstruct-alt altn (car full-altn+idx) can-refer))
-              #:key (compose batchref-idx alt-expr)))
+  (define batch (*global-batch*))
+  (define parents (make-vector (batch-length batch) '()))
+  (define (walk-body brf recurse)
+    (define idx (batchref-idx brf))
+    (expr-recurse-impl (deref brf)
+                       (lambda (child)
+                         (define child-idx (batchref-idx child))
+                         (vector-set! parents child-idx (cons idx (vector-ref parents child-idx)))
+                         (recurse child)))
+    (void))
+  (for-each (batch-recurse batch walk-body) (map alt-expr (^next-alts^)))
+  (define grouped-alts (group-by get-starting-expr alts))
+
+  (^patched^
+   (remove-duplicates
+    (for*/list ([start-alts (in-list grouped-alts)]
+                [can-refer (in-value (compute-referrers parents
+                                                        (get-starting-expr (car start-alts))))]
+                [altn (in-list start-alts)]
+                [full-altn (in-list (^next-alts^))]
+                #:when (set-member? can-refer (batchref-idx (alt-expr full-altn))))
+      (reconstruct-alt altn full-altn can-refer))
+    #:key (compose batchref-idx alt-expr)))
 
   (void))
 
