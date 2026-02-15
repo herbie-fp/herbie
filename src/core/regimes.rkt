@@ -32,7 +32,7 @@
   (define branches
     (if (null? sorted)
         '()
-        (exprs-to-branch-on batch sorted start-prog ctx)))
+        (exprs-to-branch-on batch start-prog ctx)))
   (define branch-brfs
     (if (flag-set? 'reduce 'branch-expressions)
         branches
@@ -102,19 +102,15 @@
   (timeline-push! 'oracle (errors-score (apply map max err-lsts*)))
   (values best errs))
 
-(define (exprs-to-branch-on batch alts start-prog ctx)
+(define (exprs-to-branch-on batch start-prog ctx)
   (define exprs (batch-exprs batch))
-  (define alt-critexprs
-    (for/list ([alt (in-list alts)])
-      (all-critical-subexpressions (exprs (alt-expr alt)) ctx)))
-  (define start-critexprs (all-critical-subexpressions (exprs start-prog) ctx))
+  (define start-expr (exprs start-prog))
   ;; We can only binary search if the branch expression is critical
-  ;; for all of the alts and also for the start prgoram.
-  (define branch-exprs
-    (filter (λ (e) (equal? (representation-type (repr-of e ctx)) 'real))
-            (set-intersect start-critexprs (apply set-union alt-critexprs))))
-  ;; Convert to batchrefs
-  (map (curry batch-add! batch) branch-exprs))
+  ;; for the start program and is real-typed.
+  (for/list ([subexpr (set-union (context-vars ctx) (all-subexpressions start-expr))]
+             #:when (critical-subexpression? start-expr subexpr)
+             #:when (equal? (representation-type (repr-of subexpr ctx)) 'real))
+    (batch-add! batch subexpr)))
 
 ;; Requires that expr is not a λ expression
 (define (critical-subexpression? expr subexpr)
@@ -122,15 +118,6 @@
   (define replaced-expr (replace-expression expr subexpr 1))
   (define non-crit-vars (free-variables replaced-expr))
   (and (not (null? crit-vars)) (null? (set-intersect crit-vars non-crit-vars))))
-
-;; Requires that prog is a λ expression
-(define (all-critical-subexpressions expr ctx)
-  ;; We append all variables here in case of (λ (x y) 0) or similar,
-  ;; where the variables do not appear in the body but are still worth
-  ;; splitting on
-  (for/list ([subexpr (set-union (context-vars ctx) (all-subexpressions expr))]
-             #:when (critical-subexpression? expr subexpr))
-    subexpr))
 
 (define (brf-values* batch brfs ctx pcontext)
   (define count (length brfs))
