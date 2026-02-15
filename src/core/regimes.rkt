@@ -31,7 +31,7 @@
   (define branches
     (if (null? sorted)
         '()
-        (exprs-to-branch-on batch sorted start-prog ctx)))
+        (exprs-to-branch-on batch start-prog ctx)))
   (define branch-brfs
     (if (flag-set? 'reduce 'branch-expressions)
         branches
@@ -101,17 +101,13 @@
   (timeline-push! 'oracle (errors-score (apply map max err-lsts*)))
   (values best errs))
 
-(define (exprs-to-branch-on batch alts start-prog ctx)
+(define (exprs-to-branch-on batch start-prog ctx)
   (define exprs (batch-exprs batch))
-  (define alt-critexprs
-    (for/list ([alt (in-list alts)])
-      (all-critical-subexpressions (exprs (alt-expr alt)) ctx)))
   (define start-critexprs (all-critical-subexpressions (exprs start-prog) ctx))
   ;; We can only binary search if the branch expression is critical
-  ;; for all of the alts and also for the start prgoram.
+  ;; for the start program.
   (define branch-exprs
-    (filter (λ (e) (equal? (representation-type (repr-of e ctx)) 'real))
-            (set-intersect start-critexprs (apply set-union alt-critexprs))))
+    (filter (λ (e) (equal? (representation-type (repr-of e ctx)) 'real)) start-critexprs))
   ;; Convert to batchrefs
   (map (curry batch-add! batch) branch-exprs))
 
