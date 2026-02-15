@@ -29,7 +29,6 @@
 ;;
 ;; Each stage is stored in this global variable for REPL debugging.
 
-(define/reset ^patched^ #f)
 (define/reset ^table^ #f)
 
 ;; Starting program for the current run
@@ -93,9 +92,7 @@
     (for ([alt (atab-active-alts (^table^))]
           [n (in-naturals)])
       (printf "~a ~a ~a\n"
-              (if (set-member? ndone-alts alt)
-                  " "
-                  ".")
+              (if (set-member? ndone-alts alt) " " ".")
               (~r #:min-width 4 n)
               (alt-expr alt))))
   (printf "Error: ~a bits\n" (errors-score (atab-min-errors (^table^)))))
@@ -127,7 +124,6 @@
                       [else "done"])
                     score
                     (~a (representation-name repr)))))
-
 
 (define (expr-recurse-impl expr f)
   (match expr
@@ -176,41 +172,34 @@
   (for-each (batch-recurse batch walk-body) (map alt-expr starting-alts))
   (define grouped-alts (group-by get-starting-expr new-alts))
 
-  (^patched^
-   (remove-duplicates
-    (for*/list ([start-alts (in-list grouped-alts)]
-                [can-refer (in-value (compute-referrers parents
-                                                        (get-starting-expr (car start-alts))))]
-                [altn (in-list start-alts)]
-                [full-altn (in-list starting-alts)]
-                #:when (set-member? can-refer (batchref-idx (alt-expr full-altn))))
-      (reconstruct-alt altn full-altn can-refer))
-    #:key (compose batchref-idx alt-expr)))
-
-  (void))
+  (remove-duplicates
+   (for*/list ([start-alts (in-list grouped-alts)]
+               [can-refer (in-value (compute-referrers parents (get-starting-expr (car start-alts))))]
+               [altn (in-list start-alts)]
+               [full-altn (in-list starting-alts)]
+               #:when (set-member? can-refer (batchref-idx (alt-expr full-altn))))
+     (reconstruct-alt altn full-altn can-refer))
+   #:key (compose batchref-idx alt-expr)))
 
 ;; Finish iteration
-(define (finalize-iter! picked-alts)
-  (unless (^patched^)
-    (raise-user-error 'finalize-iter! "No candidates ready for pruning!"))
-
+(define (finalize-iter! picked-alts patched)
   (timeline-event! 'eval)
   (define orig-all-alts (atab-active-alts (^table^)))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract orig-all-alts (atab-not-done-alts (^table^))))
 
-  (define-values (errss costs) (atab-eval-altns (^table^) (*global-batch*) (^patched^) (*context*)))
+  (define-values (errss costs) (atab-eval-altns (^table^) (*global-batch*) patched (*context*)))
   (timeline-event! 'prune)
-  (^table^ (atab-add-altns (^table^) (^patched^) errss costs (*context*)))
+  (^table^ (atab-add-altns (^table^) patched errss costs (*context*)))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) final-fresh-alts))
   (timeline-push! 'count
-                  (+ (length (^patched^)) (length orig-fresh-alts) (length orig-done-alts))
+                  (+ (length patched) (length orig-fresh-alts) (length orig-done-alts))
                   (+ (length final-fresh-alts) (length final-done-alts)))
 
   (define data
     (hash 'new
-          (list (length (^patched^)) (length (set-intersect (^patched^) final-fresh-alts)))
+          (list (length patched) (length (set-intersect patched final-fresh-alts)))
           'fresh
           (list (length orig-fresh-alts) (length (set-intersect orig-fresh-alts final-fresh-alts)))
           'done
@@ -225,7 +214,6 @@
   (timeline-push! 'min-error
                   (errors-score (atab-min-errors (^table^)))
                   (format "~a" (representation-name repr)))
-  (^patched^ #f)
   (void))
 
 (define (run-iteration! global-spec-batch spec-reducer)
@@ -237,8 +225,8 @@
   (define brfs* (batch-reachable (*global-batch*) brfs #:condition node-is-impl?))
 
   (define results (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer))
-  (reconstruct! pending-alts results)
-  (finalize-iter! pending-alts)
+  (define patched (reconstruct! pending-alts results))
+  (finalize-iter! pending-alts patched)
   (void))
 
 (define (make-regime! batch alts start-prog)
