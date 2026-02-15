@@ -22,6 +22,10 @@ if [[ "$BRANCH" == egglog-* ]]; then
   set -- "$@" --enable generate:egglog
 fi
 
+if [[ "$BRANCH" == rival3-* || "$BRANCH" == "rival3" ]]; then
+    set -- "$@" --enable setup:rival3
+fi
+
 mkdir -p "$REPORTDIR"
 rm -rf "reports"/* || echo "nothing to delete"
 
