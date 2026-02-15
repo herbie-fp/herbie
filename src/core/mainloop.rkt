@@ -173,6 +173,10 @@
   (timeline-event! 'reconstruct)
 
   (define (build-impl-parents batch roots)
+    (define (expr-recurse-impl expr f)
+      (match expr
+        [(approx _ impl) (f impl)]
+        [_ (expr-recurse expr f)]))
     (define parents (make-vector (batch-length batch) '()))
     (define relevant? (make-vector (batch-length batch) #f))
     (let loop ([work (map batchref-idx roots)])
@@ -185,20 +189,14 @@
              (loop rest)
              (let ([node (deref (batchref batch idx))])
                (vector-set! relevant? idx #t)
-               (match node
-                 [(approx _ impl)
-                  (define impl-idx (batchref-idx impl))
-                  (vector-set! parents impl-idx (cons idx (vector-ref parents impl-idx)))
-                  (loop (cons impl-idx rest))]
-                 [_
-                  (let ([work* rest])
-                    (expr-recurse
-                     node
-                     (lambda (child)
-                       (define child-idx (batchref-idx child))
-                       (vector-set! parents child-idx (cons idx (vector-ref parents child-idx)))
-                       (set! work* (cons child-idx work*))))
-                    (loop work*))])))])))
+               (let ([work* rest])
+                 (expr-recurse-impl
+                  node
+                  (lambda (child)
+                    (define child-idx (batchref-idx child))
+                    (vector-set! parents child-idx (cons idx (vector-ref parents child-idx)))
+                    (set! work* (cons child-idx work*))))
+                 (loop work*))))])))
 
   (define (compute-referrers parents relevant? idx)
     (define seen (make-hasheq))
@@ -217,11 +215,7 @@
     seen)
 
   (define batch (*global-batch*))
-  (define full-altns (^next-alts^))
-  (define full-altn+idxs
-    (for/list ([full-altn (in-list full-altns)])
-      (cons full-altn (batchref-idx (alt-expr full-altn)))))
-  (define-values (parents relevant?) (build-impl-parents batch (map alt-expr full-altns)))
+  (define-values (parents relevant?) (build-impl-parents batch (map alt-expr (^next-alts^))))
   (define grouped-alts (group-by get-starting-expr alts))
 
   (define (reconstruct-alt altn orig can-refer)
@@ -247,9 +241,9 @@
                                                 relevant?
                                                 (batchref-idx (get-starting-expr (car start-alts)))))]
                           [altn (in-list start-alts)]
-                          [full-altn+idx (in-list full-altn+idxs)]
-                          #:when (hash-has-key? can-refer (cdr full-altn+idx)))
-                (reconstruct-alt altn (car full-altn+idx) can-refer))
+                          [full-altn (in-list (^next-alts^))]
+                          #:when (hash-has-key? can-refer (batchref-idx (alt-expr full-altn))))
+                (reconstruct-alt altn full-altn can-refer))
               #:key (compose batchref-idx alt-expr)))
 
   (void))
