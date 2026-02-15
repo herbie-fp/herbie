@@ -168,51 +168,22 @@
   (^table^ (atab-set-picked (^table^) alts))
   (void))
 
+(define (expr-recurse-impl expr f)
+  (match expr
+    [(approx _ impl) (f impl)]
+    [_ (expr-recurse expr f)]))
+
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
   (timeline-event! 'reconstruct)
 
-  (define (build-impl-parents batch roots)
-    (define (expr-recurse-impl expr f)
-      (match expr
-        [(approx _ impl) (f impl)]
-        [_ (expr-recurse expr f)]))
-    (define parents (make-vector (batch-length batch) '()))
-    (define relevant? (make-vector (batch-length batch) #f))
-    (let loop ([work (map batchref-idx roots)])
-      (cond
-        [(null? work) (values parents relevant?)]
-        [else
-         (define idx (car work))
-         (define rest (cdr work))
-         (if (vector-ref relevant? idx)
-             (loop rest)
-             (let ([node (deref (batchref batch idx))])
-               (vector-set! relevant? idx #t)
-               (let ([work* rest])
-                 (expr-recurse-impl
-                  node
-                  (lambda (child)
-                    (define child-idx (batchref-idx child))
-                    (vector-set! parents child-idx (cons idx (vector-ref parents child-idx)))
-                    (set! work* (cons child-idx work*))))
-                 (loop work*))))])))
-
-  (define (compute-referrers parents relevant? root)
-    (define idx (batchref-idx root))
+  (define (compute-referrers parents root)
     (define seen (mutable-seteq))
-    (when (vector-ref relevant? idx)
-      (let loop ([work (list idx)])
-        (cond
-          [(null? work) (void)]
-          [else
-           (define cur (car work))
-           (define rest (cdr work))
-           (if (set-member? seen cur)
-               (loop rest)
-               (begin
-                 (set-add! seen cur)
-                 (loop (append (vector-ref parents cur) rest))))])))
+    (define (recurse! cur)
+      (unless (set-member? seen cur)
+        (set-add! seen cur)
+        (for-each recurse! (vector-ref parents cur))))
+    (recurse! (batchref-idx root))
     seen)
 
   (define (reconstruct-alt altn orig can-refer)
@@ -232,14 +203,22 @@
     result-alt)
 
   (define batch (*global-batch*))
-  (define-values (parents relevant?) (build-impl-parents batch (map alt-expr (^next-alts^))))
+  (define parents (make-vector (batch-length batch) '()))
+  (define (walk-body brf recurse)
+    (define idx (batchref-idx brf))
+    (expr-recurse-impl (deref brf)
+                       (lambda (child)
+                         (define child-idx (batchref-idx child))
+                         (vector-set! parents child-idx (cons idx (vector-ref parents child-idx)))
+                         (recurse child)))
+    (void))
+  (for-each (batch-recurse batch walk-body) (map alt-expr (^next-alts^)))
   (define grouped-alts (group-by get-starting-expr alts))
 
   (^patched^
    (remove-duplicates
     (for*/list ([start-alts (in-list grouped-alts)]
                 [can-refer (in-value (compute-referrers parents
-                                                        relevant?
                                                         (get-starting-expr (car start-alts))))]
                 [altn (in-list start-alts)]
                 [full-altn (in-list (^next-alts^))]
