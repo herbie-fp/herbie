@@ -19,7 +19,7 @@
          "../syntax/batch.rkt")
 
 (define (use-rival3?)
-  (flag-set? 'sampling 'rival3))
+  (flag-set? 'setup 'rival3))
 
 (define-syntax-rule (define/rival (name args ...) r2-impl r3-impl)
   (define (name args ...)
@@ -209,10 +209,7 @@
                     [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
       (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
                      [*rival-max-iterations* 5])
-        (define result (rival-apply machine pt* hint))
-        (define value
-          (for/list ([i (in-range 1 (vector-length result))])
-            (vector-ref result i)))
+        (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
         (values 'valid value))))
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth

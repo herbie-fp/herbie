@@ -23,7 +23,7 @@ if [[ "$BRANCH" == egglog-* ]]; then
 fi
 
 if [[ "$BRANCH" == rival3-* || "$BRANCH" == "rival3" ]]; then
-    set -- "$@" --enable sampling:rival3
+    set -- "$@" --enable setup:rival3
 fi
 
 mkdir -p "$REPORTDIR"

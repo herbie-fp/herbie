@@ -13,8 +13,7 @@
         [generate . (rr taylor proofs evaluate)]
         [reduce . (regimes binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic)]
-        [dump . ()]
-        [sampling . ()]))
+        [dump . ()]))
 
 (define deprecated-flags
   #hash([precision . (double fallback)]
@@ -25,7 +24,7 @@
         [rules . (numerics special bools branches)]))
 
 (define debug-flags
-  #hash([generate . (egglog)] [dump . (egg rival egglog trace)] [sampling . (rival3)]))
+  #hash([generate . (egglog)] [dump . (egg rival egglog trace)] [setup . (rival3)]))
 
 (define all-flags (hash-union default-flags deprecated-flags debug-flags #:combine set-union))
 
