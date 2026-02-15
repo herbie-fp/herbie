@@ -215,10 +215,6 @@
                  (loop (append (vector-ref parents cur) rest))))])))
     seen)
 
-  (define batch (*global-batch*))
-  (define-values (parents relevant?) (build-impl-parents batch (map alt-expr (^next-alts^))))
-  (define grouped-alts (group-by get-starting-expr alts))
-
   (define (reconstruct-alt altn orig can-refer)
     (define (loop altn)
       (match altn
@@ -234,6 +230,10 @@
          (values (alt expr* event* (list prev-altn)) start-expr)]))
     (define-values (result-alt _) (loop altn))
     result-alt)
+
+  (define batch (*global-batch*))
+  (define-values (parents relevant?) (build-impl-parents batch (map alt-expr (^next-alts^))))
+  (define grouped-alts (group-by get-starting-expr alts))
 
   (^patched^
    (remove-duplicates
