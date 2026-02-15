@@ -83,26 +83,6 @@
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   (map car (sort-alts unbatched-alts)))
 
-;; The next few functions are for interactive use in a REPL, usually for debugging
-;; In Emacs, you can install racket-mode and then use C-c C-k to start that REPL
-
-(define (list-alts)
-  (printf "Key: [.] = done, [>] = chosen\n")
-  (let ([ndone-alts (atab-not-done-alts (^table^))])
-    (for ([alt (atab-active-alts (^table^))]
-          [n (in-naturals)])
-      (printf "~a ~a ~a\n"
-              (if (set-member? ndone-alts alt) " " ".")
-              (~r #:min-width 4 n)
-              (alt-expr alt))))
-  (printf "Error: ~a bits\n" (errors-score (atab-min-errors (^table^)))))
-
-(define (inject-candidate! expr)
-  (define new-alts (list (make-alt expr)))
-  (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
-  (^table^ (atab-add-altns (^table^) new-alts errss costs (*context*)))
-  (void))
-
 ;; The rest of the file is various helper / glue functions used by
 ;; Herbie. These often wrap other Herbie components, but add logging
 ;; and timeline data.
