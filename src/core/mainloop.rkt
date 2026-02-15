@@ -5,6 +5,7 @@
          "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../syntax/platform.rkt"
+         "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "alt-table.rkt"
          "bsearch.rkt"
@@ -64,7 +65,7 @@
     (define start-alt (alt initial-brf 'start '()))
     (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
 
-    (for ([iteration (in-range (*num-iterations*))]
+    (for ([_ (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
       (run-iteration! global-spec-batch spec-reducer))
     (define alternatives (extract!))
@@ -122,8 +123,8 @@
 ;; Herbie. These often wrap other Herbie components, but add logging
 ;; and timeline data.
 
-(define (batch-score-alts alts)
-  (map errors-score (batch-errors (*global-batch*) (map alt-expr alts) (*pcontext*) (*context*))))
+(define (batch-score-alts altns)
+  (map errors-score (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*) (*context*))))
 
 (define (timeline-push-alts! next-alts)
   (define pending-alts (atab-not-done-alts (^table^)))
@@ -144,9 +145,57 @@
 (define (reconstruct! alts)
   (timeline-event! 'reconstruct)
 
-  (define (reconstruct-alt altn orig)
+  (define (build-impl-parents batch roots)
+    (define parents (make-vector (batch-length batch) '()))
+    (define relevant? (make-vector (batch-length batch) #f))
+    (let loop ([work (map batchref-idx roots)])
+      (cond
+        [(null? work) (values parents relevant?)]
+        [else
+         (define idx (car work))
+         (define rest (cdr work))
+         (if (vector-ref relevant? idx)
+             (loop rest)
+             (let ([node (deref (batchref batch idx))])
+               (vector-set! relevant? idx #t)
+               (match node
+                 [(approx _ impl)
+                  (define impl-idx (batchref-idx impl))
+                  (vector-set! parents impl-idx (cons idx (vector-ref parents impl-idx)))
+                  (loop (cons impl-idx rest))]
+                 [_
+                  (let ([work* rest])
+                    (expr-recurse
+                     node
+                     (lambda (child)
+                       (define child-idx (batchref-idx child))
+                       (vector-set! parents child-idx (cons idx (vector-ref parents child-idx)))
+                       (set! work* (cons child-idx work*))))
+                    (loop work*))])))])))
+
+  (define (compute-referrers parents relevant? idx)
+    (define seen (make-vector (vector-length parents) #f))
+    (when (vector-ref relevant? idx)
+      (let loop ([work (list idx)])
+        (unless (null? work)
+          (define cur (car work))
+          (define rest (cdr work))
+          (if (vector-ref seen cur)
+              (loop rest)
+              (begin
+                (vector-set! seen cur #t)
+                (loop (foldl cons rest (vector-ref parents cur))))))))
+    seen)
+
+  (define full-altns (^next-alts^))
+  (define full-altn+idxs
+    (for/list ([full-altn (in-list full-altns)])
+      (cons full-altn (batchref-idx (alt-expr full-altn)))))
+  (define-values (parents relevant?) (build-impl-parents (*global-batch*) (map alt-expr full-altns)))
+  (define grouped-alts (group-by get-starting-expr alts))
+
+  (define (reconstruct-alt altn orig can-refer)
     (define (loop altn)
-      (match-define (alt patch-expr event prevs) altn)
       (match altn
         [(alt start-expr 'patch '()) (values orig start-expr)]
         [(alt cur-expr event (list prev))
@@ -156,15 +205,23 @@
              [(list 'evaluate) (list 'evaluate start-expr)]
              [(list 'taylor name var) (list 'taylor start-expr name var)]
              [(list 'rr input proof) (list 'rr (alt-expr prev) cur-expr input proof)]))
-         (define expr* (batch-replace-subexpr (*global-batch*) (alt-expr orig) start-expr cur-expr))
+         (define expr*
+           (batch-replace-subexpr (*global-batch*) (alt-expr orig) start-expr cur-expr can-refer))
          (values (alt expr* event* (list prev-altn)) start-expr)]))
     (define-values (result-alt _) (loop altn))
     result-alt)
 
-  (^patched^ (remove-duplicates (for*/list ([altn (in-list alts)]
-                                            [full-altn (in-list (^next-alts^))])
-                                  (reconstruct-alt altn full-altn))
-                                #:key (compose batchref-idx alt-expr)))
+  (^patched^ (remove-duplicates
+              (for*/list ([start-alts (in-list grouped-alts)]
+                          [can-refer (in-value (compute-referrers
+                                                parents
+                                                relevant?
+                                                (batchref-idx (get-starting-expr (car start-alts)))))]
+                          [altn (in-list start-alts)]
+                          [full-altn+idx (in-list full-altn+idxs)]
+                          #:when (vector-ref can-refer (cdr full-altn+idx)))
+                (reconstruct-alt altn (car full-altn+idx) can-refer))
+              #:key (compose batchref-idx alt-expr)))
 
   (void))
 
@@ -177,6 +234,7 @@
   (define orig-all-alts (atab-active-alts (^table^)))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract orig-all-alts (atab-not-done-alts (^table^))))
+  (define picked-alts (or (^next-alts^) empty))
 
   (define-values (errss costs) (atab-eval-altns (^table^) (*global-batch*) (^patched^) (*context*)))
   (timeline-event! 'prune)
@@ -193,12 +251,11 @@
           'fresh
           (list (length orig-fresh-alts) (length (set-intersect orig-fresh-alts final-fresh-alts)))
           'done
-          (list (- (length orig-done-alts) (length (or (^next-alts^) empty)))
+          (list (- (length orig-done-alts) (length picked-alts))
                 (- (length (set-intersect orig-done-alts final-done-alts))
-                   (length (set-intersect final-done-alts (or (^next-alts^) empty)))))
+                   (length (set-intersect final-done-alts picked-alts))))
           'picked
-          (list (length (or (^next-alts^) empty))
-                (length (set-intersect final-done-alts (or (^next-alts^) empty))))))
+          (list (length picked-alts) (length (set-intersect final-done-alts picked-alts)))))
   (timeline-push! 'kept data)
 
   (define repr (context-repr (*context*)))
@@ -244,7 +301,20 @@
                        ctx
                        (*pcontext*)))
      (for/list ([opt (in-list opts)])
-       (combine-alts batch opt start-prog ctx (*pcontext*)))]
+       (match-define (option splitindices opt-alts _ brf _) opt)
+       (timeline-event! 'bsearch)
+       (define exprs (batch-exprs batch))
+       (define branch-expr (exprs brf))
+       (define use-binary?
+         (and (flag-set? 'reduce 'binary-search)
+              (> (length splitindices) 1)
+              (critical-subexpression? (exprs start-prog) branch-expr)
+              (for/and ([alt (in-list opt-alts)])
+                (critical-subexpression? (exprs (alt-expr alt)) branch-expr))))
+       (cond
+         [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
+         [use-binary? (combine-alts/binary batch opt start-prog ctx (*pcontext*))]
+         [else (combine-alts batch opt ctx)]))]
     [else
      (define scores (batch-score-alts alts))
      (list (cdr (argmin car (map (λ (a s) (cons s a)) alts scores))))]))
