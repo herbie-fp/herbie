@@ -1,0 +1,17 @@
+; -*- mode: scheme -*-
+
+(FPCore (R lambda1 lambda2 phi1 phi2)
+ :name "Distance on a great circle"
+ (let ((dlambda (- lambda1 lambda2)))
+   (let ((dphi (- phi1 phi2)))
+     (let ((a
+            (+
+             (pow (sin (/ dphi 2)) 2)
+             (* (* (*
+                     (cos phi1)
+                     (cos phi2))
+                   (sin (/ dlambda 2)))
+                (sin (/ dlambda 2))))))
+       (let ((c (* 2 (atan2 (sqrt a) (sqrt (- 1 a))))))
+         (let ((d (* R c)))
+           d))))))
