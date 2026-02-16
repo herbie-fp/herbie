@@ -1,4 +1,13 @@
-.PHONY: help install egg-herbie nightly index start-server deploy
+UNAME_S := $(shell uname -s)
+LIB_EXT := so
+LIB_FLAGS := -shared -fPIC
+
+ifeq ($(UNAME_S), Darwin)
+    LIB_EXT := dylib
+    LIB_FLAGS := -dynamiclib
+endif
+
+.PHONY: help install egg-herbie nightly index start-server deploy compile-accelerators time-ops
 
 help:
 	@echo "Type 'make install' to install Herbie"
@@ -45,7 +54,7 @@ minimal-distribution:
 	[ ! -f herbie.app ] || (raco distribute herbie-compiled herbie.app && rm herbie.app)
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
-evaluate:
+nightly:
 	make compile-accelerators
 	bash growlibm/evaluate.sh
 
@@ -54,7 +63,7 @@ time-ops:
 	python3 growlibm/timing/time_ops.py
 
 compile-accelerators:
-	clang -dynamiclib -O3 -o growlibm/accelerators/libaccelerators.dylib \
+	clang $(LIB_FLAGS) -O3 -o growlibm/accelerators/libaccelerators.$(LIB_EXT) \
 		growlibm/accelerators/accelerators.c \
 		growlibm/accelerators/cosquot.c \
 		growlibm/accelerators/e_rem_pio2.c \
