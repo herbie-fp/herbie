@@ -76,7 +76,7 @@
 
 (define libm-lib (ffi-lib #f))
 
-(define-runtime-path growlibm-dir "../../growlibm")
+(define-runtime-path growlibm-dir "../../growlibm/accelerators")
 (define accelerator-lib-path
   (let ([suffix (bytes->string/utf-8 (system-type 'so-suffix))])
     (build-path growlibm-dir (string-append "libaccelerators" suffix))))

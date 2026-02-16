@@ -2,10 +2,13 @@ import subprocess
 import math
 
 NUM_RUNS = 250
-unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'exp2', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc', 'log1pmd']
-binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', 'fmod', 'pow', 'remainder'] + ['sin_xy', 'cos_xy', 'sin_quotient_xy', 'cos_quotient_xy']
+BASE_DIR = "growlibm/timing"
+unary_accelerators = ['log1pmd', 'invgud', 'verdcos']
+binary_accelerators = ['sinprod', 'cosprod', 'sinquot', 'cosquot', 'hypot']
+unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'exp2', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc'] + unary_accelerators
+binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', 'fmod', 'pow', 'remainder'] + binary_accelerators
 # to_test = ['sin_xy', 'cos_xy', 'sin_quotient_xy', 'cos_quotient_xy', 'sin', 'cos', '/']
-to_test =  ['sin_xy', 'cos_xy', 'log', 'log1pmd']
+to_test =  ['log', 'log1pmd', 'invgud', 'hypot', 'verdcos', 'sin', 'cos', 'sinprod', 'cosprod']
 class FPCore(object):
     def __init__(self, core, arity) -> None:
         self.arity = arity
@@ -41,7 +44,7 @@ def generate_driver(compiled, input_points, arity, filepath):
         print('#include <stdio.h>', file=f)
         print('#include <stdlib.h>', file=f)
         print('#include <time.h>', file=f)
-        print('#include <accelerators.h>', file=f)
+        print('#include \"../../accelerators/accelerators.h\"', file=f)
         print('#define TRUE 1', file=f)
         print('#define FALSE 0', file=f)
         print(f'#define NUM_RUNS {NUM_RUNS}', file=f)
@@ -83,19 +86,19 @@ def run_command(args):
 
 def time_op(op, sort_points):
     fpcore = generate_fpcore(op)
-    result = run_command(['racket', 'sample.rkt', fpcore.core])
+    result = run_command(['racket', f'{BASE_DIR}/sample.rkt', fpcore.core])
 
     points = [i.split() for i in result.splitlines()]
     if sort_points:
         points.sort(key= lambda x: float(x[0]))
     _points = [list(col) for col in zip(*points)]
 
-    result = run_command(['racket', 'compile.rkt', fpcore.core])
+    result = run_command(['racket', f'{BASE_DIR}/compile.rkt', fpcore.core])
     op_name = 'div' if op == '/' else op
     driver_name = f'{'sorted' if sort_points else 'unsorted'}_{op_name}.c'
-    generate_driver(result, _points, str(fpcore.arity), f'drivers/{driver_name}')
+    generate_driver(result, _points, str(fpcore.arity), f'{BASE_DIR}/drivers/{driver_name}')
 
-    run_command(['clang', '-O2', '-I', '..', f'drivers/{driver_name}', '../accelerators.c', '-o', 'benchmark'])
+    run_command(['clang', '-O2', '-I', '..', f'{BASE_DIR}/drivers/{driver_name}', '-o', 'benchmark', '-Lgrowlibm/accelerators', '-laccelerators'])
 
     result = run_command(['./benchmark'])
     return float(result)

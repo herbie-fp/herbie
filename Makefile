@@ -45,8 +45,20 @@ minimal-distribution:
 	[ ! -f herbie.app ] || (raco distribute herbie-compiled herbie.app && rm herbie.app)
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
-nightly:
+evaluate:
+	make compile-accelerators
 	bash growlibm/evaluate.sh
+
+time-ops:
+	make compile-accelerators
+	python3 growlibm/timing/time_ops.py
+
+compile-accelerators:
+	clang -dynamiclib -O3 -o growlibm/accelerators/libaccelerators.dylib \
+		growlibm/accelerators/accelerators.c \
+		growlibm/accelerators/cosquot.c \
+		growlibm/accelerators/e_rem_pio2.c \
+		growlibm/accelerators/invgud.c
 
 upgrade:
 	git pull

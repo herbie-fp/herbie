@@ -17,15 +17,15 @@ REPORTDIR="reports"
 mkdir -p "$REPORTDIR"
 rm -rf "$REPORTDIR"/* || echo "nothing to delete"
 
-if [[ "$(uname -s)" == "Darwin" ]]; then
-    clang -dynamiclib -O3 -o growlibm/libaccelerators.dylib \
-    growlibm/accelerators.c \
-    growlibm/e_rem_pio2.c \
-    growlibm/k_rem_pio2.c \
-    -lm
-else
-    clang -shared -fPIC -O3 -o growlibm/libaccelerators.so growlibm/accelerators.c -lm
-fi
+# if [[ "$(uname -s)" == "Darwin" ]]; then
+#     clang -dynamiclib -O3 -o growlibm/libaccelerators.dylib \
+#     growlibm/accelerators.c \
+#     growlibm/e_rem_pio2.c \
+#     growlibm/k_rem_pio2.c \
+#     -lm
+# else
+#     clang -shared -fPIC -O3 -o growlibm/libaccelerators.so growlibm/accelerators.c -lm
+# fi
 
 # run regular herbie
 racket -y "src/main.rkt" report \
