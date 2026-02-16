@@ -1,9 +1,8 @@
 /*
 clang -dynamiclib -O3 -o growlibm/accelerators/libaccelerators.dylib \
 growlibm/accelerators/accelerators.c \
-growlibm/accelerators/e_rem_pio2.c \
-growlibm/accelerators/k_rem_pio2.c \
 growlibm/accelerators/cosquot.c \
+growlibm/accelerators/e_rem_pio2.c \
 growlibm/accelerators/invgud.c \
 -lm
 */
@@ -14,11 +13,6 @@ growlibm/accelerators/invgud.c \
 #include <stdio.h>
 #include "fdlibm.h"
 #include "accelerators.h"
-#include "invgud.c"
-#include "cosquot.c"
-
-extern double cosquot(double x, double y);
-extern float invgudf(float x);
 
 static inline void sincos_wrapper(double x, double* s, double* c) {
 #if defined(__APPLE__)
@@ -43,7 +37,7 @@ static inline void unsorted_two_sum(double a, double b, double *s, double *e) {
 }
 
 
-double sin_xy(double x, double y) {
+double sinprod(double x, double y) {
     double p = x * y;
     double q = fma(x, y, -p); 
 
@@ -54,7 +48,7 @@ double sin_xy(double x, double y) {
     return fma(sin_p, cos_q, cos_p * sin_q);
 }
 
-double cos_xy(double x, double y) {
+double cosprod(double x, double y) {
     double p = x * y;
     double q = fma(x, y, -p); 
 
@@ -65,7 +59,7 @@ double cos_xy(double x, double y) {
     return fma(cos_p, cos_q, -sin_p * sin_q);
 }
 
-double sin_quotient_xy(double x, double y) {
+double sinquot(double x, double y) {
     // idea: break y into chunks, PI into chunks 
     double p = x / y;            
     double r = fma(-p, y, x);    
@@ -78,17 +72,17 @@ double sin_quotient_xy(double x, double y) {
     return fma(sin_p, cos_q, cos_p * sin_q);
 }
 
-double cos_quotient_xy(double x, double y) {
-    double p = x / y;
-    double r = fma(-p, y, x);
-    double q = r / y;
+// double cos_quotient_xy(double x, double y) {
+//     double p = x / y;
+//     double r = fma(-p, y, x);
+//     double q = r / y;
 
-    double sin_p, cos_p, sin_q, cos_q;
-    sincos_wrapper(p, &sin_p, &cos_p);
-    sincos_wrapper(q, &sin_q, &cos_q);
+//     double sin_p, cos_p, sin_q, cos_q;
+//     sincos_wrapper(p, &sin_p, &cos_p);
+//     sincos_wrapper(q, &sin_q, &cos_q);
 
-    return fma(cos_p, cos_q, -sin_p * sin_q);
-}
+//     return fma(cos_p, cos_q, -sin_p * sin_q);
+// }
 
 double sindivpz(double x, double y, double z) {
     // quotient p+q
@@ -170,32 +164,32 @@ double log1pmd(double x) {
     return fma(x * z, R, 2.0 * x);
 }
 
-double log_tan(double x) {
-    double y[2];
+// double log_tan(double x) {
+//     double y[2];
     
-    int n = __ieee754_rem_pio2(x, y);
-    double r = y[0] + y[1];
+//     int n = __ieee754_rem_pio2(x, y);
+//     double r = y[0] + y[1];
 
-    const double r2 = r * r;
+//     const double r2 = r * r;
     
-    static const double c0  = 0x1.00000006d6ee1p0;
-    static const double c2  = 0x1.5555340b483e1p-3;
-    static const double c4  = 0x1.55627da178f7ap-5;
-    static const double c6  = 0x1.8aa9f1d42a76cp-7;
-    static const double c8  = 0x1.0b2c2f2c6a051p-8;
-    static const double c10 = 0x1.6c82aa9a13c14p-11;
-    static const double c12 = 0x1.07ef77f8abdfp-10;
+//     static const double c0  = 0x1.00000006d6ee1p0;
+//     static const double c2  = 0x1.5555340b483e1p-3;
+//     static const double c4  = 0x1.55627da178f7ap-5;
+//     static const double c6  = 0x1.8aa9f1d42a76cp-7;
+//     static const double c8  = 0x1.0b2c2f2c6a051p-8;
+//     static const double c10 = 0x1.6c82aa9a13c14p-11;
+//     static const double c12 = 0x1.07ef77f8abdfp-10;
 
-    double p = c12;
-    p = fma(r2, p, c10);
-    p = fma(r2, p, c8);
-    p = fma(r2, p, c6);
-    p = fma(r2, p, c4);
-    p = fma(r2, p, c2);
-    p = fma(r2, p, c0);
+//     double p = c12;
+//     p = fma(r2, p, c10);
+//     p = fma(r2, p, c8);
+//     p = fma(r2, p, c6);
+//     p = fma(r2, p, c4);
+//     p = fma(r2, p, c2);
+//     p = fma(r2, p, c0);
 
-    return r * p;
-}
+//     return r * p;
+// }
 
 
 /* @(#)e_hypot.c 1.3 95/01/18 */
@@ -327,3 +321,8 @@ double hypot(double x, double y)
 
 //     return fma(cos_p, 1, -sin_p);
 // }
+
+
+double verdcos(double x){
+	return -2.0 * sin(x) * sin(x);
+}

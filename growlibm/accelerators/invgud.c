@@ -14,6 +14,8 @@
 #include <math.h>
 #include <stdint.h>
 
+int __ieee754_rem_pio2(double x, double *y);
+
 /*
  * __kernel_rem_pio2(x,y,e0,nx,prec,ipio2)
  * double x[],y[]; int e0,nx,prec; int ipio2[];
@@ -422,6 +424,111 @@ static double igd_eval_left(double r) {
 static double igd_eval_reduced(double r) {
   if (r >= -igd_pio4) return igd_eval_right(r);
   return igd_eval_left(r);
+}
+
+/*
+ * Sollya scripts used for double-polynomial generation:
+ *   g = ((log(tan(sqrt(x)/2 + pi/4))/sqrt(x)) - 1) / x;
+ *   p = remez(g, 14, [0x1p-40; (pi*pi)/16]);
+ *   print(round(coeff(p, i), D, RN)) for i in 0..14
+ *
+ *   f = log(tan(x)/x);
+ *   p = remez(f, [|0,2,4,6,8,10,12,14,16|], [0; pi/8]);
+ *   print(round(coeff(p, i), D, RN)) for i in 0..16
+ */
+static double igd_eval_right_double(double r) {
+  const double c0 = 0x1.5555555555555p-3;
+  const double c1 = 0x1.555555555553fp-5;
+  const double c2 = 0x1.8c98c98c9b702p-7;
+  const double c3 = 0x1.f442d26418619p-9;
+  const double c4 = 0x1.4bc8d7d1762acp-10;
+  const double c5 = 0x1.c71f291afca44p-12;
+  const double c6 = 0x1.3fba17ed4455p-13;
+  const double c7 = 0x1.c92a18755783bp-15;
+  const double c8 = 0x1.4d3d2d18d3aa9p-16;
+  const double c9 = 0x1.d1fe4c71a04a2p-18;
+  const double c10 = 0x1.c8114f156fa39p-19;
+  const double c11 = -0x1.7c8baaee5272cp-23;
+  const double c12 = 0x1.c4f602f717b86p-20;
+  const double c13 = -0x1.9ede0881edd8dp-21;
+  const double c14 = 0x1.989fd5ab5c45cp-22;
+
+  double z = r * r;
+  double p = c14;
+  p = fma(z, p, c13);
+  p = fma(z, p, c12);
+  p = fma(z, p, c11);
+  p = fma(z, p, c10);
+  p = fma(z, p, c9);
+  p = fma(z, p, c8);
+  p = fma(z, p, c7);
+  p = fma(z, p, c6);
+  p = fma(z, p, c5);
+  p = fma(z, p, c4);
+  p = fma(z, p, c3);
+  p = fma(z, p, c2);
+  p = fma(z, p, c1);
+  p = fma(z, p, c0);
+  return fma(r * z, p, r);
+}
+
+static double igd_eval_left_double_delta(double delta) {
+  const double c0 = 0x1.2f97659f4a315p-56;
+  const double c2 = 0x1.555555555542p-2;
+  const double c4 = 0x1.3e93e93ec7d3bp-4;
+  const double c6 = 0x1.664f484d25225p-6;
+  const double c8 = 0x1.b85fe5f19eee8p-8;
+  const double c10 = 0x1.1e5a1678cbd17p-9;
+  const double c12 = 0x1.83d2f58019c9p-11;
+  const double c14 = 0x1.048d82dd4f1fbp-12;
+  const double c16 = 0x1.ed1d2fa3a1167p-14;
+
+  if (delta <= 0.0) return -INFINITY;
+
+  {
+    double t = 0.5 * delta;
+    double z = t * t;
+    double corr = c16;
+    corr = fma(z, corr, c14);
+    corr = fma(z, corr, c12);
+    corr = fma(z, corr, c10);
+    corr = fma(z, corr, c8);
+    corr = fma(z, corr, c6);
+    corr = fma(z, corr, c4);
+    corr = fma(z, corr, c2);
+    corr = fma(z, corr, c0);
+    return log(t) + corr;
+  }
+}
+
+double invgud(double x) {
+  double y[2];
+  double ysum, ay, r, out, sgn;
+  int n, k;
+
+  if (!isfinite(x)) return x + x;
+  if (x == 0.0) return x;
+
+  n = __ieee754_rem_pio2(x, y);
+  k = (n + 1) & 7;
+
+  sgn = (k & 2) ? -1.0 : 1.0;
+  ysum = y[0] + y[1];
+  ay = fabs(ysum);
+
+  if (k & 1) {
+    r = -ay;
+    if (ysum > 0.0) sgn = -sgn;
+    out = sgn * igd_eval_right_double(r);
+  } else {
+    if (ay >= igd_pio4) {
+      r = ay - igd_pio2;
+      out = sgn * igd_eval_right_double(r);
+    } else {
+      out = sgn * igd_eval_left_double_delta(ay);
+    }
+  }
+  return out;
 }
 
 float invgudf(float x) {
