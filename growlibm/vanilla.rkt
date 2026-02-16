@@ -194,19 +194,3 @@
   [fmin.f64 #:spec (fmin x y) #:impl (from-libm 'fmin) #:cost 6400]
   [fmod.f64 #:spec (fmod x y) #:impl (from-libm 'fmod) #:cost 6400]
   [remainder.f64 #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 6400])
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; CASTS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define-operation (binary64->binary32 [x <binary64>])
-                  <binary32>
-                  #:spec x
-                  #:fpcore (! :precision binary32 (cast x))
-                  #:impl flsingle
-                  #:cost 64)
-
-(define-operation (binary32->binary64 [x <binary32>])
-                  <binary64>
-                  #:spec x
-                  #:fpcore (! :precision binary64 (cast x))
-                  #:impl identity
-                  #:cost 64)
