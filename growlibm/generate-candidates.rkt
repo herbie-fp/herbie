@@ -37,7 +37,6 @@
   (define comparison-bases
     '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64
             <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
-
   (define (comparison-op? op) (member op comparison-bases))
 
   (define (pure-math? e)
@@ -89,6 +88,23 @@
               [(list (? comparison-op?) lhs rhs)
                (loop lhs)
                (loop rhs)]
+              [_
+               (sow expr)
+               (match expr
+                 [(? number?) (void)]
+                 [(? literal?) (void)]
+                 [(? symbol?) (void)]
+                 [(list _ args ...)
+                  (for ([arg args])
+                    (loop arg))]
+                 [_ (void)])]))))
+  subexprs)
+
+(define (get-subexpressions2 expr)
+  (define subexprs
+    (reap [sow]
+          (let loop ([expr expr])
+            (match expr
               [_
                (sow expr)
                (match expr
