@@ -25,6 +25,8 @@
 (activate-platform! "grow")
 (*node-limit* 50000)
 (define report-dir (vector-ref (current-command-line-arguments) 0))
+(define candidate-num (string->number (vector-ref (current-command-line-arguments) 1)))
+
 (define err-threshold 0.1)
 
 ;;; ------------------------- HELPERS ---------------------------------
@@ -68,52 +70,57 @@
 
             [_ (void)]))))
 
-(define (get-subexpressions expr)
-  (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
-  (define (comparison-op? op)
-    (and (symbol? op)
-         (member op comparison-bases)))
-  (define subexprs
-    (reap [sow]
-          (let loop ([expr expr])
-            (match expr
-              [(or `(if ,test ,t ,f)
-                   `(if.f32 ,test ,t ,f)
-                   `(if.f64 ,test ,t ,f))
-               (loop test)
-               (loop t)
-               (loop f)]
-              [(approx _ impl)
-               (loop impl)]
-              [(list (? comparison-op?) lhs rhs)
-               (loop lhs)
-               (loop rhs)]
-              [_
-               (sow expr)
-               (match expr
-                 [(? number?) (void)]
-                 [(? literal?) (void)]
-                 [(? symbol?) (void)]
-                 [(list _ args ...)
-                  (for ([arg args])
-                    (loop arg))]
-                 [_ (void)])]))))
-  subexprs)
+;;; (define (get-subexpressions expr)
+;;;   (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
+;;;   (define (comparison-op? op)
+;;;     (and (symbol? op)
+;;;          (member op comparison-bases)))
+;;;   (define subexprs
+;;;     (reap [sow]
+;;;           (let loop ([expr expr])
+;;;             (match expr
+;;;               [(or `(if ,test ,t ,f)
+;;;                    `(if.f32 ,test ,t ,f)
+;;;                    `(if.f64 ,test ,t ,f))
+;;;                (loop test)
+;;;                (loop t)
+;;;                (loop f)]
+;;;               [(approx _ impl)
+;;;                (loop impl)]
+;;;               [(list (? comparison-op?) lhs rhs)
+;;;                (loop lhs)
+;;;                (loop rhs)]
+;;;               [_
+;;;                (sow expr)
+;;;                (match expr
+;;;                  [(? number?) (void)]
+;;;                  [(? literal?) (void)]
+;;;                  [(? symbol?) (void)]
+;;;                  [(list _ args ...)
+;;;                   (for ([arg args])
+;;;                     (loop arg))]
+;;;                  [_ (void)])]))))
+;;;   subexprs)
 
-(define (get-subexpressions2 expr)
+(define (get-subexpressions expr)
   (define subexprs
     (reap [sow]
           (let loop ([expr expr])
             (match expr
               [_
-               (sow expr)
                (match expr
                  [(? number?) (void)]
                  [(? literal?) (void)]
                  [(? symbol?) (void)]
-                 [(list _ args ...)
-                  (for ([arg args])
-                    (loop arg))]
+                 [(list op args ...)
+                  (sow expr)
+                  (for ([arg args]
+                        [i (in-naturals)])
+                    (define args-with-hole (list-set args i 'HOLE))
+                    (define cut-expr (cons op args-with-hole))
+                    (sow cut-expr)
+                    (loop arg)
+                    )]
                  [_ (void)])]))))
   subexprs)
 
@@ -236,7 +243,7 @@
 
 (for ([(root-expr mult) (in-hash root-counts)])
 
-  (define subexprs (push-holes-exhaustive root-expr))
+  (define subexprs (get-subexpressions root-expr))
   (define filtered-subexprs
     (filter (lambda (n)
               (and (not (or (symbol? n) (literal? n) (number? n)))
@@ -260,8 +267,14 @@
   (lambda () (for-each display full-cands))
   #:exists 'replace)
 
+(define top-pairs (take sorted-cand-count-pairs (min (length sorted-cand-count-pairs) (* 2 candidate-num))))
+
+(define filtered-pairs (filter (lambda (x) (> (get-error (car x)) 0.1)) top-pairs))
+
+(log-info "filtered pairs" (length filtered-pairs) report-dir)
+
 ;; Output
-(define final-output (take sorted-cand-count-pairs (min (length sorted-cand-count-pairs) 500)))
+(define final-output (take filtered-pairs (min (length filtered-pairs) candidate-num)))
 (define fpcores-out (map to-fpcore-str final-output))
 (define counts-out (map (lambda (p) (cons (prog->fpcore (car p) (get-ctx (car p))) (cdr p)))
                         final-output))

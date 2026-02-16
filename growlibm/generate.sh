@@ -5,16 +5,22 @@ set -e -x
 
 # Ensure egglog is in the path
 export PATH="$HOME/.cargo/bin/:$PATH"
-rustup update
-
-make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
-# BENCHDIR="bench/mathematics/statistics.fpcore"
-BENCHDIR="bench/helmholtz.fpcore"
 REPORTDIR="reports"
-NUMITERS=2
+
+rustup update
+make install
+BENCHDIR="bench/orbitalMotion.fpcore"
+NUM_ITERS=2
+NUM_CANDIDATES=1000
+NUM_ADD=10
+
+# BENCHDIR="bench/mathematics/statistics.fpcore"
+# NUM_ITERS=1
+# NUM_CANDIDATES=1000
+# NUM_ADD=5
 
 cp growlibm/grow-template.rkt growlibm/grow.rkt
 
@@ -32,13 +38,13 @@ racket -y "src/main.rkt" report \
         "$REPORTDIR/start" > "$REPORTDIR/expr_dump.txt"
 
 # generate accelerator candidates
-racket -y growlibm/generate-candidates.rkt "$REPORTDIR"
+racket -y growlibm/generate-candidates.rkt "$REPORTDIR" $NUM_CANDIDATES
  
 racket -y growlibm/to-json.rkt counts 
 racket -y growlibm/to-json.rkt costs 
 
 # extend platform loop
-for ((i = 0; i < $NUMITERS; i++)) do
+for ((i = 0; i < $NUM_ITERS; i++)) do
     racket -y "src/main.rkt" report \
             --seed "$SEED" \
             --platform "grow" \
@@ -48,7 +54,7 @@ for ((i = 0; i < $NUMITERS; i++)) do
             "$REPORTDIR/candidates.txt" \
             "$REPORTDIR/iter$i" 
 
-    racket -y "growlibm/extend-platform.rkt"  "$REPORTDIR/iter$i/results.json" 
+    racket -y "growlibm/extend-platform.rkt"  "$REPORTDIR/iter$i/results.json" $NUM_ADD
 done
 
 # run herbie again with expanded platform
@@ -64,4 +70,4 @@ racket -y "src/main.rkt" report \
 cat growlibm/grow.rkt
 
 # generate the html report page
-python3 growlibm/generate-html.py $NUMITERS $REPORTDIR
+python3 growlibm/generate-html.py $NUM_ITERS $REPORTDIR

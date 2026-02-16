@@ -20,7 +20,7 @@
 (define grow-platform-path "growlibm/grow.rkt")
 
 (define implication-threshold 0.5)
-(define top-k 10)
+(define top-k (string->number (vector-ref (current-command-line-arguments) 1)))
 
 ;;; ------------------------- HELPERS ---------------------------------
 (define (register-op! platform fpcore name cost)
