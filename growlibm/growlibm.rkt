@@ -180,20 +180,6 @@
   #:fpcore (! :precision binary64 (cosprod x y))
   #:cost 12800)
 
-(define-operation (sinquot.f64 [x <binary64>] [y <binary64>])
-  <binary64>
-  #:spec (sin (/ x y))
-  #:impl (from-accelerators 'sinquot)
-  #:fpcore (! :precision binary64 (sinquot x y))
-  #:cost 0)
-
-(define-operation (cosquot.f64 [x <binary64>] [y <binary64>])
-  <binary64>
-  #:spec (cos (/ x y))
-  #:impl (from-accelerators 'cosquot)
-  #:fpcore (! :precision binary64 (cosquot x y))
-  #:cost 0)
-
 (define-operation (log1pmd.f64 [x <binary64>])
   <binary64>
   #:spec (log (/ (+ 1 x) (- 1 x)))
@@ -201,37 +187,58 @@
   #:fpcore (! :precision binary64 (log1pmd x))
   #:cost 3200)
 
-(define-operation (logtan.f64 [x <binary64>])
+;;; (define-operation (invgudf.f32 [x <binary32>])
+;;;   <binary32>
+;;;   #:spec (log (tan (* (+ (+ x x) (PI)) 1/4)))
+;;;   #:impl (from-accelerators 'invgudf)
+;;;   #:fpcore (! :precision binary32 (invgudf x))
+;;;   #:cost 0)
+
+(define-operation (invgud.f64 [x <binary64>])
   <binary64>
   #:spec (log (tan (* (+ (+ x x) (PI)) 1/4)))
-  #:impl (from-accelerators 'logtan)
-  #:fpcore (! :precision binary64 (logtan x))
-  #:cost 0)
-
-(define-operation (sindivpz.f64 [x <binary64>] [y <binary64>] [z <binary64>])
-  <binary64>
-  #:spec (sin (+ (/ x y) z))
-  #:impl (from-accelerators 'sindivpz)
-  #:fpcore (! :precision binary64 (sindivpz x y z))
-  #:cost 0)
-
-(define-operation (cosdivpz.f64 [x <binary64>] [y <binary64>] [z <binary64>])
-  <binary64>
-  #:spec (cos (+ (/ x y) z))
-  #:impl (from-accelerators 'cosdivpz)
-  #:fpcore (! :precision binary64 (cosdivpz x y z))
-  #:cost 0)
+  #:impl (from-accelerators 'invgud)
+  #:fpcore (! :precision binary64 (invgud x))
+  #:cost 25000)
 
 (define-operation (hypot.f64 [x <binary64>] [y <binary64>])
   <binary64>
   #:spec (sqrt (+ (* x x) (* y y)))
   #:impl (from-accelerators 'hypot)
   #:fpcore (! :precision binary64 (hypot x y))
-  #:cost 0)
+  #:cost 3200)
 
-(define-operation (verdcos.f64 [x <binary64>] [y <binary64>])
+(define-operation (verdcos.f64 [x <binary64>])
   <binary64>
-  #:spec (- (cos (+ z0 z0)) 1)
+  #:spec (- (cos (+ x x)) 1)
   #:impl (from-accelerators 'verdcos)
-  #:fpcore (! :precision binary64 (verdcos x y))
-  #:cost 0)
+  #:fpcore (! :precision binary64 (verdcos x))
+  #:cost 9600)
+
+;;; (define-operation (sindivpz.f64 [x <binary64>] [y <binary64>] [z <binary64>])
+;;;   <binary64>
+;;;   #:spec (sin (+ (/ x y) z))
+;;;   #:impl (from-accelerators 'sindivpz)
+;;;   #:fpcore (! :precision binary64 (sindivpz x y z))
+;;;   #:cost 0)
+
+;;; (define-operation (cosdivpz.f64 [x <binary64>] [y <binary64>] [z <binary64>])
+;;;   <binary64>
+;;;   #:spec (cos (+ (/ x y) z))
+;;;   #:impl (from-accelerators 'cosdivpz)
+;;;   #:fpcore (! :precision binary64 (cosdivpz x y z))
+;;;   #:cost 0)
+
+;;; (define-operation (sinquot.f64 [x <binary64>] [y <binary64>])
+;;;   <binary64>
+;;;   #:spec (sin (/ x y))
+;;;   #:impl (from-accelerators 'sinquot)
+;;;   #:fpcore (! :precision binary64 (sinquot x y))
+;;;   #:cost 0)
+
+;;; (define-operation (cosquot.f64 [x <binary64>] [y <binary64>])
+;;;   <binary64>
+;;;   #:spec (cos (/ x y))
+;;;   #:impl (from-accelerators 'cosquot)
+;;;   #:fpcore (! :precision binary64 (cosquot x y))
+;;;   #:cost 10000)
