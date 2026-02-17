@@ -1,4 +1,4 @@
-
+#include <math.h>
 /* @(#)fdlibm.h 1.5 04/04/22 */
 /*
  * ====================================================
@@ -38,11 +38,11 @@
 #define __LOp(x) *(1+(int*)x)
 #endif
 
-#ifdef __STDC__
-#define	__P(p)	p
-#else
-#define	__P(p)	()
-#endif
+// #ifdef __STDC__
+// #define	__P(p)	p
+// #else
+// #define	__P(p)	()
+// #endif
 
 /*
  * ANSI/POSIX
@@ -50,7 +50,7 @@
 
 extern int signgam;
 
-#define	MAXFLOAT	((float)3.40282346638528860e+38)
+// #define	MAXFLOAT	((float)3.40282346638528860e+38)
 
 enum fdversion {fdlibm_ieee = -1, fdlibm_svid, fdlibm_xopen, fdlibm_posix};
 
