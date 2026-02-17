@@ -11,7 +11,7 @@ make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
-BENCHDIR="bench/orbital-motion.fpcore"
+BENCHDIR="bench/keplerian.fpcore"
 REPORTDIR="reports"
 
 mkdir -p "$REPORTDIR"
