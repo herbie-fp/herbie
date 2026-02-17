@@ -6,7 +6,7 @@
   "../src/core/points.rkt"
   "../src/core/rules.rkt"
   "../src/config.rkt"
-  "../src/core/batch.rkt"
+  "../src/syntax/batch.rkt"
   "../src/core/egg-herbie.rkt"
   "../src/syntax/read.rkt"
   "../src/syntax/load-platform.rkt"
@@ -14,7 +14,6 @@
   "../src/core/points.rkt"
   "../src/core/rules.rkt"
   "../src/config.rkt"
-  "../src/core/batch.rkt"
   "../src/core/egg-herbie.rkt"
   "../src/syntax/read.rkt"
   "../src/syntax/load-platform.rkt"
@@ -55,23 +54,7 @@
   ; batchrefss is a (listof (listof batchref))
   (define batchrefss (egraph-best runner batch))
   batchrefss)
-(define (register-op! platform fpcore name cost)
-  (parameterize ([*active-platform* platform])
-    (define impl (fpcore->prog fpcore (get-ctx fpcore)))
-    (define spec (prog->spec impl))
-    (define ctx (get-ctx spec))
-    (define vars (context-vars ctx))
 
-    (define op-impl
-      (create-operator-impl!
-       name
-       ctx
-       #:spec spec
-       #:impl (from-rival)
-       #:fpcore `(! :precision binary64 (,name ,@vars))
-       #:cost cost))
-    (platform-register-implementation! platform op-impl)
-    (void)))
 
 ;;; (define expr1 '(*.f64 z0 z0))
 ;;; (define expr2 '(/.f64 z0 z1))
@@ -119,25 +102,53 @@
         out-repr-name
         var-repr-names))
 
-(define (run-herbie-expr expr
+(define (run-herbie-expr expr platform
                          #:seed [seed #f]
                          #:name [name "scratch"]
                          #:precision [precision (*default-precision*)])
-  (define test (expr->test expr #:name name #:precision precision))
-  (define result (run-herbie 'improve test #:seed seed))
-  (match (job-result-status result)
-    ['success
-     (define backend (job-result-backend result))
-     (define end (improve-result-end backend))
-     (define end-best (first end))
-     (displayln end-best)
-     (define final-error (errors-score (alt-analysis-errors end-best)))
-     (printf "final-error-bits: ~a\n" final-error)]
-    ['failure
-     (define backend (job-result-backend result))
-     (when (exn? backend)
-       (printf "herbie-error: ~a\n" (exn-message backend)))]
-    ['timeout (printf "herbie-timeout\n")])
-  result)
+  (parameterize ([*active-platform* platform])
+    (define test (expr->test expr #:name name #:precision precision))
+    (define result (run-herbie 'improve test #:seed seed))
+    (disable-flag! 'generate 'taylor)
+    (match (job-result-status result)
+      ['success
+       (define backend (job-result-backend result))
+       (define end (improve-result-end backend))
+       (define end-best (first end))
+       (define final-error (errors-score (alt-analysis-errors end-best)))
+       final-error]
+      [_
+       (raise-arguments-error 'run-herbie-expr "Herbie run failed" "expr" expr)])))
 
-(void (run-herbie-expr '(cbrt (/ (+ (sqrt (* (+ z2 z1) (- z1 z2))) z1) z0))))
+;;; (void (run-herbie-expr '(cbrt (/ (+ (sqrt (* (+ z2 z1) (- z1 z2))) z1) z0))))
+
+(define (register-op! platform fpcore name cost)
+  (parameterize ([*active-platform* platform])
+    (define impl (fpcore->prog fpcore (get-ctx fpcore)))
+    (define spec (prog->spec impl))
+    (define ctx (get-ctx spec))
+    (define vars (context-vars ctx))
+    (define name* (string->symbol name))
+
+    (define op-impl
+      (create-operator-impl!
+       name*
+       ctx
+       #:spec spec
+       #:impl (from-rival)
+       #:fpcore `(! :precision binary64 (,name* ,@vars))
+       #:cost cost))
+    (platform-register-implementation! platform op-impl)
+    (void)))
+
+(define base-platform (platform-copy (*active-platform*)))
+
+(define (implies expr1 expr2)
+  (define platform-a (platform-copy base-platform))
+  (register-op! platform-a expr1 "expr1" 0)
+  (define err1 (run-herbie-expr expr2 platform-a))
+  (define err2 (run-herbie-expr expr2 base-platform))
+
+  (displayln (format "~a ~a" err2 err1)))
+
+(implies '(sin (/ x y)) '(+ (sin (/ x y)) x))
