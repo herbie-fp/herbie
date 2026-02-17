@@ -187,12 +187,12 @@
   #:fpcore (! :precision binary64 (log1pmd x))
   #:cost 3200)
 
-(define-operation (invgudf.f32 [x <binary32>])
-  <binary32>
-  #:spec (log (tan (* (+ (+ x x) (PI)) 1/4)))
-  #:impl (from-accelerators 'invgudf)
-  #:fpcore (! :precision binary32 (invgudf x))
-  #:cost 0)
+;;; (define-operation (invgudf.f32 [x <binary32>])
+;;;   <binary32>
+;;;   #:spec (log (tan (* (+ (+ x x) (PI)) 1/4)))
+;;;   #:impl (from-accelerators 'invgudf)
+;;;   #:fpcore (! :precision binary32 (invgudf x))
+;;;   #:cost 0)
 
 (define-operation (invgud.f64 [x <binary64>])
   <binary64>
@@ -201,12 +201,12 @@
   #:fpcore (! :precision binary64 (invgud x))
   #:cost 25000)
 
-(define-operation (invgud.f64 [x <binary64>])
-  <binary64>
-  #:spec (log (tan (+ (* (PI) 1/4) (* x 1/2))))
-  #:impl (from-accelerators 'invgud)
-  #:fpcore (! :precision binary64 (invgud x))
-  #:cost 25000)
+;;; (define-operation (invgud.f64 [x <binary64>])
+;;;   <binary64>
+;;;   #:spec (log (tan (+ (* (PI) 1/4) (* x 1/2))))
+;;;   #:impl (from-accelerators 'invgud)
+;;;   #:fpcore (! :precision binary64 (invgud x))
+;;;   #:cost 25000)
 
 (define-operation (hypot.f64 [x <binary64>] [y <binary64>])
   <binary64>

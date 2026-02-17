@@ -8,8 +8,8 @@ class report:
 reports_path = sys.argv[1]
 platforms = ["vanilla", "herbie20", "growlibm"] 
 options = ["base"]
-# accelerators = "sinprod", "cosprod", "sinquot", "cosquot", "log1pmd", "invgud", "hypot", "verdcos",
-accelerators = ["powcos", "powcos2", "powcos4", "powcos6", "ncos1p"]
+accelerators = ["sinprod", "cosprod", "sinquot", "cosquot", "log1pmd", "invgud", "hypot", "verdcos"]
+# accelerators = ["powcos", "powcos2", "powcos4", "powcos6", "ncos1p"]
 output_path = reports_path + "/index.html"
 reports = []
 
