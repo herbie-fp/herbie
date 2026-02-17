@@ -12,10 +12,10 @@
 (define-runtime-module-path racket-platform "../platforms/racket.rkt")
 (define-runtime-module-path math-platform "../platforms/math.rkt")
 (define-runtime-module-path rival-platform "../platforms/rival.rkt")
-(define-runtime-module-path growlibm-platform "../../growlibm/growlibm.rkt")
-(define-runtime-module-path vanilla-platform "../../growlibm/vanilla.rkt")
-(define-runtime-module-path herbie20plus-platform "../../growlibm/herbie20plus.rkt")
-(define-runtime-module-path growlibmbest-platform "../../growlibm/growlibmbest.rkt")
+(define-runtime-module-path growlibm-platform "../../growlibm/platforms/growlibm.rkt")
+(define-runtime-module-path vanilla-platform "../../growlibm/platforms/vanilla.rkt")
+(define-runtime-module-path herbie20plus-platform "../../growlibm/platforms/herbie20plus.rkt")
+(define-runtime-module-path growlibmbest-platform "../../growlibm/platforms/growlibmbest.rkt")
 
 (define default-platforms
   (hash "herbie10"

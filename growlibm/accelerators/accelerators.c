@@ -3,6 +3,7 @@ clang -dynamiclib -O3 -o growlibm/accelerators/libaccelerators.dylib \
 growlibm/accelerators/accelerators.c \
 growlibm/accelerators/cosquot.c \
 growlibm/accelerators/e_rem_pio2.c \
+growlibm/accelerators/powcos.c \
 growlibm/accelerators/invgud.c \
 -lm
 */
@@ -325,4 +326,8 @@ double hypot(double x, double y)
 
 double verdcos(double x){
 	return -2.0 * sin(x) * sin(x);
+}
+
+double ncos1p(double z0) {
+	return tan((0.5 * z0)) * sin(z0);
 }

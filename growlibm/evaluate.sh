@@ -11,7 +11,7 @@ make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
-BENCHDIR="bench/PROJ/"
+BENCHDIR="bench/orbital-motion.fpcore"
 REPORTDIR="reports"
 
 mkdir -p "$REPORTDIR"
@@ -118,4 +118,4 @@ racket -y "src/main.rkt" report \
 #         "$BENCHDIR" \
 #         "$REPORTDIR/growlibmbest_base" 
 
-python3 growlibm/evaluate.py $REPORTDIR
+python3 growlibm/evaluate-report.py $REPORTDIR

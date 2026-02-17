@@ -14,7 +14,11 @@ double invgud(double x);
 double logtan(double x);
 double verdcos(double x);
 double hypot(double x, double y);
-
+double powcos(double x, double y);
+double powcos2(double x);
+double powcos4(double x);
+double powcos6(double x);
+double ncos1p(double x);
 
 #ifdef __cplusplus
 }

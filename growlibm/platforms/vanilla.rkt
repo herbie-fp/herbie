@@ -1,4 +1,4 @@
-#lang s-exp "../src/syntax/platform-language.rkt"
+#lang s-exp "../../src/syntax/platform-language.rkt"
 
 ;; Herbie 2.0 platform. Based on the C Windows platform, but with
 ;; every operation having heuristic costs from Herbie 2.0.

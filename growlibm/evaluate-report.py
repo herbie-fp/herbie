@@ -6,9 +6,10 @@ class report:
         self.path = path
 
 reports_path = sys.argv[1]
-platforms = ["vanilla", "herbie20", "growlibm", "herbie20plus"] 
+platforms = ["vanilla", "herbie20", "growlibm"] 
 options = ["base"]
-accelerators = ["sinprod", "cosprod", "sinquot", "cosquot", "log1pmd", "invgud", "hypot", "verdcos"]
+# accelerators = "sinprod", "cosprod", "sinquot", "cosquot", "log1pmd", "invgud", "hypot", "verdcos",
+accelerators = ["powcos", "powcos2", "powcos4", "powcos6", "ncos1p"]
 output_path = reports_path + "/index.html"
 reports = []
 
@@ -42,7 +43,7 @@ def get_accuracy_str(path):
 def format_accelerator_rows(accelerators, counts):
     rows = []
     for acc in accelerators:
-        count = counts.get(acc, 0)
+        count = counts.get(acc + '.', 0)
         rows.append(f'<tr><td>{acc}</td><td>{count}</td></tr>')
     return "".join(rows)
 

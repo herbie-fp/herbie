@@ -1,4 +1,4 @@
-#lang s-exp "../src/syntax/platform-language.rkt"
+#lang s-exp "../../src/syntax/platform-language.rkt"
 
 ;; Herbie 2.0 platform. Based on the C Windows platform, but with
 ;; every operation having heuristic costs from Herbie 2.0.
@@ -166,26 +166,26 @@
   [fmod.f64      #:spec (fmod x y)      #:impl (from-libm 'fmod)      #:cost 6400]
   [remainder.f64 #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 6400])
 
-(define-operation (sinprod.f64 [x <binary64>] [y <binary64>])
-  <binary64>
-  #:spec (sin (* x y))
-  #:impl (from-accelerators 'sinprod)
-  #:fpcore (! :precision binary64 (sinprod x y))
-  #:cost 12800)
+;;; (define-operation (sinprod.f64 [x <binary64>] [y <binary64>])
+;;;   <binary64>
+;;;   #:spec (sin (* x y))
+;;;   #:impl (from-accelerators 'sinprod)
+;;;   #:fpcore (! :precision binary64 (sinprod x y))
+;;;   #:cost 12800)
 
-(define-operation (cosprod.f64 [x <binary64>] [y <binary64>])
-  <binary64>
-  #:spec (cos (* x y))
-  #:impl (from-accelerators 'cosprod)
-  #:fpcore (! :precision binary64 (cosprod x y))
-  #:cost 12800)
+;;; (define-operation (cosprod.f64 [x <binary64>] [y <binary64>])
+;;;   <binary64>
+;;;   #:spec (cos (* x y))
+;;;   #:impl (from-accelerators 'cosprod)
+;;;   #:fpcore (! :precision binary64 (cosprod x y))
+;;;   #:cost 12800)
 
-(define-operation (log1pmd.f64 [x <binary64>])
-  <binary64>
-  #:spec (log (/ (+ 1 x) (- 1 x)))
-  #:impl (from-accelerators 'log1pmd)
-  #:fpcore (! :precision binary64 (log1pmd x))
-  #:cost 3200)
+;;; (define-operation (log1pmd.f64 [x <binary64>])
+;;;   <binary64>
+;;;   #:spec (log (/ (+ 1 x) (- 1 x)))
+;;;   #:impl (from-accelerators 'log1pmd)
+;;;   #:fpcore (! :precision binary64 (log1pmd x))
+;;;   #:cost 3200)
 
 ;;; (define-operation (invgudf.f32 [x <binary32>])
 ;;;   <binary32>
@@ -194,26 +194,68 @@
 ;;;   #:fpcore (! :precision binary32 (invgudf x))
 ;;;   #:cost 0)
 
-(define-operation (invgud.f64 [x <binary64>])
-  <binary64>
-  #:spec (log (tan (* (+ (+ x x) (PI)) 1/4)))
-  #:impl (from-accelerators 'invgud)
-  #:fpcore (! :precision binary64 (invgud x))
-  #:cost 25000)
+;;; (define-operation (invgud.f64 [x <binary64>])
+;;;   <binary64>
+;;;   #:spec (log (tan (* (+ (+ x x) (PI)) 1/4)))
+;;;   #:impl (from-accelerators 'invgud)
+;;;   #:fpcore (! :precision binary64 (invgud x))
+;;;   #:cost 25000)
 
-(define-operation (hypot.f64 [x <binary64>] [y <binary64>])
-  <binary64>
-  #:spec (sqrt (+ (* x x) (* y y)))
-  #:impl (from-accelerators 'hypot)
-  #:fpcore (! :precision binary64 (hypot x y))
-  #:cost 3200)
+;;; (define-operation (invgud.f64 [x <binary64>])
+;;;   <binary64>
+;;;   #:spec (log (tan (+ (* (PI) 1/4) (* x 1/2))))
+;;;   #:impl (from-accelerators 'invgud)
+;;;   #:fpcore (! :precision binary64 (invgud x))
+;;;   #:cost 25000)
 
-(define-operation (verdcos.f64 [x <binary64>])
+;;; (define-operation (hypot.f64 [x <binary64>] [y <binary64>])
+;;;   <binary64>
+;;;   #:spec (sqrt (+ (* x x) (* y y)))
+;;;   #:impl (from-accelerators 'hypot)
+;;;   #:fpcore (! :precision binary64 (hypot x y))
+;;;   #:cost 3200)
+
+;;; (define-operation (verdcos.f64 [x <binary64>])
+;;;   <binary64>
+;;;   #:spec (- (cos (+ x x)) 1)
+;;;   #:impl (from-accelerators 'verdcos)
+;;;   #:fpcore (! :precision binary64 (verdcos x))
+;;;   #:cost 9600)
+
+(define-operation (powcos.f64 [x <binary64>] [y <binary64>])
   <binary64>
-  #:spec (- (cos (+ x x)) 1)
-  #:impl (from-accelerators 'verdcos)
-  #:fpcore (! :precision binary64 (verdcos x))
-  #:cost 9600)
+  #:spec (pow (cos x) y)
+  #:impl (from-accelerators 'powcos)
+  #:fpcore (! :precision binary64 (powcos x y))
+  #:cost 64000)
+
+(define-operation (powcos2.f64 [x <binary64>])
+  <binary64>
+  #:spec (pow (cos x) 2)
+  #:impl (from-accelerators 'powcos2)
+  #:fpcore (! :precision binary64 (powcos2 x))
+  #:cost 64000)
+
+(define-operation (powcos4.f64 [x <binary64>])
+  <binary64>
+  #:spec (pow (cos x) 4)
+  #:impl (from-accelerators 'powcos4)
+  #:fpcore (! :precision binary64 (powcos4 x))
+  #:cost 64000)
+
+(define-operation (powcos6.f64 [x <binary64>])
+  <binary64>
+  #:spec (pow (cos x) 6)
+  #:impl (from-accelerators 'powcos6)
+  #:fpcore (! :precision binary64 (powcos6 x))
+  #:cost 64000)
+
+(define-operation (ncos1p.f64 [x <binary64>])
+  <binary64>
+  #:spec (- 1 (cos x))
+  #:impl (from-accelerators 'ncos1p)
+  #:fpcore (! :precision binary64 (ncos1p x))
+  #:cost 12800)
 
 ;;; (define-operation (sindivpz.f64 [x <binary64>] [y <binary64>] [z <binary64>])
 ;;;   <binary64>

@@ -67,6 +67,7 @@ compile-accelerators:
 		growlibm/accelerators/accelerators.c \
 		growlibm/accelerators/cosquot.c \
 		growlibm/accelerators/e_rem_pio2.c \
+		growlibm/accelerators/powcos.c \
 		growlibm/accelerators/invgud.c
 
 upgrade:
