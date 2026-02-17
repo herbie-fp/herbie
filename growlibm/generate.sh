@@ -12,10 +12,10 @@ REPORTDIR="reports"
 
 rustup update
 make install
-BENCHDIR="bench/orbitalMotion.fpcore"
+BENCHDIR="bench/PROJ/"
 NUM_ITERS=2
 NUM_CANDIDATES=1000
-NUM_ADD=10
+NUM_ADD=20
 
 # BENCHDIR="bench/mathematics/statistics.fpcore"
 # NUM_ITERS=1
