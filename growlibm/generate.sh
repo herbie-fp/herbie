@@ -12,7 +12,7 @@ REPORTDIR="reports"
 
 rustup update
 make install
-BENCHDIR="bench/PROJ/"
+BENCHDIR="bench/proj/"
 NUM_ITERS=2
 NUM_CANDIDATES=1000
 NUM_ADD=20
