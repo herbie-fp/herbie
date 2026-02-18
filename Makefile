@@ -7,7 +7,7 @@ ifeq ($(UNAME_S), Darwin)
     LIB_FLAGS := -dynamiclib
 endif
 
-.PHONY: help install egg-herbie nightly index start-server deploy compile-accelerators time-ops
+.PHONY: help install egg-herbie nightly index start-server deploy compile-accelerators time-ops evaluate-proj
 
 help:
 	@echo "Type 'make install' to install Herbie"
@@ -56,11 +56,14 @@ minimal-distribution:
 
 nightly:
 	make compile-accelerators
-	bash growlibm/evaluate.sh
+	make evaluate-proj
 
 time-ops:
 	make compile-accelerators
 	python3 growlibm/timing/time_ops.py
+
+evaluate-proj:
+	bash growlibm/evaluate.sh bench/proj/ reports proj 
 
 compile-accelerators:
 	clang $(LIB_FLAGS) -O3 -o growlibm/accelerators/libaccelerators.$(LIB_EXT) \

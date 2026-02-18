@@ -5,17 +5,40 @@ set -e -x
 
 # Ensure egglog is in the path
 export PATH="$HOME/.cargo/bin/:$PATH"
-rustup update
+# rustup update
 
-make install
+# make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
-BENCHDIR="bench/keplerian.fpcore"
-REPORTDIR="reports"
+BENCHDIR="$1"
+REPORTDIR="$2"
+PLATFORM="$3"
+NUM_ENODES="16000"
 
 mkdir -p "$REPORTDIR"
 rm -rf "$REPORTDIR"/* || echo "nothing to delete"
+
+racket -y src/main.rkt report \
+        --seed $SEED \
+        --platform $PLATFORM \
+        --num-enodes $NUM_ENODES \
+        $BENCHDIR \
+        $REPORTDIR/growlibm_base
+
+racket -y src/main.rkt report \
+        --seed "$SEED" \
+        --platform herbie20 \
+        --num-enodes $NUM_ENODES \
+        $BENCHDIR \
+        $REPORTDIR/herbie20_base
+
+racket -y src/main.rkt report \
+        --seed $SEED \
+        --platform vanilla \
+        --num-enodes $NUM_ENODES \
+        $BENCHDIR \
+        $REPORTDIR/vanilla_base
 
 # if [[ "$(uname -s)" == "Darwin" ]]; then
 #     clang -dynamiclib -O3 -o growlibm/libaccelerators.dylib \
@@ -28,11 +51,6 @@ rm -rf "$REPORTDIR"/* || echo "nothing to delete"
 # fi
 
 # run regular herbie
-racket -y "src/main.rkt" report \
-        --seed "$SEED" \
-        --platform "vanilla" \
-        "$BENCHDIR" \
-        "$REPORTDIR/vanilla_base" 
 
 # racket -y "src/main.rkt" report \
 #         --seed "$SEED" \
@@ -47,13 +65,7 @@ racket -y "src/main.rkt" report \
 #         --disable "generate:taylor" \
 #         --disable "reduce:regimes" \
 #         "$BENCHDIR" \
-#         "$REPORTDIR/vanilla_no_taylor_regimes" 
-
-racket -y "src/main.rkt" report \
-        --seed "$SEED" \
-        --platform "herbie20" \
-        "$BENCHDIR" \
-        "$REPORTDIR/herbie20_base" 
+#         "$REPORTDIR/vanilla_no_taylor_regimes"  
 
 # racket -y "src/main.rkt" report \
 #         --seed "$SEED" \
@@ -69,12 +81,6 @@ racket -y "src/main.rkt" report \
 #         --disable "reduce:regimes" \
 #         "$BENCHDIR" \
 #         "$REPORTDIR/herbie20_no_taylor_regimes" 
-
-racket -y "src/main.rkt" report \
-        --seed "$SEED" \
-        --platform "growlibm" \
-        "$BENCHDIR" \
-        "$REPORTDIR/growlibm_base" 
 
 # racket -y "src/main.rkt" report \
 #         --seed "$SEED" \
