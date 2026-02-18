@@ -1,6 +1,5 @@
 #lang racket
 (require math/bigfloat
-         rival
          math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "../utils/common.rkt"

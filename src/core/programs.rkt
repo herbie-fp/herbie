@@ -217,7 +217,7 @@
 
 ;; Replace all occurrences of `from` with `to` in expression `expr`, returning a new batchref
 ;; Only recurses into impl parts, not specs
-(define (batch-replace-subexpr batch expr from to)
+(define (batch-replace-subexpr batch expr from to [can-refer #f])
   (define cache (make-hasheq))
   (define from-idx (batchref-idx from))
   (let loop ([brf expr])
@@ -225,6 +225,7 @@
     (cond
       [(< idx from-idx) brf]
       [(= idx from-idx) to]
+      [(and can-refer (not (set-member? can-refer idx))) brf]
       [else
        (hash-ref! cache
                   idx

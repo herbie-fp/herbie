@@ -23,7 +23,7 @@
         [reduce . (avg-error simplify)]
         [rules . (numerics special bools branches)]))
 
-(define debug-flags #hash([generate . (egglog)] [dump . (egg rival egglog trace)]))
+(define debug-flags #hash([generate . (egglog)] [dump . (egg rival egglog trace)] [setup . (rival3)]))
 
 (define all-flags (hash-union default-flags deprecated-flags debug-flags #:combine set-union))
 
@@ -133,9 +133,6 @@
 ;; How accurate to make the binary search
 (define *binary-search-test-points* (make-parameter 16))
 (define *binary-search-accuracy* (make-parameter 48))
-
-;; Pherbie related options
-(define *pareto-pick-limit* (make-parameter 5))
 
 ;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))

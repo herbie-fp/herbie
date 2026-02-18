@@ -40,7 +40,7 @@
 
 (define (make-report bench-dirs #:dir dir #:threads threads)
   (activate-platform! (*platform-name*))
-  (define tests (reverse (sort (append-map load-tests bench-dirs) test<?)))
+  (define tests (sort (append-map load-tests bench-dirs) string-ci<? #:key test-name))
   (run-tests tests #:dir dir #:threads threads))
 
 (define (rerun-report json-file #:dir dir #:threads threads)
@@ -127,13 +127,6 @@
   (for ([subdir extra-dirs])
     (with-handlers ([exn:fail:filesystem? (const true)])
       (delete-directory/files (build-path dir subdir)))))
-
-(define (test<? t1 t2)
-  (cond
-    [(and (test-output t1) (test-output t2)) (string<? (test-name t1) (test-name t2))]
-    [(and (not (test-output t1)) (not (test-output t2))) (string<? (test-name t1) (test-name t2))]
-    ; Put things with an output first
-    [else (test-output t1)]))
 
 ;; Generate a path for a given benchmark name
 (define (bench-folder-path bench-name index)
