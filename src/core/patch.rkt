@@ -125,11 +125,15 @@
   (define spec-brfs (batch-to-spec! global-batch all-brfs))
   (define free-vars (batch-free-vars global-batch))
   (define repr-of (batch-reprs global-batch (*context*)))
-  (define real-altns
+  (define real-pairs
     (for/list ([altn (in-list altns)]
-               #:when (set-empty? (free-vars (alt-expr altn)))
+               [spec-brf (in-list spec-brfs)]
+               #:when (set-empty? (free-vars spec-brf))
+               #:unless (literal? (deref (alt-expr altn)))
                #:when (equal? (representation-type (repr-of (alt-expr altn))) 'real))
-      altn))
+      (cons altn spec-brf)))
+  (define real-altns (map car real-pairs))
+  (define real-spec-brfs (map cdr real-pairs))
 
   (define brfs (map alt-expr real-altns))
   (define reprs (map repr-of brfs))
@@ -142,7 +146,6 @@
         (values 'invalid #f)
         (let ([real-compiler (make-real-compiler global-batch real-spec-brfs contexts)])
           (real-apply real-compiler (vector)))))
-
   (define literals
     (for/list ([pt (in-list (if (equal? status 'valid)
                                 pts
