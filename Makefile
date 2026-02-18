@@ -7,7 +7,7 @@ ifeq ($(UNAME_S), Darwin)
     LIB_FLAGS := -dynamiclib
 endif
 
-.PHONY: help install egg-herbie nightly index start-server deploy compile-accelerators time-ops evaluate-proj
+.PHONY: help install egg-herbie nightly index start-server deploy compile-accelerators time-ops evaluate-proj evaluate-basilisk
 
 help:
 	@echo "Type 'make install' to install Herbie"
@@ -56,7 +56,7 @@ minimal-distribution:
 
 nightly:
 	make compile-accelerators
-	make evaluate-proj
+	make evaluate-basilisk
 
 time-ops:
 	make compile-accelerators
@@ -64,6 +64,9 @@ time-ops:
 
 evaluate-proj:
 	bash growlibm/evaluate.sh bench/proj/ reports proj 
+
+evaluate-basilisk:
+	bash growlibm/evaluate.sh bench/orbital-motion.fpcore reports basilisk 
 
 compile-accelerators:
 	clang $(LIB_FLAGS) -O3 -o growlibm/accelerators/libaccelerators.$(LIB_EXT) \
