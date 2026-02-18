@@ -29,103 +29,85 @@
         '())))
 
 (define (make-points-json result-hash)
-  (with-handlers ([exn:fail? (lambda (_) '())])
-    (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
-    (define backend (hash-ref result-hash 'backend))
-    (define pctx (hash-ref backend 'pcontext '()))
-    (define test-points
-      (map first
-           (filter list?
-                   (if (list? pctx)
-                       pctx
-                       '()))))
-    (define repr (test-output-repr test))
+  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
+  (define backend (hash-ref result-hash 'backend))
+  (define test-points (map first (hash-ref backend 'pcontext)))
+  (define repr (test-output-repr test))
 
-    (define start-errors (hash-ref (hash-ref backend 'start) 'errors))
-    (define target-errors (map (curryr hash-ref 'errors) (hash-ref backend 'target)))
-    (define end-errors (map (curryr hash-ref 'errors) (hash-ref backend 'end)))
+  (define start-errors (hash-ref (hash-ref backend 'start) 'errors))
+  (define target-errors (map (curryr hash-ref 'errors) (hash-ref backend 'target)))
+  (define end-errors (map (curryr hash-ref 'errors) (hash-ref backend 'end)))
 
-    ; Immediately convert points to reals to handle posits
-    (define (convert-point point)
-      (with-handlers ([exn:fail? (lambda (_) #f)])
-        (define acc
-          (for/fold ([acc '()])
-                    ([x (in-list point)]
-                     [repr (in-list (test-var-reprs test))])
-            (define val (json->value x repr))
-            (if (eq? val #f)
-                (raise 'invalid)
-                (cons ((representation-repr->ordinal repr) val) acc))))
-        (reverse acc)))
+  ; Immediately convert points to reals to handle posits
+  (define ordinal-points
+    (for/list ([point (in-list test-points)])
+      (for/list ([x (in-list point)]
+                 [repr (in-list (test-var-reprs test))])
+        ((representation-repr->ordinal repr) (json->value x repr)))))
 
-    (define ordinal-points
-      (filter values
-              (for/list ([point (in-list test-points)])
-                (convert-point point))))
+  (define-values (mins maxs)
+    (for/fold ([mins #f]
+               [maxs #f])
+              ([point (in-list ordinal-points)])
+      (values (if mins
+                  (map min point mins)
+                  point)
+              (if maxs
+                  (map max point maxs)
+                  point))))
 
-    (define-values (mins maxs)
-      (for/fold ([mins #f]
-                 [maxs #f])
-                ([point (in-list ordinal-points)])
-        (values (if mins
-                    (map min point mins)
-                    point)
-                (if maxs
-                    (map max point maxs)
-                    point))))
+  (define vars (test-vars test))
+  (define bits (representation-total-bits repr))
+  (define start-error (map ulps->bits-tenths start-errors))
+  (define target-error (map (lambda (alt-error) (map ulps->bits-tenths alt-error)) target-errors))
+  (define end-error (map ulps->bits-tenths (car end-errors)))
 
-    (define vars (test-vars test))
-    (define bits (representation-total-bits repr))
-    (define start-error (map ulps->bits-tenths start-errors))
-    (define target-error (map (lambda (alt-error) (map ulps->bits-tenths alt-error)) target-errors))
-    (define end-error (map ulps->bits-tenths (car end-errors)))
+  (define target-error-entries
+    (for/list ([i (in-naturals)]
+               [error-value (in-list target-error)])
+      (cons (format "target~a" (+ i 1)) error-value)))
 
-    (define target-error-entries
-      (for/list ([i (in-naturals)]
-                 [error-value (in-list target-error)])
-        (cons (format "target~a" (+ i 1)) error-value)))
+  (define error-entries
+    (list* (cons "start" start-error) (cons "end" end-error) target-error-entries))
 
-    (define error-entries
-      (list* (cons "start" start-error) (cons "end" end-error) target-error-entries))
+  (define ticks
+    (for/list ([var (in-list vars)]
+               [idx (in-naturals)]
+               [min-ordinal (in-list mins)]
+               [max-ordinal (in-list maxs)]
+               [repr (in-list (test-var-reprs test))]
+               ; We want to bail out since choose-ticks will crash otherwise
+               #:unless (equal? min-ordinal max-ordinal))
+      (define min-val (repr->real ((representation-ordinal->repr repr) min-ordinal) repr))
+      (define max-val (repr->real ((representation-ordinal->repr repr) max-ordinal) repr))
+      (define real-ticks (choose-ticks min-val max-val repr))
+      (for/list ([val (in-list real-ticks)])
+        (define tick-str
+          (if (or (= val 0) (< 0.01 (abs val) 100))
+              (~r (exact->inexact val) #:precision 4)
+              (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
+        (list tick-str (real->ordinal val repr)))))
 
-    (define ticks
-      (for/list ([var (in-list vars)]
-                 [idx (in-naturals)]
-                 [min-ordinal (in-list mins)]
-                 [max-ordinal (in-list maxs)]
-                 [repr (in-list (test-var-reprs test))]
-                 ; We want to bail out since choose-ticks will crash otherwise
-                 #:unless (equal? min-ordinal max-ordinal))
-        (define min-val (repr->real ((representation-ordinal->repr repr) min-ordinal) repr))
-        (define max-val (repr->real ((representation-ordinal->repr repr) max-ordinal) repr))
-        (define real-ticks (choose-ticks min-val max-val repr))
-        (for/list ([val (in-list real-ticks)])
-          (define tick-str
-            (if (or (= val 0) (< 0.01 (abs val) 100))
-                (~r (exact->inexact val) #:precision 4)
-                (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
-          (list tick-str (real->ordinal val repr)))))
+  (define splitpoints (hash-ref (car (hash-ref backend 'end)) 'splitpoints))
 
-    (define splitpoints (hash-ref (car (hash-ref backend 'end)) 'splitpoints))
-
-    ; NOTE ordinals *should* be passed as strings so we can detect truncation if
-    ;   necessary, but this isn't implemented yet.
-    ; Fields:
-    ;   bits: int representing the maximum possible bits of error
-    ;   vars: array of n string variable names
-    ;   points: array of size m like [[x0, x1, ..., xn], ...] where x0 etc.
-    ;     are ordinals representing the real input values
-    ;   error: JSON dictionary where keys are {start, end, target1, ..., targetn}.
-    ;          Each key's value holds an array like [y0, ..., ym] where y0 etc are
-    ;          bits of error for the output on each point
-    ;   ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
-    ;   splitpoints: array with the ordinal splitpoints
-    `#hasheq((bits . ,bits)
-             (vars . ,(map symbol->string vars))
-             (points . ,ordinal-points)
-             (error . ,error-entries)
-             (ticks_by_varidx . ,ticks)
-             (splitpoints_by_varidx . ,splitpoints))))
+  ; NOTE ordinals *should* be passed as strings so we can detect truncation if
+  ;   necessary, but this isn't implemented yet.
+  ; Fields:
+  ;   bits: int representing the maximum possible bits of error
+  ;   vars: array of n string variable names
+  ;   points: array of size m like [[x0, x1, ..., xn], ...] where x0 etc.
+  ;     are ordinals representing the real input values
+  ;   error: JSON dictionary where keys are {start, end, target1, ..., targetn}.
+  ;          Each key's value holds an array like [y0, ..., ym] where y0 etc are
+  ;          bits of error for the output on each point
+  ;   ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
+  ;   splitpoints: array with the ordinal splitpoints
+  `#hasheq((bits . ,bits)
+           (vars . ,(map symbol->string vars))
+           (points . ,ordinal-points)
+           (error . ,error-entries)
+           (ticks_by_varidx . ,ticks)
+           (splitpoints_by_varidx . ,splitpoints)))
 ;;  Repr conversions
 
 (define (ordinal->real x repr)
