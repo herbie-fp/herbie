@@ -43,7 +43,7 @@ def get_accuracy_str(path):
 def format_accelerator_rows(accelerators, counts):
     rows = []
     for acc in accelerators:
-        count = counts.get(acc + '.', 0)
+        count = counts.get(acc, 0)
         rows.append(f'<tr><td>{acc}</td><td>{count}</td></tr>')
     return "".join(rows)
 
@@ -54,7 +54,7 @@ def read_text(path):
 def get_counts(path):
     if not os.path.exists(path):
         return {acc_name: 0 for acc_name in accelerators}
-    return {acc_name: read_text(path).count(acc_name) for acc_name in accelerators}
+    return {acc_name: read_text(path).count((acc_name + '.')) for acc_name in accelerators}
 
 accuracy_rows = []
 accelerator_rows = []
