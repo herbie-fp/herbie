@@ -52,6 +52,7 @@
 
 ; Adds expressions returning the root ids
 (define (egraph-add-exprs ptr batch brfs ctx)
+
   ; pre-allocated id vectors for all the common cases
   (define 0-vec (make-u32vector 0))
   (define 1-vec (make-u32vector 1))
