@@ -14,7 +14,7 @@ SEED=$(date "+%Y%j")
 BENCHDIR="$1"
 REPORTDIR="$2"
 PLATFORM="$3"
-NUM_ENODES="16000"
+NUM_ENODES="32000"
 
 mkdir -p "$REPORTDIR"
 rm -rf "reports"/* || echo "nothing to delete"
