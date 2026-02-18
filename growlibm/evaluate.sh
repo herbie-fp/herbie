@@ -17,7 +17,7 @@ PLATFORM="$3"
 NUM_ENODES="16000"
 
 mkdir -p "$REPORTDIR"
-rm -rf "$REPORTDIR"/* || echo "nothing to delete"
+rm -rf "reports"/* || echo "nothing to delete"
 
 racket -y src/main.rkt report \
         --seed $SEED \
