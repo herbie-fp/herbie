@@ -491,8 +491,8 @@
 (define (make-sample-result herbie-result job-id)
   (define test (job-result-test herbie-result))
   (define pctx (job-result-backend herbie-result))
-  (define repr (context-repr (test-context test)))
-  (hasheq 'points (pcontext->json pctx repr)))
+  (define ctx (test-context test))
+  (hasheq 'points (pcontext->json pctx ctx)))
 
 (define (make-cost-result herbie-result job-id)
   (hasheq 'cost (job-result-backend herbie-result)))
