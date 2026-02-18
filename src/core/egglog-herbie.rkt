@@ -173,7 +173,7 @@
 (define (prelude subproc #:mixed-egraph? [mixed-egraph? #t])
   (define pform (*active-platform*))
 
-  (egglog-send subproc `(datatype M ,@(platform-spec-nodes pform)))
+  (egglog-send subproc `(datatype M ,@(platform-spec-nodes)))
 
   (apply egglog-send
          subproc
@@ -242,7 +242,7 @@
     (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
     (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
 
-(define (platform-spec-nodes [pform (*active-platform*)])
+(define (platform-spec-nodes)
   (for ([op '(sound-/ sound-log sound-pow)])
     (hash-set! (id->e1) op (serialize-op op))
     (hash-set! (e1->id) (serialize-op op) op))
