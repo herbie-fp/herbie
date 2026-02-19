@@ -97,20 +97,6 @@
          (error! stx "If statement has different types for if (~a) and else (~a)" ift-repr iff-repr))
        ift-repr]
       [#`(! #,props ... #,body) (loop body (apply dict-set prop-dict (map syntax->datum props)) ctx)]
-      [#`(,(? (curry hash-has-key? (*functions*)) fname) #,args ...)
-       ; TODO: inline functions expect uniform types, this is clearly wrong
-       (match-define (list vars prec _) (hash-ref (*functions*) fname))
-       (define repr (get-representation prec))
-       (define ireprs (map (lambda (arg) (loop arg prop-dict ctx)) args))
-       (define expected (map (const repr) vars))
-       (unless (andmap equal? ireprs expected)
-         (error! stx
-                 "Invalid arguments to ~a; expects ~a but got ~a"
-                 fname
-                 fname
-                 (application->string fname expected)
-                 (application->string fname ireprs)))
-       repr]
       [#`(cast #,arg)
        (define irepr (loop arg prop-dict ctx))
        (define repr (get-representation (dict-ref prop-dict ':precision)))
