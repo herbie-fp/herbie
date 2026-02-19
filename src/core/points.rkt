@@ -81,7 +81,6 @@
 
   ;; This generates the errors array in reverse because that's how lists work
   (define num-points (pcontext-length pcontext))
-
   (define results (make-vector num-exprs '()))
   (for ([point (in-vector (pcontext-points pcontext) (- num-points 1) -1 -1)]
         [exact (in-vector (pcontext-exacts pcontext) (- num-points 1) -1 -1)])
