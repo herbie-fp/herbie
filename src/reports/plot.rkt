@@ -31,7 +31,13 @@
 (define (make-points-json result-hash)
   (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
   (define backend (hash-ref result-hash 'backend))
-  (define test-points (map first (hash-ref backend 'pcontext)))
+  (define pctx (hash-ref backend 'pcontext '()))
+  (define test-points
+    (map first
+         (filter list?
+                 (if (list? pctx)
+                     pctx
+                     '()))))
   (define repr (test-output-repr test))
 
   (define start-errors (hash-ref (hash-ref backend 'start) 'errors))
@@ -39,11 +45,22 @@
   (define end-errors (map (curryr hash-ref 'errors) (hash-ref backend 'end)))
 
   ; Immediately convert points to reals to handle posits
+  (define (convert-point point)
+    (with-handlers ([exn:fail? (lambda (_) #f)])
+      (define acc
+        (for/fold ([acc '()])
+                  ([x (in-list point)]
+                   [repr (in-list (test-var-reprs test))])
+          (define val (json->value x repr))
+          (if (eq? val #f)
+              (raise 'invalid)
+              (cons ((representation-repr->ordinal repr) val) acc))))
+      (reverse acc)))
+
   (define ordinal-points
-    (for/list ([point (in-list test-points)])
-      (for/list ([x (in-list point)]
-                 [repr (in-list (test-var-reprs test))])
-        ((representation-repr->ordinal repr) (json->value x repr)))))
+    (filter values
+            (for/list ([point (in-list test-points)])
+              (convert-point point))))
 
   (define-values (mins maxs)
     (for/fold ([mins #f]

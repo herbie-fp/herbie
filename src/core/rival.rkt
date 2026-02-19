@@ -9,7 +9,8 @@
 
 (require math/bigfloat
          (prefix-in r2: rival)
-         (prefix-in r3: rival3-racket))
+         (prefix-in r3: rival3-racket)
+         racket/hash)
 
 (require "../config.rkt"
          "arrays.rkt"
@@ -141,17 +142,12 @@
         (pre vars var-reprs exprs reprs machine dump-file assemble-point assemble-output))
 
 ;; Creates a Rival machine.
-;; Takes a batch, a list of batchrefs into the batch, and a context
-;; to encode input variables and their representations.
-;; Optionally, takes a precondition.
 (define (make-real-compiler batch brfs ctxs #:pre [pre '(TRUE)])
-  ;; Convert batchrefs to expressions. This conversion is not slow because
-  ;; Rival internally uses a hasheq-based deduplication optimization.
   (define specs (map (batch-exprs batch) brfs))
-  (define-values (vars reprs specs* ctxs* pre* assemble-point assemble-output)
-    (let-values ([(specs* ctxs* pre* assemble-point assemble-output reprs*)
-                  (flatten-arrays-for-rival specs ctxs pre)])
-      (values (context-vars (first ctxs*)) reprs* specs* ctxs* pre* assemble-point assemble-output)))
+  (define-values (specs* ctxs* pre* assemble-point assemble-output reprs)
+    (flatten-arrays-for-rival specs ctxs pre))
+  (define vars (context-vars (first ctxs*)))
+
   ; create the machine
   (define exprs (cons `(assert ,pre*) specs*))
   (define discs (make-discretizations reprs))
@@ -278,3 +274,17 @@
           (r3:ival (ival-lo iv) (ival-hi iv))
           (r2:ival (ival-lo iv) (ival-hi iv)))))
   (rival-analyze-with-hints (real-compiler-machine compiler) rect* hint))
+
+(module+ test
+  (require rackunit)
+  (define <b64> <binary64>)
+  (define arr-repr (make-array-representation #:elem <b64> #:dims '(3)))
+  (define arr-ctx (context '(v) arr-repr (list arr-repr)))
+  (define-values (specs* ctxs* pre* _assemble-pt _assemble-out reprs*)
+    (flatten-arrays-for-rival (list 'v) (list arr-ctx) 'TRUE))
+  (check-equal? specs* '(v_0 v_1 v_2))
+  (check-equal? (map context-vars ctxs*) '((v_0 v_1 v_2)))
+  (check-equal? (map context-var-reprs ctxs*) (list (list <b64> <b64> <b64>)))
+  (check-equal? reprs* (list <b64> <b64> <b64>))
+  (check-equal? (_assemble-out '(1 2 3)) '(#(1 2 3)))
+  (check-equal? pre* 'TRUE))

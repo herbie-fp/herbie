@@ -53,6 +53,15 @@
       [#`(! #,props ... #,body)
        (check-properties* props '() error!)
        (loop body vars)]
+      [#`(array #,elems ...)
+       (when (null? elems)
+         (error! stx "Array literal must have at least one element"))
+       (for ([elem (in-list elems)])
+         (loop elem vars))]
+      [#`(ref #,arr ,idx)
+       (unless (integer? idx)
+         (error! idx "Array index must be a literal integer, got ~a" idx))
+       (loop arr vars)]
       [#`(cast #,arg) (loop arg vars)]
       [#`(cast #,args ...)
        (error! stx "Invalid `cast` expression with ~a arguments (expects 1)" (length args))
@@ -153,6 +162,15 @@
 
   (void))
 
+(define (check-dimension dim error!)
+  (cond
+    [(and (number? (syntax-e dim)) (exact-positive-integer? (syntax-e dim))) (void)]
+    [(identifier? dim)
+     (error! dim "Dimension names are unsupported; arrays require literal dimensions")]
+    [(number? (syntax-e dim))
+     (error! dim "Invalid dimension ~a; dimensions must be positive integers" dim)]
+    [else (error! dim "Invalid dimension ~a; must be a positive integer literal" dim)]))
+
 (define (check-program* stx vars props body error!)
   (unless (list? vars)
     (error! stx "Invalid arguments list ~a; must be a list" stx))
@@ -161,12 +179,25 @@
           (when (list? vars)
             (for ([var (in-list vars)])
               (match var
-                [(? identifier? x) (sow var)]
-                [#`(! #,props ... #,name)
+                [(? identifier? x) (sow x)]
+                [#`(! #,props ... #,name #,dims ...)
                  (check-properties* props (immutable-bound-id-set '()) error!)
-                 (cond
-                   [(identifier? name) (sow name)]
-                   [else (error! var "Annotated argument ~a is not a variable name" name)])])))))
+                 (unless (identifier? name)
+                   (error! var "Annotated argument ~a is not a variable name" name))
+                 (when (> (length dims) 1)
+                   (error! var "Only rank-1 arrays are currently supported"))
+                 (for ([dim (in-list dims)])
+                   (check-dimension dim error!))
+                 (sow name)]
+                [#`(#,name #,dims ...)
+                 (unless (identifier? name)
+                   (error! var "Invalid argument name ~a" name))
+                 (when (> (length dims) 1)
+                   (error! var "Only rank-1 arrays are currently supported"))
+                 (for ([dim (in-list dims)])
+                   (check-dimension dim error!))
+                 (sow name)]
+                [_ (error! var "Invalid argument name ~a" var)])))))
   (when (check-duplicate-identifier vars*)
     (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*)))
   (check-properties* props (immutable-bound-id-set vars*) error!)
@@ -222,4 +253,11 @@
   (check-pred null? (get-errs #'(FPCore (x) x)))
   (check-pred null? (get-errs #'(FPCore (x) :precision binary64 x)))
   (check-pred null? (get-errs #'(FPCore foo (x) x)))
-  (check-pred null? (get-errs #'(FPCore foo (x) :precision binary64 x))))
+  (check-pred null? (get-errs #'(FPCore foo (x) :precision binary64 x)))
+
+  (check-pred null? (get-errs #'(FPCore (x) (array 1 2))))
+  (check-pred null? (get-errs #'(FPCore (x) (ref (array 1 2) 0))))
+  (check-pred null? (get-errs #'(FPCore (x) (array 1 2 3))))
+  (check-pred null? (get-errs #'(FPCore (x) (ref (array 1 2) 2))))
+  (check-pred null? (get-errs #'(FPCore ((v 3)) v)))
+  (check-pred (compose not null?) (get-errs #'(FPCore ((v 2 2)) v))))
