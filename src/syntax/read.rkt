@@ -155,14 +155,6 @@
 
   (define default-prec (dict-ref prop-dict ':precision (*default-precision*)))
 
-  (define (split-precision name)
-    (define repr (get-representation name))
-    (define scalar-repr
-      (if (array-representation? repr)
-          (array-representation-elem repr)
-          repr))
-    (values repr scalar-repr))
-
   (define (array-of dims elem)
     (unless (and (list? dims) (= (length dims) 1) (andmap exact-positive-integer? dims))
       (raise-herbie-error "Arrays currently support rank-1 positive dimensions, got ~a" dims))
@@ -171,25 +163,18 @@
     (define existing (and (repr-exists? name) (get-representation name)))
     (or existing repr))
 
-  (define-values (default-repr default-scalar-repr) (split-precision default-prec))
-
+  (define-values default-repr (get-representation default-prec))
   (define-values (var-names var-reprs)
     (for/lists (var-names var-reprs)
                ([var (in-list args)])
                (match var
-                 [(list '! props ... name dims ...)
+                 [(list '! props ... name dims ..1)
                   (define prop-dict (props->dict props))
                   (define arg-prec (dict-ref prop-dict ':precision default-prec))
-                  (define-values (repr scalar-repr) (split-precision arg-prec))
-                  (values name
-                          (if (null? dims)
-                              repr
-                              (array-of dims scalar-repr)))]
-                 [(list (? symbol? name) dims ...)
-                  (values name
-                          (if (null? dims)
-                              default-repr
-                              (array-of dims default-scalar-repr)))]
+                  (define scalar-repr (get-representation arg-prec))
+                  (values name (array-of dims scalar-repr))]
+                 [(list (? symbol? name) dims ..1)
+                  (values name (array-of dims default-repr))]
                  [(? symbol? name) (values name default-repr)])))
   (define ctx (context var-names default-repr var-reprs))
 
