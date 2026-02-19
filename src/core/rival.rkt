@@ -302,10 +302,10 @@
 ;; Creates a Rival machine.
 (define (make-real-compiler batch brfs ctxs #:pre [pre '(TRUE)])
   (define specs (map (batch-exprs batch) brfs))
-  (define-values (vars reprs specs* ctxs* pre* assemble-point assemble-output)
-    (let-values ([(specs* ctxs* pre* assemble-point assemble-output reprs*)
-                  (flatten-arrays-for-rival specs ctxs pre)])
-      (values (context-vars (first ctxs*)) reprs* specs* ctxs* pre* assemble-point assemble-output)))
+  (define-values (specs* ctxs* pre* assemble-point assemble-output reprs)
+    (flatten-arrays-for-rival specs ctxs pre))
+  (define vars (context-vars (first ctxs*)))
+
   ; create the machine
   (define exprs (cons `(assert ,pre*) specs*))
   (define discs (make-discretizations reprs))
