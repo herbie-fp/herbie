@@ -284,10 +284,7 @@
     [(literal -inf.0 _) '(- INFINITY)]
     [(literal +inf.0 _) 'INFINITY]
     [(literal v (or 'binary64 'binary32)) (exact->inexact v)]
-    [(literal v prec)
-     (unless (real? v)
-       (error 'literal->fpcore "Expected scalar real literal, got ~a for ~a" v prec))
-     v]))
+    [(literal v _) v]))
 
 ;; Step 1.
 ;; Translates from LImpl to a series of let bindings such that each
