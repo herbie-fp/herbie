@@ -134,12 +134,14 @@
     [_ #f]))
 
 (define (array-of dims elem)
-  (unless (and (list? dims) (= (length dims) 1) (andmap exact-positive-integer? dims))
-    (raise-herbie-error "Arrays currently support rank-1 positive dimensions, got ~a" dims))
-  (define repr (make-array-representation #:elem elem #:dims dims))
-  (define name (representation-name repr))
-  (define existing (and (repr-exists? name) (get-representation name)))
-  (or existing repr))
+  (cond
+    [(null? dims)
+     elem]
+    [else
+     (define repr (make-array-representation #:elem elem #:dims dims))
+     (define name (representation-name repr))
+     (define existing (and (repr-exists? name) (get-representation name)))
+     (or existing repr)]))
 
 (define (parse-test stx)
   (assert-program! stx)
@@ -168,12 +170,12 @@
     (for/lists (var-names var-reprs)
                ([var (in-list args)])
                (match var
-                 [(list '! props ... name dims ..1)
+                 [(list '! props ... name dims ...)
                   (define prop-dict (props->dict props))
                   (define arg-prec (dict-ref prop-dict ':precision default-prec))
-                  (define scalar-repr (get-representation arg-prec))
-                  (values name (array-of dims scalar-repr))]
-                 [(list (? symbol? name) dims ..1)
+                  (define arg-repr (get-representation arg-prec))
+                  (values name (array-of dims arg-repr))]
+                 [(list (? symbol? name) dims ...)
                   (values name (array-of dims default-repr))]
                  [(? symbol? name) (values name default-repr)])))
   (define ctx (context var-names default-repr var-reprs))
