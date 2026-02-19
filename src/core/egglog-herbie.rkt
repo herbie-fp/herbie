@@ -287,23 +287,14 @@
   (for/list ([repr (in-list (all-repr-names))]
              #:when (not (eq? repr 'bool)))
     `(rule ((= e (Num n)))
-           ((let etx (,(typed-num-id repr)
-                      n)
-              )
-            (union (do-lower e ,(symbol->string repr)) etx))
+           ((union (do-lower e ,(symbol->string repr)) (,(typed-num-id repr) n)))
            :ruleset
            lower)))
 
 (define (num-lifting-rules)
   (for/list ([repr (in-list (all-repr-names))]
              #:when (not (eq? repr 'bool)))
-    `(rule ((= e (,(typed-num-id repr) n)))
-           ((let se (Num
-                     n)
-              )
-            (union (do-lift e) se))
-           :ruleset
-           lift)))
+    `(rule ((= e (,(typed-num-id repr) n))) ((union (do-lift e) (Num n))) :ruleset lift)))
 
 (define (approx-lifting-rule)
   `(rule ((= e (Approx spec impl))) ((union (do-lift e) spec)) :ruleset lift))
@@ -311,36 +302,28 @@
 (define (impl-lowering-rules pform)
   (for/list ([impl (in-list (platform-impls pform))])
     (define spec-expr (impl-info impl 'spec))
-    (define arity (length (impl-info impl 'itype)))
     `(rule ((= e ,(expr->egglog-spec-serialized spec-expr ""))
             ,@(for/list ([v (in-list (impl-info impl 'vars))]
                          [vt (in-list (impl-info impl 'itype))])
                 `(= ,(string->symbol (string-append "t" (symbol->string v)))
                     (do-lower ,v ,(symbol->string (representation-name vt))))))
-           ((let t0 ,(symbol->string (representation-name (impl-info impl 'otype)))
-              )
-            (let et0 (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
-                      ,@(for/list ([v (in-list (impl-info impl 'vars))])
-                          (string->symbol (string-append "t" (symbol->string v)))))
-              )
-            (union (do-lower e t0) et0))
+           ((union (do-lower e ,(symbol->string (representation-name (impl-info impl 'otype))))
+                   (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
+                    ,@(for/list ([v (in-list (impl-info impl 'vars))])
+                        (string->symbol (string-append "t" (symbol->string v)))))))
            :ruleset
            lower)))
 
 (define (impl-lifting-rules pform)
   (for/list ([impl (in-list (platform-impls pform))])
     (define spec-expr (impl-info impl 'spec))
-    (define op (string->symbol (car (string-split (symbol->string impl) "."))))
-    (define arity (length (impl-info impl 'itype)))
     `(rule ((= e
                (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
                 ,@(impl-info impl 'vars)))
             ,@(for/list ([v (in-list (impl-info impl 'vars))]
                          [vt (in-list (impl-info impl 'itype))])
                 `(= ,(string->symbol (string-append "s" (symbol->string v))) (do-lift ,v))))
-           ((let se ,(expr->egglog-spec-serialized spec-expr "s")
-              )
-            (union (do-lift e) se))
+           ((union (do-lift e) ,(expr->egglog-spec-serialized spec-expr "s")))
            :ruleset
            lift)))
 
@@ -463,12 +446,8 @@
         [repr (in-list (context-var-reprs ctx))])
     (egglog-send subproc
                  `(rule ((= e (Var ,(symbol->string var))))
-                        ((let ty ,(symbol->string (representation-name repr))
-                           )
-                         (let ety (,(typed-var-id (representation-name repr))
-                                   ,(symbol->string var))
-                           )
-                         (union (do-lower e ty) ety))
+                        ((union (do-lower e ,(symbol->string (representation-name repr)))
+                                (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
                         :ruleset
                         lower)))
 
@@ -477,10 +456,7 @@
         [repr (in-list (context-var-reprs ctx))])
     (egglog-send subproc
                  `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
-                        ((let se (Var
-                                  ,(symbol->string var))
-                           )
-                         (union (do-lift e) se))
+                        ((union (do-lift e) (Var ,(symbol->string var))))
                         :ruleset
                         lift)))
 
