@@ -62,8 +62,6 @@ jobs:
         
       - name: "Run Herbie on array benchmarks"
         run: racket -l herbie improve bench/arrays /tmp/out.fpcore
-        
-      # Test egglog mode
       - name: "Run Herbie with egglog"
         run: racket -y infra/ci.rkt --egglog --precision binary64 --seed 1 bench/tutorial.fpcore
 
