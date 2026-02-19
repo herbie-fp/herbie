@@ -12,6 +12,7 @@
          (prefix-in r3: rival3-racket))
 
 (require "../config.rkt"
+         "arrays.rkt"
          "../utils/errors.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
@@ -136,24 +137,27 @@
       1))
 
 ;; Herbie's wrapper around the Rival machine abstraction.
-(struct real-compiler (pre vars var-reprs exprs reprs machine dump-file))
+(struct real-compiler
+        (pre vars var-reprs exprs reprs machine dump-file assemble-point assemble-output))
 
 ;; Creates a Rival machine.
 ;; Takes a batch, a list of batchrefs into the batch, and a context
 ;; to encode input variables and their representations.
 ;; Optionally, takes a precondition.
 (define (make-real-compiler batch brfs ctxs #:pre [pre '(TRUE)])
-  (define vars (context-vars (first ctxs)))
-  (define reprs (map context-repr ctxs))
   ;; Convert batchrefs to expressions. This conversion is not slow because
   ;; Rival internally uses a hasheq-based deduplication optimization.
   (define specs (map (batch-exprs batch) brfs))
+  (define-values (vars reprs specs* ctxs* pre* assemble-point assemble-output)
+    (let-values ([(specs* ctxs* pre* assemble-point assemble-output reprs*)
+                  (flatten-arrays-for-rival specs ctxs pre)])
+      (values (context-vars (first ctxs*)) reprs* specs* ctxs* pre* assemble-point assemble-output)))
   ; create the machine
-  (define exprs (cons `(assert ,pre) specs))
+  (define exprs (cons `(assert ,pre*) specs*))
   (define discs (make-discretizations reprs))
   (define machine (rival-compile exprs vars discs))
   (timeline-push! 'compiler
-                  (apply + 1 (expr-size pre) (map expr-size specs))
+                  (apply + 1 (expr-size pre*) (map expr-size specs*))
                   (+ (length vars) (rival-profile machine 'instructions)))
 
   (define dump-file
@@ -168,7 +172,7 @@
            (build-path dump-dir (format "~a.rival" i))))
        (define dump-file (open-output-file name #:exists 'replace))
        (pretty-print `(define (f ,@vars)
-                        ,@specs)
+                        ,@specs*)
                      dump-file
                      1)
        (flush-output dump-file)
@@ -178,11 +182,13 @@
   ; wrap it with useful information for Herbie
   (real-compiler pre
                  (list->vector vars)
-                 (list->vector (context-var-reprs (first ctxs)))
-                 specs
+                 (list->vector (context-var-reprs (first ctxs*)))
+                 specs*
                  (list->vector reprs)
                  machine
-                 dump-file))
+                 dump-file
+                 assemble-point
+                 assemble-output))
 
 (define (bigfloat->readable-string x)
   (define real (bigfloat->real x)) ; Exact rational unless inf/nan
@@ -193,11 +199,13 @@
 
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
-  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file) compiler)
+  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file assemble-point assemble-output)
+    compiler)
   (define start (current-inexact-milliseconds))
+  (define pt-flat (assemble-point pt))
   (define pt*
     (for/vector #:length (vector-length vars)
-                ([val (in-vector pt)]
+                ([val (in-vector pt-flat)]
                  [repr (in-vector var-reprs)])
       ((representation-repr->bf repr) val)))
   (when dump-file
@@ -210,7 +218,7 @@
       (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
                      [*rival-max-iterations* 5])
         (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
-        (values 'valid value))))
+        (values 'valid (assemble-output value)))))
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"
