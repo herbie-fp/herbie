@@ -54,13 +54,12 @@
        (check-properties* props '() error!)
        (loop body vars)]
       [#`(array #,elems ...)
-       (unless (positive? (length elems))
+       (when (null? elems)
          (error! stx "Array literal must have at least one element"))
        (for ([elem (in-list elems)])
          (loop elem vars))]
-      [#`(ref #,arr #,idx)
-       (define val (syntax-e idx))
-       (unless (integer? val)
+      [#`(ref #,arr ,idx)
+       (unless (integer? idx)
          (error! idx "Array index must be a literal integer, got ~a" idx))
        (loop arr vars)]
       [#`(cast #,arg) (loop arg vars)]
@@ -163,17 +162,18 @@
 
   (void))
 
+(define (check-dimension dim error!)
+  (cond
+    [(and (number? (syntax-e dim)) (exact-positive-integer? (syntax-e dim))) (void)]
+    [(identifier? dim)
+     (error! dim "Dimension names are unsupported; arrays require literal dimensions")]
+    [(number? (syntax-e dim))
+     (error! dim "Invalid dimension ~a; dimensions must be positive integers" dim)]
+    [else (error! dim "Invalid dimension ~a; must be a positive integer literal" dim)]))
+
 (define (check-program* stx vars props body error!)
   (unless (list? vars)
     (error! stx "Invalid arguments list ~a; must be a list" stx))
-  (define (check-dimension dim)
-    (cond
-      [(and (number? (syntax-e dim)) (exact-positive-integer? (syntax-e dim))) (void)]
-      [(identifier? dim)
-       (error! dim "Dimension names are unsupported; arrays require literal dimensions")]
-      [(number? (syntax-e dim))
-       (error! dim "Invalid dimension ~a; dimensions must be positive integers" dim)]
-      [else (error! dim "Invalid dimension ~a; must be a positive integer literal" dim)]))
   (define vars*
     (reap [sow]
           (when (list? vars)
@@ -182,21 +182,20 @@
                 [(? identifier? x) (sow x)]
                 [#`(! #,props ... #,name #,dims ...)
                  (check-properties* props (immutable-bound-id-set '()) error!)
-                 (cond
-                   [(identifier? name)
-                    (when (> (length dims) 1)
-                      (error! var "Only rank-1 arrays are currently supported"))
-                    (for ([dim (in-list dims)])
-                      (check-dimension dim))
-                    (sow name)]
-                   [else (error! var "Annotated argument ~a is not a variable name" name)])]
+                 (unless (identifier? name)
+                   (error! var "Annotated argument ~a is not a variable name" name))
+                 (when (> (length dims) 1)
+                   (error! var "Only rank-1 arrays are currently supported"))
+                 (for ([dim (in-list dims)])
+                   (check-dimension dim error!))
+                 (sow name)]
                 [#`(#,name #,dims ...)
                  (unless (identifier? name)
                    (error! var "Invalid argument name ~a" name))
                  (when (> (length dims) 1)
                    (error! var "Only rank-1 arrays are currently supported"))
                  (for ([dim (in-list dims)])
-                   (check-dimension dim))
+                   (check-dimension dim error!))
                  (sow name)]
                 [_ (error! var "Invalid argument name ~a" var)])))))
   (when (check-duplicate-identifier vars*)
