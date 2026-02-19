@@ -133,6 +133,14 @@
      (dict-ref dict ':herbie-platform #f)]
     [_ #f]))
 
+(define (array-of dims elem)
+  (unless (and (list? dims) (= (length dims) 1) (andmap exact-positive-integer? dims))
+    (raise-herbie-error "Arrays currently support rank-1 positive dimensions, got ~a" dims))
+  (define repr (make-array-representation #:elem elem #:dims dims))
+  (define name (representation-name repr))
+  (define existing (and (repr-exists? name) (get-representation name)))
+  (or existing repr))
+
 (define (parse-test stx)
   (assert-program! stx)
   (define stx* (expand-core stx))
@@ -154,16 +162,8 @@
         [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
 
   (define default-prec (dict-ref prop-dict ':precision (*default-precision*)))
-
-  (define (array-of dims elem)
-    (unless (and (list? dims) (= (length dims) 1) (andmap exact-positive-integer? dims))
-      (raise-herbie-error "Arrays currently support rank-1 positive dimensions, got ~a" dims))
-    (define repr (make-array-representation #:elem elem #:dims dims))
-    (define name (representation-name repr))
-    (define existing (and (repr-exists? name) (get-representation name)))
-    (or existing repr))
-
   (define-values default-repr (get-representation default-prec))
+
   (define-values (var-names var-reprs)
     (for/lists (var-names var-reprs)
                ([var (in-list args)])
