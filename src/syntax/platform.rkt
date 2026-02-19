@@ -88,7 +88,7 @@
 ;; Translates an LImpl to a LSpec.
 (define (prog->spec expr)
   (match expr
-    [(? literal? lit) (literal-value lit)]
+    [(? literal?) (literal-value expr)]
     [(? symbol?) expr]
     [(approx spec _) spec]
     [`(if ,cond ,ift ,iff)
