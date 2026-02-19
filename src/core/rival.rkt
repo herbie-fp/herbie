@@ -13,6 +13,7 @@
          racket/hash)
 
 (require "../config.rkt"
+         "arrays.rkt"
          "../utils/errors.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
@@ -140,165 +141,6 @@
 (struct real-compiler
         (pre vars var-reprs exprs reprs machine dump-file assemble-point assemble-output))
 
-;; Takes a context to encode input variables and their representations,
-;; a list of expressions, and a list of output representations
-;; for each expression. Optionally, takes a precondition.
-;; Returns flattened specs/contexts for Rival plus a reassembler for points.
-(define (flatten-arrays-for-rival specs ctxs pre)
-  ;; Flatten array representations into multiple scalar vars/outputs without involving Rival arrays.
-  (define (scalar-expr v who)
-    (match v
-      [`(scalar ,e) e]
-      [`(array ,_ ...) (error who "Expected scalar expression, got array")]))
-  (define (select-component arr idx who)
-    (unless (and (integer? idx) (<= 0 idx))
-      (error who "Array index must be a non-negative literal integer, got ~a" idx))
-    (match arr
-      [`(array ,elems ...) (list-ref elems idx)]
-      [_ (error who "ref expects an array value, got ~a" arr)]))
-  (define (lower-arr expr env)
-    (match expr
-      [(? number?) `(scalar ,expr)]
-      [(? symbol? s) (hash-ref env s `(scalar ,s))]
-      [`(array ,elems ...) `(array ,@(map (lambda (e) (scalar-expr (lower-arr e env) 'array)) elems))]
-      [`(ref ,arr ,idx)
-       (define arr* (lower-arr arr env))
-       (define selected
-         (select-component arr*
-                           (if (syntax? idx)
-                               (syntax-e idx)
-                               idx)
-                           'ref))
-       `(scalar ,selected)]
-      [`(let ([,ids ,vals] ...) ,body)
-       (define env* env)
-       (for ([id (in-list ids)]
-             [val (in-list vals)])
-         (define lowered (lower-arr val env*))
-         (set! env* (hash-set env* id lowered)))
-       (lower-arr body env*)]
-      [`(let* ([,ids ,vals] ...) ,body)
-       (define env* env)
-       (for ([id (in-list ids)]
-             [val (in-list vals)])
-         (define lowered (lower-arr val env*))
-         (set! env* (hash-set env* id lowered)))
-       (lower-arr body env*)]
-      [`(if ,c ,t ,f)
-       (let* ([c* (scalar-expr (lower-arr c env) 'if)]
-              [t* (lower-arr t env)]
-              [f* (lower-arr f env)]
-              [t-expr (match t*
-                        [`(scalar ,t**) t**]
-                        [_ (error 'if "If branches must be scalars")])]
-              [f-expr (match f*
-                        [`(scalar ,f**) f**]
-                        [_ (error 'if "If branches must be scalars")])])
-         `(scalar (if ,c* ,t-expr ,f-expr)))]
-      [`(! ,props ... ,body) `(scalar (! ,@props ,(scalar-expr (lower-arr body env) '!)))]
-      [`(,op ,args ...)
-       (define lowered-args (map (lambda (a) (scalar-expr (lower-arr a env) op)) args))
-       `(scalar (,op ,@lowered-args))]
-      [_ `(scalar ,expr)]))
-  (define orig-vars (context-vars (first ctxs)))
-  (define orig-reprs (map context-repr ctxs))
-  (define orig-var-reprs (context-var-reprs (first ctxs)))
-  (define taken (list->seteq orig-vars))
-  (define (fresh base)
-    (let loop ([i 0])
-      (define candidate (string->symbol (format "~a_~a" base i)))
-      (if (set-member? taken candidate)
-          (loop (add1 i))
-          candidate)))
-  (define env (make-hasheq))
-  (define new-vars '())
-  (define new-var-reprs '())
-  (for ([v orig-vars]
-        [r orig-var-reprs])
-    (cond
-      [(eq? (representation-type r) 'array)
-       (define base (symbol->string v))
-       (define len (apply * (array-representation-dims r)))
-       (define vars
-         (for/list ([_ (in-range len)])
-           (define vi (fresh base))
-           (set! taken (set-add taken vi))
-           vi))
-       (hash-set! env v `(array ,@vars))
-       (set! new-vars (append new-vars vars))
-       (set! new-var-reprs (append new-var-reprs (make-list len (array-representation-elem r))))]
-      [else
-       (hash-set! env v `(scalar ,v))
-       (set! new-vars (append new-vars (list v)))
-       (set! new-var-reprs (append new-var-reprs (list r)))]))
-  (define env-immutable env)
-  (define (lower-scalar expr)
-    (scalar-expr (lower-arr expr env-immutable) 'program))
-  (define (lower-any expr)
-    (lower-arr expr env-immutable))
-  (define new-specs
-    (append* (for/list ([spec (in-list specs)]
-                        [repr orig-reprs])
-               (cond
-                 [(eq? (representation-type repr) 'array)
-                  (define lowered (lower-any spec))
-                  (for/list ([i (in-range (apply * (array-representation-dims repr)))])
-                    (select-component lowered i 'flatten-arrays-for-rival))]
-                 [else (list (lower-scalar spec))]))))
-  (define new-reprs
-    (append* (for/list ([repr (in-list orig-reprs)])
-               (match (representation-type repr)
-                 ['array
-                  (define len (apply * (array-representation-dims repr)))
-                  (for/list ([i (in-range len)])
-                    (array-representation-elem repr))]
-                 [_ (list repr)]))))
-  (define new-pre (lower-scalar pre))
-  (define ctxs*
-    (for/list ([ctx (in-list ctxs)])
-      (define repr*
-        (match (representation-type (context-repr ctx))
-          ['array (array-representation-elem (context-repr ctx))]
-          [_ (context-repr ctx)]))
-      (context new-vars repr* new-var-reprs)))
-  (define (assemble-point pt)
-    (define idx 0)
-    (list->vector (for/list ([r (in-list orig-var-reprs)])
-                    (match (representation-type r)
-                      ['array
-                       (define len (apply * (array-representation-dims r)))
-                       (define elems
-                         (for/list ([i (in-range len)])
-                           (define val (vector-ref pt idx))
-                           (set! idx (add1 idx))
-                           val))
-                       (list->vector elems)]
-                      [_
-                       (define val (vector-ref pt idx))
-                       (set! idx (add1 idx))
-                       val]))))
-  (define (assemble-output outs)
-    (define outputs
-      (if (vector? outs)
-          (vector->list outs)
-          outs))
-    (define idx 0)
-    (for/list ([repr (in-list orig-reprs)])
-      (match (representation-type repr)
-        ['array
-         (define len (apply * (array-representation-dims repr)))
-         (define elems
-           (for/list ([i (in-range len)])
-             (define val (list-ref outputs idx))
-             (set! idx (add1 idx))
-             val))
-         (list->vector elems)]
-        [_
-         (define val (list-ref outputs idx))
-         (set! idx (add1 idx))
-         val])))
-  (values new-specs ctxs* new-pre assemble-point assemble-output new-reprs))
-
 ;; Creates a Rival machine.
 (define (make-real-compiler batch brfs ctxs #:pre [pre '(TRUE)])
   (define specs (map (batch-exprs batch) brfs))
@@ -353,11 +195,13 @@
 
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
-  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file _ _) compiler)
+  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file assemble-point assemble-output)
+    compiler)
   (define start (current-inexact-milliseconds))
+  (define pt-flat (assemble-point pt))
   (define pt*
     (for/vector #:length (vector-length vars)
-                ([val (in-vector pt)]
+                ([val (in-vector pt-flat)]
                  [repr (in-vector var-reprs)])
       ((representation-repr->bf repr) val)))
   (when dump-file
@@ -370,7 +214,7 @@
       (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
                      [*rival-max-iterations* 5])
         (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
-        (values 'valid value))))
+        (values 'valid (assemble-output value)))))
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"
