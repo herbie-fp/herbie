@@ -125,8 +125,8 @@
            (error . ,error-entries)
            (ticks_by_varidx . ,ticks)
            (splitpoints_by_varidx . ,splitpoints)))
-
 ;;  Repr conversions
+
 (define (ordinal->real x repr)
   (repr->real ((representation-ordinal->repr repr) x) repr))
 
