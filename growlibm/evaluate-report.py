@@ -6,10 +6,16 @@ class report:
         self.path = path
 
 reports_path = sys.argv[1]
+platform = sys.argv[2]
 platforms = ["vanilla", "herbie20", "growlibm"] 
 options = ["base"]
-accelerators = ["sinprod", "cosprod", "sinquot", "cosquot", "log1pmd", "invgud", "hypot", "verdcos"]
-# accelerators = ["powcos", "powcos2", "powcos4", "powcos6", "ncos1p"]
+if platform == "proj":
+    accelerators = ["sinprod", "cosprod", "sinquot", "cosquot", "log1pmd", "invgud", "hypot", "verdcos"]
+elif platform == "basilisk":
+    accelerators = ["powcos", "powcos2", "powcos4", "powcos6", "ncos1p"]
+else:
+    accelerators = []
+
 output_path = reports_path + "/index.html"
 reports = []
 
@@ -78,7 +84,7 @@ html_content = f"""
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Comparing Platforms</title>
+    <title>{platform}</title>
 </head>
 <body>    
     <h2>Evaluation</h2>
