@@ -1,5 +1,6 @@
 import subprocess
 import math
+import sys
 
 NUM_RUNS = 250
 BASE_DIR = "growlibm/timing"
@@ -85,11 +86,16 @@ def run_command(args):
     result = subprocess.run(args, capture_output=True, text=True, check=True)
     return result.stdout
 
-def time_op(op, sort_points):
-    fpcore = generate_fpcore(op)
-    result = run_command(['racket', f'{BASE_DIR}/sample.rkt', fpcore.core])
+def sample_points(fpcore, seed):
+    cmd = ['racket', f'{BASE_DIR}/sample.rkt', fpcore.core]
+    if seed is not None:
+        cmd.append(str(seed))
+    result = run_command(cmd)
+    return [i.split() for i in result.splitlines()]
 
-    points = [i.split() for i in result.splitlines()]
+def time_op(op, sort_points, points):
+    fpcore = generate_fpcore(op)
+    points = list(points)
     if sort_points:
         points.sort(key= lambda x: float(x[0]))
     _points = [list(col) for col in zip(*points)]
@@ -105,10 +111,17 @@ def time_op(op, sort_points):
     return float(result)
 
 if __name__ == "__main__":
+    seed = None
+    if len(sys.argv) == 2:
+        seed = sys.argv[1]
+    elif len(sys.argv) == 3 and sys.argv[1] == '--seed':
+        seed = sys.argv[2]
+
     print('--------------------------------------------------')
     print('|', 'op'.ljust(20), '|', 'unsorted'.ljust(10), '|', 'sorted'.ljust(10), '|')
     print('--------------------------------------------------')
     times = {}
     for op in to_test:
-        print('|', op.ljust(20), '|', f'{time_op(op, False):.5f} ms', '|', f'{time_op(op, True):.5f} ms', '|')
+        points = sample_points(generate_fpcore(op), seed)
+        print('|', op.ljust(20), '|', f'{time_op(op, False, points):.5f} ms', '|', f'{time_op(op, True, points):.5f} ms', '|')
     print('--------------------------------------------------')
