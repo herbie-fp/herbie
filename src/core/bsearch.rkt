@@ -69,9 +69,9 @@
     (values alts** splitpoints**)))
 
 ;; Invariant: (pred p1) and (not (pred p2))
-(define (binary-search-floats pred p1 p2 repr)
+(define (binary-search-floats pred p1 p2 repr ulps)
   (cond
-    [(<= (ulps->bits (ulp-difference p1 p2 repr)) (*binary-search-accuracy*))
+    [(<= (ulps->bits (ulps p1 p2)) (*binary-search-accuracy*))
      (timeline-push! 'stop "narrow-enough" 1)
      (values p1 p2)]
     [else
@@ -85,8 +85,8 @@
        [(eq? cmp 'fail)
         (timeline-push! 'stop "predicate-failed" 1)
         (values p1 p2)]
-       [(negative? cmp) (binary-search-floats pred p3 p2 repr)]
-       [(positive? cmp) (binary-search-floats pred p1 p3 repr)]
+       [(negative? cmp) (binary-search-floats pred p3 p2 repr ulps)]
+       [(positive? cmp) (binary-search-floats pred p1 p3 repr ulps)]
        ;; cmp = 0 usually means sampling failed, so we give up
        [else
         (timeline-push! 'stop "predicate-same" 1)
@@ -171,6 +171,7 @@
       pcontext?
       (listof sp?))
   (define repr ((batch-reprs batch ctx) brf))
+  (define ulps (repr-ulps repr))
   (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf) ctx)))
   (define brf-node (deref brf))
   (define var
@@ -202,7 +203,7 @@
           (cache-get-prepend v brf prepend-macro)))
       (match-define (list errs1 errs2) (batch-errors batch (list brf1 brf2) pctx ctx*))
       (- (errors-score errs1) (errors-score errs2)))
-    (define-values (bp1 _) (binary-search-floats pred p1 p2 repr))
+    (define-values (bp1 _) (binary-search-floats pred p1 p2 repr ulps))
     bp1)
 
   (for/list ([si1 sindices]

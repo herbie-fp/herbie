@@ -51,9 +51,10 @@
                 (r3:discretization (repr->disc-type repr) target (representation-bf->repr repr)))))
       (cons r2:boolean-discretization
             (for/list ([repr (in-list reprs)])
+              (define ulps (repr-ulps repr))
               (r2:discretization (representation-total-bits repr)
                                  (representation-bf->repr repr)
-                                 (lambda (x y) (- (ulp-difference x y repr) 1)))))))
+                                 (lambda (x y) (- (ulps x y) 1)))))))
 
 (define (exn:rival:invalid? e)
   (or (r2:exn:rival:invalid? e) (r3:exn:rival:invalid? e)))

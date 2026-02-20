@@ -7,7 +7,7 @@
          "../syntax/types.rkt"
          "../utils/errors.rkt")
 
-(provide ulp-difference
+(provide repr-ulps
          ulps->bits
          midpoint
          two-midpoints
@@ -20,26 +20,33 @@
          real->repr
          repr->real)
 
-(define (ulp-difference x y repr)
+(define (repr-ulps repr)
   (match (representation-type repr)
     ['array
      (define elem-repr (array-representation-elem repr))
-     (unless (and (vector? x) (vector? y))
-       (raise-herbie-error "Expected vector array values, got ~a and ~a" x y))
-     (unless (= (vector-length x) (vector-length y))
-       (raise-herbie-error "Mismatched array lengths for ulp-difference: ~a vs ~a"
-                           (vector-length x)
-                           (vector-length y)))
-     (for/sum ([x1 (in-vector x)] [y1 (in-vector y)]) (ulp-difference x1 y1 elem-repr))]
+     (define elem-ulps (repr-ulps elem-repr))
+     (lambda (x y)
+       (unless (and (vector? x) (vector? y))
+         (raise-herbie-error "Expected vector array values, got ~a and ~a" x y))
+       (unless (= (vector-length x) (vector-length y))
+         (raise-herbie-error "Mismatched array lengths for repr-ulps: ~a vs ~a"
+                             (vector-length x)
+                             (vector-length y)))
+       (for/sum ([x1 (in-vector x)] [y1 (in-vector y)])
+         (elem-ulps x1 y1)))]
     [_
-     (define ->ordinal (representation-repr->ordinal repr))
-     (define special? (representation-special-value? repr))
-     (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
-     (if (or (special? x) (special? y))
-         max-error
-         (if (eq? repr <binary64>)
-             (+ 1 (abs (flonums-between x y)))
-             (+ 1 (abs (- (->ordinal y) (->ordinal x))))))]))
+  (define ->ordinal (representation-repr->ordinal repr))
+  (define special? (representation-special-value? repr))
+  (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
+  (if (eq? repr <binary64>)
+      (lambda (x y)
+        (if (or (special? x) (special? y))
+            max-error
+            (+ 1 (abs (flonums-between x y)))))
+      (lambda (x y)
+        (if (or (special? x) (special? y))
+            max-error
+            (+ 1 (abs (- (->ordinal y) (->ordinal x)))))))]))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint

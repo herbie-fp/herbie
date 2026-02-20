@@ -43,16 +43,16 @@
 ;; Local error is high when `f` is highly sensitive to rounding error
 ;; in its inputs `x` and `y`.
 
-(define (local-error exact node repr get-exact)
+(define (local-error exact node ulps get-exact)
   (match node
     [(? literal?) 1]
     [(? symbol?) 1]
-    [(approx _ impl) (ulp-difference exact (get-exact impl) repr)]
+    [(approx _ impl) (ulps exact (get-exact impl))]
     [`(if ,c ,ift ,iff) 1]
     [(list f args ...)
      (define argapprox (map get-exact args))
      (define approx (apply (impl-info f 'fl) argapprox))
-     (ulp-difference exact approx repr)]))
+     (ulps exact approx)]))
 
 (define (make-matrix roots pcontext)
   (for/vector #:length (vector-length roots)
@@ -63,6 +63,7 @@
 (define (compute-local-errors subexprss ctx pcontext)
   (define exprs-list (append* subexprss)) ; unroll subexprss
   (define reprs-list (map (curryr repr-of ctx) exprs-list))
+  (define ulps-list (map repr-ulps reprs-list))
   (define ctx-list
     (for/list ([subexpr (in-list exprs-list)]
                [repr (in-list reprs-list)])
@@ -83,10 +84,10 @@
       (vector-ref exacts (vector-member (batchref-idx brf) roots)))
     (for ([expr (in-list exprs-list)]
           [brf brfs]
-          [repr (in-list reprs-list)]
+          [ulps (in-list ulps-list)]
           [exact (in-vector exacts)]
           [expr-idx (in-naturals)])
-      (define err (local-error exact (deref brf) repr get-exact))
+      (define err (local-error exact (deref brf) ulps get-exact))
       (vector-set! (vector-ref errs expr-idx) pt-idx err)))
 
   (define n 0)
@@ -117,6 +118,7 @@
   ;; And the real result
   (define spec-list (map prog->spec exprs-list))
   (define reprs-list (map (curryr repr-of ctx) exprs-list))
+  (define ulps-list (map repr-ulps reprs-list))
   (define ctx-list
     (for/list ([subexpr (in-list exprs-list)]
                [repr (in-list reprs-list)])
@@ -164,13 +166,13 @@
     (define pt* (vector-append pt (remove-infinities actuals reprs-list)))
     (define deltas (list->vector (delta-fn pt*)))
 
-    (for ([repr (in-list reprs-list)]
+    (for ([ulps (in-list ulps-list)]
           [brf brfs]
           [exact (in-vector exacts)]
           [actual (in-vector actuals)]
           [delta (in-vector deltas)]
           [expr-idx (in-naturals)])
-      (define ulp-err (local-error exact (deref brf) repr get-exact))
+      (define ulp-err (local-error exact (deref brf) ulps get-exact))
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref approx-out expr-idx) pt-idx actual)
       (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)
