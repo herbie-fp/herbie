@@ -163,7 +163,7 @@
         [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
 
   (define default-prec (dict-ref prop-dict ':precision (*default-precision*)))
-  (define-values default-repr (get-representation default-prec))
+  (define default-repr (get-representation default-prec))
 
   (define-values (var-names var-reprs)
     (for/lists (var-names var-reprs)
