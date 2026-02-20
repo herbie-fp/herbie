@@ -7,7 +7,7 @@
          "../syntax/types.rkt"
          "../utils/errors.rkt")
 
-(provide ulp-difference
+(provide repr-ulps
          ulps->bits
          midpoint
          two-midpoints
@@ -20,15 +20,19 @@
          real->repr
          repr->real)
 
-(define (ulp-difference x y repr)
+(define (repr-ulps repr)
   (define ->ordinal (representation-repr->ordinal repr))
   (define special? (representation-special-value? repr))
   (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
-  (if (or (special? x) (special? y))
-      max-error
-      (if (eq? repr <binary64>)
-          (+ 1 (abs (flonums-between x y)))
-          (+ 1 (abs (- (->ordinal y) (->ordinal x)))))))
+  (if (eq? repr <binary64>)
+      (lambda (x y)
+        (if (or (special? x) (special? y))
+            max-error
+            (+ 1 (abs (flonums-between x y)))))
+      (lambda (x y)
+        (if (or (special? x) (special? y))
+            max-error
+            (+ 1 (abs (- (->ordinal y) (->ordinal x))))))))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint

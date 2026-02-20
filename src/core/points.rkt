@@ -77,7 +77,7 @@
   (generate-errors fn pcontext ctx num-exprs))
 
 (define (generate-errors fn pcontext ctx num-exprs)
-  (define repr (context-repr ctx))
+  (define ulps (repr-ulps (context-repr ctx)))
 
   ;; This generates the errors array in reverse because that's how lists work
   (define num-points (pcontext-length pcontext))
@@ -87,5 +87,5 @@
     (define outs (fn point))
     (for ([out (in-vector outs)]
           [i (in-naturals)])
-      (vector-set! results i (cons (ulp-difference out exact repr) (vector-ref results i)))))
+      (vector-set! results i (cons (ulps out exact) (vector-ref results i)))))
   (vector->list results))
