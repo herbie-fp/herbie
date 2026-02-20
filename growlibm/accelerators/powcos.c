@@ -186,13 +186,17 @@ static inline int powcos_reduce_full(double x, double *r, double *z) {
   long double s = 4.0L * frac;
   int n_abs = (int)floorl(s + 0.5L);
   long double dist = fabsl(s - (long double)n_abs);
-  long double tol = 4.0L * (long double)err1 + 0x1p-68L;
+  long double tol = fmaxl(4.0L * (long double)err1 + 0x1p-68L, 0x1p-60L);
 
   if (dist <= tol) {
     return powcos_reduce_full_slow(x, r, z);
   }
 
   long double delta = (long double)(i - (n_abs << 9)) * 0x1p-11L + (long double)h + (long double)l;
+  /* Slow fallback is only needed very close to cos-zero crossings. */
+  if ((n_abs & 1) && fabsl(delta) < 0x1p-12L) {
+    return powcos_reduce_full_slow(x, r, z);
+  }
   long double rr = delta * two_pi;
   int n = n_abs;
 
