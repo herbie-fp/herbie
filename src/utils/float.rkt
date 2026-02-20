@@ -32,21 +32,20 @@
          (raise-herbie-error "Mismatched array lengths for repr-ulps: ~a vs ~a"
                              (vector-length x)
                              (vector-length y)))
-       (for/sum ([x1 (in-vector x)] [y1 (in-vector y)])
-         (elem-ulps x1 y1)))]
+       (for/sum ([x1 (in-vector x)] [y1 (in-vector y)]) (elem-ulps x1 y1)))]
     [_
-  (define ->ordinal (representation-repr->ordinal repr))
-  (define special? (representation-special-value? repr))
-  (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
-  (if (eq? repr <binary64>)
-      (lambda (x y)
-        (if (or (special? x) (special? y))
-            max-error
-            (+ 1 (abs (flonums-between x y)))))
-      (lambda (x y)
-        (if (or (special? x) (special? y))
-            max-error
-            (+ 1 (abs (- (->ordinal y) (->ordinal x)))))))]))
+     (define ->ordinal (representation-repr->ordinal repr))
+     (define special? (representation-special-value? repr))
+     (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
+     (if (eq? repr <binary64>)
+         (lambda (x y)
+           (if (or (special? x) (special? y))
+               max-error
+               (+ 1 (abs (flonums-between x y)))))
+         (lambda (x y)
+           (if (or (special? x) (special? y))
+               max-error
+               (+ 1 (abs (- (->ordinal y) (->ordinal x)))))))]))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint

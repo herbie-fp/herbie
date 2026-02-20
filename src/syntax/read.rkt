@@ -135,8 +135,7 @@
 
 (define (array-of dims elem)
   (cond
-    [(null? dims)
-     elem]
+    [(null? dims) elem]
     [else
      (define repr (make-array-representation #:elem elem #:dims dims))
      (define name (representation-name repr))
@@ -175,8 +174,7 @@
                   (define arg-prec (dict-ref prop-dict ':precision default-prec))
                   (define arg-repr (get-representation arg-prec))
                   (values name (array-of dims arg-repr))]
-                 [(list (? symbol? name) dims ...)
-                  (values name (array-of dims default-repr))]
+                 [(list (? symbol? name) dims ...) (values name (array-of dims default-repr))]
                  [(? symbol? name) (values name default-repr)])))
   (define ctx (context var-names default-repr var-reprs))
 

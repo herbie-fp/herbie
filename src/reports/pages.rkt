@@ -47,9 +47,9 @@
     ["timeline.json" (write-json (hash-ref result-hash 'timeline) out)]
     ["profile.json" (write-json (hash-ref result-hash 'profile) out)]
     ["points.json"
-     (write-json
-      (with-handlers ([exn:fail? (lambda _ '())])
-        (make-points-json result-hash) out))]))
+     (write-json (with-handlers ([exn:fail? (lambda _ '())])
+                   (make-points-json result-hash)
+                   out))]))
 
 (define (make-graph-html result-hash output? profile?)
   (define status (hash-ref result-hash 'status))
