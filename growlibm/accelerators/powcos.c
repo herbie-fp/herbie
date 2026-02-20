@@ -1,7 +1,134 @@
 #include <math.h>
+#include <stdint.h>
 #include "accelerators.h"
 
 int __ieee754_rem_pio2(double x, double *y);
+
+#if (defined(__clang__) && __clang_major__ >= 14) || \
+  (defined(__GNUC__) && __GNUC__ >= 14 && __BITINT_MAXWIDTH__ && __BITINT_MAXWIDTH__ >= 128)
+typedef unsigned _BitInt(128) u128;
+#else
+typedef unsigned __int128 u128;
+#endif
+
+typedef union {
+  double f;
+  uint64_t u;
+} b64u64_u;
+
+/* 1/(2*pi) approximated downward in 64-bit limbs, copied from cos.c. */
+static const uint64_t T[20] = {
+  0x28be60db9391054a, 0x7f09d5f47d4d3770, 0x36d8a5664f10e410,
+  0x7f9458eaf7aef158, 0x6dc91b8e909374b8, 0x01924bba82746487,
+  0x3f877ac72c4a69cf, 0xba208d7d4baed121, 0x3a671c09ad17df90,
+  0x4e64758e60d4ce7d, 0x272117e2ef7e4a0e, 0xc7fe25fff7816603,
+  0xfbcbc462d6829b47, 0xdb4d9fb3c9f2c26d, 0xd3d18fd9a797fa8b,
+  0x5d49eeb1faf97c5e, 0xcf41ce7de294a4ba, 0x9afed7ec47e35742,
+  0x1580cc11bf1edaea, 0xfc33ef0826bd0d87,
+};
+
+static inline void a_mul(double *hi, double *lo, double a, double b) {
+  *hi = a * b;
+  *lo = fma(a, b, -*hi);
+}
+
+/* h+l <- c1/2^64 + c0/2^128 */
+static void set_dd(double *h, double *l, uint64_t c1, uint64_t c0) {
+  uint64_t e, f, g;
+  b64u64_u t;
+
+  if (c1) {
+    e = __builtin_clzll(c1);
+    if (e) {
+      c1 = (c1 << e) | (c0 >> (64 - e));
+      c0 = c0 << e;
+    }
+    f = 0x3fe - e;
+    t.u = (f << 52) | ((c1 << 1) >> 12);
+    *h = t.f;
+    c0 = (c1 << 53) | (c0 >> 11);
+    if (c0) {
+      g = __builtin_clzll(c0);
+      if (g) c0 = c0 << g;
+      t.u = ((f - 53 - g) << 52) | ((c0 << 1) >> 12);
+      *l = t.f;
+    } else {
+      *l = 0.0;
+    }
+  } else if (c0) {
+    e = __builtin_clzll(c0);
+    f = 0x3fe - 64 - e;
+    c0 = c0 << (e + 1); // most significant bit shifted out
+    t.u = (f << 52) | (c0 >> 12);
+    *h = t.f;
+    c0 = c0 << 52;
+    if (c0) {
+      g = __builtin_clzll(c0);
+      c0 = c0 << (g + 1);
+      t.u = ((f - 64 - g) << 52) | (c0 >> 12);
+      *l = t.f;
+    } else {
+      *l = 0.0;
+    }
+  } else {
+    *h = *l = 0.0;
+  }
+}
+
+/* Fast reduction copied/adapted from cos.c::reduce_fast. */
+static int fast_reduce(double *h, double *l, double x, double *err1) {
+  if (__builtin_expect(x <= 0x1.921fb54442d17p+2, 1)) { // x < 2*pi
+#define CH 0x1.45f306dc9c883p-3
+#define CL -0x1.6b01ec5417056p-57
+    a_mul(h, l, CH, x);
+    *l = fma(CL, x, *l);
+    *err1 = 0x1.d9p-105 * *h;
+#undef CH
+#undef CL
+  } else {
+    b64u64_u t = {.f = x};
+    int e = (t.u >> 52) & 0x7ff;
+    uint64_t m = (1ull << 52) | (t.u & 0xfffffffffffffull);
+    uint64_t c[3];
+    u128 u;
+
+    if (e <= 1074) {
+      u = (u128)m * (u128)T[1];
+      c[0] = (uint64_t)u;
+      c[1] = (uint64_t)(u >> 64);
+      u = (u128)m * (u128)T[0];
+      c[1] += (uint64_t)u;
+      c[2] = (uint64_t)(u >> 64) + (c[1] < (uint64_t)u);
+      e = 1075 - e;
+    } else {
+      int i = (e - 1138 + 63) / 64;
+      u = (u128)m * (u128)T[i + 2];
+      c[0] = (uint64_t)u;
+      c[1] = (uint64_t)(u >> 64);
+      u = (u128)m * (u128)T[i + 1];
+      c[1] += (uint64_t)u;
+      c[2] = (uint64_t)(u >> 64) + (c[1] < (uint64_t)u);
+      u = (u128)m * (u128)T[i];
+      c[2] += (uint64_t)u;
+      e = 1139 + (i << 6) - e;
+    }
+
+    if (e == 64) {
+      c[0] = c[1];
+      c[1] = c[2];
+    } else {
+      c[0] = (c[1] << (64 - e)) | (c[0] >> e);
+      c[1] = (c[2] << (64 - e)) | (c[1] >> e);
+    }
+
+    set_dd(h, l, c[1], c[0]);
+    *err1 = 0x1.01p-76;
+  }
+
+  double i = floor(*h * 0x1p11);
+  *h = fma(i, -0x1p-11, *h);
+  return (int)i;
+}
 
 /*
  * Sollya scripts used for the polynomial generation:
@@ -31,7 +158,7 @@ static inline double powcos_clamp01(double x) {
   return x;
 }
 
-static inline int powcos_reduce_full(double x, double *r, double *z) {
+static inline int powcos_reduce_full_slow(double x, double *r, double *z) {
   double y[2];
   int n = __ieee754_rem_pio2(x, y);
   double zz = fma(y[0], y[0], fma(2.0 * y[0], y[1], y[1] * y[1]));
@@ -39,6 +166,44 @@ static inline int powcos_reduce_full(double x, double *r, double *z) {
   if (zz < 0.0) zz = 0.0;
   *r = y[0] + y[1];
   *z = zz;
+  return n;
+}
+
+static inline int powcos_reduce_full(double x, double *r, double *z) {
+  const long double two_pi = 0x1.921fb54442d18469898cc51701b8p+2L;
+  const double min_fast = 0x1.6a09e667f3bccp-27;
+  double ax = fabs(x);
+
+  if (ax <= min_fast) {
+    *r = x;
+    *z = x * x;
+    return 0;
+  }
+
+  double h, l, err1;
+  int i = fast_reduce(&h, &l, ax, &err1);
+  long double frac = (long double)i * 0x1p-11L + (long double)h + (long double)l;
+  long double s = 4.0L * frac;
+  int n_abs = (int)floorl(s + 0.5L);
+  long double dist = fabsl(s - (long double)n_abs);
+  long double tol = 4.0L * (long double)err1 + 0x1p-68L;
+
+  if (dist <= tol) {
+    return powcos_reduce_full_slow(x, r, z);
+  }
+
+  long double delta = (long double)(i - (n_abs << 9)) * 0x1p-11L + (long double)h + (long double)l;
+  long double rr = delta * two_pi;
+  int n = n_abs;
+
+  if (x < 0.0) {
+    rr = -rr;
+    n = -n_abs;
+  }
+
+  *r = (double)rr;
+  *z = (double)(rr * rr);
+  if (*z < 0.0) *z = 0.0;
   return n;
 }
 

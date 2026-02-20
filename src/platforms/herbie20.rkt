@@ -238,17 +238,3 @@
                   #:cost 256)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; CASTS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define-operation (binary64->binary32 [x <binary64>])
-                  <binary32>
-                  #:spec x
-                  #:fpcore (! :precision binary32 (cast x))
-                  #:impl flsingle
-                  #:cost 64)
-
-(define-operation (binary32->binary64 [x <binary32>])
-                  <binary64>
-                  #:spec x
-                  #:fpcore (! :precision binary64 (cast x))
-                  #:impl identity
-                  #:cost 64)
