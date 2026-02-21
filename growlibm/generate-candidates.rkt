@@ -241,9 +241,11 @@
 
 (log-info "canonical roots" (hash-count root-counts) report-dir)
 
-(for ([(root-expr mult) (in-hash root-counts)])
+(define subexpr-count 0)
 
+(for ([(root-expr mult) (in-hash root-counts)])
   (define subexprs (get-subexpressions root-expr))
+  (set! subexpr-count (+ subexpr-count (length subexprs)))
   (define filtered-subexprs
     (filter (lambda (n)
               (and (not (or (symbol? n) (literal? n) (number? n)))
@@ -252,8 +254,11 @@
             subexprs))
   (define alpha-renamed-subexprs (map alpha-rename filtered-subexprs))
   (define canonical-subexprs (run-egg alpha-renamed-subexprs))
-  (for ([c canonical-subexprs])
+  (define alpha-renamed-canonical-subexprs (map alpha-rename canonical-subexprs))
+  (for ([c alpha-renamed-canonical-subexprs])
     (hash-update! candidate-counts c (lambda (old) (+ old mult)) 0)))
+
+(log-info "total subexprs" subexpr-count report-dir)
 
 (log-info "canonical subexprs" (hash-count candidate-counts) report-dir)
 
