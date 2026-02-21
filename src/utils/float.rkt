@@ -157,14 +157,9 @@
   (parameterize ([bf-precision (representation-total-bits repr)])
     (match (representation-type repr)
       ['array
-       (define len (apply * (array-representation-dims repr)))
-       (define vals
-         (cond
-           [(vector? x) x]
-           [else (make-vector len x)]))
-       ((representation-bf->repr repr) (for/vector #:length len
-                                                   ([v (in-vector vals)])
-                                         (bf v)))]
+       (define elem-repr (array-representation-elem repr))
+       (for/vector ([v (in-vector x)])
+         (real->repr v elem-repr))]
       ['real ((representation-bf->repr repr) (bf x))]
       ['bool x])))
 
