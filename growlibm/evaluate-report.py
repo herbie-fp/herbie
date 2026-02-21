@@ -88,7 +88,8 @@ html_content = f"""
     <meta charset="UTF-8">
     <title>{platform}</title>
 </head>
-<body>    
+<body>
+    <h1> {platform} </h1>    
     <h2>Evaluation</h2>
     <ul>
         {accuracy_html}

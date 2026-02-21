@@ -56,7 +56,7 @@ minimal-distribution:
 
 nightly:
 	make compile-accelerators
-	make evaluate-basilisk
+	make evaluate-coolprop
 
 time-ops:
 	make compile-accelerators
