@@ -8,13 +8,17 @@
          (except-in "platform-language.rkt" quasisyntax))
 (provide assert-program-typed!)
 
-(define (precision->reprs prec-name)
-  (define repr (get-representation prec-name))
-  (define scalar-repr
-    (if (array-representation? repr)
-        (array-representation-elem repr)
-        repr))
-  (values repr scalar-repr (representation-name scalar-repr)))
+(define (precision->repr prec)
+  (unless (symbol? prec)
+    (raise-herbie-error "Invalid :precision ~a; expected a real representation name" prec))
+  (define repr (get-representation prec))
+  (unless (equal? (representation-type repr) 'real)
+    (raise-herbie-error "Invalid :precision ~a; expected a real representation name" prec))
+  repr)
+
+(define (precision->reprs prec)
+  (define repr (precision->repr prec))
+  (values repr repr (representation-name repr)))
 
 (define (normalize-prop-dict dict)
   (define-values (_1 _2 scalar-name) (precision->reprs (dict-ref dict ':precision)))
@@ -30,6 +34,18 @@
                           " ")
              (type->string (array-representation-elem t)))]
     [else (~a t)]))
+
+(define (type->semantic t)
+  (cond
+    [(array-representation? t)
+     (for/fold ([ty (type->semantic (array-representation-elem t))])
+               ([d (in-list (reverse (array-representation-dims t)))])
+       `(array ,ty ,d))]
+    [(representation? t) (representation-name t)]
+    [else t]))
+
+(define (types-match? a b)
+  (equal? (type->semantic a) (type->semantic b)))
 
 (define (flatten-type t)
   (cond
@@ -95,7 +111,7 @@
   (define expected (context-repr ctx))
   (define (comparable? a b)
     (equal? (array-representation? a) (array-representation? b)))
-  (when (and expected (comparable? repr expected) (not (equal? repr expected)))
+  (when (and expected (comparable? repr expected) (not (types-match? repr expected)))
     (error! stx
             "Expected program of type ~a, got type ~a"
             (type->string expected)
@@ -137,8 +153,6 @@
                    (type->string base)
                    (type->string t))))
        (array-of (cons (length elem-types) base-dims) base)]))
-  (define (types-match? a b)
-    (equal? a b))
   (define (id->sym x)
     (if (syntax? x)
         (syntax-e x)
@@ -329,8 +343,12 @@
     (check-fails <b64> #'(ref x 0) #:env `((x . ,<b64>))))
 
   ;; Array precision should normalize to element precision for typing
-  (check-not-exn (lambda ()
-                   (assert-program-typed! #'(FPCore () :precision arraybinary64-2 (array 1.0 2.0)))))
+  (check-exn exn:fail?
+             (lambda ()
+               (assert-program-typed! #'(FPCore () :precision arraybinary64-2 (array 1.0 2.0)))))
+  (check-exn exn:fail?
+             (lambda ()
+               (assert-program-typed! #'(FPCore () :precision (array binary64 2) (array 1.0 2.0)))))
   (check-not-exn (lambda ()
                    (assert-program-typed! #'(FPCore () :precision binary64 (array 1.0 2.0)))))
   (check-not-exn (lambda () (assert-program-typed! #'(FPCore ((v 3)) :precision binary64 (ref v 2)))))

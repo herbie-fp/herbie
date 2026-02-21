@@ -212,7 +212,7 @@
   #:fpcore (! :precision binary64 (ref arr idx))
   #:cost 0.2)
 
-(define-operation (ref.f64 [arr <array64r2>] [idx <binary64>]) <array64>
+(define-operation (ref.r2.f64 [arr <array64r2>] [idx <binary64>]) <array64>
   #:spec (ref arr idx)
   #:impl (lambda (arr idx)
            (vector-ref arr (inexact->exact (round idx))))
