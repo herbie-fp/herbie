@@ -32,7 +32,6 @@ racket -y "src/main.rkt" report \
         --seed "$SEED" \
         --dump-exprs \
         --platform "grow" \
-        --num-enodes "8000" \
         --disable "generate:taylor" \
         --disable "generate:evaluate" \
         "$BENCHDIR" \
@@ -63,7 +62,6 @@ racket -y "src/main.rkt" report \
         --seed "$SEED" \
         --platform "grow" \
         --threads 4 \
-        --num-enodes "8000" \
         --disable "generate:taylor" \
         --disable "generate:evaluate" \
         "$BENCHDIR" \
