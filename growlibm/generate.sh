@@ -12,7 +12,7 @@ REPORTDIR="reports"
 
 rustup update
 make install
-BENCHDIR="bench/orbitalMotion.fpcore"
+BENCHDIR="bench/helmholtz.fpcore"
 NUM_ITERS=2
 NUM_CANDIDATES=1000
 NUM_ADD=20
@@ -63,6 +63,7 @@ racket -y "src/main.rkt" report \
         --seed "$SEED" \
         --platform "grow" \
         --threads 4 \
+        --num-enodes "8000" \
         --disable "generate:taylor" \
         --disable "generate:evaluate" \
         "$BENCHDIR" \
