@@ -25,15 +25,8 @@
     ['array
      (define elem-repr (array-representation-elem repr))
      (define elem-ulps (repr-ulps elem-repr))
-     (lambda (x y)
-       (unless (and (vector? x) (vector? y))
-         (raise-herbie-error "Expected vector array values, got ~a and ~a" x y))
-       (unless (= (vector-length x) (vector-length y))
-         (raise-herbie-error "Mismatched array lengths for repr-ulps: ~a vs ~a"
-                             (vector-length x)
-                             (vector-length y)))
-       (for/sum ([x1 (in-vector x)] [y1 (in-vector y)]) (elem-ulps x1 y1)))]
-    [_
+     (lambda (x y) (for/sum ([x1 (in-vector x)] [y1 (in-vector y)]) (elem-ulps x1 y1)))]
+    [(or 'real 'bool)
      (define ->ordinal (representation-repr->ordinal repr))
      (define special? (representation-special-value? repr))
      (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
@@ -53,17 +46,11 @@
   (match (representation-type repr)
     ['array
      (define elem-repr (array-representation-elem repr))
-     (unless (and (vector? p1) (vector? p2))
-       (raise-herbie-error "Expected vector array values, got ~a and ~a" p1 p2))
-     (unless (= (vector-length p1) (vector-length p2))
-       (raise-herbie-error "Mismatched array lengths for midpoint: ~a vs ~a"
-                           (vector-length p1)
-                           (vector-length p2)))
      (for/vector #:length (vector-length p1)
                  ([x1 (in-vector p1)]
                   [y1 (in-vector p2)])
        (midpoint x1 y1 elem-repr))]
-    [_
+    [(or 'real 'bool)
      ((representation-ordinal->repr repr) (floor (/ (+ ((representation-repr->ordinal repr) p1)
                                                        ((representation-repr->ordinal repr) p2))
                                                     2)))]))
@@ -96,7 +83,7 @@
                  ([i (in-range len)])
        (random-generate elem-repr))]
     ['bool (zero? (random-integer 0 2))]
-    [_
+    ['real
      (define bits (sub1 (representation-total-bits repr)))
      ((representation-ordinal->repr repr) (random-integer (- (expt 2 bits)) (expt 2 bits)))]))
 
@@ -171,31 +158,18 @@
        (define len (apply * (array-representation-dims repr)))
        (define vals
          (cond
-           [(vector? x)
-            (unless (= (vector-length x) len)
-              (error 'real->repr
-                     "Expected vector of length ~a for ~a, got ~a"
-                     len
-                     (representation-name repr)
-                     x))
-            x]
-           [(real? x) (make-vector len x)]
-           [else
-            (error 'real->repr
-                   "Expected real or vector input for ~a, got ~a"
-                   (representation-name repr)
-                   x)]))
+           [(vector? x) x]
+           [else (make-vector len x)]))
        ((representation-bf->repr repr) (for/vector #:length len
                                                    ([v (in-vector vals)])
                                          (bf v)))]
-      [_ ((representation-bf->repr repr) (bf x))])))
+      [(or 'real 'bool) ((representation-bf->repr repr) (bf x))])))
 
 (define (repr->real x repr)
-  (match x
-    [(? boolean?) x]
-    [_
-     (match (representation-type repr)
-       ['array
-        (for/vector ([v (in-vector ((representation-repr->bf repr) x))])
-          (bigfloat->real v))]
-       [_ (bigfloat->real ((representation-repr->bf repr) x))])]))
+  (match (representation-type repr)
+    ['array
+     (define elem-repr (array-representation-elem repr))
+     (for/vector ([v (in-vector x)])
+       (repr->real v elem-repr))]
+    ['real (bigfloat->real ((representation-repr->bf repr) x))]
+    ['bool x]))
