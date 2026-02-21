@@ -14,23 +14,12 @@
 ;;   - output assembler (flattened outputs -> original outputs)
 ;;   - flattened output reprs
 (define (flatten-arrays-for-rival specs ctxs pre)
-  (define maybe-array-representation-elem
-    (with-handlers ([exn:fail? (lambda (_) #f)])
-      (dynamic-require "../syntax/types.rkt" 'array-representation-elem)))
-  (define maybe-array-representation-dims
-    (with-handlers ([exn:fail? (lambda (_) #f)])
-      (dynamic-require "../syntax/types.rkt" 'array-representation-dims)))
-
   (define (array-repr? repr)
     (eq? (representation-type repr) 'array))
   (define (array-repr-elem repr who)
-    (if maybe-array-representation-elem
-        (maybe-array-representation-elem repr)
-        (error who "array representations are unsupported in this build")))
+    (array-representation-elem repr))
   (define (array-repr-size repr who)
-    (if maybe-array-representation-dims
-        (apply * (maybe-array-representation-dims repr))
-        (error who "array representations are unsupported in this build")))
+    (apply * (array-representation-dims repr)))
 
   (define (scalar-expr v who)
     (match v

@@ -184,10 +184,6 @@
                  (check-properties* props (immutable-bound-id-set '()) error!)
                  (unless (identifier? name)
                    (error! var "Annotated argument ~a is not a variable name" name))
-                 (when (null? dims)
-                   (error! var "Array variables must have rank at least 1"))
-                 (when (> (length dims) 1)
-                   (error! var "Only rank-1 arrays are currently supported"))
                  (for ([dim (in-list dims)])
                    (check-dimension dim error!))
                  (sow name)]
@@ -196,8 +192,6 @@
                    (error! var "Invalid argument name ~a" name))
                  (when (null? dims)
                    (error! var "Array variables must have rank at least 1"))
-                 (when (> (length dims) 1)
-                   (error! var "Only rank-1 arrays are currently supported"))
                  (for ([dim (in-list dims)])
                    (check-dimension dim error!))
                  (sow name)]
@@ -264,4 +258,4 @@
   (check-pred null? (get-errs #'(FPCore (x) (array 1 2 3))))
   (check-pred null? (get-errs #'(FPCore (x) (ref (array 1 2) 2))))
   (check-pred null? (get-errs #'(FPCore ((v 3)) v)))
-  (check-pred (compose not null?) (get-errs #'(FPCore ((v 2 2)) v))))
+  (check-pred null? (get-errs #'(FPCore ((v 2 2)) v))))

@@ -37,8 +37,8 @@
     [else (values t '())]))
 
 (define (array-of dims elem)
-  (unless (and (list? dims) (= (length dims) 1) (andmap exact-positive-integer? dims))
-    (error 'array-of "Arrays currently support rank-1 positive dimensions, got ~a" dims))
+  (unless (and (list? dims) (not (null? dims)) (andmap exact-positive-integer? dims))
+    (error 'array-of "Arrays require one or more positive dimensions, got ~a" dims))
   (define repr (make-array-representation #:elem elem #:dims dims))
   (define name (representation-name repr))
   (define existing (and (repr-exists? name) (get-representation name)))
@@ -130,8 +130,6 @@
        (array-of '(1) (current-repr current-dict))]
       [else
        (define-values (base base-dims) (flatten-type (first elem-types)))
-       (unless (null? base-dims)
-         (error! stx "Only rank-1 arrays are currently supported"))
        (for ([t (in-list (rest elem-types))])
          (define-values (elem elem-dims) (flatten-type t))
          (unless (and (equal? elem base) (equal? elem-dims base-dims))
@@ -139,7 +137,7 @@
                    "Array elements have mismatched types: ~a vs ~a"
                    (type->string base)
                    (type->string t))))
-       (array-of (list (length elem-types)) base)]))
+       (array-of (cons (length elem-types) base-dims) base)]))
   (define (types-match? a b)
     (equal? a b))
   (define (id->sym x)
@@ -217,7 +215,9 @@
           (define len (first dims))
           (when (and (integer? raw) (or (< raw 0) (>= raw len)))
             (error! idx "Array index ~a out of bounds for length ~a" raw len))
-          elem]
+          (if (= (length dims) 1)
+              elem
+              (array-of (cdr dims) elem))]
          [_
           (error! stx "ref expects an array, got ~a" (type->string arr-type))
           (current-repr prop-dict)])]

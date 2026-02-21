@@ -64,8 +64,8 @@
   (representation name 'real bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value?))
 
 (define (make-array-representation #:elem elem-repr #:dims dims)
-  (unless (and (list? dims) (= (length dims) 1) (andmap exact-positive-integer? dims))
-    (raise-herbie-error "Arrays currently support rank-1 positive dimensions, got ~a" dims))
+  (unless (and (list? dims) (not (null? dims)) (andmap exact-positive-integer? dims))
+    (raise-herbie-error "Arrays require one or more positive dimensions, got ~a" dims))
   (define name
     (string->symbol
      (format "array~a-~a" (representation-name elem-repr) (string-join (map ~a dims) "x"))))
