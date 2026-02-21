@@ -26,7 +26,8 @@
      (define elem-repr (array-representation-elem repr))
      (define elem-ulps (repr-ulps elem-repr))
      (lambda (x y) (for/sum ([x1 (in-vector x)] [y1 (in-vector y)]) (elem-ulps x1 y1)))]
-    [(or 'real 'bool)
+    ['bool (lambda (x y) (if (equal? x y) 1 2))]
+    ['real
      (define ->ordinal (representation-repr->ordinal repr))
      (define special? (representation-special-value? repr))
      (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
@@ -50,7 +51,8 @@
                  ([x1 (in-vector p1)]
                   [y1 (in-vector p2)])
        (midpoint x1 y1 elem-repr))]
-    [(or 'real 'bool)
+    ['bool (and p1 p2)]
+    ['real
      ((representation-ordinal->repr repr) (floor (/ (+ ((representation-repr->ordinal repr) p1)
                                                        ((representation-repr->ordinal repr) p2))
                                                     2)))]))
@@ -163,7 +165,8 @@
        ((representation-bf->repr repr) (for/vector #:length len
                                                    ([v (in-vector vals)])
                                          (bf v)))]
-      [(or 'real 'bool) ((representation-bf->repr repr) (bf x))])))
+      ['real ((representation-bf->repr repr) (bf x))]
+      ['bool x])))
 
 (define (repr->real x repr)
   (match (representation-type repr)
