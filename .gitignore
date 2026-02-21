@@ -30,3 +30,8 @@ herbie-compiled/
 .vscode/
 .worktrees
 PROJ_source/
+
+tmp
+out
+benchmark
+tball.fpcore
