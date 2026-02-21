@@ -17,22 +17,8 @@
          *context*
          context-extend
          context-lookup
-         define-type
          make-representation
          make-array-representation)
-
-;; Types
-
-(define type-dict (make-hasheq))
-(define (type-name? x)
-  (hash-has-key? type-dict x))
-
-(define-syntax-rule (define-type name _ ...)
-  (hash-set! type-dict 'name #t))
-
-(define-type real)
-(define-type bool)
-(define-type array)
 
 ;; Representations
 
