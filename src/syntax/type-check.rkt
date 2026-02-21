@@ -94,8 +94,7 @@
   (define repr (expression->type stx props ctx error!))
   (define expected (context-repr ctx))
   (define (comparable? a b)
-    (or (and (representation? a) (representation? b))
-        (and (array-representation? a) (array-representation? b))))
+    (equal? (array-representation? a) (array-representation? b)))
   (when (and expected (comparable? repr expected) (not (equal? repr expected)))
     (error! stx
             "Expected program of type ~a, got type ~a"
@@ -332,6 +331,8 @@
   ;; Array precision should normalize to element precision for typing
   (check-not-exn (lambda ()
                    (assert-program-typed! #'(FPCore () :precision arraybinary64-2 (array 1.0 2.0)))))
+  (check-not-exn (lambda ()
+                   (assert-program-typed! #'(FPCore () :precision binary64 (array 1.0 2.0)))))
   (check-not-exn (lambda () (assert-program-typed! #'(FPCore ((v 3)) :precision binary64 (ref v 2)))))
   (check-not-exn (lambda ()
                    (assert-program-typed! #'(FPCore ((a 3) (b 3))

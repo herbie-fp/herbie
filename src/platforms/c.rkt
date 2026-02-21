@@ -130,6 +130,7 @@
 
 (define-representation <binary64> #:cost 64bit-move-cost)
 (define <array64> (make-array-representation #:elem <binary64> #:dims '(2)))
+(define <array64r2> (make-array-representation #:elem <array64> #:dims '(2)))
 
 (define-operation (if.f64 [c <bool>] [t <binary64>] [f <binary64>]) <binary64>
   #:spec (if c t f) #:impl if-impl
@@ -190,11 +191,18 @@
   [trunc.f64  #:spec (trunc x)  #:impl (from-libm 'trunc)     #:cost 0.250])
 
 (define-representation <array64> #:cost (* 2 64bit-move-cost))
+(define-representation <array64r2> #:cost (* 2 64bit-move-cost))
 
 (define-operation (array.f64 [x <binary64>] [y <binary64>]) <array64>
   #:spec (array x y)
   #:impl (lambda (a b) (vector a b))
   #:fpcore (! :precision binary64 (array x y))
+  #:cost 0.25)
+
+(define-operation (array2.f64 [x <array64>] [y <array64>]) <array64r2>
+  #:spec (array x y)
+  #:impl (lambda (a b) (vector a b))
+  #:fpcore (array x y)
   #:cost 0.25)
 
 (define-operation (ref.f64 [arr <array64>] [idx <binary64>]) <binary64>
@@ -203,6 +211,14 @@
            (vector-ref arr (inexact->exact (round idx))))
   #:fpcore (! :precision binary64 (ref arr idx))
   #:cost 0.2)
+
+(define-operation (ref.f64 [arr <array64r2>] [idx <binary64>]) <array64>
+  #:spec (ref arr idx)
+  #:impl (lambda (arr idx)
+           (vector-ref arr (inexact->exact (round idx))))
+  #:fpcore (! :precision binary64 (ref arr idx))
+  #:cost 0.2)
+
 
 (define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (! :precision binary64 _)
   [pow.f64       #:spec (pow x y)       #:impl (from-libm 'pow)       #:cost 2.000]
