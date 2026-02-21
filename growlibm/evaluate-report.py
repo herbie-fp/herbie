@@ -13,6 +13,8 @@ if platform == "proj":
     accelerators = ["sinprod", "cosprod", "sinquot", "cosquot", "log1pmd", "invgud", "hypot", "verdcos"]
 elif platform == "basilisk":
     accelerators = ["powcos", "powcos2", "powcos4", "powcos6", "ncos1p"]
+elif platform == "coolprop":
+    accelerators = ["pow1ms"]
 else:
     accelerators = []
 

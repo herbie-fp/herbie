@@ -18,7 +18,7 @@
 (define-runtime-module-path growlibmbest-platform "../../growlibm/platforms/growlibmbest.rkt")
 (define-runtime-module-path proj-platform "../../growlibm/platforms/proj.rkt")
 (define-runtime-module-path basilisk-platform "../../growlibm/platforms/basilisk.rkt")
-
+(define-runtime-module-path coolprop-platform "../../growlibm/platforms/coolprop.rkt")
 
 
 (define default-platforms
@@ -47,7 +47,9 @@
         "proj"
         proj-platform
         "basilisk"
-        basilisk-platform))
+        basilisk-platform
+        "coolprop"
+        coolprop-platform))
 
 (define platforms (make-hash))
 

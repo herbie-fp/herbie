@@ -331,3 +331,32 @@ double verdcos(double x){
 double ncos1p(double z0) {
 	return tan((0.5 * z0)) * sin(z0);
 }
+
+double pow1ms(double x, double y) {
+	// (1 - x)^2 = 1 + x * (x - 2); use log1p for accuracy near 1.
+	if (y == 0.0) {
+		return 1.0;
+	}
+
+	double ax = fabs(x);
+	if (ax > 0x1.0p+511) {
+		// Avoid overflow in x*(x-2); use log|1-x| = log|x| + log|1-1/x|.
+		double inv = 1.0 / x;
+		double log_base = 2.0 * (log(ax) + log1p(-inv));
+		return exp(y * log_base);
+	}
+
+	double xm2_hi, xm2_lo;
+	unsorted_two_sum(x, -2.0, &xm2_hi, &xm2_lo);
+
+	double prod_hi = x * xm2_hi;
+	double prod_lo = fma(x, xm2_hi, -prod_hi);
+	double delta = prod_hi + fma(x, xm2_lo, prod_lo);
+
+	if (delta < -1.0) {
+		delta = -1.0;
+	}
+
+	double log_base = log1p(delta);
+	return exp(y * log_base);
+}

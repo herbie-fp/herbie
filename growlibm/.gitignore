@@ -1,3 +1,5 @@
 chassis_tuning/
 benchmark
 drivers/
+
+libaccelerators.dylib

@@ -68,6 +68,9 @@ evaluate-proj:
 evaluate-basilisk:
 	bash growlibm/evaluate.sh bench/orbital-motion.fpcore reports basilisk 
 
+evaluate-coolprop:
+	bash growlibm/evaluate.sh bench/helmholtz.fpcore reports coolprop 
+
 compile-accelerators:
 	clang $(LIB_FLAGS) -O3 -o growlibm/accelerators/libaccelerators.$(LIB_EXT) \
 		growlibm/accelerators/accelerators.c \

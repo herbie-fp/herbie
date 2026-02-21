@@ -19,6 +19,7 @@ double powcos2(double x);
 double powcos4(double x);
 double powcos6(double x);
 double ncos1p(double x);
+double pow1ms(double x, double y);
 
 #ifdef __cplusplus
 }

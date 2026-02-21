@@ -5,12 +5,12 @@ import sys
 NUM_RUNS = 250
 BASE_DIR = "growlibm/timing"
 unary_accelerators = ['log1pmd', 'invgud', 'verdcos', 'powcos2', 'powcos4', 'powcos6']
-binary_accelerators = ['sinprod', 'cosprod', 'sinquot', 'cosquot', 'hypot', 'powcos']
+binary_accelerators = ['sinprod', 'cosprod', 'sinquot', 'cosquot', 'hypot', 'powcos', 'pow1ms']
 unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'exp2', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc'] + unary_accelerators
 binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', 'fmod', 'pow', 'remainder'] + binary_accelerators
 # to_test = ['sin_xy', 'cos_xy', 'sin_quotient_xy', 'cos_quotient_xy', 'sin', 'cos', '/']
 #'log', 'log1pmd', 'invgud', 'hypot', 'verdcos', 'sin', 'cos', 'sinprod', 'cosprod',
-to_test =  ['powcos', 'pow', 'cos', 'powcos2', 'powcos4', 'powcos6']
+to_test =  ['pow', 'cos', 'pow1ms']
 class FPCore(object):
     def __init__(self, core, arity) -> None:
         self.arity = arity

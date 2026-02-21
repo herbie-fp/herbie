@@ -29,3 +29,8 @@ herbie-compiled/
 .worktrees
 
 .vscode/
+
+benchmark
+tmp
+out
+tball.fpcore
