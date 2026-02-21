@@ -154,14 +154,15 @@
              (loop (+ precision 4))))]))) ; 2^4 > 10
 
 (define (real->repr x repr)
-  (parameterize ([bf-precision (representation-total-bits repr)])
-    (match (representation-type repr)
-      ['array
-       (define elem-repr (array-representation-elem repr))
-       (for/vector ([v (in-vector x)])
-         (real->repr v elem-repr))]
-      ['real ((representation-bf->repr repr) (bf x))]
-      ['bool x])))
+  (match (representation-type repr)
+    ['array
+     (define elem-repr (array-representation-elem repr))
+     (for/vector ([v (in-vector x)])
+       (real->repr v elem-repr))]
+    ['real
+     (parameterize ([bf-precision (representation-total-bits repr)])
+       ((representation-bf->repr repr) (bf x)))]
+    ['bool x]))
 
 (define (repr->real x repr)
   (match (representation-type repr)
