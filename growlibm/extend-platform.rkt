@@ -21,6 +21,8 @@
 
 (define implication-threshold 0.5)
 (define top-k (string->number (vector-ref (current-command-line-arguments) 1)))
+(define implication-seed (string->number (vector-ref (current-command-line-arguments) 2)))
+(disable-flag! 'generate 'taylor)
 
 ;;; ------------------------- HELPERS ---------------------------------
 (define (register-op! platform fpcore name cost)
@@ -46,19 +48,17 @@
                          #:seed [seed #f]
                          #:name [name "scratch"]
                          #:precision [precision (*default-precision*)])
-  (parameterize ([*active-platform* platform])
-    (define test (expr->test expr #:name name #:precision precision))
-    (define result (run-herbie 'improve test #:seed seed))
-    (disable-flag! 'generate 'taylor)
-    (match (job-result-status result)
-      ['success
-       (define backend (job-result-backend result))
-       (define end (improve-result-end backend))
-       (define end-best (first end))
-       (define final-error (errors-score (alt-analysis-errors end-best)))
-       final-error]
-      [_
-       (raise-arguments-error 'run-herbie-expr "Herbie run failed" "expr" expr)])))
+  (define test (expr->test expr #:name name #:precision precision))
+  (define result (run-herbie 'improve test #:seed seed #:platform platform))
+  (match (job-result-status result)
+    ['success
+     (define backend (job-result-backend result))
+     (define end (improve-result-end backend))
+     (define end-best (first end))
+     (define final-error (errors-score (alt-analysis-errors end-best)))
+     final-error]
+    [_
+     (raise-arguments-error 'run-herbie-expr "Herbie run failed" "expr" expr)]))
 
 (define (add-accelerator cand)
   (define name (candidate-name cand))
@@ -192,7 +192,7 @@
     (for ([cand-b (in-list top-cands)]
           #:unless (equal? (candidate-name cand-b) name-a))
 
-      (define err (run-herbie-expr (candidate-spec cand-b) platform-a))
+      (define err (run-herbie-expr (candidate-spec cand-b) platform-a #:seed implication-seed))
       (define diff (- (candidate-error cand-b) err))
       (define original-err (candidate-error cand-b))
       (define improvement-ratio
@@ -214,17 +214,24 @@
                        (for/and ([other all-names])
                          (if (and (reaches? other name) (not (reaches? name other)))
                              #f #t))))
+  
   (define source-names (filter is-source? all-names))
-  (define unique-names (remove-duplicates source-names (lambda (a b) (reaches? a b))))
 
+  (define sorted-source-names
+    (sort source-names
+          (lambda (a b)
+            (> ((lambda (x) (candidate-score x)) (hash-ref name->struct a))
+               ((lambda (x) (candidate-score x)) (hash-ref name->struct b))))))
+  
+  (define unique-names (remove-duplicates sorted-source-names (lambda (a b) (reaches? a b))))
   (map (lambda (name) (hash-ref name->struct name)) unique-names))
 
 (define to-add (get-final-candidate-structs top-cands implied-by))
 
 (define new-json-entries
   (for/list ([cand (in-list to-add)])
-    (add-accelerator cand) 
-    (hash 'name (candidate-name cand) 
+    (add-accelerator cand)
+    (hash 'name (candidate-name cand)
           'spec (format "~a" (candidate-spec cand)))))
 
 (define current-file-content
