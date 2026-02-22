@@ -56,32 +56,17 @@
   (parameterize ([*global-batch* (batch-empty)])
     (define global-spec-batch (batch-empty))
     (define spec-reducer (batch-reduce global-spec-batch))
-    (define array-program?
-      (or (array-representation? (repr-of initial context))
-          (for/or ([repr (in-list (context-var-reprs context))])
-            (array-representation? repr))
-          (for/or ([expr (in-list (list initial specification))])
-            (for/or ([subexpr (in-list (all-subexpressions expr))])
-              (match subexpr
-                [(list (or 'array 'ref) _ ...) #t]
-                [_ #f])))))
 
     (*preprocessing* preprocessing)
     (define initial-brf (batch-add! (*global-batch*) initial))
     (*start-brf* initial-brf)
     (define start-alt (alt initial-brf 'start '()))
 
-    (define alternatives
-      (if array-program?
-          (begin
-            (timeline-push! 'stop "array" 1)
-            (unbatchify-alts (*global-batch*) (list start-alt)))
-          (begin
-            (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
-            (for ([_ (in-range (*num-iterations*))]
-                  #:break (atab-completed? (^table^)))
-              (run-iteration! global-spec-batch spec-reducer))
-            (extract!))))
+    (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
+    (for ([_ (in-range (*num-iterations*))]
+          #:break (atab-completed? (^table^)))
+      (run-iteration! global-spec-batch spec-reducer))
+    (define alternatives (extract!))
     (timeline-event! 'preprocess)
     (for/list ([altn alternatives])
       (define expr (alt-expr altn))
