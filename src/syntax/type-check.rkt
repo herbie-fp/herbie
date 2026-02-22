@@ -50,7 +50,7 @@
     [else (values t '())]))
 
 (define (array-of1 dim elem)
-  (define repr (make-array-representation #:elem elem #:dims (list dim)))
+  (define repr (make-array-representation #:elem elem #:len dim))
   (define name (representation-name repr))
   (define existing (and (repr-exists? name) (get-representation name)))
   (or existing repr))
@@ -232,14 +232,11 @@
          (error! idx "Array index must be a literal integer, got ~a" idx))
        (match arr-type
          [(? array-representation?)
-          (define dims (array-representation-dims arr-type))
+          (define len (array-representation-len arr-type))
           (define elem (array-representation-elem arr-type))
-          (define len (first dims))
           (when (and (integer? raw) (or (< raw 0) (>= raw len)))
             (error! idx "Array index ~a out of bounds for length ~a" raw len))
-          (if (null? (cdr dims))
-              elem
-              (array-of (cdr dims) elem))]
+          elem]
          [_
           (error! stx "ref expects an array, got ~a" (type->string arr-type))
           (current-repr prop-dict)])]

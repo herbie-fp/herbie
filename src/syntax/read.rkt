@@ -137,7 +137,7 @@
   (cond
     [(null? dims) elem]
     [else
-     (define repr (make-array-representation #:elem elem #:dims (list (first dims))))
+     (define repr (make-array-representation #:elem elem #:len (first dims)))
      (define name (representation-name repr))
      (define existing (and (repr-exists? name) (get-representation name)))
      (array-of (rest dims) (or existing repr))]))

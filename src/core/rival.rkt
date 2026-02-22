@@ -277,7 +277,7 @@
 (module+ test
   (require rackunit)
   (define <b64> <binary64>)
-  (define arr-repr (make-array-representation #:elem <b64> #:dims '(3)))
+  (define arr-repr (make-array-representation #:elem <b64> #:len 3))
   (define arr-ctx (context '(v) arr-repr (list arr-repr)))
   (define-values (specs* ctxs* pre* _assemble-pt _assemble-out reprs*)
     (flatten-arrays-for-rival (list 'v) (list arr-ctx) 'TRUE))
