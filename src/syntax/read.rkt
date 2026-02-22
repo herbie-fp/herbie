@@ -133,6 +133,23 @@
      (dict-ref dict ':herbie-platform #f)]
     [_ #f]))
 
+(define (array-of dims elem)
+  (cond
+    [(null? dims) elem]
+    [else
+     (define repr (make-array-representation #:elem elem #:len (first dims)))
+     (define name (representation-name repr))
+     (define existing (and (repr-exists? name) (get-representation name)))
+     (array-of (rest dims) (or existing repr))]))
+
+(define (precision->real-repr prec)
+  (unless (symbol? prec)
+    (raise-herbie-error "Invalid :precision ~a; expected a real representation name" prec))
+  (define repr (get-representation prec))
+  (unless (equal? (representation-type repr) 'real)
+    (raise-herbie-error "Invalid :precision ~a; expected a real representation name" prec))
+  repr)
+
 (define (parse-test stx)
   (assert-program! stx)
   (define stx* (expand-core stx))
@@ -154,19 +171,19 @@
         [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
 
   (define default-prec (dict-ref prop-dict ':precision (*default-precision*)))
+  (define default-repr (precision->real-repr default-prec))
 
-  (define-values (var-names var-precs)
-    (for/lists (var-names var-precs)
+  (define-values (var-names var-reprs)
+    (for/lists (var-names var-reprs)
                ([var (in-list args)])
                (match var
-                 [(list '! props ... name)
+                 [(list '! props ... name dims ...)
                   (define prop-dict (props->dict props))
                   (define arg-prec (dict-ref prop-dict ':precision default-prec))
-                  (values name arg-prec)]
-                 [(? symbol? name) (values name default-prec)])))
-
-  (define default-repr (get-representation default-prec))
-  (define var-reprs (map get-representation var-precs))
+                  (define arg-repr (precision->real-repr arg-prec))
+                  (values name (array-of dims arg-repr))]
+                 [(list (? symbol? name) dims ...) (values name (array-of dims default-repr))]
+                 [(? symbol? name) (values name default-repr)])))
   (define ctx (context var-names default-repr var-reprs))
 
   ;; Named fpcores need to be added to function table

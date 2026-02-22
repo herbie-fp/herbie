@@ -141,7 +141,8 @@
                [var (in-list exact-var-names)])
       (match (representation-type repr)
         ['bool 0] ; We can't subtract booleans so ignore them
-        ['real `(fabs (- ,spec ,var))])))
+        ['real `(fabs (- ,spec ,var))]
+        [_ 0])))
   (define-values (compare-batch compare-brfs) (progs->batch compare-specs))
   (define delta-fn (eval-progs-real compare-batch compare-brfs (map (const delta-ctx) compare-specs)))
 

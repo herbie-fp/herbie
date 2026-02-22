@@ -217,7 +217,12 @@
   (define start-altns
     (for/list ([brf brfs])
       (alt brf 'patch '())))
-
+  (define free-vars (batch-free-vars batch))
+  (define scalar-only-altns
+    (for/list ([altn (in-list start-altns)]
+               #:when (for/and ([var (in-set (free-vars (alt-expr altn)))])
+                        (not (array-representation? (context-lookup (*context*) var)))))
+      altn))
   (define evaluations
     (if (flag-set? 'generate 'evaluate)
         (run-evaluate start-altns batch)
@@ -225,8 +230,8 @@
 
   ; Series expand
   (define approximations
-    (if (flag-set? 'generate 'taylor)
-        (run-taylor start-altns batch spec-batch reducer)
+    (if (and (flag-set? 'generate 'taylor) (pair? scalar-only-altns))
+        (run-taylor scalar-only-altns batch spec-batch reducer)
         '()))
 
   ; Recursive rewrite
