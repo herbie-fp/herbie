@@ -22,9 +22,9 @@
   "../src/core/programs.rkt"
   "../src/syntax/syntax.rkt"
   "../src/reports/common.rkt"
-  "../src/syntax/platform-language.rkt")
+  "../src/utils/common.rkt")
 
-(activate-platform! "herbie10")
+(activate-platform! "no-accelerators")
 
 ;;; (define expr '(*.f64 (cos.f64 (*.f64 #s(literal -6.2831854820251465 binary64) z0)) (sqrt.f64 z1)))
 ;;; (define cost-proc (platform-cost-proc (*active-platform*)))
@@ -122,33 +122,78 @@
 
 ;;; (void (run-herbie-expr '(cbrt (/ (+ (sqrt (* (+ z2 z1) (- z1 z2))) z1) z0))))
 
-(define (register-op! platform fpcore name cost)
-  (parameterize ([*active-platform* platform])
-    (define impl (fpcore->prog fpcore (get-ctx fpcore)))
-    (define spec (prog->spec impl))
-    (define ctx (get-ctx spec))
-    (define vars (context-vars ctx))
-    (define name* (string->symbol name))
+;;; (define (register-op! platform fpcore name cost)
+;;;   (parameterize ([*active-platform* platform])
+;;;     (define impl (fpcore->prog fpcore (get-ctx fpcore)))
+;;;     (define spec (prog->spec impl))
+;;;     (define ctx (get-ctx spec))
+;;;     (define vars (context-vars ctx))
+;;;     (define name* (string->symbol name))
 
-    (define op-impl
-      (create-operator-impl!
-       name*
-       ctx
-       #:spec spec
-       #:impl (from-rival)
-       #:fpcore `(! :precision binary64 (,name* ,@vars))
-       #:cost cost))
-    (platform-register-implementation! platform op-impl)
-    (void)))
+;;;     (define op-impl
+;;;       (create-operator-impl!
+;;;        name*
+;;;        ctx
+;;;        #:spec spec
+;;;        #:impl (from-rival)
+;;;        #:fpcore `(! :precision binary64 (,name* ,@vars))
+;;;        #:cost cost))
+;;;     (platform-register-implementation! platform op-impl)
+;;;     (void)))
 
 (define base-platform (platform-copy (*active-platform*)))
 
-(define (implies expr1 expr2)
-  (define platform-a (platform-copy base-platform))
-  (register-op! platform-a expr1 "expr1" 0)
-  (define err1 (run-herbie-expr expr2 platform-a))
-  (define err2 (run-herbie-expr expr2 base-platform))
+;;; (define (implies expr1 expr2)
+;;;   (define platform-a (platform-copy base-platform))
+;;;   (register-op! platform-a expr1 "expr1" 0)
+;;;   (define before-err1 (run-herbie-expr expr2 base-platform))
+;;;   (define after-err1 (run-herbie-expr expr2 platform-a))
+  
+;;;   (define platform-b (platform-copy base-platform))
+;;;   (register-op! platform-b expr2 "expr2" 0)
+;;;   (define before-err2 (run-herbie-expr expr1 base-platform))
+;;;   (define after-err2 (run-herbie-expr expr1 platform-b))
+  
+;;;   (displayln (format "~a, before: ~a, after: ~a" expr2 before-err1 after-err1))
+;;;   (displayln (format "~a, before: ~a, after: ~a" expr1 before-err2 after-err2)))
 
-  (displayln (format "~a ~a" err2 err1)))
+;;; (implies '(* 2 z0) '(z0 2))
 
-(implies '(sin (/ x y)) '(+ (sin (/ x y)) x))
+(define expr1 '(if.f64 (or (>.f64 (fabs.f64 g) #s(literal 0 binary64)) (>.f64 (fabs.f64 (cos.f64 (+.f64 phi0 (/.f64 y esp)))) #s(literal 0 binary64))) (atan2.f64 g (cos.f64 (+.f64 phi0 (/.f64 y esp)))) #s(literal 0 binary64)))
+
+(define (eliminate-ifs expr)
+  (define comparison-bases
+    '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64
+            <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
+  (define (comparison-op? op) (member op comparison-bases))
+
+  (define (pure-math? e)
+    (let check ([e e])
+      (match e
+        [(or `(if.f32 ,_ ,_ ,_)
+             `(if.f64 ,_ ,_ ,_)) #f]
+        [(list (? comparison-op?) _ _) #f]
+        [(list _ args ...)
+         (andmap check args)]
+        [_ #t])))
+
+  (reap [sow]
+        (let loop ([expr expr])
+          (match expr
+            [(or `(if ,test ,t ,f)
+                 `(if.f32 ,test ,t ,f)
+                 `(if.f64 ,test ,t ,f))
+             (loop test) (loop t) (loop f)]
+
+            [(list (? comparison-op?) lhs rhs)
+             (loop lhs) (loop rhs)]
+
+            [(list op args ...)
+             (if (pure-math? expr)
+                 (sow expr)
+                 (for ([arg args])
+                   (loop arg)))]
+
+            [_ (void)]))))
+
+(displayln (eliminate-ifs expr1))
