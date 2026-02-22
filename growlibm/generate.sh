@@ -54,7 +54,7 @@ for ((i = 0; i < $NUM_ITERS; i++)) do
             "$REPORTDIR/candidates.txt" \
             "$REPORTDIR/iter$i" 
 
-    racket -y "growlibm/extend-platform.rkt"  "$REPORTDIR/iter$i/results.json" $NUM_ADD
+    racket -y "growlibm/extend-platform.rkt"  "$REPORTDIR/iter$i/results.json" $NUM_ADD $SEED
 done
 
 # run herbie again with expanded platform

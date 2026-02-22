@@ -192,13 +192,27 @@
   (map (compose batch-pull first) batchrefss))
 
 (define (alpha-rename impl)
-  (define free-vars (sort (free-variables impl) symbol<?))
-  (define varDict
-    (for/hash ([v free-vars]
-               [i (in-naturals)])
-      (values v (string->symbol (format "z~a" i)))))
-  (define impl* (replace-vars varDict impl))
-  impl*)
+  ; Canonicalize variable names by first-use order so alpha-equivalent
+  ; expressions (e.g. (/ z1 z0) and (/ z0 z1)) normalize the same way.
+  (define seen-vars (make-hash))
+  (define next-var-idx 0)
+
+  (define (rename-var v)
+    (hash-ref! seen-vars v
+               (lambda ()
+                 (define fresh (string->symbol (format "z~a" next-var-idx)))
+                 (set! next-var-idx (add1 next-var-idx))
+                 fresh)))
+
+  (let loop ([expr impl])
+    (match expr
+      [(? number?) expr]
+      [(? literal?) expr]
+      [(? symbol?) (rename-var expr)]
+      [(approx spec impl*) (approx (loop spec) (loop impl*))]
+      [(hole precision spec) (hole precision (loop spec))]
+      [(list op args ...) (cons op (map loop args))]
+      [_ expr])))
 
 (define (ctx-union ctxs)
   (define vars '())
@@ -213,9 +227,14 @@
 
 (define (to-fpcore-str pair)
   (define expr (car pair))
-  (define vars (sort (free-variables expr) symbol<?))
+  (define vars (free-variables expr))
   (define ctx (get-ctx expr))
   (format "(FPCore ~a ~a)" vars (prog->fpcore expr ctx)))
+
+(define (candidate-expr? n)
+  (and (not (or (symbol? n) (literal? n) (number? n)))
+       (> (length (free-variables n)) 0)
+       (< (length (free-variables n)) 4)))
 
 (define (log-info name number report-dir)
   (with-output-to-file (string-append report-dir "/info.txt")
@@ -246,15 +265,11 @@
 (for ([(root-expr mult) (in-hash root-counts)])
   (define subexprs (get-subexpressions root-expr))
   (set! subexpr-count (+ subexpr-count (length subexprs)))
-  (define filtered-subexprs
-    (filter (lambda (n)
-              (and (not (or (symbol? n) (literal? n) (number? n)))
-                   (> (length (free-variables n)) 0)
-                   (< (length (free-variables n)) 4)))
-            subexprs))
+  (define filtered-subexprs (filter candidate-expr? subexprs))
   (define alpha-renamed-subexprs (map alpha-rename filtered-subexprs))
   (define canonical-subexprs (run-egg alpha-renamed-subexprs))
-  (define alpha-renamed-canonical-subexprs (map alpha-rename canonical-subexprs))
+  (define alpha-renamed-canonical-subexprs
+    (filter candidate-expr? (map alpha-rename canonical-subexprs)))
   (for ([c alpha-renamed-canonical-subexprs])
     (hash-update! candidate-counts c (lambda (old) (+ old mult)) 0)))
 
@@ -262,7 +277,23 @@
 
 (log-info "canonical subexprs" (hash-count candidate-counts) report-dir)
 
-(define cand-count-pairs (hash->list candidate-counts))
+(define cand-count-pairs-raw (hash->list candidate-counts))
+
+(define cand-count-pairs
+  (cond
+    [(null? cand-count-pairs-raw) '()]
+    [else
+     (define exprs (map car cand-count-pairs-raw))
+     (define counts (map cdr cand-count-pairs-raw))
+     (define global-canonical (map alpha-rename (run-egg exprs)))
+     (define globally-deduplicated-counts (make-hash))
+     (for ([c global-canonical]
+           [count counts]
+           #:when (candidate-expr? c))
+       (hash-update! globally-deduplicated-counts c (lambda (old) (+ old count)) 0))
+     (hash->list globally-deduplicated-counts)]))
+
+(log-info "globally deduplicated subexprs" (length cand-count-pairs) report-dir)
 
 (define sorted-cand-count-pairs (sort cand-count-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
 
