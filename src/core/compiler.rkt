@@ -23,11 +23,7 @@
   (define rootlen (vector-length rootvec))
   (define vregs (make-vector (vector-length ivec)))
   (define (compiled-prog args*)
-    (define args**
-      (if (vector? args*)
-          args*
-          (vector args*)))
-    (vector-copy! args 0 args**)
+    (vector-copy! args 0 args*)
     (for ([instr (in-vector ivec)]
           [n (in-naturals)])
       (vector-set! vregs n (apply-instruction instr vregs)))
@@ -64,11 +60,7 @@
           (define idx (index-of vars n))
           (batch-push! out (list (λ () (vector-ref args idx))))]
          [(literal value (app get-representation repr))
-          (define repr*
-            (if (and (not (vector? value)) (array-representation? repr))
-                (array-representation-base repr)
-                repr))
-          (batch-push! out (list (const (real->repr value repr*))))]
+          (batch-push! out (list (const (real->repr value repr))))]
          [(list op args ...)
           (batch-push! out (cons (impl-info op 'fl) (map (compose batchref-idx recurse) args)))]))))
   (values out (map f brfs)))
