@@ -22,7 +22,7 @@
 
 (define (repr-ulps repr)
   (match (representation-type repr)
-    [(or 'array `(array ,_ ,_))
+    [`(array ,_ ,_)
      (define elem-repr (array-representation-elem repr))
      (define elem-ulps (repr-ulps elem-repr))
      (lambda (x y) (for/sum ([x1 (in-vector x)] [y1 (in-vector y)]) (elem-ulps x1 y1)))]
@@ -50,7 +50,7 @@
 ;; not the real-valued midpoint
 (define (midpoint p1 p2 repr)
   (match (representation-type repr)
-    [(or 'array `(array ,_ ,_))
+    [`(array ,_ ,_)
      (define elem-repr (array-representation-elem repr))
      (for/vector #:length (vector-length p1)
                  ([x1 (in-vector p1)]
@@ -83,7 +83,7 @@
 
 (define (random-generate repr)
   (match (representation-type repr)
-    [(or 'array `(array ,_ ,_))
+    [`(array ,_ ,_)
      (define elem-repr (array-representation-elem repr))
      (define len (array-representation-size repr))
      (for/vector #:length len
@@ -115,7 +115,7 @@
     [(? vector?)
      (define elem-repr
        (match (representation-type repr)
-         [(or 'array `(array ,_ ,_)) (array-representation-elem repr)]
+         [`(array ,_ ,_) (array-representation-elem repr)]
          [_ repr]))
      (for/list ([v (in-vector x)])
        (value->json v elem-repr))]
@@ -136,7 +136,7 @@
     [(? list?)
      (define elem-repr
        (match (representation-type repr)
-         [(or 'array `(array ,_ ,_)) (array-representation-elem repr)]
+         [`(array ,_ ,_) (array-representation-elem repr)]
          [_ repr]))
      (list->vector (for/list ([v (in-list x)])
                      (json->value v elem-repr)))]
@@ -174,7 +174,7 @@
 
 (define (real->repr x repr)
   (match (representation-type repr)
-    [(or 'array `(array ,_ ,_))
+    [`(array ,_ ,_)
      (define elem-repr (array-representation-elem repr))
      (for/vector ([v (in-vector x)])
        (real->repr v elem-repr))]
@@ -185,7 +185,7 @@
 
 (define (repr->real x repr)
   (match (representation-type repr)
-    [(or 'array `(array ,_ ,_))
+    [`(array ,_ ,_)
      (define elem-repr (array-representation-elem repr))
      (for/vector ([v (in-vector x)])
        (repr->real v elem-repr))]

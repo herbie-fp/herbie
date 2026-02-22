@@ -57,15 +57,9 @@
     (define global-spec-batch (batch-empty))
     (define spec-reducer (batch-reduce global-spec-batch))
     (define array-program?
-      (or (match (representation-type (repr-of initial context))
-            ['array #t]
-            [`(array ,_ ,_) #t]
-            [_ #f])
+      (or (array-representation? (repr-of initial context))
           (for/or ([repr (in-list (context-var-reprs context))])
-            (match (representation-type repr)
-              ['array #t]
-              [`(array ,_ ,_) #t]
-              [_ #f]))
+            (array-representation? repr))
           (for/or ([expr (in-list (list initial specification))])
             (for/or ([subexpr (in-list (all-subexpressions expr))])
               (match subexpr

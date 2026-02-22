@@ -65,11 +65,8 @@
           (batch-push! out (list (λ () (vector-ref args idx))))]
          [(literal value (app get-representation repr))
           (define repr*
-            (if (not (vector? value))
-                (match (representation-type repr)
-                  ['array (array-representation-base repr)]
-                  [`(array ,_ ,_) (array-representation-base repr)]
-                  [_ repr])
+            (if (and (not (vector? value)) (array-representation? repr))
+                (array-representation-base repr)
                 repr))
           (batch-push! out (list (const (real->repr value repr*))))]
          [(list op args ...)

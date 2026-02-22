@@ -15,18 +15,6 @@
 ;;   - output assembler (flattened outputs -> original outputs)
 ;;   - flattened output reprs
 (define (flatten-arrays-for-rival specs ctxs pre)
-  (define (array-repr? repr)
-    (match (representation-type repr)
-      ['array #t]
-      [`(array ,_ ,_) #t]
-      [_ #f]))
-  (define (array-repr-elem repr who)
-    (array-representation-base repr))
-  (define (array-repr-size repr who)
-    (array-representation-size repr))
-  (define (array-repr-shape repr who)
-    (array-representation-shape repr))
-
   (define (build-array-expr dims elems who)
     (define (loop dims elems)
       (define d (first dims))
@@ -156,10 +144,10 @@
   (for ([v orig-vars]
         [r orig-var-reprs])
     (cond
-      [(array-repr? r)
+      [(array-representation? r)
        (define base (symbol->string v))
-       (define len (array-repr-size r 'flatten-arrays-for-rival))
-       (define shape (array-repr-shape r 'flatten-arrays-for-rival))
+       (define len (array-representation-size r))
+       (define shape (array-representation-shape r))
        (define vars
          (for/list ([_ (in-range len)])
            (define vi (fresh base))
@@ -167,8 +155,7 @@
            vi))
        (hash-set! env v (build-array-expr shape vars 'flatten-arrays-for-rival))
        (set! new-vars (append new-vars vars))
-       (set! new-var-reprs
-             (append new-var-reprs (make-list len (array-repr-elem r 'flatten-arrays-for-rival))))]
+       (set! new-var-reprs (append new-var-reprs (make-list len (array-representation-base r))))]
       [else
        (hash-set! env v `(scalar ,v))
        (set! new-vars (append new-vars (list v)))
@@ -193,15 +180,15 @@
         [`(array ,_ ...) #t]
         [_ #f]))
     (cond
-      [(or (array-repr? repr) lowered-array?)
+      [(or (array-representation? repr) lowered-array?)
        (define comps (flatten-array-components lowered 'flatten-arrays-for-rival))
        (define elem-repr
-         (if (array-repr? repr)
-             (array-repr-elem repr 'flatten-arrays-for-rival)
+         (if (array-representation? repr)
+             (array-representation-base repr)
              repr))
        (define shape
-         (if (array-repr? repr)
-             (array-repr-shape repr 'flatten-arrays-for-rival)
+         (if (array-representation? repr)
+             (array-representation-shape repr)
              (array-expr-shape lowered)))
        (set! output-shapes (append output-shapes (list shape)))
        (set! new-specs (append new-specs comps))
@@ -215,8 +202,8 @@
     (for/list ([ctx (in-list ctxs)])
       (define repr (context-repr ctx))
       (context new-vars
-               (if (array-repr? repr)
-                   (array-repr-elem repr 'flatten-arrays-for-rival)
+               (if (array-representation? repr)
+                   (array-representation-base repr)
                    repr)
                new-var-reprs)))
 
@@ -231,8 +218,8 @@
           (list->vector (for/list ([_ (in-range d)])
                           (assemble-array (rest dims))))))
     (list->vector (for/list ([r (in-list orig-var-reprs)])
-                    (if (array-repr? r)
-                        (assemble-array (array-repr-shape r 'assemble-point))
+                    (if (array-representation? r)
+                        (assemble-array (array-representation-shape r))
                         (begin0 (vector-ref pt idx)
                           (set! idx (add1 idx)))))))
 
