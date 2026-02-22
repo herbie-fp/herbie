@@ -12,7 +12,7 @@ REPORTDIR="reports"
 
 rustup update
 make install
-BENCHDIR="bench/helmholtz.fpcore"
+BENCHDIR="bench/graphics/pbrt.fpcore"
 NUM_ITERS=2
 NUM_CANDIDATES=1000
 NUM_ADD=20
