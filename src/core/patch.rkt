@@ -224,6 +224,7 @@
   (define start-altns
     (for/list ([brf brfs])
       (alt brf 'patch '())))
+
   (define evaluations
     (if (flag-set? 'generate 'evaluate)
         (run-evaluate start-altns batch)

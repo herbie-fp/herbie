@@ -59,7 +59,7 @@ jobs:
           racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs0
           racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs1
           racket infra/diff.rkt graphs0 graphs1
-        
+
       - name: "Run Herbie on array benchmarks"
         run: racket -l herbie improve bench/arrays /tmp/out.fpcore
       - name: "Run Herbie with egglog"

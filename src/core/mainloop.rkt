@@ -61,8 +61,8 @@
     (define initial-brf (batch-add! (*global-batch*) initial))
     (*start-brf* initial-brf)
     (define start-alt (alt initial-brf 'start '()))
-
     (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
+
     (for ([_ (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
       (run-iteration! global-spec-batch spec-reducer))
