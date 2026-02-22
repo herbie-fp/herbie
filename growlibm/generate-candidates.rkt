@@ -5,19 +5,13 @@
   "../src/syntax/sugar.rkt"
   "../src/core/programs.rkt"
   "../src/syntax/syntax.rkt"
-  "../src/utils/common.rkt"
   "growlibm-common.rkt"
   "../src/api/sandbox.rkt"
   "../src/syntax/types.rkt"
   "../src/core/points.rkt"
   "../src/syntax/batch.rkt"
   "../src/core/egg-herbie.rkt"
-  "../src/syntax/load-platform.rkt"
-  "../src/syntax/types.rkt"
   "../src/syntax/platform.rkt"
-  "../src/syntax/sugar.rkt"
-  "../src/core/programs.rkt"
-  "../src/syntax/syntax.rkt"
   "../src/utils/common.rkt"
   "../src/utils/errors.rkt")
 
@@ -26,7 +20,6 @@
 (*node-limit* 50000)
 (define report-dir (vector-ref (current-command-line-arguments) 0))
 (define candidate-num (string->number (vector-ref (current-command-line-arguments) 1)))
-
 (define err-threshold 0.1)
 
 ;;; ------------------------- HELPERS ---------------------------------
@@ -70,38 +63,6 @@
 
             [_ (void)]))))
 
-;;; (define (get-subexpressions expr)
-;;;   (define comparison-bases '(<.f64 <=.f64 >.f64 >=.f64 ==.f64 !=.f64 <.f32 <=.f32 >.f32 >=.f32 ==.f32 !=.f32))
-;;;   (define (comparison-op? op)
-;;;     (and (symbol? op)
-;;;          (member op comparison-bases)))
-;;;   (define subexprs
-;;;     (reap [sow]
-;;;           (let loop ([expr expr])
-;;;             (match expr
-;;;               [(or `(if ,test ,t ,f)
-;;;                    `(if.f32 ,test ,t ,f)
-;;;                    `(if.f64 ,test ,t ,f))
-;;;                (loop test)
-;;;                (loop t)
-;;;                (loop f)]
-;;;               [(approx _ impl)
-;;;                (loop impl)]
-;;;               [(list (? comparison-op?) lhs rhs)
-;;;                (loop lhs)
-;;;                (loop rhs)]
-;;;               [_
-;;;                (sow expr)
-;;;                (match expr
-;;;                  [(? number?) (void)]
-;;;                  [(? literal?) (void)]
-;;;                  [(? symbol?) (void)]
-;;;                  [(list _ args ...)
-;;;                   (for ([arg args])
-;;;                     (loop arg))]
-;;;                  [_ (void)])]))))
-;;;   subexprs)
-
 (define (get-subexpressions expr)
   (define subexprs
     (reap [sow]
@@ -124,50 +85,6 @@
                  [_ (void)])]))))
   subexprs)
 
-(define (push-holes expr)
-  (reap [sow]
-    (let loop ([current-expr expr]
-               [context (lambda (hole) hole)]) 
-
-      (match current-expr
-        [(list op args ...)
-         (define candidate (context 'hole))
-         
-         (cond
-           [(and (not (eq? candidate 'hole))
-                 (> (get-error candidate) err-threshold))
-            (sow candidate)
-
-            (when (> (get-error current-expr) err-threshold)
-              (for ([arg args] [i (in-naturals)])
-                (loop arg (lambda (h) 
-                            (cons op (list-set args i h))))))]
-           [else
-            (for ([arg args] [i (in-naturals)])
-              (loop arg (lambda (h) 
-                          (context (cons op (list-set args i h))))))])]
-
-        [_ (void)]))))
-
-(define (push-holes-exhaustive expr)
-  (reap [sow]
-    (let loop ([current-expr expr]
-               [context (lambda (hole) hole)]) 
-      (match current-expr
-        [(list op args ...)
-         (define candidate (context 'hole))
-         
-         ;; 1. Check current level
-         (when (and (not (eq? candidate 'hole))
-                    (> (get-error candidate) err-threshold))
-           (sow candidate))
-
-         ;; 2. ALWAYS recurse (No 'else', no stopping)
-         (for ([arg args] [i (in-naturals)])
-           (loop arg (lambda (h) 
-                       (context (cons op (list-set args i h))))))]
-        [_ (void)]))))
-
 (define (get-error expr)
   (with-handlers ([exn:fail:user:herbie:sampling? (lambda (exn) (displayln (format "Error getting error for expr ~a: ~a" expr exn)) 0)])
     (*num-points* 100)
@@ -185,34 +102,18 @@
   (define-values (batch brfs)
     (progs->batch exprs))
   (define runner (make-egraph batch brfs (map context-repr ctxs) schedule (ctx-union ctxs)))
-  ;;;   (define egglog-runner (make-egglog-runner batch brfs (map context-repr ctxs) schedule (ctx-union ctxs)))
   (define batchrefss (egraph-best runner batch))
-  ;;;   (define batchrefss (run-egglog egglog-runner batch #:extract 1000000))
   (define batch-pull (batch-exprs batch))
   (map (compose batch-pull first) batchrefss))
 
 (define (alpha-rename impl)
-  ; Canonicalize variable names by first-use order so alpha-equivalent
-  ; expressions (e.g. (/ z1 z0) and (/ z0 z1)) normalize the same way.
-  (define seen-vars (make-hash))
-  (define next-var-idx 0)
-
-  (define (rename-var v)
-    (hash-ref! seen-vars v
-               (lambda ()
-                 (define fresh (string->symbol (format "z~a" next-var-idx)))
-                 (set! next-var-idx (add1 next-var-idx))
-                 fresh)))
-
-  (let loop ([expr impl])
-    (match expr
-      [(? number?) expr]
-      [(? literal?) expr]
-      [(? symbol?) (rename-var expr)]
-      [(approx spec impl*) (approx (loop spec) (loop impl*))]
-      [(hole precision spec) (hole precision (loop spec))]
-      [(list op args ...) (cons op (map loop args))]
-      [_ expr])))
+  (define free-vars(free-variables impl))
+  (define varDict
+    (for/hash ([v free-vars]
+               [i (in-naturals)])
+      (values v (string->symbol (format "z~a" i)))))
+  (define impl* (replace-vars varDict impl))
+  impl*)
 
 (define (ctx-union ctxs)
   (define vars '())
@@ -242,81 +143,57 @@
     #:exists 'append))
 
 ;;; ------------------------- MAIN PIPELINE ---------------------------------
-(define root-counts (make-hash))
-(define candidate-counts (make-hash))
-
-(define roots (file->list (string-append report-dir "/expr_dump.txt")))
-(log-info "roots" (length roots) report-dir)
-
-(define pure-math (append* (map eliminate-ifs roots)))
-
-(log-info "no-ifs" (length pure-math) report-dir)
-
-(define alpha-renamed (map alpha-rename pure-math))
-(define canonical (run-egg alpha-renamed))
-
-(for ([c canonical])
-  (hash-update! root-counts c add1 0))
-
-(log-info "canonical roots" (hash-count root-counts) report-dir)
-
+(define root-count-hash (make-hash))
+(define candidate-count-hash (make-hash))
+(define canonical-candidate-count-hash (make-hash))
 (define subexpr-count 0)
 
-(for ([(root-expr mult) (in-hash root-counts)])
-  (define subexprs (get-subexpressions root-expr))
+(define roots (file->list (string-append report-dir "/expr_dump.txt")))
+(define roots-no-conditionals (append* (map eliminate-ifs roots)))
+(define canonical-roots (map alpha-rename (run-egg (map alpha-rename roots-no-conditionals))))
+
+(for ([c canonical-roots])
+  (hash-update! root-count-hash c add1 0))
+
+(for ([(root-expr root-count) (in-hash root-count-hash)])
+  (define subexprs (alpha-rename (get-subexpressions root-expr)))
   (set! subexpr-count (+ subexpr-count (length subexprs)))
-  (define filtered-subexprs (filter candidate-expr? subexprs))
-  (define alpha-renamed-subexprs (map alpha-rename filtered-subexprs))
-  (define canonical-subexprs (run-egg alpha-renamed-subexprs))
-  (define alpha-renamed-canonical-subexprs
-    (filter candidate-expr? (map alpha-rename canonical-subexprs)))
-  (for ([c alpha-renamed-canonical-subexprs])
-    (hash-update! candidate-counts c (lambda (old) (+ old mult)) 0)))
+  (for ([c subexprs])
+    (hash-update! candidate-count-hash c (lambda (old) (+ old root-count)) 0)))
 
-(log-info "total subexprs" subexpr-count report-dir)
+(define canonical-candidates (map alpha-rename (run-egg (hash-keys candidate-count-hash))))
 
-(log-info "canonical subexprs" (hash-count candidate-counts) report-dir)
+(for ([candidate canonical-candidates]
+      [cand-count (in-hash-values candidate-count-hash)])
+  (hash-update! canonical-candidate-count-hash candidate (lambda (old) (+ old cand-count)) 0))
 
-(define cand-count-pairs-raw (hash->list candidate-counts))
-
-(define cand-count-pairs
-  (cond
-    [(null? cand-count-pairs-raw) '()]
-    [else
-     (define exprs (map car cand-count-pairs-raw))
-     (define counts (map cdr cand-count-pairs-raw))
-     (define global-canonical (map alpha-rename (run-egg exprs)))
-     (define globally-deduplicated-counts (make-hash))
-     (for ([c global-canonical]
-           [count counts]
-           #:when (candidate-expr? c))
-       (hash-update! globally-deduplicated-counts c (lambda (old) (+ old count)) 0))
-     (hash->list globally-deduplicated-counts)]))
-
-(log-info "globally deduplicated subexprs" (length cand-count-pairs) report-dir)
-
-(define sorted-cand-count-pairs (sort cand-count-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
-
-(define full-cands (map (lambda (c) (format "~a, ~a\n" (prog->fpcore (car c) (get-ctx (car c))) (cdr c))) sorted-cand-count-pairs))
-
-(with-output-to-file (string-append report-dir "/full-candidates.txt")
-  (lambda () (for-each display full-cands))
-  #:exists 'replace)
-
-(define top-pairs (take sorted-cand-count-pairs (min (length sorted-cand-count-pairs) (* 2 candidate-num))))
-
-(define filtered-pairs (filter (lambda (x) (> (get-error (car x)) 0.1)) top-pairs))
-
-(log-info "filtered pairs" (length filtered-pairs) report-dir)
+(define pairs-raw (hash->list canonical-candidate-count-hash))
+(define filtered-pairs (filter (lambda (x) (candidate-expr? (car x))) pairs-raw))
+(define filtered-pairs* (filter (lambda (x) (> (cdr x) 1)) filtered-pairs))
+(define sorted-pairs (sort filtered-pairs* (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
+(define top-pairs (take sorted-pairs (min (length sorted-pairs) (* 2 candidate-num))))
+(define final-pairs (filter (lambda (x) (> (get-error (car x)) err-threshold)) top-pairs))
 
 ;; Output
-(define final-output (take filtered-pairs (min (length filtered-pairs) candidate-num)))
+(log-info "roots" (length roots) report-dir)
+(log-info "roots no conditionals" (length roots-no-conditionals) report-dir)
+(log-info "canonical roots" (hash-count root-count-hash) report-dir)
+(log-info "subexpressions" subexpr-count report-dir)
+(log-info "canonical subexpressions" (hash-count canonical-candidate-count-hash) report-dir)
+
+(define final-output (take final-pairs (min (length final-pairs) candidate-num)))
 (define fpcores-out (map to-fpcore-str final-output))
 (define counts-out (map (lambda (p) (cons (prog->fpcore (car p) (get-ctx (car p))) (cdr p)))
                         final-output))
 
 (define costs-out (map (lambda (p) (cons (prog->fpcore (car p) (get-ctx (car p))) (get-cost (car p))))
                        final-output))
+
+(define full-cands-out (map (lambda (c) (format "~a, ~a\n" (prog->fpcore (car c) (get-ctx (car c))) (cdr c))) sorted-pairs))
+
+(with-output-to-file (string-append report-dir "/full-candidates.txt")
+  (lambda () (for-each display full-cands-out))
+  #:exists 'replace)
 
 (with-output-to-file (string-append report-dir "/counts.rkt")
   (lambda () (display counts-out))
