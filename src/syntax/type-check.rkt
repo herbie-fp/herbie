@@ -29,18 +29,15 @@
     [(representation? t) (~a (representation-name t))]
     [(array-representation? t)
      (format "array[~a] of ~a"
-             (string-join (for/list ([d (array-representation-dims t)])
+             (string-join (for/list ([d (array-representation-shape t)])
                             (~a d))
                           " ")
-             (type->string (array-representation-elem t)))]
+             (type->string (array-representation-base t)))]
     [else (~a t)]))
 
 (define (type->semantic t)
   (cond
-    [(array-representation? t)
-     (for/fold ([ty (type->semantic (array-representation-elem t))])
-               ([d (in-list (reverse (array-representation-dims t)))])
-       `(array ,ty ,d))]
+    [(array-representation? t) (representation-type t)]
     [(representation? t) (representation-name t)]
     [else t]))
 
@@ -49,16 +46,20 @@
 
 (define (flatten-type t)
   (cond
-    [(array-representation? t) (values (array-representation-elem t) (array-representation-dims t))]
+    [(array-representation? t) (values (array-representation-base t) (array-representation-shape t))]
     [else (values t '())]))
+
+(define (array-of1 dim elem)
+  (define repr (make-array-representation #:elem elem #:dims (list dim)))
+  (define name (representation-name repr))
+  (define existing (and (repr-exists? name) (get-representation name)))
+  (or existing repr))
 
 (define (array-of dims elem)
   (unless (and (list? dims) (not (null? dims)) (andmap exact-positive-integer? dims))
     (error 'array-of "Arrays require one or more positive dimensions, got ~a" dims))
-  (define repr (make-array-representation #:elem elem #:dims dims))
-  (define name (representation-name repr))
-  (define existing (and (repr-exists? name) (get-representation name)))
-  (or existing repr))
+  (for/fold ([out elem]) ([d (in-list (reverse dims))])
+    (array-of1 d out)))
 
 (define (assert-program-typed! stx)
   (define-values (vars props body)
@@ -109,9 +110,17 @@
 
   (define repr (expression->type stx props ctx error!))
   (define expected (context-repr ctx))
-  (define (comparable? a b)
-    (equal? (array-representation? a) (array-representation? b)))
-  (when (and expected (comparable? repr expected) (not (types-match? repr expected)))
+  (define (unfold-real-type ty)
+    (define base
+      (if (array-representation? ty)
+          (array-representation-base ty)
+          ty))
+    (and (representation? base) (equal? (representation-type base) 'real) base))
+  (define actual-real (and expected (unfold-real-type repr)))
+  (define expected-real (and expected (unfold-real-type expected)))
+  (when (or (not actual-real)
+            (not expected-real)
+            (not (equal? (representation-name actual-real) (representation-name expected-real))))
     (error! stx
             "Expected program of type ~a, got type ~a"
             (type->string expected)
@@ -228,7 +237,7 @@
           (define len (first dims))
           (when (and (integer? raw) (or (< raw 0) (>= raw len)))
             (error! idx "Array index ~a out of bounds for length ~a" raw len))
-          (if (= (length dims) 1)
+          (if (null? (cdr dims))
               elem
               (array-of (cdr dims) elem))]
          [_

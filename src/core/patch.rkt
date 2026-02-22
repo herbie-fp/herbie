@@ -217,23 +217,34 @@
   (define start-altns
     (for/list ([brf brfs])
       (alt brf 'patch '())))
+  (define exprs (batch-exprs batch))
+  (define array-program?
+    (for/or ([brf (in-list brfs)])
+      (for/or ([subexpr (in-list (all-subexpressions (exprs brf)))])
+        (match subexpr
+          [(list (or 'array 'ref) _ ...) #t]
+          [_ #f]))))
+  (if array-program?
+      (begin
+        (timeline-push! 'count 0 0)
+        start-altns)
+      (let ()
+        (define evaluations
+          (if (flag-set? 'generate 'evaluate)
+              (run-evaluate start-altns batch)
+              '()))
 
-  (define evaluations
-    (if (flag-set? 'generate 'evaluate)
-        (run-evaluate start-altns batch)
-        '()))
+        ; Series expand
+        (define approximations
+          (if (flag-set? 'generate 'taylor)
+              (run-taylor start-altns batch spec-batch reducer)
+              '()))
 
-  ; Series expand
-  (define approximations
-    (if (flag-set? 'generate 'taylor)
-        (run-taylor start-altns batch spec-batch reducer)
-        '()))
+        ; Recursive rewrite
+        (define rewritten
+          (if (flag-set? 'generate 'rr)
+              (run-rr start-altns batch)
+              '()))
 
-  ; Recursive rewrite
-  (define rewritten
-    (if (flag-set? 'generate 'rr)
-        (run-rr start-altns batch)
-        '()))
-
-  (remove-duplicates (append evaluations rewritten approximations)
-                     #:key (λ (altn) (cons (alt-expr altn) (get-starting-expr altn)))))
+        (remove-duplicates (append evaluations rewritten approximations)
+                           #:key (λ (altn) (cons (alt-expr altn) (get-starting-expr altn)))))))

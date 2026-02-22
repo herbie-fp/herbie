@@ -625,8 +625,8 @@
                        [repr (in-list (test-var-reprs test))])
               (cond
                 [(array-representation? repr)
-                 (define dims (array-representation-dims repr))
-                 (define elem-repr (array-representation-elem repr))
+                 (define dims (array-representation-shape repr))
+                 (define elem-repr (array-representation-base repr))
                  (if (equal? elem-repr out-repr)
                      (append (list var) dims)
                      (append (list '! ':precision (precision-name elem-repr) var) dims))]

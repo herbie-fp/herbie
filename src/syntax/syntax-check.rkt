@@ -142,9 +142,14 @@
 
   (when (dict-has-key? prop-dict ':precision)
     (define prec (dict-ref prop-dict ':precision))
-    (define known-repr? (get-representation (syntax->datum prec)))
-    (unless known-repr?
-      (error! prec "Unknown :precision ~a" prec)))
+    (define datum (syntax->datum prec))
+    (if (not (symbol? datum))
+        (error! prec "Invalid :precision ~a; expected a real representation name" prec)
+        (let ([repr (get-representation datum)])
+          (cond
+            [(not repr) (error! prec "Unknown :precision ~a" prec)]
+            [(not (equal? (representation-type repr) 'real))
+             (error! prec "Invalid :precision ~a; expected a real representation name" prec)]))))
 
   (when (dict-has-key? prop-dict ':cite)
     (define cite (dict-ref prop-dict ':cite))

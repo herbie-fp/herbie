@@ -26,12 +26,24 @@
   (define env (map cons vars (map representation-type var-reprs)))
   (define otype (representation-type repr))
 
-  ; rival-type does not know about arrays yet
-  (define spec-type
+  (define (infer spec)
     (match spec
-      [(list 'array elem1 elem2) 'array]
-      [(list 'ref array idx) 'real] ;; Can be boolean in theory
+      [(? number?) 'real]
+      [(? symbol? x) (dict-ref env x (lambda () (rival-type spec env)))]
+      [(list 'array elems ...)
+       (if (null? elems)
+           #f
+           (let ([elem-ty (infer (first elems))])
+             (and elem-ty
+                  (for/and ([elem (in-list (rest elems))])
+                    (equal? elem-ty (infer elem)))
+                  `(array ,elem-ty ,(length elems)))))]
+      [(list 'ref arr idx)
+       (match (infer arr)
+         [`(array ,elem-ty ,_) elem-ty]
+         [_ #f])]
       [_ (rival-type spec env)]))
+  (define spec-type (infer spec))
 
   (match spec-type
     [(== otype) (void)]

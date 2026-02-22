@@ -1,6 +1,7 @@
 #lang racket
 
 (require racket/hash
+         racket/list
          "../syntax/types.rkt")
 
 (provide flatten-arrays-for-rival)
@@ -15,11 +16,51 @@
 ;;   - flattened output reprs
 (define (flatten-arrays-for-rival specs ctxs pre)
   (define (array-repr? repr)
-    (eq? (representation-type repr) 'array))
+    (match (representation-type repr)
+      ['array #t]
+      [`(array ,_ ,_) #t]
+      [_ #f]))
   (define (array-repr-elem repr who)
-    (array-representation-elem repr))
+    (array-representation-base repr))
   (define (array-repr-size repr who)
-    (apply * (array-representation-dims repr)))
+    (array-representation-size repr))
+  (define (array-repr-shape repr who)
+    (array-representation-shape repr))
+
+  (define (build-array-expr dims elems who)
+    (define (loop dims elems)
+      (define d (first dims))
+      (if (null? (rest dims))
+          (values `(array ,@(take elems d)) (drop elems d))
+          (let build ([n d]
+                      [elems elems]
+                      [acc '()])
+            (if (zero? n)
+                (values `(array ,@(reverse acc)) elems)
+                (let-values ([(sub rest-elems) (loop (rest dims) elems)])
+                  (build (sub1 n) rest-elems (cons sub acc)))))))
+    (define-values (arr rest-elems) (loop dims elems))
+    (unless (null? rest-elems)
+      (error who "internal error assembling array expression"))
+    arr)
+
+  (define (flatten-array-components arr who)
+    (match arr
+      [`(array ,elems ...)
+       (append* (for/list ([elem (in-list elems)])
+                  (match elem
+                    [`(array ,_ ...) (flatten-array-components elem who)]
+                    [_ (list elem)])))]
+      [_ (error who "expected an array value, got ~a" arr)]))
+  (define (array-expr-shape arr)
+    (match arr
+      [`(array ,elems ...)
+       (if (null? elems)
+           '()
+           (match (first elems)
+             [`(array ,_ ...) (cons (length elems) (array-expr-shape (first elems)))]
+             [_ (list (length elems))]))]
+      [_ #f]))
 
   (define (scalar-expr v who)
     (match v
@@ -48,14 +89,20 @@
     (match expr
       [(? number?) `(scalar ,expr)]
       [(? symbol? s) (hash-ref env s `(scalar ,s))]
-      [`(array ,elems ...) `(array ,@(map (lambda (e) (scalar-expr (lower-arr e env) 'array)) elems))]
+      [`(array ,elems ...)
+       `(array ,@(for/list ([elem (in-list elems)])
+                   (match (lower-arr elem env)
+                     [`(scalar ,v) v]
+                     [`(array ,vs ...) `(array ,@vs)])))]
       [`(ref ,arr ,idxs ...)
        (unless (pair? idxs)
          (error 'ref "expected at least one index"))
        (define selected
          (for/fold ([current (lower-arr arr env)]) ([idx (in-list idxs)])
            (select-component current (normalize-index idx 'ref) 'ref)))
-       `(scalar ,selected)]
+       (match selected
+         [`(array ,_ ...) selected]
+         [_ `(scalar ,selected)])]
       [`(let ([,ids ,vals] ...) ,body)
        ;; let evaluates rhs in outer env (simultaneous bindings)
        (define lowered-vals
@@ -112,12 +159,13 @@
       [(array-repr? r)
        (define base (symbol->string v))
        (define len (array-repr-size r 'flatten-arrays-for-rival))
+       (define shape (array-repr-shape r 'flatten-arrays-for-rival))
        (define vars
          (for/list ([_ (in-range len)])
            (define vi (fresh base))
            (set! taken (set-add taken vi))
            vi))
-       (hash-set! env v `(array ,@vars))
+       (hash-set! env v (build-array-expr shape vars 'flatten-arrays-for-rival))
        (set! new-vars (append new-vars vars))
        (set! new-var-reprs
              (append new-var-reprs (make-list len (array-repr-elem r 'flatten-arrays-for-rival))))]
@@ -134,21 +182,34 @@
   (define (lower-any expr)
     (lower-arr expr env-immutable))
 
-  (define new-specs
-    (append* (for/list ([spec (in-list specs)]
-                        [repr (in-list orig-reprs)])
-               (cond
-                 [(array-repr? repr)
-                  (define lowered (lower-any spec))
-                  (for/list ([i (in-range (array-repr-size repr 'flatten-arrays-for-rival))])
-                    (select-component lowered i 'flatten-arrays-for-rival))]
-                 [else (list (lower-scalar spec))]))))
-  (define new-reprs
-    (append* (for/list ([repr (in-list orig-reprs)])
-               (if (array-repr? repr)
-                   (make-list (array-repr-size repr 'flatten-arrays-for-rival)
-                              (array-repr-elem repr 'flatten-arrays-for-rival))
-                   (list repr)))))
+  (define new-specs '())
+  (define new-reprs '())
+  (define output-shapes '())
+  (for ([spec (in-list specs)]
+        [repr (in-list orig-reprs)])
+    (define lowered (lower-any spec))
+    (define lowered-array?
+      (match lowered
+        [`(array ,_ ...) #t]
+        [_ #f]))
+    (cond
+      [(or (array-repr? repr) lowered-array?)
+       (define comps (flatten-array-components lowered 'flatten-arrays-for-rival))
+       (define elem-repr
+         (if (array-repr? repr)
+             (array-repr-elem repr 'flatten-arrays-for-rival)
+             repr))
+       (define shape
+         (if (array-repr? repr)
+             (array-repr-shape repr 'flatten-arrays-for-rival)
+             (array-expr-shape lowered)))
+       (set! output-shapes (append output-shapes (list shape)))
+       (set! new-specs (append new-specs comps))
+       (set! new-reprs (append new-reprs (make-list (length comps) elem-repr)))]
+      [else
+       (set! output-shapes (append output-shapes (list #f)))
+       (set! new-specs (append new-specs (list (scalar-expr lowered 'program))))
+       (set! new-reprs (append new-reprs (list repr)))]))
   (define new-pre (lower-scalar pre))
   (define ctxs*
     (for/list ([ctx (in-list ctxs)])
@@ -161,14 +222,17 @@
 
   (define (assemble-point pt)
     (define idx 0)
+    (define (assemble-array dims)
+      (define d (first dims))
+      (if (null? (rest dims))
+          (list->vector (for/list ([_ (in-range d)])
+                          (begin0 (vector-ref pt idx)
+                            (set! idx (add1 idx)))))
+          (list->vector (for/list ([_ (in-range d)])
+                          (assemble-array (rest dims))))))
     (list->vector (for/list ([r (in-list orig-var-reprs)])
                     (if (array-repr? r)
-                        (let ([len (array-repr-size r 'assemble-point)])
-                          (define elems
-                            (for/list ([_ (in-range len)])
-                              (begin0 (vector-ref pt idx)
-                                (set! idx (add1 idx)))))
-                          (list->vector elems))
+                        (assemble-array (array-repr-shape r 'assemble-point))
                         (begin0 (vector-ref pt idx)
                           (set! idx (add1 idx)))))))
 
@@ -178,12 +242,17 @@
           (vector->list outs)
           outs))
     (define idx 0)
-    (for/list ([repr (in-list orig-reprs)])
-      (if (array-repr? repr)
-          (let ([len (array-repr-size repr 'assemble-output)])
-            (list->vector (for/list ([_ (in-range len)])
-                            (begin0 (list-ref outputs idx)
-                              (set! idx (add1 idx))))))
+    (define (assemble-array dims)
+      (define d (first dims))
+      (if (null? (rest dims))
+          (list->vector (for/list ([_ (in-range d)])
+                          (begin0 (list-ref outputs idx)
+                            (set! idx (add1 idx)))))
+          (list->vector (for/list ([_ (in-range d)])
+                          (assemble-array (rest dims))))))
+    (for/list ([shape (in-list output-shapes)])
+      (if shape
+          (assemble-array shape)
           (begin0 (list-ref outputs idx)
             (set! idx (add1 idx))))))
 

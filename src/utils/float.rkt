@@ -22,7 +22,7 @@
 
 (define (repr-ulps repr)
   (match (representation-type repr)
-    ['array
+    [(or 'array `(array ,_ ,_))
      (define elem-repr (array-representation-elem repr))
      (define elem-ulps (repr-ulps elem-repr))
      (lambda (x y) (for/sum ([x1 (in-vector x)] [y1 (in-vector y)]) (elem-ulps x1 y1)))]
@@ -31,21 +31,26 @@
      (define ->ordinal (representation-repr->ordinal repr))
      (define special? (representation-special-value? repr))
      (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
-     (if (eq? repr <binary64>)
-         (lambda (x y)
-           (if (or (special? x) (special? y))
-               max-error
-               (+ 1 (abs (flonums-between x y)))))
-         (lambda (x y)
-           (if (or (special? x) (special? y))
-               max-error
-               (+ 1 (abs (- (->ordinal y) (->ordinal x)))))))]))
+     (define scalar-ulps
+       (if (eq? repr <binary64>)
+           (lambda (x y)
+             (if (or (special? x) (special? y))
+                 max-error
+                 (+ 1 (abs (flonums-between x y)))))
+           (lambda (x y)
+             (if (or (special? x) (special? y))
+                 max-error
+                 (+ 1 (abs (- (->ordinal y) (->ordinal x))))))))
+     (lambda (x y)
+       (if (and (vector? x) (vector? y))
+           (for/sum ([x1 (in-vector x)] [y1 (in-vector y)]) (scalar-ulps x1 y1))
+           (scalar-ulps x y)))]))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint
 (define (midpoint p1 p2 repr)
   (match (representation-type repr)
-    ['array
+    [(or 'array `(array ,_ ,_))
      (define elem-repr (array-representation-elem repr))
      (for/vector #:length (vector-length p1)
                  ([x1 (in-vector p1)]
@@ -78,9 +83,9 @@
 
 (define (random-generate repr)
   (match (representation-type repr)
-    ['array
+    [(or 'array `(array ,_ ,_))
      (define elem-repr (array-representation-elem repr))
-     (define len (apply * (array-representation-dims repr)))
+     (define len (array-representation-size repr))
      (for/vector #:length len
                  ([i (in-range len)])
        (random-generate elem-repr))]
@@ -107,6 +112,13 @@
 
 (define (value->json x repr)
   (match x
+    [(? vector?)
+     (define elem-repr
+       (match (representation-type repr)
+         [(or 'array `(array ,_ ,_)) (array-representation-elem repr)]
+         [_ repr]))
+     (for/list ([v (in-vector x)])
+       (value->json v elem-repr))]
     [(? real?)
      (match x
        [(? rational?) x]
@@ -121,6 +133,13 @@
 
 (define (json->value x repr)
   (match x
+    [(? list?)
+     (define elem-repr
+       (match (representation-type repr)
+         [(or 'array `(array ,_ ,_)) (array-representation-elem repr)]
+         [_ repr]))
+     (list->vector (for/list ([v (in-list x)])
+                     (json->value v elem-repr)))]
     [(? real?) (exact->inexact x)]
     [(? hash?)
      (match (hash-ref x 'type)
@@ -155,7 +174,7 @@
 
 (define (real->repr x repr)
   (match (representation-type repr)
-    ['array
+    [(or 'array `(array ,_ ,_))
      (define elem-repr (array-representation-elem repr))
      (for/vector ([v (in-vector x)])
        (real->repr v elem-repr))]
@@ -166,7 +185,7 @@
 
 (define (repr->real x repr)
   (match (representation-type repr)
-    ['array
+    [(or 'array `(array ,_ ,_))
      (define elem-repr (array-representation-elem repr))
      (for/vector ([v (in-vector x)])
        (repr->real v elem-repr))]

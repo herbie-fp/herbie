@@ -221,8 +221,8 @@
       (define repr (get-representation repr-name))
       (cond
         [(array-representation? repr)
-         (define dims (array-representation-dims repr))
-         (define elem-precision (repr->precision-name (array-representation-elem repr)))
+         (define dims (array-representation-shape repr))
+         (define elem-precision (repr->precision-name (array-representation-base repr)))
          (if (equal? elem-precision output-precision)
              (append (list var) dims)
              (append (list '! ':precision elem-precision var) dims))]

@@ -173,8 +173,7 @@
             (define itypes (impl-info impl 'itype))
             (when (and (= (length itypes) 2)
                        (array-representation? (first itypes))
-                       (equal? (array-representation-elem arr-repr)
-                               (array-representation-elem (first itypes)))
+                       (equal? (representation-type arr-repr) (representation-type (first itypes)))
                        (equal? idx-repr (second itypes)))
               (define-values (prop-dict* expr) (impl->fpcore impl))
               (define expr*

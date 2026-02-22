@@ -8,6 +8,9 @@
 (provide (struct-out representation)
          (struct-out array-representation)
          repr->prop
+         array-representation-base
+         array-representation-shape
+         array-representation-size
          shift
          unshift
          <bool>
@@ -31,14 +34,33 @@
 
 (struct array-representation representation (elem dims) #:transparent)
 
+(define (array-representation-base repr)
+  (let loop ([repr repr])
+    (if (array-representation? repr)
+        (loop (array-representation-elem repr))
+        repr)))
+
+(define (array-representation-shape repr)
+  (if (array-representation? repr)
+      (append (array-representation-dims repr)
+              (array-representation-shape (array-representation-elem repr)))
+      '()))
+
+(define (array-representation-size repr)
+  (apply * (array-representation-shape repr)))
+
+(define (array-type elem-type dims)
+  (for/fold ([type elem-type]) ([d (in-list (reverse dims))])
+    `(array ,type ,d)))
+
 ;; Converts a representation into a rounding property
 (define (repr->prop repr)
   (match repr
+    [(? array-representation?) (repr->prop (array-representation-base repr))]
     [(? representation?)
      (match (representation-type repr)
        ['bool '()]
-       ['real (list (cons ':precision (representation-name repr)))]
-       ['array (repr->prop (array-representation-elem repr))])]))
+       ['real (list (cons ':precision (representation-name repr)))])]))
 
 (define (make-representation #:name name
                              #:bf->repr bf->repr
@@ -52,6 +74,7 @@
 (define (make-array-representation #:elem elem-repr #:dims dims)
   (unless (and (list? dims) (not (null? dims)) (andmap exact-positive-integer? dims))
     (raise-herbie-error "Arrays require one or more positive dimensions, got ~a" dims))
+  (define array-ty (array-type (representation-type elem-repr) dims))
   (define name
     (string->symbol
      (format "array~a-~a" (representation-name elem-repr) (string-join (map ~a dims) "x"))))
@@ -63,7 +86,7 @@
   (define elem-special? (representation-special-value? elem-repr))
   (define total-bits (* len (representation-total-bits elem-repr)))
   (array-representation name
-                        'array
+                        array-ty
                         (lambda (xs)
                           (for/vector ([x (in-vector xs)])
                             (elem-bf->repr x)))

@@ -457,8 +457,9 @@
 
 ;; Returns all representatations (and their types) in the current platform.
 (define (all-reprs/types [pform (*active-platform*)])
-  (remove-duplicates (append-map (lambda (repr) (list repr (representation-type repr)))
-                                 (platform-reprs pform))))
+  (remove-duplicates (cons 'array
+                           (append-map (lambda (repr) (list repr (representation-type repr)))
+                                       (platform-reprs pform)))))
 
 ;; Returns the type(s) of an enode so it can be placed in the proper e-class.
 ;; Typing rules:
@@ -532,7 +533,7 @@
     (u32vector-set! egg-id->idx egg-id idx))
 
   (define types (all-reprs/types))
-  (define type->idx (make-hasheq))
+  (define type->idx (make-hash))
   (for ([type (in-list types)]
         [idx (in-naturals)])
     (hash-set! type->idx type idx))

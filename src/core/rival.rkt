@@ -196,13 +196,11 @@
 
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
-  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file assemble-point assemble-output)
-    compiler)
+  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file _ _) compiler)
   (define start (current-inexact-milliseconds))
-  (define pt-flat (assemble-point pt))
   (define pt*
     (for/vector #:length (vector-length vars)
-                ([val (in-vector pt-flat)]
+                ([val (in-vector pt)]
                  [repr (in-vector var-reprs)])
       ((representation-repr->bf repr) val)))
   (when dump-file
@@ -215,7 +213,7 @@
       (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
                      [*rival-max-iterations* 5])
         (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
-        (values 'valid (assemble-output value)))))
+        (values 'valid value))))
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"
