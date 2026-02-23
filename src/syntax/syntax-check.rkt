@@ -142,14 +142,11 @@
 
   (when (dict-has-key? prop-dict ':precision)
     (define prec (dict-ref prop-dict ':precision))
-    (define datum (syntax->datum prec))
-    (if (not (symbol? datum))
-        (error! prec "Invalid :precision ~a; expected a real representation name" prec)
-        (let ([repr (get-representation datum)])
-          (cond
-            [(not repr) (error! prec "Unknown :precision ~a" prec)]
-            [(not (equal? (representation-type repr) 'real))
-             (error! prec "Invalid :precision ~a; expected a real representation name" prec)]))))
+    (define repr (get-representation (syntax->datum prec)))
+    (unless repr
+      (error! prec "Unknown :precision ~a" prec))
+    (unless (or (not repr) (equal? (representation-type repr) 'real))
+      (error! prec "Invalid :precision ~a; expected a real representation name" prec)))
 
   (when (dict-has-key? prop-dict ':cite)
     (define cite (dict-ref prop-dict ':cite))
@@ -167,14 +164,17 @@
 
   (void))
 
-(define (check-dimension dim error!)
-  (cond
-    [(and (number? (syntax-e dim)) (exact-positive-integer? (syntax-e dim))) (void)]
-    [(identifier? dim)
-     (error! dim "Dimension names are unsupported; arrays require literal dimensions")]
-    [(number? (syntax-e dim))
-     (error! dim "Invalid dimension ~a; dimensions must be positive integers" dim)]
-    [else (error! dim "Invalid dimension ~a; must be a positive integer literal" dim)]))
+(define (check-argument name dims sow error!)
+  (unless (identifier? name)
+    (error! name "Invalid argument name ~a" name))
+  (for ([dim (in-list dims)])
+    (define dim* (syntax-e dim))
+    (unless (number? dim*)
+      (error! dim "Invalid dimension ~a; must be a positive integer literal" dim))
+    (when (number? dim*)
+      (unless (exact-positive-integer? dim*)
+        (error! dim "Invalid dimension ~a; dimensions must be positive integers" dim))))
+  (sow name))
 
 (define (check-program* stx vars props body error!)
   (unless (list? vars)
@@ -184,22 +184,11 @@
           (when (list? vars)
             (for ([var (in-list vars)])
               (match var
-                [(? identifier? x) (sow x)]
+                [(? identifier? x) (check-argument x '() sow error!)]
                 [#`(! #,props ... #,name #,dims ...)
                  (check-properties* props (immutable-bound-id-set '()) error!)
-                 (unless (identifier? name)
-                   (error! var "Annotated argument ~a is not a variable name" name))
-                 (for ([dim (in-list dims)])
-                   (check-dimension dim error!))
-                 (sow name)]
-                [#`(#,name #,dims ...)
-                 (unless (identifier? name)
-                   (error! var "Invalid argument name ~a" name))
-                 (when (null? dims)
-                   (error! var "Array variables must have rank at least 1"))
-                 (for ([dim (in-list dims)])
-                   (check-dimension dim error!))
-                 (sow name)]
+                 (check-argument name dims sow error!)]
+                [#`(#,name #,dims ...) (check-argument name dims sow error!)]
                 [_ (error! var "Invalid argument name ~a" var)])))))
   (when (check-duplicate-identifier vars*)
     (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*)))
