@@ -19,7 +19,7 @@
              (type->string (array-representation-base t)))]
     [else (~a t)]))
 
-(define (array-of dims elem)
+(define (array-of elem dims)
   (for/fold ([out elem]) ([d (in-list (reverse dims))])
     (make-array-representation #:elem out #:len d)))
 
@@ -44,19 +44,12 @@
                   (define prop-dict (props->dict props))
                   (define arg-prec (dict-ref prop-dict ':precision prec))
                   (define arg-repr (get-representation arg-prec))
-                  (values name
-                          (if (null? dims)
-                              arg-repr
-                              (array-of dims arg-repr)))]
-                 [(list (? symbol? name) dims ...)
-                  (values name
-                          (if (null? dims)
-                              program-repr
-                              (array-of dims program-repr)))]
+                  (values name (array-of arg-repr dims))]
+                 [(list (? symbol? name) dims ...) (values name (array-of program-repr dims))]
                  [(? symbol? name) (values name program-repr)])))
 
   (define ctx (context var-names program-repr var-types))
-  (assert-expression-type! body prop-dict ctx))
+  (values (assert-expression-type! body prop-dict ctx) ctx))
 
 (define (assert-expression-type! stx props ctx)
   (define errs '())
@@ -105,7 +98,7 @@
     (cond
       [(null? elem-types)
        (error! stx "Array literal must have at least one element")
-       (array-of '(1) (get-representation (dict-ref current-dict ':precision)))]
+       (array-of (get-representation (dict-ref current-dict ':precision)) '(1))]
       [else
        (define first-type (first elem-types))
        (define-values (base base-dims)
@@ -122,7 +115,7 @@
                    "Array elements have mismatched types: ~a vs ~a"
                    (type->string base)
                    (type->string t))))
-       (array-of (cons (length elem-types) base-dims) base)]))
+       (array-of base (cons (length elem-types) base-dims))]))
 
   (let loop ([stx stx]
              [prop-dict prop-dict]
@@ -291,8 +284,8 @@
     (check-types <b64> <b64> #'(let ([a 1]) a) #:env `((a . ,<bool>)))
 
     ;; Array-aware typing
-    (define vec-type (array-of '(2) <b64>))
-    (define vec3-type (array-of '(3) <b64>))
+    (define vec-type (array-of <b64> '(2)))
+    (define vec3-type (array-of <b64> '(3)))
     (check-types <b64> vec-type #'(array 1 2))
     (check-types <b64> vec3-type #'(array 1 2 3))
     (define ragged-fail #f)
