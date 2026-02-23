@@ -35,10 +35,11 @@
   (define (flatten-array-components arr who)
     (match arr
       [`(array ,elems ...)
-       (append* (for/list ([elem (in-list elems)])
-                  (match elem
-                    [`(array ,_ ...) (flatten-array-components elem who)]
-                    [_ (list elem)])))]
+       (append-map (lambda (elem)
+                     (match elem
+                       [`(array ,_ ...) (flatten-array-components elem who)]
+                       [_ (list elem)]))
+                   elems)]
       [_ (error who "expected an array value, got ~a" arr)]))
   (define (array-expr-shape arr)
     (match arr
@@ -64,15 +65,6 @@
        (list-ref elems idx)]
       [_ (error who "ref expects an array value, got ~a" arr)]))
 
-  (define (normalize-index idx who)
-    (define idx*
-      (if (syntax? idx)
-          (syntax-e idx)
-          idx))
-    (unless (integer? idx*)
-      (error who "array index must be a literal integer, got ~a" idx))
-    idx*)
-
   (define (lower-arr expr env)
     (match expr
       [(? number?) `(scalar ,expr)]
@@ -87,7 +79,13 @@
          (error 'ref "expected at least one index"))
        (define selected
          (for/fold ([current (lower-arr arr env)]) ([idx (in-list idxs)])
-           (select-component current (normalize-index idx 'ref) 'ref)))
+           (define idx*
+             (if (syntax? idx)
+                 (syntax-e idx)
+                 idx))
+           (unless (integer? idx*)
+             (error 'ref "array index must be a literal integer, got ~a" idx))
+           (select-component current idx* 'ref)))
        (match selected
          [`(array ,_ ...) selected]
          [_ `(scalar ,selected)])]
@@ -164,17 +162,13 @@
   (define env-immutable
     (for/fold ([e (hash)]) ([(k v) (in-hash env)])
       (hash-set e k v)))
-  (define (lower-scalar expr)
-    (scalar-expr (lower-arr expr env-immutable) 'program))
-  (define (lower-any expr)
-    (lower-arr expr env-immutable))
 
   (define new-specs '())
   (define new-reprs '())
   (define output-shapes '())
   (for ([spec (in-list specs)]
         [repr (in-list orig-reprs)])
-    (define lowered (lower-any spec))
+    (define lowered (lower-arr spec env-immutable))
     (define lowered-array?
       (match lowered
         [`(array ,_ ...) #t]
@@ -197,7 +191,7 @@
        (set! output-shapes (append output-shapes (list #f)))
        (set! new-specs (append new-specs (list (scalar-expr lowered 'program))))
        (set! new-reprs (append new-reprs (list repr)))]))
-  (define new-pre (lower-scalar pre))
+  (define new-pre (scalar-expr (lower-arr pre env-immutable) 'program))
   (define ctxs*
     (for/list ([ctx (in-list ctxs)])
       (define repr (context-repr ctx))
@@ -207,21 +201,23 @@
                    repr)
                new-var-reprs)))
 
+  (define (assemble-by-shape shape next)
+    (define d (first shape))
+    (if (null? (rest shape))
+        (list->vector (for/list ([_ (in-range d)])
+                        (next)))
+        (list->vector (for/list ([_ (in-range d)])
+                        (assemble-by-shape (rest shape) next)))))
+
   (define (assemble-point pt)
     (define idx 0)
-    (define (assemble-array dims)
-      (define d (first dims))
-      (if (null? (rest dims))
-          (list->vector (for/list ([_ (in-range d)])
-                          (begin0 (vector-ref pt idx)
-                            (set! idx (add1 idx)))))
-          (list->vector (for/list ([_ (in-range d)])
-                          (assemble-array (rest dims))))))
+    (define (next)
+      (begin0 (vector-ref pt idx)
+        (set! idx (add1 idx))))
     (list->vector (for/list ([r (in-list orig-var-reprs)])
                     (if (array-representation? r)
-                        (assemble-array (array-representation-shape r))
-                        (begin0 (vector-ref pt idx)
-                          (set! idx (add1 idx)))))))
+                        (assemble-by-shape (array-representation-shape r) next)
+                        (next)))))
 
   (define (assemble-output outs)
     (define outputs
@@ -229,19 +225,13 @@
           (vector->list outs)
           outs))
     (define idx 0)
-    (define (assemble-array dims)
-      (define d (first dims))
-      (if (null? (rest dims))
-          (list->vector (for/list ([_ (in-range d)])
-                          (begin0 (list-ref outputs idx)
-                            (set! idx (add1 idx)))))
-          (list->vector (for/list ([_ (in-range d)])
-                          (assemble-array (rest dims))))))
+    (define (next)
+      (begin0 (list-ref outputs idx)
+        (set! idx (add1 idx))))
     (for/list ([shape (in-list output-shapes)])
       (if shape
-          (assemble-array shape)
-          (begin0 (list-ref outputs idx)
-            (set! idx (add1 idx))))))
+          (assemble-by-shape shape next)
+          (next))))
 
   (values new-specs ctxs* new-pre assemble-point assemble-output new-reprs))
 
