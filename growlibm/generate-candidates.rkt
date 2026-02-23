@@ -21,6 +21,8 @@
 (define report-dir (vector-ref (current-command-line-arguments) 0))
 (define candidate-num (string->number (vector-ref (current-command-line-arguments) 1)))
 (define err-threshold 0.1)
+(define fixed-cut-depths '(2 3 4))
+(define cut-hole-symbol 'HOLE)
 (define interesting-ops '(fabs.f32 sin.f32 cos.f32 tan.f32 sinh.f32 cosh.f32 tanh.f32 asin.f32 acos.f32 
                           atan.f32 asinh.f32 atanh.f32 acosh.f32 atan2.f32 exp.f32 exp2.f32 log.f32 log10.f32
                           log2.f32 logb.f32 ceil.f32 floor.f32 sqrt.f32 cbrt.f32 pow.f32 fmax.f32 fmin.f32 fmod.f32
@@ -33,6 +35,23 @@
 
 (define (get-cost expr)
   (cost-proc expr (get-representation 'binary64)))
+
+(define (cut-expr-to-depth expr depth)
+  (match expr
+    [(list op args ...)
+     (if (<= depth 0)
+         cut-hole-symbol
+         (cons op (map (lambda (arg) (cut-expr-to-depth arg (sub1 depth))) args)))]
+    [_ expr]))
+
+(define (get-fixed-depth-cuts expr)
+  (match expr
+    [(list _ _ ...)
+     (define cuts
+       (for/list ([depth fixed-cut-depths])
+         (cut-expr-to-depth expr depth)))
+     (remove-duplicates (filter (lambda (cut) (not (equal? cut expr))) cuts))]
+    [_ '()]))
 
 (define (eliminate-ifs expr)
   (define comparison-bases
@@ -81,9 +100,11 @@
                  [(? symbol?) (void)]
                  [(list op args ...)
                   (sow expr)
+                  (for ([cut-expr (get-fixed-depth-cuts expr)])
+                    (sow cut-expr))
                   (for ([arg args]
                         [i (in-naturals)])
-                    (define args-with-hole (list-set args i 'HOLE))
+                    (define args-with-hole (list-set args i cut-hole-symbol))
                     (define cut-expr (cons op args-with-hole))
                     (sow cut-expr)
                     (loop arg)
