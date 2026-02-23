@@ -138,8 +138,8 @@
        (match (representation-type repr)
          [`(array ,_ ,_) (array-representation-elem repr)]
          [_ repr]))
-     (list->vector (for/list ([v (in-list x)])
-                     (json->value v elem-repr)))]
+     (for/vector ([v (in-list x)])
+       (json->value v elem-repr))]
     [(? real?) (exact->inexact x)]
     [(? hash?)
      (match (hash-ref x 'type)
