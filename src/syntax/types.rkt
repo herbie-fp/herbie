@@ -77,32 +77,10 @@
     (raise-herbie-error "Arrays require a positive length, got ~a" len))
   (define array-ty (array-type (representation-type elem-repr) len))
   (define name (string->symbol (format "array~a-~a" (representation-name elem-repr) len)))
-  (define elem-bf->repr (representation-bf->repr elem-repr))
-  (define elem-repr->bf (representation-repr->bf elem-repr))
-  (define elem-ordinal->repr (representation-ordinal->repr elem-repr))
-  (define elem-repr->ordinal (representation-repr->ordinal elem-repr))
-  (define elem-special? (representation-special-value? elem-repr))
   (define total-bits (* len (representation-total-bits elem-repr)))
-  (array-representation name
-                        array-ty
-                        (lambda (xs)
-                          (for/vector ([x (in-vector xs)])
-                            (elem-bf->repr x)))
-                        (lambda (xs)
-                          (for/vector ([x (in-vector xs)])
-                            (elem-repr->bf x)))
-                        (lambda (xs)
-                          (for/vector ([x (in-vector xs)])
-                            (elem-ordinal->repr x)))
-                        (lambda (xs)
-                          (for/vector ([x (in-vector xs)])
-                            (elem-repr->ordinal x)))
-                        total-bits
-                        (lambda (xs)
-                          (for/or ([x (in-vector xs)])
-                            (elem-special? x)))
-                        elem-repr
-                        len))
+  ;; TODO: Array representations currently inherit scalar conversion slots.
+  ;; These should not be called for arrays; we'll clean up the hierarchy later.
+  (array-representation name array-ty void void void void total-bits void elem-repr len))
 
 (module hairy racket/base
   (require (only-in math/private/bigfloat/mpfr get-mpfr-fun _mpfr-pointer _rnd_t bf-rounding-mode))
