@@ -1,0 +1,530 @@
+; -*- mode: scheme -*-
+
+(FPCore (T epsilon_over_k sigma_eta molar_mass)
+  :name "viscosity_dilute_kinetic_theory"
+  (let* ([Tstar (/ T epsilon_over_k)]
+         [sigma_nm (* sigma_eta 1e9)]
+         [molar_mass_kgkmol (* molar_mass 1000)]
+         [OMEGA22 (+ (* 1.16145 (pow Tstar -0.14874))
+                     (+ (* 0.52487 (exp (* -0.77320 Tstar)))
+                        (* 2.16178 (exp (* -2.43787 Tstar)))))]
+         [numer (* 26.692e-9 (sqrt (* molar_mass_kgkmol T)))]
+         [denom (* (pow sigma_nm 2) OMEGA22)])
+    (/ numer denom)))
+
+(FPCore (C molar_mass T sigma_eta summer)
+  :name "viscosity_dilute_collision_integral"
+  (let* ([sigma_nm (* sigma_eta 1e9)]
+         [molar_mass_kgkmol (* molar_mass 1000)]
+         [S (exp summer)]
+         [numer (* C (sqrt (* molar_mass_kgkmol T)))]
+         [denom (* (pow sigma_nm 2) S)])
+    (/ numer denom)))
+
+(FPCore (C T summer)
+  :name "viscosity_dilute_collision_integral_powers_of_T"
+  (/ (* C (sqrt T)) summer))
+
+(FPCore (S F delta0 delta)
+  :name "viscosity_higher_order_modified_Batschinski_Hildebrand"
+  (+ S (* F (- (/ 1 (- delta0 delta)) (/ 1 delta0)))))
+
+(FPCore (sigma B_eta_star)
+  :name "viscosity_initial_density_dependence_Rainwater_Friend"
+  (* (* 6.02214129e23 (pow sigma 3)) B_eta_star))
+
+(FPCore (n delta d tau t)
+  :name "viscosity_initial_density_dependence_empirical_term"
+  (* (* n (pow delta d)) (pow tau t)))
+
+(FPCore (Tbar)
+  :name "visc_Helper_mubar_0"
+  (/ (* 100.0 (sqrt Tbar))
+     (+ 1.67752
+        (+ (/ 2.20462 Tbar)
+           (+ (/ 0.6366564 (pow Tbar 2))
+              (/ -0.241605 (pow Tbar 3)))))))
+
+(FPCore (Tbar rhobar summer)
+  :name "viscosity_heavywater_hardcoded"
+  (let* ([mu0 (/ (sqrt Tbar)
+                 (+ 1.000000
+                    (+ (/ 0.940695 Tbar)
+                       (+ (/ 0.578377 (pow Tbar 2))
+                          (/ -0.202044 (pow Tbar 3))))))]
+         [mu1 (exp (* rhobar summer))]
+         [mubar (* mu0 mu1)])
+    (* 55.2651e-6 mubar)))
+
+(FPCore (qc qd zeta)
+  :name "viscosity_water_hardcoded_Y_low"
+  :pre (< zeta 0.3817016416)
+  (let* ([qc_zeta (* qc zeta)]
+         [qd_zeta (* qd zeta)]
+         [bracket (+ (- 1 qc_zeta)
+                     (+ (pow qc_zeta 2)
+                        (* (/ -765.0 504.0) (pow qd_zeta 2))))])
+    (* (* (* (/ 1.0 5.0) qc) zeta) (* (pow qd_zeta 5) bracket))))
+
+(FPCore (qc zeta psi_D L)
+  :name "viscosity_water_hardcoded_Y_high"
+  :pre (>= zeta 0.3817016416)
+  (let* ([qc_zeta (* qc zeta)]
+         [term1 (* (/ 1.0 12.0) (sin (* 3 psi_D)))]
+         [term2 (* (/ -1.0 (* 4 qc_zeta)) (sin (* 2 psi_D)))]
+         [term3 (* (/ 1.0 (pow qc_zeta 2))
+                   (* (- 1 (* (/ 5.0 4.0) (pow qc_zeta 2)))
+                      (sin psi_D)))]
+         [inner (- (* (- 1 (* (/ 3.0 2.0) (pow qc_zeta 2))) psi_D)
+                   (* (pow (fabs (- (pow qc_zeta 2) 1)) (/ 3.0 2.0)) L))]
+         [term4 (* (/ -1.0 (pow qc_zeta 3)) inner)])
+    (+ term1 (+ term2 (+ term3 term4)))))
+
+(FPCore (T rhor)
+  :name "viscosity_toluene_higher_order_hardcoded"
+  (let* ([Tr (/ T 591.75)]
+         [c0 19.919216]
+         [c1 -2.6557905]
+         [c2 -135.904211]
+         [c3 -7.9962719]
+         [c4 -11.014795]
+         [c5 -10.113817]
+         [term1 (/ (+ (* c0 rhor) (* c1 (pow rhor 4))) Tr)]
+         [term2 (/ (* c2 (pow rhor 3))
+                   (+ (+ (pow rhor 2) c3) (* c4 Tr)))]
+         [term3 (* c5 rhor)])
+    (* (* 1e-6 (* (pow rhor (/ 2.0 3.0)) (sqrt Tr)))
+       (+ term1 (+ term2 term3)))))
+
+(FPCore (T rhor)
+  :name "viscosity_hydrogen_higher_order_hardcoded"
+  (let* ([Tr (/ T 33.145)]
+         [c1 6.43449673e-6]
+         [c2 4.56334068e-2]
+         [c3 2.32797868e-1]
+         [c4 9.58326120e-1]
+         [c5 1.27941189e-1]
+         [c6 3.63576595e-1]
+         [exponent (+ (* c2 Tr)
+                      (+ (/ c3 Tr)
+                         (+ (/ (* c4 (pow rhor 2)) (+ c5 Tr))
+                            (* c6 (pow rhor 6)))))])
+    (* (* c1 (pow rhor 2)) (exp exponent))))
+
+(FPCore (T rhor)
+  :name "viscosity_benzene_higher_order_hardcoded"
+  (let* ([Tr (/ T 562.02)]
+         [c0 -9.98945]
+         [c1 86.06260]
+         [c2 2.74872]
+         [c3 1.11130]
+         [c4 -1.0]
+         [c5 -134.1330]
+         [c6 -352.473]
+         [c7 6.60989]
+         [c8 88.4174]
+         [term1 (* c0 (pow rhor 2))]
+         [term2 (/ (* c1 rhor) (+ (+ c2 (* c3 Tr)) (* c4 rhor)))]
+         [term3 (/ (+ (* c5 rhor) (* c6 (pow rhor 2)))
+                   (+ c7 (* c8 (pow rhor 2))))])
+    (* (* 1e-6 (* (pow rhor (/ 2.0 3.0)) (sqrt Tr)))
+       (+ term1 (+ term2 term3)))))
+
+(FPCore (T rhor)
+  :name "viscosity_hexane_higher_order_hardcoded"
+  (let* ([Tr (/ T 507.82)]
+         [c0 (/ 2.53402335 1e6)]
+         [c1 (/ -9.724061002 1e6)]
+         [c2 0.469437316]
+         [c3 158.5571631]
+         [c4 (/ 72.42916856 1e6)]
+         [c5 10.60751253]
+         [c6 8.628373915]
+         [c7 -6.61346441]
+         [c8 -2.212724566]
+         [term1 (/ c0 Tr)]
+         [term2 (/ c1 (+ (+ c2 Tr) (* c3 (pow rhor 2))))]
+         [term3 (/ (* c4 (+ 1 rhor))
+                   (+ (+ (+ c5 (* c6 Tr)) (* c7 rhor))
+                      (+ (pow rhor 2) (* c8 (* rhor Tr)))))])
+    (* (* (pow rhor (/ 2.0 3.0)) (sqrt Tr))
+       (+ term1 (+ term2 term3)))))
+
+(FPCore (T rhor)
+  :name "viscosity_heptane_higher_order_hardcoded"
+  (let* ([Tr (/ T 540.13)]
+         [c1 (/ 22.15000 1e6)]
+         [c2 (/ -15.00870 1e6)]
+         [c3 (/ 3.71791 1e6)]
+         [c4 (/ 77.72818 1e6)]
+         [c5 9.73449]
+         [c6 9.51900]
+         [c7 -6.34076]
+         [c8 -2.51909]
+         [term1 (* c1 rhor)]
+         [term2 (* c2 (pow rhor 2))]
+         [term3 (* c3 (pow rhor 3))]
+         [term4 (/ (* c4 rhor)
+                   (+ (+ (+ c5 (* c6 Tr)) (* c7 rhor))
+                      (+ (pow rhor 2) (* c8 (* rhor Tr)))))])
+    (* (* (pow rhor (/ 2.0 3.0)) (sqrt Tr))
+       (+ term1 (+ term2 (+ term3 term4))))))
+
+(FPCore (Tr rhor eta_tL)
+  :name "viscosity_CO2_higher_order_hardcoded_LaeseckeJPCRD2017"
+  (let* ([c1 0.360603235428487]
+         [c2 0.121550806591497]
+         [gamma 8.06282737481277]
+         [term1 (* (* c1 Tr) (pow rhor 3))]
+         [term2 (/ (+ (pow rhor 2) (pow rhor gamma)) (- Tr c2))])
+    (* eta_tL (+ term1 term2))))
+
+(FPCore (ka pa kr deltapr ki pid kaa kdrdr krr kii krrr kaaa pr)
+  :name "viscosity_higher_order_friction_theory"
+  (let* ([t1 (* ka pa)]
+         [t2 (* kr deltapr)]
+         [t3 (* ki pid)]
+         [t4 (* kaa (pow pa 2))]
+         [t5 (* kdrdr (pow deltapr 2))]
+         [t6 (* krr (pow pr 2))]
+         [t7 (* kii (pow pid 2))]
+         [t8 (* krrr (pow pr 3))]
+         [t9 (* kaaa (pow pa 3))])
+    (+ t1 (+ t2 (+ t3 (+ t4 (+ t5 (+ t6 (+ t7 (+ t8 t9))))))))))
+
+(FPCore (ln_eta)
+  :name "viscosity_helium_hardcoded_lowT"
+  :pre (<= 0 ln_eta)
+  (/ (/ (exp ln_eta) 10.0) 1e6))
+
+(FPCore (T)
+  :name "viscosity_helium_hardcoded_eta0"
+  :pre (> T 100)
+  (* (* 196 (pow T 0.71938)) (exp (+ (/ 12.451 T) (+ (/ -295.67 (pow T 2)) -4.1249)))))
+
+(FPCore (ln_eta eta_0 eta_0_slash)
+  :name "viscosity_helium_hardcoded_highT"
+  (/ (/ (+ (exp ln_eta) (+ eta_0 (- (exp eta_0_slash)))) 10.0) 1e6))
+
+(FPCore (eta_DG eta_L DELTAeta_c rhoL rhobar C1)
+  :name "viscosity_R23_hardcoded"
+  (let* ([w_dg (pow (/ (- rhoL rhobar) rhoL) C1)]
+         [w_l (pow (/ rhobar rhoL) C1)])
+    (/ (+ (* w_dg eta_DG) (+ (* w_l eta_L) DELTAeta_c)) 1e6)))
+
+(FPCore (T rhor rho_molL)
+  :name "viscosity_o_xylene_hardcoded"
+  (let* ([Tr (/ T 630.259)]
+         [A0 -1.4933]
+         [B0 473.2]
+         [C0 -57033]
+         [ln_Seta (+ A0 (+ (/ B0 T) (/ C0 (pow T 2))))]
+         [eta0 (/ (* 0.22225 (sqrt T)) (exp ln_Seta))]
+         [A1 13.2814]
+         [B1 -10862.4]
+         [C1 1664060]
+         [eta1 (* (+ A1 (+ (/ B1 T) (/ C1 (pow T 2)))) rho_molL)]
+         [f (+ (* (+ -2.05581e-3 (* 2.65651e-3 (pow Tr -0.8))) (pow rhor 10.3))
+               (+ (* 2.38762 (pow rhor 3.3))
+                  (+ (/ (* 1.77616e-12 (pow rhor 25)) (pow Tr 4.4))
+                     (+ (* (+ (* 10.4497 rhor) (* -18.2446 Tr)) (pow rhor 0.7))
+                        (* 15.9587 (pow rhor 0.4))))))]
+         [DELTAeta (* (* (pow rhor (/ 2.0 3.0)) (sqrt Tr)) f)])
+    (/ (+ eta0 (+ eta1 DELTAeta)) 1e6)))
+
+(FPCore (T rhor rho_molL)
+  :name "viscosity_m_xylene_hardcoded"
+  (let* ([Tr (/ T 616.89)]
+         [A0 -1.4933]
+         [B0 473.2]
+         [C0 -57033]
+         [ln_Seta (+ A0 (+ (/ B0 T) (/ C0 (pow T 2))))]
+         [eta0 (/ (* 0.22115 (sqrt T)) (exp ln_Seta))]
+         [A1 13.2814]
+         [B1 -10862.4]
+         [C1 1664060]
+         [eta1 (* (+ A1 (+ (/ B1 T) (/ C1 (pow T 2)))) rho_molL)]
+         [f (+ (* (+ -0.268950 (* 0.320971 (pow Tr -0.3))) (pow rhor 6.8))
+               (+ (* -0.0290018 (pow rhor 3.3))
+                  (+ (/ (* 1.72866e-10 (pow rhor 22.0)) (pow Tr 3.2))
+                     (+ (* (+ (* 14.7728 rhor) (* -18.9852 Tr)) (pow rhor 0.6))
+                        (* 17.1128 (pow rhor 0.4))))))]
+         [DELTAeta (* (* (pow rhor (/ 2.0 3.0)) (sqrt Tr)) f)])
+    (/ (+ eta0 (+ eta1 DELTAeta)) 1e6)))
+
+(FPCore (T rhor rho_molL)
+  :name "viscosity_p_xylene_hardcoded"
+  (let* ([Tr (/ T 616.168)]
+         [A0 -1.4933]
+         [B0 473.2]
+         [C0 -57033]
+         [ln_Seta (+ A0 (+ (/ B0 T) (/ C0 (pow T 2))))]
+         [eta0 (/ (* 0.22005 (sqrt T)) (exp ln_Seta))]
+         [A1 13.2814]
+         [B1 -10862.4]
+         [C1 1664060]
+         [eta1 (* (+ A1 (+ (/ B1 T) (/ C1 (pow T 2)))) rho_molL)]
+         [sum1 (+ (* 122.919 (pow rhor 1.5))
+                  (+ (* -282.329 (pow rhor 2))
+                     (+ (* 279.348 (pow rhor 3))
+                        (+ (* -146.776 (pow rhor 4))
+                           (+ (* 28.361 (pow rhor 5))
+                              (* -0.004585 (pow rhor 11)))))))]
+         [sum2 (+ (* 15.337 (pow rhor 1.5))
+                  (+ (* -0.0004382 (pow rhor 11))
+                     (* 0.00002307 (pow rhor 15))))]
+         [DELTAeta (* (pow rhor (/ 2.0 3.0)) (+ sum1 (* (/ 1 (sqrt Tr)) sum2)))])
+    (/ (+ eta0 (+ eta1 DELTAeta)) 1e6)))
+
+(FPCore (Tstar OMEGA_2_2)
+  :name "viscosity_dilute_ethane"
+  (/ (* (* 12.0085 (sqrt Tstar)) OMEGA_2_2) 1e6))
+
+(FPCore (T)
+  :name "viscosity_dilute_cyclohexane"
+  (let* ([S_eta (exp (+ -1.5093 (+ (/ 364.87 T) (/ -39537 (pow T 2)))))])
+    (/ (/ (* 0.19592 (sqrt T)) S_eta) 1e6)))
+
+(FPCore (T)
+  :name "viscosity_dilute_CO2_LaeseckeJPCRD2017"
+  (let* ([a0 1749.354893188350]
+         [a1 -369.069300007128]
+         [a2 5423856.34887691]
+         [a3 -2.21283852168356]
+         [a4 -269503.247933569]
+         [a5 73145.021531826]
+         [a6 5.34368649509278]
+         [T16 (pow T (/ 1.0 6.0))]
+         [T13 (pow T (/ 1.0 3.0))]
+         [den (+ a0
+                 (+ (* a1 T16)
+                    (+ (* a2 (exp (* a3 T13)))
+                       (+ (/ (+ a4 (* a5 T13)) (exp T13))
+                          (* a6 (sqrt T))))))])
+    (/ (* 0.0010055 (sqrt T)) den)))
+
+(FPCore (sum1 sum2)
+  :name "viscosity_ethane_higher_order_hardcoded"
+  (/ (/ (* 15.977 sum1) (+ 1 sum2)) 1e6))
+
+(FPCore (F_c M_gmol T Vc_cm3mol Omega_2_2)
+  :name "viscosity_Chung_eta0_P"
+  (* (* (* 4.0785e-5 (sqrt (* M_gmol T)))
+        (/ 1 (* (pow Vc_cm3mol (/ 2.0 3.0)) Omega_2_2)))
+     F_c))
+
+(FPCore (eta0_P G_2 A6 Y A7 M_gmol Tc Vc_cm3mol A8 A9 A10 Tstar)
+  :name "viscosity_Chung_total"
+  (let* ([eta_k_P (* eta0_P (+ (/ 1 G_2) (* A6 Y)))]
+         [eta_p_P (* (* (* (/ (* 36.344e-6 (sqrt (* M_gmol Tc))) (pow Vc_cm3mol (/ 2.0 3.0))) A7)
+                        (pow Y 2))
+                     (* G_2 (exp (+ A8 (+ (/ A9 Tstar) (/ A10 (pow Tstar 2)))))))])
+    (/ (+ eta_k_P eta_p_P) 10.0)))
+
+(FPCore (x C eta_dilute cL0 cL1 cL2 cL3 cV0 cV1 cV2 cV3)
+  :name "viscosity_rhosr"
+  (let* ([psi_liq (/ 1 (+ 1 (exp (* -100.0 (- x 2)))))]
+         [f_liq (+ cL0 (* x (+ cL1 (* x (+ cL2 (* x cL3))))))]
+         [f_vap (+ cV0 (* x (+ cV1 (* x (+ cV2 (* x cV3))))))]
+         [etastar_ref (exp (+ (* psi_liq f_liq) (* (- 1 psi_liq) f_vap)))]
+         [etastar_fluid (+ 1 (* C (- etastar_ref 1)))])
+    (* etastar_fluid eta_dilute)))
+
+(FPCore (cp cv zeta qD)
+  :name "conductivity_critical_simplified_Olchowy_Sengers_OMEGA_tilde"
+  (let* ([pi 3.141592653589793]
+         [y (* zeta qD)]
+         [left (* (/ (- cp cv) cp) (atan y))]
+         [right (* (/ cv cp) y)])
+    (* (/ 2.0 pi) (+ left right))))
+
+(FPCore (zeta qD delta)
+  :name "conductivity_critical_simplified_Olchowy_Sengers_OMEGA_tilde0"
+  (let* ([pi 3.141592653589793]
+         [y (* qD zeta)]
+         [inv_arg (+ (/ 1 y) (/ (* (/ 1.0 3.0) (pow y 2)) (pow delta 2)))]
+         [exp_arg (/ -1.0 inv_arg)])
+    (* (/ 2.0 pi) (- 1.0 (exp exp_arg)))))
+
+(FPCore (rhomolar cp R0 k T mu zeta OMEGA_tilde OMEGA_tilde0)
+  :name "conductivity_critical_simplified_Olchowy_Sengers_lambda"
+  (let* ([pi 3.141592653589793]
+         [pref (/ (* (* (* (* rhomolar cp) R0) k) T)
+                  (* (* (* 6 pi) mu) zeta))])
+    (* pref (- OMEGA_tilde OMEGA_tilde0))))
+
+(FPCore (tau delta)
+  :name "conductivity_critical_hardcoded_R123"
+  (* 0.486742e-2 (exp (+ (* -100 (pow (- tau 1) 4)) (* -7.08535 (pow (- delta 1) 2))))))
+
+(FPCore (Tr rhor)
+  :name "conductivity_critical_hardcoded_CO2_ScalabrinJPCRD2006"
+  (let* ([nc (* 0.775547504e-3 4.81384)]
+         [a1 3.0]
+         [a2 6.70697]
+         [a3 0.94604]
+         [a4 0.30]
+         [a5 0.30]
+         [a6 0.39751]
+         [a7 0.33791]
+         [a8 0.77963]
+         [a9 0.79857]
+         [a10 0.90]
+         [a11 0.02]
+         [a12 0.20]
+         [alpha (- 1 (* a10 (acosh (+ 1 (* a11 (pow (pow (- 1 Tr) 2) a12))))))]
+         [numer (* rhor
+                   (exp (+ (/ (- (pow rhor a1)) a1)
+                           (+ (- (pow (* a2 (- Tr 1)) 2))
+                              (- (pow (* a3 (- rhor 1)) 2))))))]
+         [braced (+ (- 1 (/ 1 Tr)) (* a4 (pow (pow (- rhor 1) 2) (/ 0.5 a5))))]
+         [denom (pow (+ (pow (pow braced 2) a6)
+                        (pow (pow (* a7 (- rhor alpha)) 2) a8))
+                     a9)])
+    (/ (* nc numer) denom)))
+
+(FPCore (T cint_summer Gstar_lambda)
+  :name "conductivity_dilute_hardcoded_CO2"
+  (let* ([cint_k (+ 1.0 (* (exp (/ -183.5 T)) cint_summer))]
+         [r (sqrt (* (/ 2.0 5.0) cint_k))])
+    (/ (* (* 0.475598e-3 (sqrt T)) (+ 1 (* r r))) Gstar_lambda)))
+
+(FPCore (tau)
+  :name "conductivity_dilute_hardcoded_CO2_HuberJPCRD2016"
+  (/ (/ (pow tau -0.5)
+        (+ 0.0151874307
+           (+ (* 0.0280674040 tau)
+              (+ (* 0.0228564190 (pow tau 2))
+                 (* -0.00741624210 (pow tau 3))))))
+     1000))
+
+(FPCore (T eta_dilute_uPas d2alpha0_dTau2)
+  :name "conductivity_dilute_hardcoded_ethane"
+  (let* ([tau (/ 305.33 T)]
+         [Tstar (/ T 245.0)]
+         [fint (+ 1.7104147 (/ -0.6936482 Tstar))])
+    (* (* 0.276505e-3 eta_dilute_uPas)
+       (- 3.75 (* fint (+ (* (pow tau 2) d2alpha0_dTau2) 1.5))))))
+
+(FPCore (Tbar rhobar)
+  :name "conductivity_hardcoded_heavywater"
+  (let* ([lambda0 (+ 1.00000
+                     (+ (* 37.3223 Tbar)
+                        (+ (* 22.5485 (pow Tbar 2))
+                           (+ (* 13.0465 (pow Tbar 3))
+                              (* -2.60735 (pow Tbar 5))))))]
+         [DELTAlambda (+ (* -167.310 (- 1 (exp (* -2.506 rhobar))))
+                         (+ (* 483.656 rhobar)
+                            (+ (* -191.039 (pow rhobar 2))
+                               (+ (* 73.0358 (pow rhobar 3))
+                                  (* -7.57467 (pow rhobar 4))))))]
+         [f_1 (exp (+ (* 0.144847 Tbar) (* -5.64493 (pow Tbar 2))))]
+         [f_2 (+ (exp (* -2.80000 (pow (- rhobar 1) 2)))
+                 (* -0.080738543 (exp (* -17.9430 (pow (- rhobar 0.125698) 2)))))]
+         [tau (/ Tbar (+ (fabs (- Tbar 1.1)) 1.1))]
+         [f_3 (+ 1 (exp (+ (* 60 (- tau 1)) 20)))]
+         [f_4 (+ 1 (exp (+ (* 100 (- tau 1)) 15)))]
+         [DELTAlambda_c (* (* 35429.6 (* f_1 f_2))
+                           (+ 1 (* (pow f_2 2)
+                                   (+ (/ (* 5000.0e6 (pow f_1 4)) f_3)
+                                      (/ (* 3.5 f_2) f_4)))))]
+         [DELTAlambda_L (* -741.112 (* (pow f_1 1.2) (- 1 (exp (- (pow (/ rhobar 2.5) 10))))))]
+         [lambdabar (+ lambda0 (+ DELTAlambda (+ DELTAlambda_c DELTAlambda_L)))])
+    (* lambdabar 0.742128e-3)))
+
+(FPCore (Tbar)
+  :name "conductivity_hardcoded_water_lambdabar_0"
+  (/ (sqrt Tbar)
+     (+ 2.443221e-3
+        (+ (/ 1.323095e-2 Tbar)
+           (+ (/ 6.770357e-3 (pow Tbar 2))
+              (+ (/ -3.454586e-3 (pow Tbar 3))
+                 (/ 4.096266e-4 (pow Tbar 4))))))))
+
+(FPCore (kappa y rhobar)
+  :name "conductivity_hardcoded_water_Z"
+  (let* ([pi 3.141592654]
+         [left (+ (* (- 1 (/ 1 kappa)) (atan y)) (/ y kappa))]
+         [inv_arg (+ (/ 1 y) (/ (pow y 2) (* (* 3 rhobar) rhobar)))]
+         [right (- 1 (exp (/ -1 inv_arg)))])
+    (/ (* 2 (- left right)) (* pi y))))
+
+(FPCore (lambdabar_0 lambdabar_1 lambdabar_2)
+  :name "conductivity_hardcoded_water_total"
+  (* (+ (* lambdabar_0 lambdabar_1) lambdabar_2) 1e-3))
+
+(FPCore (lambda_DG lambda_L DELTAlambda_c rhoL rhobar C1)
+  :name "conductivity_hardcoded_R23"
+  (let* ([w_dg (pow (/ (- rhoL rhobar) rhoL) C1)]
+         [w_l (pow (/ rhobar rhoL) C1)])
+    (/ (+ (* w_dg lambda_DG) (+ (* w_l lambda_L) DELTAlambda_c)) 1e3)))
+
+(FPCore (T t eta_B dPdT nu DELTA gamma LAMBDA zeta_0_plus a_zeta GAMMA_0_plus)
+  :name "conductivity_critical_hardcoded_ammonia_isochore"
+  (let* ([pi 3.141592654]
+         [k_B 1.3806504e-23]
+         [a_chi (/ a_zeta 0.7)]
+         [zeta (* (* zeta_0_plus (pow t (- nu))) (+ 1 (* a_zeta (pow t DELTA))))]
+         [chi (* (* GAMMA_0_plus (pow t (- gamma))) (+ 1 (* a_chi (pow t DELTA))))]
+         [pref (/ (* (* (* LAMBDA k_B) (pow T 2)) (pow dPdT 2))
+                  (* (* (* 6 pi) eta_B) zeta))])
+    (* pref chi)))
+
+(FPCore (DELTA_lambda_id X_T rho rhoc)
+  :name "conductivity_critical_hardcoded_ammonia_density_blend"
+  (if (< rho (* 0.6 rhoc))
+      (* (* DELTA_lambda_id (/ (pow X_T 2) (+ (pow X_T 2) (pow (- (* 0.6 rhoc) (* 0.96 rhoc)) 2))))
+         (/ (pow rho 2) (pow (* 0.6 rhoc) 2)))
+      (* DELTA_lambda_id (/ (pow X_T 2) (+ (pow X_T 2) (pow (- rho (* 0.96 rhoc)) 2))))))
+
+(FPCore (T)
+  :name "conductivity_hardcoded_helium_lambda0"
+  (let* ([summer (+ (/ 3.739232544 T)
+                    (+ (/ -2.620316969e1 (pow T 2))
+                       (+ (/ 5.982252246e1 (pow T 3))
+                          (/ -4.926397634e1 (pow T 4)))))])
+    (* (* 2.7870034e-3 (pow T 7.034007057e-1)) (exp summer))))
+
+(FPCore (T rho rhoc)
+  :name "conductivity_hardcoded_helium_lambdae"
+  (let* ([c0 1.862970530e-4]
+         [c1 -7.275964435e-7]
+         [c2 -1.427549651e-4]
+         [c3 3.290833592e-5]
+         [c4 -5.213335363e-8]
+         [c5 4.492659933e-8]
+         [c6 -5.924416513e-9]
+         [c7 7.087321137e-6]
+         [c8 -6.013335678e-6]
+         [c9 8.067145814e-7]
+         [c10 3.995125013e-7]
+         [T13 (pow T (/ 1.0 3.0))]
+         [T23 (pow T (/ 2.0 3.0))]
+         [term1 (* (+ (+ c0 (* c1 T)) (+ (* c2 T13) (* c3 T23))) rho)]
+         [term2 (* (+ (+ c4 (* c5 T13)) (* c6 T23)) (pow rho 3))]
+         [term3 (* (+ (+ (+ c7 (* c8 T13)) (* c9 T23)) (/ c10 T))
+                   (* (pow rho 2) (log (/ rho rhoc))))])
+    (+ term1 (+ term2 term3))))
+
+(FPCore (K_Tbar T rho eta dpdT DeltaT DeltaRho)
+  :name "conductivity_hardcoded_helium_lambdac"
+  :pre (and (> rho 0) (> eta 0))
+  (let* ([scale (/ (* 3.4685233e-17 3.726229668) rho)]
+         [tpart (/ (pow T 2) eta)]
+         [exp_part (exp (+ (* -18.66 (pow DeltaT 2)) (* -4.25 (pow DeltaRho 4))))])
+    (* (* (* (* scale (sqrt K_Tbar)) tpart) (pow dpdT 2)) exp_part)))
+
+(FPCore (eta_dilute f_int tau d2alpha0_dTau2)
+  :name "conductivity_hardcoded_methane_lambda_dilute"
+  (* (* 0.51828 eta_dilute)
+     (- 3.75 (* f_int (+ (* (pow tau 2) d2alpha0_dTau2) 1.5)))))
+
+(FPCore (summer delta delta_sigma_star)
+  :name "conductivity_hardcoded_methane_lambda_residual"
+  (* 6.29638 (+ summer (/ (* 1.5554612 (pow delta 2)) delta_sigma_star))))
+
+(FPCore (eta tau delta dalphar_dDelta d2alphar_dDelta_dTau CHI_T_star F)
+  :name "conductivity_hardcoded_methane_lambda_critical"
+  (* (* (/ 91.855 (* eta (pow tau 2)))
+        (pow (+ 1 (+ (* delta dalphar_dDelta) (* -1 (* (* delta tau) d2alphar_dDelta_dTau)))) 2))
+     (* (pow CHI_T_star 0.4681) F)))
