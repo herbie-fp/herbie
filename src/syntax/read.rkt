@@ -142,14 +142,6 @@
      (define existing (and (repr-exists? name) (get-representation name)))
      (array-of (rest dims) (or existing repr))]))
 
-(define (precision->real-repr prec)
-  (unless (symbol? prec)
-    (raise-herbie-error "Invalid :precision ~a; expected a real representation name" prec))
-  (define repr (get-representation prec))
-  (unless (equal? (representation-type repr) 'real)
-    (raise-herbie-error "Invalid :precision ~a; expected a real representation name" prec))
-  repr)
-
 (define (parse-test stx)
   (assert-program! stx)
   (define stx* (expand-core stx))
@@ -171,7 +163,7 @@
         [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
 
   (define default-prec (dict-ref prop-dict ':precision (*default-precision*)))
-  (define default-repr (precision->real-repr default-prec))
+  (define default-repr (get-representation default-prec))
 
   (define-values (var-names var-reprs)
     (for/lists (var-names var-reprs)
@@ -180,7 +172,7 @@
                  [(list '! props ... name dims ...)
                   (define prop-dict (props->dict props))
                   (define arg-prec (dict-ref prop-dict ':precision default-prec))
-                  (define arg-repr (precision->real-repr arg-prec))
+                  (define arg-repr (get-representation arg-prec))
                   (values name (array-of dims arg-repr))]
                  [(list (? symbol? name) dims ...) (values name (array-of dims default-repr))]
                  [(? symbol? name) (values name default-repr)])))
