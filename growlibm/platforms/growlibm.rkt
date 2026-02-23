@@ -227,28 +227,35 @@
   #:spec (pow (cos x) y)
   #:impl (from-accelerators 'powcos)
   #:fpcore (! :precision binary64 (powcos x y))
-  #:cost 64000)
+  #:cost 12800)
 
 (define-operation (powcos2.f64 [x <binary64>])
   <binary64>
   #:spec (pow (cos x) 2)
   #:impl (from-accelerators 'powcos2)
   #:fpcore (! :precision binary64 (powcos2 x))
-  #:cost 64000)
+  #:cost 12800)
 
 (define-operation (powcos4.f64 [x <binary64>])
   <binary64>
   #:spec (pow (cos x) 4)
   #:impl (from-accelerators 'powcos4)
   #:fpcore (! :precision binary64 (powcos4 x))
-  #:cost 64000)
+  #:cost 12800)
 
 (define-operation (powcos6.f64 [x <binary64>])
   <binary64>
   #:spec (pow (cos x) 6)
   #:impl (from-accelerators 'powcos6)
   #:fpcore (! :precision binary64 (powcos6 x))
-  #:cost 64000)
+  #:cost 12800)
+
+  (define-operation (pow1ms.f64 [x <binary64>] [y <binary64>])
+  <binary64>
+  #:spec (pow (* (- 1 x) (- 1 x)) y) 
+  #:impl (from-accelerators 'pow1ms)
+  #:fpcore (! :precision binary64 (pow1ms x y))
+  #:cost 8320)
 
 ;;; (define-operation (ncos1p.f64 [x <binary64>])
 ;;;   <binary64>
@@ -284,10 +291,3 @@
 ;;;   #:impl (from-accelerators 'cosquot)
 ;;;   #:fpcore (! :precision binary64 (cosquot x y))
 ;;;   #:cost 10000)
-
-(define-operation (pow1ms.f64 [x <binary64>] [y <binary64>])
-  <binary64>
-  #:spec (pow (* (- 1 x) (- 1 x)) y) 
-  #:impl (from-accelerators 'pow1ms)
-  #:fpcore (! :precision binary64 (pow1ms x y))
-  #:cost 8320)

@@ -20,7 +20,6 @@
 (define-runtime-module-path basilisk-platform "../../growlibm/platforms/basilisk.rkt")
 (define-runtime-module-path coolprop-platform "../../growlibm/platforms/coolprop.rkt")
 
-
 (define default-platforms
   (hash "herbie10"
         herbie10-platform
