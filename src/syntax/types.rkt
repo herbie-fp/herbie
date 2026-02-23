@@ -79,7 +79,8 @@
   (define name (string->symbol (format "array~a-~a" (representation-name elem-repr) len)))
   ;; TODO: Array representations currently inherit scalar conversion slots.
   ;; These should not be called for arrays; we'll clean up the hierarchy later.
-  (array-representation name array-ty void void void void 1 void elem-repr len))
+  (define total-bits (* len (representation-total-bits elem-repr)))
+  (array-representation name array-ty void void void void total-bits void elem-repr len))
 
 (module hairy racket/base
   (require (only-in math/private/bigfloat/mpfr get-mpfr-fun _mpfr-pointer _rnd_t bf-rounding-mode))
