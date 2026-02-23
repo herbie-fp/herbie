@@ -101,13 +101,11 @@
                        " ")))
 
 (define (expression->type stx prop-dict ctx error!)
-  (define (current-repr pd)
-    (get-representation (dict-ref pd ':precision)))
   (define (array-literal-type elem-types current-dict)
     (cond
       [(null? elem-types)
        (error! stx "Array literal must have at least one element")
-       (array-of '(1) (current-repr current-dict))]
+       (array-of '(1) (get-representation (dict-ref current-dict ':precision)))]
       [else
        (define first-type (first elem-types))
        (define-values (base base-dims)
@@ -130,12 +128,12 @@
              [prop-dict prop-dict]
              [ctx ctx])
     (match stx
-      [#`,(? number?) (current-repr prop-dict)]
+      [#`,(? number?) (get-representation (dict-ref prop-dict ':precision))]
       [#`,(? operator-exists? op)
        (match (get-fpcore-impl op prop-dict '())
          [#f ; no implementation found
           (error! stx "No implementation of `~a` in platform for context `~a`" op prop-dict)
-          (current-repr prop-dict)]
+          (get-representation (dict-ref prop-dict ':precision))]
          [impl (impl-info impl 'otype)])]
       [#`,(? symbol? x) (context-lookup ctx x)]
       [#`(let ([,ids #,exprs] ...) #,body)
@@ -199,10 +197,10 @@
           elem]
          [_
           (error! stx "ref expects an array, got ~a" (type->string arr-type))
-          (current-repr prop-dict)])]
+          (get-representation (dict-ref prop-dict ':precision))])]
       [#`(cast #,arg)
        (define irepr (loop arg prop-dict ctx))
-       (define repr (current-repr prop-dict))
+       (define repr (get-representation (dict-ref prop-dict ':precision)))
        (cond
          [(equal? irepr repr) repr]
          [else
@@ -212,7 +210,7 @@
                      "No implementation of `~a` in platform for context `~a`"
                      (application->string 'cast (list irepr))
                      prop-dict)
-             (current-repr prop-dict)]
+             (get-representation (dict-ref prop-dict ':precision))]
             [impl (impl-info impl 'otype)])])]
       [#`(,(? symbol? op) #,args ...)
        (define ireprs (map (lambda (arg) (loop arg prop-dict ctx)) args))
@@ -222,7 +220,7 @@
                   "No implementation of `~a` in platform for context `~a`"
                   (application->string op ireprs)
                   prop-dict)
-          (current-repr prop-dict)]
+          (get-representation (dict-ref prop-dict ':precision))]
          [impl (impl-info impl 'otype)])])))
 (module+ test
   (require rackunit)
