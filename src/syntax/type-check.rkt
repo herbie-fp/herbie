@@ -127,7 +127,8 @@
             (type->string repr)))
 
   (unless (null? errs)
-    (raise-herbie-syntax-error "Program has type errors" #:locations errs)))
+    (raise-herbie-syntax-error "Program has type errors" #:locations errs))
+  repr)
 
 (define (application->string op types)
   (format "(~a ~a)"

@@ -153,7 +153,7 @@
 (define (parse-test stx)
   (assert-program! stx)
   (define stx* (expand-core stx))
-  (assert-program-typed! stx*)
+  (define output-repr (assert-program-typed! stx*))
   (define-values (func-name args props body)
     (match (syntax->datum stx*)
       [(list 'FPCore name (list args ...) props ... body) (values name args props body)]
@@ -222,7 +222,7 @@
         (dict-ref prop-dict ':herbie-expected #t)
         spec
         pre*
-        (representation-name default-repr)
+        (representation-name output-repr)
         (for/list ([var (in-list var-names)]
                    [repr (in-list var-reprs)])
           (cons var (representation-name repr)))))

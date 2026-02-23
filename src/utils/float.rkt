@@ -31,20 +31,14 @@
      (define ->ordinal (representation-repr->ordinal repr))
      (define special? (representation-special-value? repr))
      (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
-     (define scalar-ulps
+     (define finite-ulps
        (if (eq? repr <binary64>)
-           (lambda (x y)
-             (if (or (special? x) (special? y))
-                 max-error
-                 (+ 1 (abs (flonums-between x y)))))
-           (lambda (x y)
-             (if (or (special? x) (special? y))
-                 max-error
-                 (+ 1 (abs (- (->ordinal y) (->ordinal x))))))))
+           (lambda (x y) (+ 1 (abs (flonums-between x y))))
+           (lambda (x y) (+ 1 (abs (- (->ordinal y) (->ordinal x)))))))
      (lambda (x y)
-       (if (and (vector? x) (vector? y))
-           (for/sum ([x1 (in-vector x)] [y1 (in-vector y)]) (scalar-ulps x1 y1))
-           (scalar-ulps x y)))]))
+       (if (or (special? x) (special? y))
+           max-error
+           (finite-ulps x y)))]))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint
@@ -113,10 +107,7 @@
 (define (value->json x repr)
   (match x
     [(? vector?)
-     (define elem-repr
-       (match (representation-type repr)
-         [`(array ,_ ,_) (array-representation-elem repr)]
-         [_ repr]))
+     (define elem-repr (array-representation-elem repr))
      (for/list ([v (in-vector x)])
        (value->json v elem-repr))]
     [(? real?)
@@ -134,10 +125,7 @@
 (define (json->value x repr)
   (match x
     [(? list?)
-     (define elem-repr
-       (match (representation-type repr)
-         [`(array ,_ ,_) (array-representation-elem repr)]
-         [_ repr]))
+     (define elem-repr (array-representation-elem repr))
      (for/vector ([v (in-list x)])
        (json->value v elem-repr))]
     [(? real?) (exact->inexact x)]
