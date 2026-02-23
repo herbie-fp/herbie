@@ -21,6 +21,12 @@
 (define report-dir (vector-ref (current-command-line-arguments) 0))
 (define candidate-num (string->number (vector-ref (current-command-line-arguments) 1)))
 (define err-threshold 0.1)
+(define interesting-ops '(fabs.f32 sin.f32 cos.f32 tan.f32 sinh.f32 cosh.f32 tanh.f32 asin.f32 acos.f32 
+                          atan.f32 asinh.f32 atanh.f32 acosh.f32 atan2.f32 exp.f32 exp2.f32 log.f32 log10.f32
+                          log2.f32 logb.f32 ceil.f32 floor.f32 sqrt.f32 cbrt.f32 pow.f32 fmax.f32 fmin.f32 fmod.f32
+                          fabs.f64 sin.f64 cos.f64 tan.f64 sinh.f64 cosh.f64 tanh.f64 asin.f64 acos.f64 
+                          atan.f64 asinh.f64 atanh.f64 acosh.f64 atan2.f64 exp.f64 exp2.f64 log.f64 log10.f64
+                          log2.f64 logb.f64 ceil.f64 floor.f64 sqrt.f64 cbrt.f64 pow.f64 fmax.f64 fmin.f64 fmod.f64))
 
 ;;; ------------------------- HELPERS ---------------------------------
 (define cost-proc (platform-cost-proc (*active-platform*)))
@@ -137,6 +143,14 @@
        (> (length (free-variables n)) 0)
        (< (length (free-variables n)) 4)))
 
+(define (contains-interesting-op? expr)
+  (let loop ([expr expr])
+    (match expr
+      [(list op args ...)
+       (or (member op interesting-ops)
+           (ormap loop args))]
+      [_ #f])))
+
 (define (log-info name number report-dir)
   (with-output-to-file (string-append report-dir "/info.txt")
     (lambda () (display (format "~a, ~a\n" name number)))
@@ -169,7 +183,9 @@
 
 (define pairs-raw (hash->list canonical-candidate-count-hash))
 (define filtered-pairs (filter (lambda (x) (candidate-expr? (car x))) pairs-raw))
-(define filtered-pairs* (filter (lambda (x) (> (cdr x) 1)) filtered-pairs))
+(define filtered-pairs* (filter (lambda (x) (and (> (cdr x) 1)
+                                                 (contains-interesting-op? (car x))))
+                                filtered-pairs))
 (define sorted-pairs (sort filtered-pairs* (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
 (define top-pairs (take sorted-pairs (min (length sorted-pairs) (* 2 candidate-num))))
 (define final-pairs (filter (lambda (x) (> (get-error (car x)) err-threshold)) top-pairs))
