@@ -44,9 +44,6 @@
             (array-representation-shape (array-representation-elem repr)))
       '()))
 
-(define (array-type elem-type len)
-  `(array ,elem-type ,len))
-
 ;; Converts a representation into a rounding property
 (define (repr->prop repr)
   (match repr
@@ -68,7 +65,7 @@
 (define (make-array-representation #:elem elem-repr #:len len)
   (unless (exact-positive-integer? len)
     (raise-herbie-error "Arrays require a positive length, got ~a" len))
-  (define array-ty (array-type (representation-type elem-repr) len))
+  (define array-ty `(array ,(representation-type elem-repr) ,len))
   (define name (string->symbol (format "array~a-~a" (representation-name elem-repr) len)))
   ;; TODO: Array representations currently inherit scalar conversion slots.
   ;; These should not be called for arrays; we'll clean up the hierarchy later.
