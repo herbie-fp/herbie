@@ -81,29 +81,6 @@
                        " ")))
 
 (define (expression->type stx prop-dict ctx error!)
-  (define (array-literal-type elem-types current-dict)
-    (cond
-      [(null? elem-types)
-       (error! stx "Array literal must have at least one element")
-       (array-of (get-representation (dict-ref current-dict ':precision)) '(1))]
-      [else
-       (define first-type (first elem-types))
-       (define-values (base base-dims)
-         (if (array-representation? first-type)
-             (values (array-representation-base first-type) (array-representation-shape first-type))
-             (values first-type '())))
-       (for ([t (in-list (rest elem-types))])
-         (define-values (elem elem-dims)
-           (if (array-representation? t)
-               (values (array-representation-base t) (array-representation-shape t))
-               (values t '())))
-         (unless (and (equal? elem base) (equal? elem-dims base-dims))
-           (error! stx
-                   "Array elements have mismatched types: ~a vs ~a"
-                   (repr-description base)
-                   (repr-description t))))
-       (array-of base (cons (length elem-types) base-dims))]))
-
   (let loop ([stx stx]
              [prop-dict prop-dict]
              [ctx ctx])
@@ -143,9 +120,7 @@
                  (repr-description ift-repr)
                  (repr-description iff-repr)))
        ift-repr]
-      [#`(! #,props ... #,body)
-       (define prop-dict* (apply dict-set prop-dict (map syntax->datum props)))
-       (loop body prop-dict* ctx)]
+      [#`(! #,props ... #,body) (loop body (apply dict-set prop-dict (map syntax->datum props)) ctx)]
       [#`(,(? (curry hash-has-key? (*functions*)) fname) #,args ...)
        ; TODO: inline functions expect uniform types, this is clearly wrong
        (match-define (list vars prec _) (hash-ref (*functions*) fname))
@@ -160,9 +135,16 @@
                  (application->string fname expected)
                  (application->string fname ireprs)))
        repr]
-      [#`(array #,elems ...)
-       (define elem-types (map (lambda (e) (loop e prop-dict ctx)) elems))
-       (array-literal-type elem-types prop-dict)]
+      [#`(array #,first-elem #,rest-elems ...)
+       (define first-type (loop first-elem prop-dict ctx))
+       (for ([elem (in-list rest-elems)])
+         (define t (loop elem prop-dict ctx))
+         (unless (equal? t first-type)
+           (error! stx
+                   "Array elements have mismatched types: ~a vs ~a"
+                   (repr-description first-type)
+                   (repr-description t))))
+       (array-of first-type (list (+ 1 (length rest-elems))))]
       [#`(ref #,arr #,idx)
        (define arr-type (loop arr prop-dict ctx))
        (define raw (syntax-e idx))
