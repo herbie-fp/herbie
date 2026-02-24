@@ -155,59 +155,6 @@
        prop-dict
        (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " "))))
 
-(define (assert-fpcore-ref-impl prop-dict arr-repr idx-repr)
-  (unless (array-representation? arr-repr)
-    (raise-herbie-missing-error
-     "No implementation for `~a` under rounding context `~a` with types `~a`"
-     'ref
-     prop-dict
-     (string-join (map (λ (r) (format "<~a>" (representation-name r))) (list arr-repr idx-repr))
-                  " ")))
-  (define (impl->fpcore impl)
-    (match (impl-info impl 'fpcore)
-      [(list '! props ... body) (values (props->dict props) body)]
-      [body (values '() body)]))
-  (define impls
-    (reap [sow]
-          (for ([impl (in-list (platform-impls (*active-platform*)))])
-            (define itypes (impl-info impl 'itype))
-            (when (and (= (length itypes) 2)
-                       (array-representation? (first itypes))
-                       (equal? (representation-type arr-repr) (representation-type (first itypes)))
-                       (equal? idx-repr (second itypes)))
-              (define-values (prop-dict* expr) (impl->fpcore impl))
-              (define expr*
-                (if (symbol? expr)
-                    (list expr)
-                    expr))
-              (define pattern `(ref ,(gensym) ,(gensym)))
-              (when (and (subset? prop-dict* prop-dict) (pattern-match pattern expr*))
-                (sow (cons impl prop-dict*)))))))
-  (cond
-    [(null? impls)
-     (raise-herbie-missing-error
-      "No implementation for `~a` under rounding context `~a` with types `~a`"
-      'ref
-      prop-dict
-      (string-join (map (λ (r) (format "<~a>" (representation-name r))) (list arr-repr idx-repr))
-                   " "))]
-    [else
-     (match-define (list (cons best _) _ ...)
-       (sort impls
-             (lambda (x y)
-               (define props-x (cdr x))
-               (define props-y (cdr y))
-               (define num-x (count (lambda (prop) (member prop props-x)) prop-dict))
-               (define num-y (count (lambda (prop) (member prop props-y)) prop-dict))
-               (cond
-                 [(> num-x num-y) #t]
-                 [(< num-x num-y) #f]
-                 [else
-                  (define extr-x (- (length prop-dict) num-x))
-                  (define extr-y (- (length prop-dict) num-y))
-                  (> extr-x extr-y)]))))
-     best]))
-
 ;; Translates an FPCore operator application into
 ;; an LImpl operator application.
 (define (fpcore->impl-app op prop-dict args ctx)
@@ -252,7 +199,7 @@
        (define idx* (loop idx prop-dict))
        (define arr-repr (repr-of arr* ctx))
        (define idx-repr (repr-of idx* ctx))
-       (define impl (assert-fpcore-ref-impl prop-dict arr-repr idx-repr))
+       (define impl (assert-fpcore-impl 'ref prop-dict (list arr-repr idx-repr)))
        (define vars (impl-info impl 'vars))
        (define pattern
          (match (impl-info impl 'fpcore)
