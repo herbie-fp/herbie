@@ -8,16 +8,18 @@
          (except-in "platform-language.rkt" quasisyntax))
 (provide assert-program-typed!)
 
-(define (type->string t)
-  (cond
-    [(representation? t) (~a (representation-name t))]
-    [(array-representation? t)
-     (format "array[~a] of ~a"
-             (string-join (for/list ([d (array-representation-shape t)])
-                            (~a d))
-                          " ")
-             (type->string (array-representation-base t)))]
-    [else (~a t)]))
+(define (repr-description t)
+  (match t
+    [(? representation?) (representation-name t)]
+    [(? array-representation?)
+     `(array ,(repr-description (array-representation-elem t)) ,(array-representation-len t))]))
+
+(define (repr-compatible-with-precision? repr precision-repr)
+  (match repr
+    [(? array-representation?)
+     (repr-compatible-with-precision? (array-representation-elem repr) precision-repr)]
+    [(? representation?)
+     (or (equal? (representation-type repr) 'bool) (equal? repr precision-repr))]))
 
 (define (array-of elem dims)
   (for/fold ([out elem]) ([d (in-list (reverse dims))])
@@ -54,31 +56,16 @@
 (define (assert-expression-type! stx props ctx)
   (define errs '())
   (define (error! stx fmt . args)
-    (define args*
-      (for/list ([arg (in-list args)])
-        (match arg
-          [(? representation?) (representation-name arg)]
-          [(? array-representation?) (type->string arg)]
-          [_ arg])))
+    (define args* (map repr-description args))
     (set! errs (cons (cons stx (apply format fmt args*)) errs)))
 
   (define repr (expression->type stx props ctx error!))
   (define expected (context-repr ctx))
-  (define (unfold-real-type ty)
-    (define base
-      (if (array-representation? ty)
-          (array-representation-base ty)
-          ty))
-    (and (representation? base) (equal? (representation-type base) 'real) base))
-  (define actual-real (and expected (unfold-real-type repr)))
-  (define expected-real (and expected (unfold-real-type expected)))
-  (when (or (not actual-real)
-            (not expected-real)
-            (not (equal? (representation-name actual-real) (representation-name expected-real))))
+  (when (not (repr-compatible-with-precision? repr expected))
     (error! stx
             "Expected program of type ~a, got type ~a"
-            (type->string expected)
-            (type->string repr)))
+            (repr-description expected)
+            (repr-description repr)))
 
   (unless (null? errs)
     (raise-herbie-syntax-error "Program has type errors" #:locations errs))
@@ -89,7 +76,7 @@
           op
           (string-join (for/list ([t types])
                          (if t
-                             (format "<~a>" (type->string t))
+                             (format "<~a>" (repr-description t))
                              "<?>"))
                        " ")))
 
@@ -113,8 +100,8 @@
          (unless (and (equal? elem base) (equal? elem-dims base-dims))
            (error! stx
                    "Array elements have mismatched types: ~a vs ~a"
-                   (type->string base)
-                   (type->string t))))
+                   (repr-description base)
+                   (repr-description t))))
        (array-of base (cons (length elem-types) base-dims))]))
 
   (let loop ([stx stx]
@@ -147,14 +134,14 @@
        (define cond-ctx (struct-copy context ctx [repr (get-representation 'bool)]))
        (define cond-repr (loop branch prop-dict cond-ctx))
        (unless (equal? (representation-type cond-repr) 'bool)
-         (error! stx "If statement has non-boolean type ~a for branch" (type->string cond-repr)))
+         (error! stx "If statement has non-boolean type ~a for branch" (repr-description cond-repr)))
        (define ift-repr (loop ifstmt prop-dict ctx))
        (define iff-repr (loop elsestmt prop-dict ctx))
        (unless (equal? ift-repr iff-repr)
          (error! stx
                  "If statement has different types for if (~a) and else (~a)"
-                 (type->string ift-repr)
-                 (type->string iff-repr)))
+                 (repr-description ift-repr)
+                 (repr-description iff-repr)))
        ift-repr]
       [#`(! #,props ... #,body)
        (define prop-dict* (apply dict-set prop-dict (map syntax->datum props)))
@@ -189,7 +176,7 @@
             (error! idx "Array index ~a out of bounds for length ~a" raw len))
           elem]
          [_
-          (error! stx "ref expects an array, got ~a" (type->string arr-type))
+          (error! stx "ref expects an array, got ~a" (repr-description arr-type))
           (get-representation (dict-ref prop-dict ':precision))])]
       [#`(cast #,arg)
        (define irepr (loop arg prop-dict ctx))
