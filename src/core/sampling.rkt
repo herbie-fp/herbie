@@ -162,15 +162,19 @@
         [(and (list? exs) (not is-bad?))
          (define assembled-exs (assemble-output exs))
          (define assembled-pt (assemble-point pt))
+         (define next-exactss
+           (if (null? exactss)
+               (map list assembled-exs)
+               (map cons assembled-exs exactss)))
          (if (>= (+ 1 sampled) (*num-points*))
-             (values (cons assembled-pt points) (cons assembled-exs exactss))
-             (loop (+ 1 sampled) 0 (cons assembled-pt points) (cons assembled-exs exactss)))]
+             (values (cons assembled-pt points) next-exactss)
+             (loop (+ 1 sampled) 0 (cons assembled-pt points) next-exactss))]
         [else
          (when (>= skipped (*max-skipped-points*))
            (raise-herbie-sampling-error "Cannot sample enough valid points."
                                         #:url "faq.html#sample-valid-points"))
          (loop sampled (+ 1 skipped) points exactss)])))
-  (values (cons points (flip-lists exactss)) outcomes))
+  (values (cons points exactss) outcomes))
 
 (define (combine-tables t1 t2)
   (define t2-total (apply + (hash-values t2)))
