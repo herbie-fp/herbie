@@ -16,41 +16,15 @@
 ;;   - flattened output reprs
 (define (flatten-arrays-for-rival specs ctxs pre)
   (define (lower-arr expr env)
-    (match expr
-      [(? number?) `(scalar ,expr)]
-      [(? symbol? s) (hash-ref env s `(scalar ,s))]
-      [`(array ,elems ...)
-       `(array ,@(for/list ([elem (in-list elems)])
-                   (match (lower-arr elem env)
-                     [`(scalar ,v) v]
-                     [`(array ,vs ...) `(array ,@vs)])))]
-      [`(ref ,arr ,idx)
-       (define selected
-         (match (lower-arr arr env)
-           [`(array ,elems ...) (list-ref elems idx)]))
-       (match selected
-         [`(array ,_ ...) selected]
-         [_ `(scalar ,selected)])]
-      [`(if ,c ,t ,f)
-       (let* ([c* (match (lower-arr c env)
-                    [`(scalar ,e) e])]
-              [t-expr (match (lower-arr t env)
-                        [`(scalar ,e) e])]
-              [f-expr (match (lower-arr f env)
-                        [`(scalar ,e) e])])
-         `(scalar (if ,c* ,t-expr ,f-expr)))]
-      [`(! ,props ... ,body)
-       `(scalar (! ,@props
-                   ,(match (lower-arr body env)
-                      [`(scalar ,e) e])))]
-      [`(,op ,args ...)
-       (define lowered-args
-         (map (lambda (a)
-                (match (lower-arr a env)
-                  [`(scalar ,e) e]))
-              args))
-       `(scalar (,op ,@lowered-args))]
-      [_ `(scalar ,expr)]))
+    (define (recur e)
+      (match e
+        [(? number?) e]
+        [(? symbol? s) (hash-ref env s s)]
+        [`(,op ,args ...)
+         (match `(,op ,@(map recur args))
+           [`(ref (array ,elems ...) ,idx) (list-ref elems idx)]
+           [other other])]))
+    (recur expr))
 
   (define orig-vars (context-vars (first ctxs)))
   (define orig-reprs (map context-repr ctxs))
@@ -81,7 +55,7 @@
        (set! new-vars (append new-vars vars))
        (set! new-var-reprs (append new-var-reprs (make-list len (array-representation-elem r))))]
       [else
-       (hash-set! env v `(scalar ,v))
+       (hash-set! env v v)
        (set! new-vars (append new-vars (list v)))
        (set! new-var-reprs (append new-var-reprs (list r)))]))
 
@@ -119,15 +93,10 @@
        (set! new-reprs (append new-reprs (make-list (length comps) elem-repr)))]
       [else
        (set! output-lens (append output-lens (list #f)))
-       (set! new-specs
-             (append new-specs
-                     (list (match lowered
-                             [`(scalar ,e) e]))))
+       (set! new-specs (append new-specs (list lowered)))
        (set! new-reprs (append new-reprs (list repr)))]))
 
-  (define new-pre
-    (match (lower-arr pre env-immutable)
-      [`(scalar ,e) e]))
+  (define new-pre (lower-arr pre env-immutable))
   (define ctxs*
     (for/list ([ctx (in-list ctxs)])
       (define repr (context-repr ctx))
