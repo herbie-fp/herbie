@@ -65,25 +65,13 @@
   (for ([spec (in-list specs)]
         [repr (in-list orig-reprs)])
     (define lowered (lower-arr spec env))
-    (define lowered-array?
-      (match lowered
-        [`(array ,_ ...) #t]
-        [_ #f]))
     (cond
-      [(or (array-representation? repr) lowered-array?)
+      [(array-representation? repr)
        (define comps
          (match lowered
            [`(array ,elems ...) elems]))
-       (define elem-repr
-         (if (array-representation? repr)
-             (array-representation-elem repr)
-             repr))
-       (define len
-         (if (array-representation? repr)
-             (array-representation-len repr)
-             (match lowered
-               [`(array ,elems ...) (length elems)]
-               [_ #f])))
+       (define elem-repr (array-representation-elem repr))
+       (define len (array-representation-len repr))
        (set! output-lens (append output-lens (list len)))
        (set! new-specs (append new-specs comps))
        (set! new-reprs (append new-reprs (make-list (length comps) elem-repr)))]
