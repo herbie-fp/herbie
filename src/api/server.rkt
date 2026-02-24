@@ -619,10 +619,7 @@
   (define (precision-name repr)
     (dict-ref (repr->prop repr) ':precision (representation-name repr)))
   (define out-repr (test-output-repr test))
-  (define out-base-repr
-    (if (array-representation? out-repr)
-        (array-representation-base out-repr)
-        out-repr))
+  (define out-base-repr (array-representation-base out-repr))
   (define out-precision (precision-name out-repr))
   `(FPCore ,@(filter identity (list (test-identifier test)))
            ,(for/list ([var (in-list (test-vars test))]

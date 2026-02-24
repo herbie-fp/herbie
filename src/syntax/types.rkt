@@ -10,7 +10,6 @@
          repr->prop
          array-representation-base
          array-representation-shape
-         array-representation-size
          shift
          unshift
          <bool>
@@ -35,10 +34,9 @@
 (struct array-representation representation (elem len) #:transparent)
 
 (define (array-representation-base repr)
-  (let loop ([repr repr])
-    (if (array-representation? repr)
-        (loop (array-representation-elem repr))
-        repr)))
+  (if (array-representation? repr)
+      (array-representation-base (array-representation-elem repr))
+      repr))
 
 (define (array-representation-shape repr)
   (if (array-representation? repr)
@@ -46,18 +44,13 @@
             (array-representation-shape (array-representation-elem repr)))
       '()))
 
-(define (array-representation-size repr)
-  (if (array-representation? repr)
-      (* (array-representation-len repr) (array-representation-size (array-representation-elem repr)))
-      1))
-
 (define (array-type elem-type len)
   `(array ,elem-type ,len))
 
 ;; Converts a representation into a rounding property
 (define (repr->prop repr)
   (match repr
-    [(? array-representation?) (repr->prop (array-representation-base repr))]
+    [(? array-representation?) (repr->prop (array-representation-elem repr))]
     [(? representation?)
      (match (representation-type repr)
        ['bool '()]

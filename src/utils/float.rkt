@@ -79,9 +79,9 @@
   (match (representation-type repr)
     [`(array ,_ ,_)
      (define elem-repr (array-representation-elem repr))
-     (define len (array-representation-size repr))
+     (define len (array-representation-len repr))
      (for/vector #:length len
-                 ([i (in-range len)])
+                 ([_ (in-range len)])
        (random-generate elem-repr))]
     ['bool (zero? (random-integer 0 2))]
     ['real
