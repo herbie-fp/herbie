@@ -15,17 +15,6 @@
 ;;   - output assembler (flattened outputs -> original outputs)
 ;;   - flattened output reprs
 (define (flatten-arrays-for-rival specs ctxs pre)
-  (define (lower-arr expr env)
-    (define (recur e)
-      (match e
-        [(? number?) e]
-        [(? symbol? s) (hash-ref env s s)]
-        [`(,op ,args ...)
-         (match `(,op ,@(map recur args))
-           [`(ref (array ,elems ...) ,idx) (list-ref elems idx)]
-           [other other])]))
-    (recur expr))
-
   (define orig-vars (context-vars (first ctxs)))
   (define orig-reprs (map context-repr ctxs))
   (define orig-var-reprs (context-var-reprs (first ctxs)))
@@ -58,13 +47,21 @@
        (hash-set! env v v)
        (set! new-vars (append new-vars (list v)))
        (set! new-var-reprs (append new-var-reprs (list r)))]))
+  (define (lower-arr expr)
+    (match expr
+      [(? number?) expr]
+      [(? symbol? s) (hash-ref env s s)]
+      [`(,op ,args ...)
+       (match `(,op ,@(map lower-arr args))
+         [`(ref (array ,elems ...) ,idx) (list-ref elems idx)]
+         [other other])]))
 
   (define new-specs '())
   (define new-reprs '())
   (define output-lens '())
   (for ([spec (in-list specs)]
         [repr (in-list orig-reprs)])
-    (define lowered (lower-arr spec env))
+    (define lowered (lower-arr spec))
     (cond
       [(array-representation? repr)
        (define comps
@@ -80,7 +77,7 @@
        (set! new-specs (append new-specs (list lowered)))
        (set! new-reprs (append new-reprs (list repr)))]))
 
-  (define new-pre (lower-arr pre env))
+  (define new-pre (lower-arr pre))
   (define ctxs*
     (for/list ([ctx (in-list ctxs)])
       (define repr (context-repr ctx))
@@ -95,11 +92,13 @@
     (define (next)
       (begin0 (vector-ref pt idx)
         (set! idx (add1 idx))))
-    (list->vector (for/list ([r (in-list orig-var-reprs)])
-                    (if (array-representation? r)
-                        (list->vector (for/list ([_ (in-range (array-representation-len r))])
-                                        (next)))
-                        (next)))))
+    (for/vector #:length (length orig-var-reprs)
+                ([r (in-list orig-var-reprs)])
+      (if (array-representation? r)
+          (for/vector #:length (array-representation-len r)
+                      ([_ (in-range (array-representation-len r))])
+            (next))
+          (next))))
 
   (define (assemble-output outs)
     (define outputs
@@ -112,8 +111,9 @@
         (set! idx (add1 idx))))
     (for/list ([len (in-list output-lens)])
       (if len
-          (list->vector (for/list ([_ (in-range len)])
-                          (next)))
+          (for/vector #:length len
+                      ([_ (in-range len)])
+            (next))
           (next))))
 
   (values new-specs ctxs* new-pre assemble-point assemble-output new-reprs))
