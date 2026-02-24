@@ -5,7 +5,7 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../utils/common.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/batch.rkt"
          "egg-herbie.rkt"

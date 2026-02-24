@@ -4,12 +4,12 @@
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
          "../syntax/batch.rkt"
          "searchreals.rkt"
-         "rival.rkt")
+         "../syntax/rival.rkt")
 
 (provide batch-prepare-points
          sample-points)
@@ -134,7 +134,7 @@
     (let loop ([sampled 0]
                [skipped 0]
                [points '()]
-               [exactss '()])
+               [exactss (make-list (vector-length reprs) '())])
       (define-values (pt hint) (sampler))
       (define-values (status exs) (real-apply compiler pt hint))
       (case status
@@ -170,7 +170,7 @@
            (raise-herbie-sampling-error "Cannot sample enough valid points."
                                         #:url "faq.html#sample-valid-points"))
          (loop sampled (+ 1 skipped) points exactss)])))
-  (values (cons points (flip-lists exactss)) outcomes))
+  (values (cons points exactss) outcomes))
 
 (define (combine-tables t1 t2)
   (define t2-total (apply + (hash-values t2)))

@@ -3,11 +3,11 @@
 (require math/bigfloat
          racket/random)
 (require "../config.rkt"
-         "../utils/alternative.rkt"
+         "../core/alternative.rkt"
          "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../utils/pretty-print.rkt"
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
@@ -15,7 +15,7 @@
          "../syntax/batch.rkt"
          "compiler.rkt"
          "regimes.rkt"
-         "rival.rkt"
+         "../syntax/rival.rkt"
          "sampling.rkt"
          "points.rkt"
          "programs.rkt")
@@ -220,15 +220,16 @@
 
 (define (regimes-pcontext-masks pcontext splitpoints alts ctx)
   (define num-alts (length alts))
+  (define num-points (pcontext-length pcontext))
   (define bexpr (sp-bexpr (car splitpoints)))
   (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
   (define prog (compile-prog bexpr ctx*))
-
-  (flip-lists (for/list ([(pt ex) (in-pcontext pcontext)])
-                (define val (prog pt))
-                (define alt-id
-                  (for/first ([right (in-list splitpoints)]
-                              #:when (or (equal? (sp-point right) +nan.0)
-                                         (<=/total val (sp-point right) (context-repr ctx*))))
-                    (sp-cidx right)))
-                (build-list num-alts (curry = alt-id)))))
+  (define masks (build-vector num-alts (λ (_) (make-vector num-points #f))))
+  (for ([(pt _) (in-pcontext pcontext)]
+        [idx (in-naturals)])
+    (define val (prog pt))
+    (for/first ([right (in-list splitpoints)]
+                #:when (or (equal? (sp-point right) +nan.0)
+                           (<=/total val (sp-point right) (context-repr ctx*))))
+      (vector-set! (vector-ref masks (sp-cidx right)) idx #t)))
+  masks)

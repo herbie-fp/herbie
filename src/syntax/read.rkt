@@ -1,7 +1,6 @@
 #lang racket
 
-(require "../core/programs.rkt"
-         "../utils/common.rkt"
+(require "../utils/common.rkt"
          "../utils/errors.rkt"
          "platform.rkt"
          "sugar.rkt"
@@ -16,6 +15,14 @@
          test-var-reprs
          load-tests
          parse-test)
+
+(define (free-variables prog)
+  (match prog
+    [(? literal?) '()]
+    [(? number?) '()]
+    [(? symbol?) (list prog)]
+    [(approx _ impl) (free-variables impl)]
+    [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
 
 (struct test (name identifier vars input output expected spec pre output-repr-name var-repr-names)
   #:prefab)
@@ -267,7 +274,7 @@
 
 (module+ test
   (require rackunit
-           "../utils/float.rkt"
+           "../syntax/float.rkt"
            "../syntax/load-platform.rkt")
 
   (activate-platform! (*platform-name*))

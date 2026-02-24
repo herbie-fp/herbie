@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/hash)
-(require "../utils/alternative.rkt"
+(require "../core/alternative.rkt"
          "../utils/common.rkt"
          "../utils/pareto.rkt"
          "../syntax/types.rkt"

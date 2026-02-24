@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../utils/float.rkt"
+(require "../syntax/float.rkt"
          "../syntax/types.rkt"
          "../syntax/batch.rkt"
          "compiler.rkt")
