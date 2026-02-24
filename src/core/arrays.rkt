@@ -15,57 +15,6 @@
 ;;   - output assembler (flattened outputs -> original outputs)
 ;;   - flattened output reprs
 (define (flatten-arrays-for-rival specs ctxs pre)
-  (define (array-repr-len repr who)
-    (unless (array-representation? repr)
-      (error who "expected array representation, got ~a" repr))
-    (when (array-representation? (array-representation-elem repr))
-      (error who "expected one-dimensional array representation, got ~a" repr))
-    (array-representation-len repr))
-
-  (define (array-repr-elem repr who)
-    (unless (array-representation? repr)
-      (error who "expected array representation, got ~a" repr))
-    (define elem (array-representation-elem repr))
-    (when (array-representation? elem)
-      (error who "expected one-dimensional array representation, got ~a" repr))
-    elem)
-
-  (define (build-array-expr len elems who)
-    (define-values (vals rest) (split-at elems len))
-    (unless (null? rest)
-      (error who "internal error assembling array expression"))
-    `(array ,@vals))
-
-  (define (flatten-array-components arr who)
-    (match arr
-      [`(array ,elems ...)
-       (for ([elem (in-list elems)])
-         (match elem
-           [`(array ,_ ...) (error who "expected one-dimensional array value, got ~a" arr)]
-           [_ (void)]))
-       elems]
-      [_ (error who "expected an array value, got ~a" arr)]))
-
-  (define (array-expr-len arr)
-    (match arr
-      [`(array ,elems ...) (length elems)]
-      [_ #f]))
-
-  (define (scalar-expr v who)
-    (match v
-      [`(scalar ,e) e]
-      [`(array ,_ ...) (error who "expected scalar expression, got array: ~a" v)]))
-
-  (define (select-component arr idx who)
-    (unless (and (integer? idx) (<= 0 idx))
-      (error who "array index must be a non-negative literal integer, got ~a" idx))
-    (match arr
-      [`(array ,elems ...)
-       (unless (< idx (length elems))
-         (error who "array index ~a out of bounds for length ~a" idx (length elems)))
-       (list-ref elems idx)]
-      [_ (error who "ref expects an array value, got ~a" arr)]))
-
   (define (lower-arr expr env)
     (match expr
       [(? number?) `(scalar ,expr)]
@@ -80,13 +29,12 @@
          (if (syntax? idx)
              (syntax-e idx)
              idx))
-       (unless (integer? idx*)
-         (error 'ref "array index must be a literal integer, got ~a" idx))
-       (define selected (select-component (lower-arr arr env) idx* 'ref))
+       (define selected
+         (match (lower-arr arr env)
+           [`(array ,elems ...) (list-ref elems idx*)]))
        (match selected
          [`(array ,_ ...) selected]
          [_ `(scalar ,selected)])]
-      [`(ref ,_ ,_ ...) (error 'ref "expected exactly one array index")]
       [`(let ([,ids ,vals] ...) ,body)
        ;; let evaluates rhs in outer env (simultaneous bindings)
        (define lowered-vals
@@ -107,13 +55,23 @@
            (hash-set e id (lower-arr val e))))
        (lower-arr body env*)]
       [`(if ,c ,t ,f)
-       (let* ([c* (scalar-expr (lower-arr c env) 'if)]
-              [t-expr (scalar-expr (lower-arr t env) 'if)]
-              [f-expr (scalar-expr (lower-arr f env) 'if)])
+       (let* ([c* (match (lower-arr c env)
+                    [`(scalar ,e) e])]
+              [t-expr (match (lower-arr t env)
+                        [`(scalar ,e) e])]
+              [f-expr (match (lower-arr f env)
+                        [`(scalar ,e) e])])
          `(scalar (if ,c* ,t-expr ,f-expr)))]
-      [`(! ,props ... ,body) `(scalar (! ,@props ,(scalar-expr (lower-arr body env) '!)))]
+      [`(! ,props ... ,body)
+       `(scalar (! ,@props
+                   ,(match (lower-arr body env)
+                      [`(scalar ,e) e])))]
       [`(,op ,args ...)
-       (define lowered-args (map (lambda (a) (scalar-expr (lower-arr a env) op)) args))
+       (define lowered-args
+         (map (lambda (a)
+                (match (lower-arr a env)
+                  [`(scalar ,e) e]))
+              args))
        `(scalar (,op ,@lowered-args))]
       [_ `(scalar ,expr)]))
 
@@ -136,16 +94,15 @@
     (cond
       [(array-representation? r)
        (define base (symbol->string v))
-       (define len (array-repr-len r 'flatten-arrays-for-rival))
+       (define len (array-representation-len r))
        (define vars
          (for/list ([_ (in-range len)])
            (define vi (fresh base))
            (set! taken (set-add taken vi))
            vi))
-       (hash-set! env v (build-array-expr len vars 'flatten-arrays-for-rival))
+       (hash-set! env v `(array ,@vars))
        (set! new-vars (append new-vars vars))
-       (set! new-var-reprs
-             (append new-var-reprs (make-list len (array-repr-elem r 'flatten-arrays-for-rival))))]
+       (set! new-var-reprs (append new-var-reprs (make-list len (array-representation-elem r))))]
       [else
        (hash-set! env v `(scalar ,v))
        (set! new-vars (append new-vars (list v)))
@@ -167,30 +124,39 @@
         [_ #f]))
     (cond
       [(or (array-representation? repr) lowered-array?)
-       (define comps (flatten-array-components lowered 'flatten-arrays-for-rival))
+       (define comps
+         (match lowered
+           [`(array ,elems ...) elems]))
        (define elem-repr
          (if (array-representation? repr)
-             (array-repr-elem repr 'flatten-arrays-for-rival)
+             (array-representation-elem repr)
              repr))
        (define len
          (if (array-representation? repr)
-             (array-repr-len repr 'flatten-arrays-for-rival)
-             (array-expr-len lowered)))
+             (array-representation-len repr)
+             (match lowered
+               [`(array ,elems ...) (length elems)]
+               [_ #f])))
        (set! output-lens (append output-lens (list len)))
        (set! new-specs (append new-specs comps))
        (set! new-reprs (append new-reprs (make-list (length comps) elem-repr)))]
       [else
        (set! output-lens (append output-lens (list #f)))
-       (set! new-specs (append new-specs (list (scalar-expr lowered 'program))))
+       (set! new-specs
+             (append new-specs
+                     (list (match lowered
+                             [`(scalar ,e) e]))))
        (set! new-reprs (append new-reprs (list repr)))]))
 
-  (define new-pre (scalar-expr (lower-arr pre env-immutable) 'program))
+  (define new-pre
+    (match (lower-arr pre env-immutable)
+      [`(scalar ,e) e]))
   (define ctxs*
     (for/list ([ctx (in-list ctxs)])
       (define repr (context-repr ctx))
       (context new-vars
                (if (array-representation? repr)
-                   (array-repr-elem repr 'flatten-arrays-for-rival)
+                   (array-representation-elem repr)
                    repr)
                new-var-reprs)))
 
@@ -201,7 +167,7 @@
         (set! idx (add1 idx))))
     (list->vector (for/list ([r (in-list orig-var-reprs)])
                     (if (array-representation? r)
-                        (list->vector (for/list ([_ (in-range (array-repr-len r 'assemble-point))])
+                        (list->vector (for/list ([_ (in-range (array-representation-len r))])
                                         (next)))
                         (next)))))
 
