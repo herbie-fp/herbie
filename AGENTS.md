@@ -4,6 +4,7 @@
 - If you modify any Racket run `make fmt` to format the code
 - Check `git diff` and delete dead code before finishing a task.
 - Update docs in `www/doc/2.3/` if you change user-visible options.
+- Enforce module layering `utils < syntax < core < reports < api`: do not add imports from a lower layer to a higher layer.
 
 # Testing
 
