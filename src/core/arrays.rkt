@@ -29,13 +29,15 @@
   (define orig-vars (context-vars (first ctxs)))
   (define orig-reprs (map context-repr ctxs))
   (define orig-var-reprs (context-var-reprs (first ctxs)))
-  (define taken (list->seteq orig-vars))
+  (define taken (apply mutable-seteq orig-vars))
   (define (fresh base)
     (let loop ([i 0])
       (define candidate (string->symbol (format "~a_~a" base i)))
       (if (set-member? taken candidate)
           (loop (add1 i))
-          candidate)))
+          (begin
+            (set-add! taken candidate)
+            candidate))))
 
   (define env (make-hasheq))
   (define new-vars '())
@@ -48,9 +50,7 @@
        (define len (array-representation-len r))
        (define vars
          (for/list ([_ (in-range len)])
-           (define vi (fresh base))
-           (set! taken (set-add taken vi))
-           vi))
+           (fresh base)))
        (hash-set! env v `(array ,@vars))
        (set! new-vars (append new-vars vars))
        (set! new-var-reprs (append new-var-reprs (make-list len (array-representation-elem r))))]
@@ -59,16 +59,12 @@
        (set! new-vars (append new-vars (list v)))
        (set! new-var-reprs (append new-var-reprs (list r)))]))
 
-  (define env-immutable
-    (for/fold ([e (hash)]) ([(k v) (in-hash env)])
-      (hash-set e k v)))
-
   (define new-specs '())
   (define new-reprs '())
   (define output-lens '())
   (for ([spec (in-list specs)]
         [repr (in-list orig-reprs)])
-    (define lowered (lower-arr spec env-immutable))
+    (define lowered (lower-arr spec env))
     (define lowered-array?
       (match lowered
         [`(array ,_ ...) #t]
@@ -96,7 +92,7 @@
        (set! new-specs (append new-specs (list lowered)))
        (set! new-reprs (append new-reprs (list repr)))]))
 
-  (define new-pre (lower-arr pre env-immutable))
+  (define new-pre (lower-arr pre env))
   (define ctxs*
     (for/list ([ctx (in-list ctxs)])
       (define repr (context-repr ctx))
