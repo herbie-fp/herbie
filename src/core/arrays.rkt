@@ -27,6 +27,31 @@
           (begin
             (set-add! taken candidate)
             candidate))))
+  (define (leaf-reprs repr)
+    (if (array-representation? repr)
+        (append* (for/list ([_ (in-range (array-representation-len repr))])
+                   (leaf-reprs (array-representation-elem repr))))
+        (list repr)))
+  (define (fresh-tree base repr)
+    (if (array-representation? repr)
+        (let-values ([(elems vars reprs) (for/lists (elems vars reprs)
+                                                    ([_ (in-range (array-representation-len repr))])
+                                                    (fresh-tree base
+                                                                (array-representation-elem repr)))])
+          (values `(array ,@elems) (append* vars) (append* reprs)))
+        (let ([v (fresh base)]) (values v (list v) (list repr)))))
+  (define (flatten-by-repr expr repr)
+    (if (array-representation? repr)
+        (match-let ([`(array ,elems ...) expr])
+          (append* (for/list ([elem (in-list elems)])
+                     (flatten-by-repr elem (array-representation-elem repr)))))
+        (list expr)))
+  (define (build-value next repr)
+    (if (array-representation? repr)
+        (for/vector #:length (array-representation-len repr)
+                    ([_ (in-range (array-representation-len repr))])
+          (build-value next (array-representation-elem repr)))
+        (next)))
 
   (define env (make-hasheq))
   (define new-vars '())
@@ -36,13 +61,10 @@
     (cond
       [(array-representation? r)
        (define base (symbol->string v))
-       (define len (array-representation-len r))
-       (define vars
-         (for/list ([_ (in-range len)])
-           (fresh base)))
-       (hash-set! env v `(array ,@vars))
+       (define-values (tree vars reprs) (fresh-tree base r))
+       (hash-set! env v tree)
        (set! new-vars (append new-vars vars))
-       (set! new-var-reprs (append new-var-reprs (make-list len (array-representation-elem r))))]
+       (set! new-var-reprs (append new-var-reprs reprs))]
       [else
        (hash-set! env v v)
        (set! new-vars (append new-vars (list v)))
@@ -52,38 +74,33 @@
       [(? number?) expr]
       [(? symbol? s) (hash-ref env s s)]
       [`(,op ,args ...)
-       (match `(,op ,@(map lower-arr args))
+       (define lowered `(,op ,@(map lower-arr args)))
+       (match lowered
          [`(ref (array ,elems ...) ,idx) (list-ref elems idx)]
-         [other other])]))
+         [_ lowered])]))
 
   (define new-specs '())
   (define new-reprs '())
-  (define output-lens '())
   (for ([spec (in-list specs)]
         [repr (in-list orig-reprs)])
     (define lowered (lower-arr spec))
     (cond
       [(array-representation? repr)
-       (define comps
-         (match lowered
-           [`(array ,elems ...) elems]))
-       (define elem-repr (array-representation-elem repr))
-       (define len (array-representation-len repr))
-       (set! output-lens (append output-lens (list len)))
+       (define comps (flatten-by-repr lowered repr))
+       (define reprs (leaf-reprs repr))
        (set! new-specs (append new-specs comps))
-       (set! new-reprs (append new-reprs (make-list (length comps) elem-repr)))]
+       (set! new-reprs (append new-reprs reprs))]
       [else
-       (set! output-lens (append output-lens (list #f)))
        (set! new-specs (append new-specs (list lowered)))
        (set! new-reprs (append new-reprs (list repr)))]))
 
   (define new-pre (lower-arr pre))
   (define ctxs*
     (for/list ([ctx (in-list ctxs)])
-      (define repr (context-repr ctx))
+      (match-define (context _ repr _) ctx)
       (context new-vars
                (if (array-representation? repr)
-                   (array-representation-elem repr)
+                   (array-representation-base repr)
                    repr)
                new-var-reprs)))
 
@@ -93,12 +110,8 @@
       (begin0 (vector-ref pt idx)
         (set! idx (add1 idx))))
     (for/vector #:length (length orig-var-reprs)
-                ([r (in-list orig-var-reprs)])
-      (if (array-representation? r)
-          (for/vector #:length (array-representation-len r)
-                      ([_ (in-range (array-representation-len r))])
-            (next))
-          (next))))
+                ([repr (in-list orig-var-reprs)])
+      (build-value next repr)))
 
   (define (assemble-output outs)
     (define outputs
@@ -109,11 +122,9 @@
     (define (next)
       (begin0 (list-ref outputs idx)
         (set! idx (add1 idx))))
-    (for/list ([len (in-list output-lens)])
-      (if len
-          (for/vector #:length len
-                      ([_ (in-range len)])
-            (next))
+    (for/list ([repr (in-list orig-reprs)])
+      (if (array-representation? repr)
+          (build-value next repr)
           (next))))
 
   (values new-specs ctxs* new-pre assemble-point assemble-output new-reprs))
@@ -126,4 +137,22 @@
   (let-values ([(specs* _ pre* _assemble-point _assemble-output _reprs*)
                 (flatten-arrays-for-rival (list '(ref x 1)) (list ctx) '(< (ref x 0) (ref x 1)))])
     (check-equal? specs* '(x_1))
-    (check-equal? pre* '(< x_0 x_1))))
+    (check-equal? pre* '(< x_0 x_1)))
+
+  (define mat2 (make-array-representation #:elem vec2 #:len 2))
+  (define nested-ctx (context '(x) <binary64> (list mat2)))
+  (let-values ([(specs* _ pre* assemble-point _assemble-output _reprs*)
+                (flatten-arrays-for-rival (list '(ref (ref x 1) 0))
+                                          (list nested-ctx)
+                                          '(< (ref (ref x 0) 1) (ref (ref x 1) 0)))])
+    (check-equal? specs* '(x_2))
+    (check-equal? pre* '(< x_1 x_2))
+    (check-equal? (assemble-point #(1 2 3 4)) #(#(#(1 2) #(3 4)))))
+
+  (let-values ([(specs* _ctxs* _pre* _assemble-point assemble-output reprs*)
+                (flatten-arrays-for-rival (list '(array (array 1 2) (array 3 4)))
+                                          (list (context '() mat2 '()))
+                                          'TRUE)])
+    (check-equal? specs* '(1 2 3 4))
+    (check-equal? reprs* (list <binary64> <binary64> <binary64> <binary64>))
+    (check-equal? (assemble-output '(10 11 12 13)) (list #(#(10 11) #(12 13))))))
