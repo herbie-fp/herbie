@@ -12,7 +12,7 @@
          (prefix-in r3: rival3-racket))
 
 (require "../config.rkt"
-         "arrays.rkt"
+         "../core/arrays.rkt"
          "../utils/errors.rkt"
          "../syntax/float.rkt"
          "../utils/timeline.rkt"
