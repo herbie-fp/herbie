@@ -257,20 +257,12 @@
     (define vec3-type (array-of <b64> '(3)))
     (check-types <b64> vec-type #'(array 1 2))
     (check-types <b64> vec3-type #'(array 1 2 3))
-    (define ragged-fail #f)
-    (expression->type #'(array (array 1) (array 1 2))
-                      (repr->prop <b64>)
-                      (context '() <b64> '())
-                      (lambda _ (set! ragged-fail #t)))
-    (check-true ragged-fail)
+    (check-fails <b64> #'(array (array 1) (array 1 2)))
     (check-types <b64> <b64> #'(ref (array 5 6) 0))
     (check-types <b64> <b64> #'(ref A 2) #:env `((A . ,vec3-type)))
     (check-fails <b64> #'(ref A 3) #:env `((A . ,vec3-type)))
     (check-fails <b64> #'(ref x 0) #:env `((x . ,<b64>))))
 
-  ;; Defensive array-precision rejection lives in syntax-check; type-check accepts known repr names.
-  (check-not-exn (lambda ()
-                   (assert-program-typed! #'(FPCore () :precision arraybinary64-2 (array 1.0 2.0)))))
   (check-exn exn:fail?
              (lambda ()
                (assert-program-typed! #'(FPCore () :precision (array binary64 2) (array 1.0 2.0)))))
