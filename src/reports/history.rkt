@@ -102,7 +102,7 @@
   (and a b))
 
 (define (make-mask pcontext)
-  (make-list (pcontext-length pcontext) #f))
+  (make-vector (pcontext-length pcontext) #f))
 
 ;; HTML renderer for derivations
 (define (render-history json ctx)
@@ -150,12 +150,12 @@
            (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]))
 
 (define (errors-score-masked errs mask)
-  (if (ormap identity mask)
-      (errors-score (for/list ([err (in-list errs)]
-                               [use? (in-list mask)]
-                               #:when use?)
-                      err))
-      (errors-score errs)))
+  (define masked-errs
+    (for/list ([err (in-list errs)]
+               [use? (in-vector mask)]
+               #:when use?)
+      err))
+  (errors-score (if (empty? masked-errs) errs masked-errs)))
 
 (define (render-proof proof-json ctx)
   `(div ((class "proof"))
@@ -179,7 +179,7 @@
                                         err)))
                           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]"))))))))
 
-(define (render-json altn pcontext ctx errcache [mask (make-list (pcontext-length pcontext) #f)])
+(define (render-json altn pcontext ctx errcache [mask (make-vector (pcontext-length pcontext) #f)])
   (define repr (context-repr ctx))
   (define err
     (if (impl-prog? (alt-expr altn))
@@ -206,7 +206,7 @@
                              (map (curryr interval->string repr) entry-ivals)))
             (prevs . ,(for/list ([entry prevs]
                                  [new-mask (regimes-pcontext-masks pcontext splitpoints prevs ctx)])
-                        (define mask* (map and-fn mask new-mask))
+                        (define mask* (vector-map and-fn mask new-mask))
                         (render-json entry pcontext ctx errcache mask*))))]
 
     [(alt prog `(taylor ,start-expr ,pt ,var) `(,prev))
