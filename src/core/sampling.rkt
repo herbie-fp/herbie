@@ -26,13 +26,9 @@
 
 (define (fpbench-ival->ival repr fpbench-interval)
   (match-define (interval lo hi lo? hi?) fpbench-interval)
-  (cond
-    [(equal? (representation-type repr) 'real)
-     (ival (bfstep (bf lo) (if lo? 0 1)) (bfstep (bf hi) (if hi? 0 -1)))]
-    [(equal? (representation-type repr) 'bool) (ival #f #t)]
-    [else
-     (raise-herbie-sampling-error
-      "Array representations are not supported directly in interval conversion.")]))
+  (match (representation-type repr)
+    ['real (ival (bfstep (bf lo) (if lo? 0 1)) (bfstep (bf hi) (if hi? 0 -1)))]
+    ['bool (ival #f #t)]))
 
 (module+ test
   (require rackunit)
