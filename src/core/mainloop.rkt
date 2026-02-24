@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../config.rkt"
-         "../utils/alternative.rkt"
+         "../core/alternative.rkt"
          "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../syntax/platform.rkt"

@@ -1,7 +1,6 @@
 #lang racket
 
-(require racket/runtime-path
-         math/base
+(require math/base
          "../config.rkt")
 
 (provide reap
@@ -15,7 +14,6 @@
          sym-append
          format-time
          format-bits
-         web-resource
          prop-dict/c
          props->dict
          dict->props
@@ -123,13 +121,6 @@
     [(not r) ""]
     [(and (positive? r) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
     [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
-
-(define-runtime-path web-resource-path "../reports/resources/")
-
-(define (web-resource [name #f])
-  (if name
-      (build-path web-resource-path name)
-      web-resource-path))
 
 ;; Symbol generation
 

@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../utils/alternative.rkt"
+(require "../core/alternative.rkt"
          "../syntax/batch.rkt"
          "programs.rkt"
          "egg-herbie.rkt"

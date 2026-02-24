@@ -3,11 +3,11 @@
          (only-in xml write-xexpr xexpr?)
          racket/date)
 (require "../utils/common.rkt"
-         "../api/datafile.rkt"
+         "data.rkt"
          "common.rkt"
          "../syntax/platform.rkt"
          "../syntax/types.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../config.rkt"
          "../syntax/batch.rkt")
 (provide make-timeline)
