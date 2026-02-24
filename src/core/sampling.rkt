@@ -134,7 +134,7 @@
     (let loop ([sampled 0]
                [skipped 0]
                [points '()]
-               [exactss '()])
+               [exactss (make-list (vector-length reprs) '())])
       (define-values (pt hint) (sampler))
       (define-values (status exs) (real-apply compiler pt hint))
       (case status
@@ -162,10 +162,7 @@
         [(and (list? exs) (not is-bad?))
          (define assembled-exs (assemble-output exs))
          (define assembled-pt (assemble-point pt))
-         (define next-exactss
-           (if (null? exactss)
-               (map list assembled-exs)
-               (map cons assembled-exs exactss)))
+         (define next-exactss (map cons assembled-exs exactss))
          (if (>= (+ 1 sampled) (*num-points*))
              (values (cons assembled-pt points) next-exactss)
              (loop (+ 1 sampled) 0 (cons assembled-pt points) next-exactss))]
