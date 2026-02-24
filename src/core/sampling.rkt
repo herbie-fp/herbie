@@ -134,7 +134,7 @@
     (let loop ([sampled 0]
                [skipped 0]
                [points '()]
-               [exactss (make-list (vector-length reprs) '())])
+               [exactss '()])
       (define-values (pt hint) (sampler))
       (define-values (status exs) (real-apply compiler pt hint))
       (case status
@@ -170,7 +170,7 @@
            (raise-herbie-sampling-error "Cannot sample enough valid points."
                                         #:url "faq.html#sample-valid-points"))
          (loop sampled (+ 1 skipped) points exactss)])))
-  (values (cons points exactss) outcomes))
+  (values (cons points (flip-lists exactss)) outcomes))
 
 (define (combine-tables t1 t2)
   (define t2-total (apply + (hash-values t2)))
