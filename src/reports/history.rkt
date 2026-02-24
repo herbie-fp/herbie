@@ -9,9 +9,9 @@
          "../syntax/types.rkt"
          "../syntax/platform.rkt"
          "../core/bsearch.rkt"
-         "../utils/alternative.rkt"
+         "../core/alternative.rkt"
          "../utils/common.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../core/points.rkt"
          "../core/programs.rkt"
          "common.rkt")

@@ -3,13 +3,12 @@
 (require math/bigfloat
          math/flonum)
 (require "../core/points.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../core/programs.rkt"
          "../syntax/types.rkt"
          "../syntax/read.rkt"
-         "../utils/alternative.rkt"
-         "../core/bsearch.rkt"
-         "../api/sandbox.rkt")
+         "../core/alternative.rkt"
+         "../core/bsearch.rkt")
 
 (provide make-points-json
          regime-var

@@ -3,7 +3,7 @@
 (require math/bigfloat
          racket/hash)
 (require "../utils/common.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -12,7 +12,7 @@
          "compiler.rkt"
          "points.rkt"
          "programs.rkt"
-         "rival.rkt")
+         "../syntax/rival.rkt")
 
 (module+ test
   (require rackunit

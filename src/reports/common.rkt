@@ -1,5 +1,6 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?)
+         racket/runtime-path
          (only-in fpbench
                   fpcore?
                   supported-by-lang?
@@ -40,6 +41,7 @@
          program->fpcore
          fpcore->tex
          fpcore->string
+         web-resource
          js-tex-include
          doc-url
          core->c
@@ -86,6 +88,13 @@
 
 (define (doc-url page)
   (format "https://herbie.uwplse.org/doc/~a/~a" *herbie-version* page))
+
+(define-runtime-path web-resource-path "resources/")
+
+(define (web-resource [name #f])
+  (if name
+      (build-path web-resource-path name)
+      web-resource-path))
 
 (define/contract (render-menu #:path [path "."] name links)
   (->* (string? (listof (cons/c string? string?))) (#:path string?) xexpr?)

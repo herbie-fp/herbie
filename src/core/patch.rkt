@@ -3,16 +3,16 @@
 (require "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../utils/alternative.rkt"
+         "../core/alternative.rkt"
          "../utils/common.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/batch.rkt"
          "egg-herbie.rkt"
          "egglog-herbie.rkt"
          "programs.rkt"
          "rules.rkt"
-         "rival.rkt"
+         "../syntax/rival.rkt"
          "taylor.rkt")
 
 (provide generate-candidates

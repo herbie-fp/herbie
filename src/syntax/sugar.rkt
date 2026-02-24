@@ -57,8 +57,7 @@
 
 #lang racket
 
-(require "../core/programs.rkt"
-         "../utils/common.rkt"
+(require "../utils/common.rkt"
          "../utils/errors.rkt"
          "platform.rkt"
          "matcher.rkt"
@@ -67,6 +66,24 @@
 
 (provide fpcore->prog
          prog->fpcore)
+
+;; Local copies to avoid depending on core/programs.rkt.
+(define (repr-of expr ctx)
+  (match expr
+    [(literal _ precision) (get-representation precision)]
+    [(? symbol?) (context-lookup ctx expr)]
+    [(approx _ impl) (repr-of impl ctx)]
+    [(hole precision _) (get-representation precision)]
+    [(list op _ ...) (impl-info op 'otype)]))
+
+(define (replace-vars dict expr)
+  (let loop ([expr expr])
+    (match expr
+      [(? literal?) expr]
+      [(? number?) expr]
+      [(? symbol?) (dict-ref dict expr expr)]
+      [(approx impl spec) (approx (loop impl) (loop spec))]
+      [(list op args ...) (cons op (map loop args))])))
 
 ;; Expression pre-processing for normalizing expressions.
 ;; Used for conversion from FPCore to other IRs.

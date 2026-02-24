@@ -2,10 +2,10 @@
 
 (require rackunit)
 (require "../utils/common.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../syntax/types.rkt"
          "../syntax/batch.rkt"
-         "rival.rkt"
+         "../syntax/rival.rkt"
          "rules.rkt"
          "programs.rkt"
          "../syntax/platform.rkt"

@@ -3,11 +3,11 @@
 (require math/bigfloat
          racket/random)
 (require "../config.rkt"
-         "../utils/alternative.rkt"
+         "../core/alternative.rkt"
          "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../utils/pretty-print.rkt"
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
@@ -15,7 +15,7 @@
          "../syntax/batch.rkt"
          "compiler.rkt"
          "regimes.rkt"
-         "rival.rkt"
+         "../syntax/rival.rkt"
          "sampling.rkt"
          "points.rkt"
          "programs.rkt")

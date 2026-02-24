@@ -323,7 +323,7 @@
            "rules.rkt"
            "../config.rkt"
            "../syntax/platform.rkt"
-           "../utils/float.rkt"
+           "../syntax/float.rkt"
            "../syntax/load-platform.rkt")
   (activate-platform! "c")
 

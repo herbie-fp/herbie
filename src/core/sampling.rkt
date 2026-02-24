@@ -4,12 +4,12 @@
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
          "../syntax/batch.rkt"
          "searchreals.rkt"
-         "rival.rkt")
+         "../syntax/rival.rkt")
 
 (provide batch-prepare-points
          sample-points)
