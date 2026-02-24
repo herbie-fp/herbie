@@ -25,35 +25,12 @@
                      [`(scalar ,v) v]
                      [`(array ,vs ...) `(array ,@vs)])))]
       [`(ref ,arr ,idx)
-       (define idx*
-         (if (syntax? idx)
-             (syntax-e idx)
-             idx))
        (define selected
          (match (lower-arr arr env)
-           [`(array ,elems ...) (list-ref elems idx*)]))
+           [`(array ,elems ...) (list-ref elems idx)]))
        (match selected
          [`(array ,_ ...) selected]
          [_ `(scalar ,selected)])]
-      [`(let ([,ids ,vals] ...) ,body)
-       ;; let evaluates rhs in outer env (simultaneous bindings)
-       (define lowered-vals
-         (for/list ([val (in-list vals)])
-           (lower-arr val env)))
-       (define env*
-         (for/fold ([e env])
-                   ([id (in-list ids)]
-                    [val (in-list lowered-vals)])
-           (hash-set e id val)))
-       (lower-arr body env*)]
-      [`(let* ([,ids ,vals] ...) ,body)
-       ;; let* evaluates rhs in progressively-extended env
-       (define env*
-         (for/fold ([e env])
-                   ([id (in-list ids)]
-                    [val (in-list vals)])
-           (hash-set e id (lower-arr val e))))
-       (lower-arr body env*)]
       [`(if ,c ,t ,f)
        (let* ([c* (match (lower-arr c env)
                     [`(scalar ,e) e])]
@@ -191,24 +168,9 @@
 (module+ test
   (require rackunit)
 
-  (define ctx (context '(x) <binary64> (list <binary64>)))
-
-  ;; let rhs expressions must be evaluated in the outer environment.
+  (define vec2 (make-array-representation #:elem <binary64> #:len 2))
+  (define ctx (context '(x) <binary64> (list vec2)))
   (let-values ([(specs* _ pre* _assemble-point _assemble-output _reprs*)
-                (flatten-arrays-for-rival (list 'x)
-                                          (list ctx)
-                                          '(let ([x 1]
-                                                 [y x])
-                                             y))])
-    (check-equal? specs* '(x))
-    (check-equal? pre* 'x))
-
-  ;; let* rhs expressions must be evaluated in the progressively-extended environment.
-  (let-values ([(specs* _ pre* _assemble-point _assemble-output _reprs*)
-                (flatten-arrays-for-rival (list 'x)
-                                          (list ctx)
-                                          '(let* ([x 1]
-                                                  [y x])
-                                             y))])
-    (check-equal? specs* '(x))
-    (check-equal? pre* 1)))
+                (flatten-arrays-for-rival (list '(ref x 1)) (list ctx) '(< (ref x 0) (ref x 1)))])
+    (check-equal? specs* '(x_1))
+    (check-equal? pre* '(< x_0 x_1))))
