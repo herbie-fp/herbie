@@ -53,6 +53,15 @@
       [#`(! #,props ... #,body)
        (check-properties* props '() error!)
        (loop body vars)]
+      [#`(array #,elems ...)
+       (when (null? elems)
+         (error! stx "Array literal must have at least one element"))
+       (for ([elem (in-list elems)])
+         (loop elem vars))]
+      [#`(ref #,arr ,idx)
+       (unless (integer? idx)
+         (error! idx "Array index must be a literal integer, got ~a" idx))
+       (loop arr vars)]
       [#`(cast #,arg) (loop arg vars)]
       [#`(cast #,args ...)
        (error! stx "Invalid `cast` expression with ~a arguments (expects 1)" (length args))
@@ -133,9 +142,11 @@
 
   (when (dict-has-key? prop-dict ':precision)
     (define prec (dict-ref prop-dict ':precision))
-    (define known-repr? (get-representation (syntax->datum prec)))
-    (unless known-repr?
-      (error! prec "Unknown :precision ~a" prec)))
+    (define repr (get-representation (syntax->datum prec)))
+    (unless repr
+      (error! prec "Unknown :precision ~a" prec))
+    (unless (or (not repr) (equal? (representation-type repr) 'real))
+      (error! prec "Invalid :precision ~a; expected a real representation name" prec)))
 
   (when (dict-has-key? prop-dict ':cite)
     (define cite (dict-ref prop-dict ':cite))
@@ -153,6 +164,18 @@
 
   (void))
 
+(define (check-argument name dims sow error!)
+  (unless (identifier? name)
+    (error! name "Invalid argument name ~a" name))
+  (for ([dim (in-list dims)])
+    (define dim* (syntax-e dim))
+    (unless (number? dim*)
+      (error! dim "Invalid dimension ~a; must be a positive integer literal" dim))
+    (when (number? dim*)
+      (unless (exact-positive-integer? dim*)
+        (error! dim "Invalid dimension ~a; dimensions must be positive integers" dim))))
+  (sow name))
+
 (define (check-program* stx vars props body error!)
   (unless (list? vars)
     (error! stx "Invalid arguments list ~a; must be a list" stx))
@@ -161,12 +184,12 @@
           (when (list? vars)
             (for ([var (in-list vars)])
               (match var
-                [(? identifier? x) (sow var)]
-                [#`(! #,props ... #,name)
+                [(? identifier? x) (check-argument x '() sow error!)]
+                [#`(! #,props ... #,name #,dims ...)
                  (check-properties* props (immutable-bound-id-set '()) error!)
-                 (cond
-                   [(identifier? name) (sow name)]
-                   [else (error! var "Annotated argument ~a is not a variable name" name)])])))))
+                 (check-argument name dims sow error!)]
+                [#`(#,name #,dims ...) (check-argument name dims sow error!)]
+                [_ (error! var "Invalid argument name ~a" var)])))))
   (when (check-duplicate-identifier vars*)
     (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*)))
   (check-properties* props (immutable-bound-id-set vars*) error!)
@@ -222,4 +245,11 @@
   (check-pred null? (get-errs #'(FPCore (x) x)))
   (check-pred null? (get-errs #'(FPCore (x) :precision binary64 x)))
   (check-pred null? (get-errs #'(FPCore foo (x) x)))
-  (check-pred null? (get-errs #'(FPCore foo (x) :precision binary64 x))))
+  (check-pred null? (get-errs #'(FPCore foo (x) :precision binary64 x)))
+
+  (check-pred null? (get-errs #'(FPCore (x) (array 1 2))))
+  (check-pred null? (get-errs #'(FPCore (x) (ref (array 1 2) 0))))
+  (check-pred null? (get-errs #'(FPCore (x) (array 1 2 3))))
+  (check-pred null? (get-errs #'(FPCore (x) (ref (array 1 2) 2))))
+  (check-pred null? (get-errs #'(FPCore ((v 3)) v)))
+  (check-pred null? (get-errs #'(FPCore ((v 2 2)) v))))

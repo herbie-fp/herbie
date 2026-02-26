@@ -31,7 +31,10 @@
                               #;(log ,log-x ,exp-x))))
 
 (define (taylor-alts altns global-batch spec-batch reducer)
-  (define vars (context-vars (*context*)))
+  (define vars
+    (for/list ([var (in-list (context-vars (*context*)))]
+               #:when (equal? (representation-type (context-lookup (*context*) var)) 'real))
+      var))
   (define brfs (map alt-expr altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
   ;; Specs
@@ -46,10 +49,14 @@
         (parameterize ([reduce reducer] ;; reduces over spec-batch
                        [add (λ (x) (batch-add! spec-batch x))]) ;; adds to spec-batch
           ;; Zero expansion
-          (define genexpr0 (batch-add! global-batch 0))
-          (define gen0 (approx (car spec-brfs) (hole (representation-name (car reprs)) genexpr0)))
-          (define brf0 (batch-add! global-batch gen0))
-          (sow (alt brf0 `(taylor zero undef-var) (list (car altns))))
+          (for ([spec-brf (in-list spec-brfs)]
+                [repr (in-list reprs)]
+                [altn (in-list altns)]
+                #:unless (array-representation? repr))
+            (define genexpr0 (batch-add! global-batch 0))
+            (define gen0 (approx spec-brf (hole (representation-name repr) genexpr0)))
+            (define brf0 (batch-add! global-batch gen0))
+            (sow (alt brf0 `(taylor zero undef-var) (list altn))))
 
           ;; Taylor expansions
           ;; List<List<(cons offset coeffs)>>

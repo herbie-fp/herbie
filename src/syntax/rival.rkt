@@ -12,6 +12,7 @@
          (prefix-in r3: rival3-racket))
 
 (require "../config.rkt"
+         "../core/arrays.rkt"
          "../utils/errors.rkt"
          "../syntax/float.rkt"
          "../utils/timeline.rkt"
@@ -137,24 +138,22 @@
       1))
 
 ;; Herbie's wrapper around the Rival machine abstraction.
-(struct real-compiler (pre vars var-reprs exprs reprs machine dump-file))
+(struct real-compiler
+        (pre vars var-reprs exprs reprs machine dump-file assemble-point assemble-output))
 
 ;; Creates a Rival machine.
-;; Takes a batch, a list of batchrefs into the batch, and a context
-;; to encode input variables and their representations.
-;; Optionally, takes a precondition.
 (define (make-real-compiler batch brfs ctxs #:pre [pre '(TRUE)])
-  (define vars (context-vars (first ctxs)))
-  (define reprs (map context-repr ctxs))
-  ;; Convert batchrefs to expressions. This conversion is not slow because
-  ;; Rival internally uses a hasheq-based deduplication optimization.
   (define specs (map (batch-exprs batch) brfs))
+  (define-values (specs* ctxs* pre* assemble-point assemble-output reprs)
+    (flatten-arrays-for-rival specs ctxs pre))
+  (define vars (context-vars (first ctxs*)))
+
   ; create the machine
-  (define exprs (cons `(assert ,pre) specs))
+  (define exprs (cons `(assert ,pre*) specs*))
   (define discs (make-discretizations reprs))
   (define machine (rival-compile exprs vars discs))
   (timeline-push! 'compiler
-                  (apply + 1 (expr-size pre) (map expr-size specs))
+                  (apply + 1 (expr-size pre*) (map expr-size specs*))
                   (+ (length vars) (rival-profile machine 'instructions)))
 
   (define dump-file
@@ -169,7 +168,7 @@
            (build-path dump-dir (format "~a.rival" i))))
        (define dump-file (open-output-file name #:exists 'replace))
        (pretty-print `(define (f ,@vars)
-                        ,@specs)
+                        ,@specs*)
                      dump-file
                      1)
        (flush-output dump-file)
@@ -179,11 +178,13 @@
   ; wrap it with useful information for Herbie
   (real-compiler pre
                  (list->vector vars)
-                 (list->vector (context-var-reprs (first ctxs)))
-                 specs
+                 (list->vector (context-var-reprs (first ctxs*)))
+                 specs*
                  (list->vector reprs)
                  machine
-                 dump-file))
+                 dump-file
+                 assemble-point
+                 assemble-output))
 
 (define (bigfloat->readable-string x)
   (define real (bigfloat->real x)) ; Exact rational unless inf/nan
@@ -194,7 +195,7 @@
 
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
-  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file) compiler)
+  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file _ _) compiler)
   (define start (current-inexact-milliseconds))
   (define pt*
     (for/vector #:length (vector-length vars)
@@ -271,3 +272,17 @@
           (r3:ival (ival-lo iv) (ival-hi iv))
           (r2:ival (ival-lo iv) (ival-hi iv)))))
   (rival-analyze-with-hints (real-compiler-machine compiler) rect* hint))
+
+(module+ test
+  (require rackunit)
+  (define <b64> <binary64>)
+  (define arr-repr (make-array-representation #:elem <b64> #:len 3))
+  (define arr-ctx (context '(v) arr-repr (list arr-repr)))
+  (define-values (specs* ctxs* pre* _assemble-pt _assemble-out reprs*)
+    (flatten-arrays-for-rival (list 'v) (list arr-ctx) 'TRUE))
+  (check-equal? specs* '(v_0 v_1 v_2))
+  (check-equal? (map context-vars ctxs*) '((v_0 v_1 v_2)))
+  (check-equal? (map context-var-reprs ctxs*) (list (list <b64> <b64> <b64>)))
+  (check-equal? reprs* (list <b64> <b64> <b64>))
+  (check-equal? (_assemble-out '(1 2 3)) '(#(1 2 3)))
+  (check-equal? pre* 'TRUE))

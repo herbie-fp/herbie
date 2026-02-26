@@ -143,7 +143,7 @@
 (define (parse-test stx)
   (assert-program! stx)
   (define stx* (expand-core stx))
-  (assert-program-typed! stx*)
+  (define-values (output-repr ctx) (assert-program-typed! stx*))
   (define-values (func-name args props body)
     (match (syntax->datum stx*)
       [(list 'FPCore name (list args ...) props ... body) (values name args props body)]
@@ -161,20 +161,8 @@
         [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
 
   (define default-prec (dict-ref prop-dict ':precision (*default-precision*)))
-
-  (define-values (var-names var-precs)
-    (for/lists (var-names var-precs)
-               ([var (in-list args)])
-               (match var
-                 [(list '! props ... name)
-                  (define prop-dict (props->dict props))
-                  (define arg-prec (dict-ref prop-dict ':precision default-prec))
-                  (values name arg-prec)]
-                 [(? symbol? name) (values name default-prec)])))
-
-  (define default-repr (get-representation default-prec))
-  (define var-reprs (map get-representation var-precs))
-  (define ctx (context var-names default-repr var-reprs))
+  (define var-names (context-vars ctx))
+  (define var-reprs (context-var-reprs ctx))
 
   ;; Named fpcores need to be added to function table
   (when func-name
@@ -212,7 +200,7 @@
         (dict-ref prop-dict ':herbie-expected #t)
         spec
         pre*
-        (representation-name default-repr)
+        (representation-name output-repr)
         (for/list ([var (in-list var-names)]
                    [repr (in-list var-reprs)])
           (cons var (representation-name repr)))))

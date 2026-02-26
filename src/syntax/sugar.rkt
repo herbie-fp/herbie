@@ -6,7 +6,7 @@
 ;; FPCore: the input/output language
 ;;
 ;; - standardized interchange format with other tools
-;; - using loopless, tensorless subset
+;; - using a loopless subset with array literals
 ;; - operators denote real computations while rounding contexts decide format
 ;;
 ;;  <FPCore> ::= (FPCore (<var> ...) <props> ... <expr>)
@@ -211,6 +211,19 @@
        (if (equal? (repr-of arg* ctx) repr)
            arg*
            (fpcore->impl-app 'cast prop-dict (list arg*) ctx))]
+      [(list 'ref arr idx)
+       (define arr* (loop arr prop-dict))
+       (define idx* (loop idx prop-dict))
+       (define arr-repr (repr-of arr* ctx))
+       (define idx-repr (repr-of idx* ctx))
+       (define impl (assert-fpcore-impl 'ref prop-dict (list arr-repr idx-repr)))
+       (define vars (impl-info impl 'vars))
+       (define pattern
+         (match (impl-info impl 'fpcore)
+           [(list '! _ ... body) body]
+           [body body]))
+       (define subst (pattern-match pattern (list 'ref arr* idx*)))
+       (pattern-substitute (cons impl vars) subst)]
       [(list op args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
        (fpcore->impl-app op prop-dict args* ctx)])))

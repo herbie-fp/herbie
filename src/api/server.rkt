@@ -616,16 +616,26 @@
           splitpoints))
 
 (define (alt->fpcore test altn)
+  (define out-repr (test-output-repr test))
+  (define out-base-repr (array-representation-base out-repr))
   `(FPCore ,@(filter identity (list (test-identifier test)))
-           ,(for/list ([var (in-list (test-vars test))])
-              (define repr (dict-ref (test-var-repr-names test) var))
-              (if (equal? repr (test-output-repr-name test))
-                  var
-                  (list '! ':precision repr var)))
+           ,(for/list ([var (in-list (test-vars test))]
+                       [repr (in-list (test-var-reprs test))])
+              (cond
+                [(array-representation? repr)
+                 (define dims (array-representation-shape repr))
+                 (define elem-repr (array-representation-base repr))
+                 (if (equal? elem-repr out-base-repr)
+                     (append (list var) dims)
+                     (append (list '! ':precision (representation-name elem-repr) var) dims))]
+                [else
+                 (if (equal? repr out-base-repr)
+                     var
+                     (list '! ':precision (representation-name repr) var))]))
            :name
            ,(test-name test)
            :precision
-           ,(test-output-repr-name test)
+           ,(representation-name out-base-repr)
            ,@(if (equal? (test-pre test) '(TRUE))
                  '()
                  `(:pre ,(prog->fpcore (test-pre test) (test-context test))))
