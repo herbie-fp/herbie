@@ -38,6 +38,7 @@
         branches
         (map (curry batch-add! batch) (context-vars ctx))))
   (define brf-vals (brf-values* batch branch-brfs ctx pcontext))
+  (define reprs (batch-reprs batch ctx))
   (define errs (make-hash))
   (let loop ([alts sorted]
              [err-cols err-cols])
@@ -45,14 +46,15 @@
       [(null? alts) '()]
       ; Only return one option if not pareto mode
       [else
-       (define opt (infer-splitpoints batch branch-brfs brf-vals alts err-cols errs ctx pcontext))
+       (define opt
+         (infer-splitpoints batch branch-brfs brf-vals reprs alts err-cols errs ctx pcontext))
        (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
        (cons opt (loop (take alts high) (take err-cols high)))])))
 
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-splitpoints batch branch-brfs brf-vals alts err-cols errs ctx pcontext)
+(define (infer-splitpoints batch branch-brfs brf-vals reprs alts err-cols errs ctx pcontext)
   (timeline-push! 'inputs (batch->jsexpr batch (map alt-expr alts)))
   (define cerrs (hash-copy errs))
   (define brf-data (map cons branch-brfs brf-vals))
@@ -69,7 +71,7 @@
               ([(brf brf-vals) (in-dict sorted-brfs)]
                ;; stop if we've computed this (and following) branch-brf on more alts and it's still worse
                #:break (> (hash-ref cerrs brf -1) best-err))
-      (define opt (option-on-brf batch alts err-cols pts-vec brf brf-vals ctx))
+      (define opt (option-on-brf batch alts err-cols pts-vec brf brf-vals ctx reprs))
       (define err
         (+ (errors-score (option-errors opt))
            (length (option-split-indices opt)))) ;; one-bit penalty per split
@@ -120,9 +122,9 @@
       (vector-set! (vector-ref vals i) p out)))
   (vector->list vals))
 
-(define (option-on-brf batch alts err-cols pts-vec brf brf-vals-vec ctx)
+(define (option-on-brf batch alts err-cols pts-vec brf brf-vals-vec ctx reprs)
   (define timeline-stop! (timeline-start! 'times (batch->jsexpr batch (list brf))))
-  (define repr ((batch-reprs batch ctx) brf))
+  (define repr (reprs brf))
   (define sorted-indices
     (vector-sort (build-vector (vector-length brf-vals-vec) values)
                  (lambda (i j)
@@ -183,8 +185,9 @@
     (define-values (batch brfs) (progs->batch (list expr)))
     (define brf (car brfs))
     (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
+    (define reprs (batch-reprs batch ctx))
     (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-brf batch alts err-cols pts-vec brf brf-vals ctx)
+           (option-on-brf batch alts err-cols pts-vec brf brf-vals ctx reprs)
            goal))
 
   ;; This is a basic sanity test
