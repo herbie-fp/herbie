@@ -558,16 +558,23 @@
                      [(zero? n) `(log ,(maybe-negate (coeffs 0)))]
                      [else
                       (define tmpl (logcompute n))
-                      `(/ (+ ,@(for/list ([term tmpl])
-                                 (match-define `(,coeff ,k ,ps ...) term)
-                                 `(* ,coeff
-                                     (/ (* ,@(for/list ([i (in-naturals 1)]
-                                                        [p ps])
-                                               (if (= p 0)
-                                                   1
-                                                   `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
-                                        (exp (* ,(- k) ,(f 0)))))))
-                          ,(factorial n))]))))
+                      (define coeffs* (list->vector (map coeffs (range 1 (add1 n)))))
+                      (define relevant-terms
+                        (for/list ([term (in-list tmpl)]
+                                   #:do [(match-define `(,coeff ,k ,ps ...) term)]
+                                   #:unless (for/or ([i (in-naturals 1)]
+                                                     [p (in-list ps)]
+                                                     #:when (not (= p 0)))
+                                              (equal? (deref (vector-ref coeffs* (sub1 i))) 0)))
+                          `(* ,coeff
+                              (/ (* ,@(for/list ([i (in-naturals 1)]
+                                                 [p (in-list ps)])
+                                        (if (= p 0)
+                                            1
+                                            `(pow (* ,(factorial i) ,(vector-ref coeffs* (sub1 i)))
+                                                  ,p))))
+                                 (exp (* ,(- k) ,(f 0)))))))
+                      `(/ ,(make-sum relevant-terms) ,(factorial n))]))))
 
   (if (zero? shift)
       base
