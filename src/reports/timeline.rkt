@@ -67,7 +67,7 @@
             ,@(dict-call curr render-phase-egraph 'egraph)
             ,@(dict-call curr render-phase-stop 'stop)
             ,@(dict-call curr render-phase-counts 'count)
-            ,@(dict-call curr render-phase-alts 'alts)
+            ,@(dict-call curr render-phase-alts/shared 'alts 'alts-batch)
             ,@(dict-call curr render-phase-inputs 'inputs 'outputs)
             ,@(dict-call curr render-phase-times 'times)
             ,@(dict-call curr render-phase-series 'series)
@@ -313,21 +313,25 @@
                       (match-define (list inputs outputs) rec)
                       `(dd ,(~r inputs #:group-sep " ") " → " ,(~r outputs #:group-sep " ")))))
 
-(define (render-phase-alts alts)
+(define (render-phase-alts/shared alts shared-batch)
+  (match-define (list (? hash? shared-batch*)) shared-batch)
+  (define nodes (hash-ref shared-batch* 'nodes))
+  (define (single-root-jsexpr root)
+    (hash 'nodes nodes 'roots (list root)))
   `((dt "Alt Table")
     (dd (details (summary "Click to see full alt table")
                  (table ((class "times"))
                         (thead (tr (th "Status") (th "Accuracy") (th "Program")))
                         ,@
                         (for/list ([rec (in-list alts)])
-                          (match-define (list batch-jsexpr status score repr-name) rec)
+                          (match-define (list root status score repr-name) rec)
                           (define repr (get-representation (read (open-input-string repr-name))))
                           `(tr ,(match status
                                   ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
                                   ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
                                   ["fresh" `(td)])
                                (td ,(format-accuracy score repr #:unit "%") "")
-                               (td (pre ,(jsexpr->batch-exprs batch-jsexpr))))))))))
+                               (td (pre ,(jsexpr->batch-exprs (single-root-jsexpr root)))))))))))
 
 (define (render-phase-times times)
   (define hist-id (make-id))
