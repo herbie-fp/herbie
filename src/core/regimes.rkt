@@ -218,11 +218,17 @@
   (define (ulps->bits x)
     (real->double-flonum (log x 2)))
 
-  (: sorted-errors (-> (Vectorof Nonnegative-Integer) (Vectorof Integer) FlVector))
-  (define (sorted-errors alt-errors sorted-indices)
-    (vector->flvector (vector-map (lambda ([point-idx : Integer])
-                                    (ulps->bits (vector-ref alt-errors point-idx)))
-                                  sorted-indices)))
+  (: sorted-error-prefix-sums (-> (Vectorof Nonnegative-Integer) (Vectorof Integer) FlVector))
+  (define (sorted-error-prefix-sums alt-errors sorted-indices)
+    (define number-of-points (vector-length sorted-indices))
+    (define prefix-sums (make-flvector number-of-points))
+    (for/fold ([sum 0.0])
+              ([point-idx (in-vector sorted-indices)]
+               [i (in-naturals)])
+      (define next-sum (fl+ sum (ulps->bits (vector-ref alt-errors point-idx))))
+      (flvector-set! prefix-sums i next-sum)
+      next-sum)
+    prefix-sums)
 
   ;; This is the core main loop of the regimes algorithm.
   ;; Takes in alt-major error columns, point-sorting indices, and a list of
@@ -239,7 +245,7 @@
       :
       (Listof FlVector)
       (for/list ([err-col (in-list err-cols)])
-        (flvector-sums (sorted-errors err-col sorted-indices))))
+        (sorted-error-prefix-sums err-col sorted-indices)))
 
     ;; Set up data needed for algorithm
     (define number-of-points (vector-length can-split-vec))
