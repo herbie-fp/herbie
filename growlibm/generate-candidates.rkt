@@ -23,12 +23,13 @@
 (define err-threshold 0.1)
 (define fixed-cut-depths '(2 3 4))
 (define cut-hole-symbol 'HOLE)
-(define interesting-ops '(fabs.f32 sin.f32 cos.f32 tan.f32 sinh.f32 cosh.f32 tanh.f32 asin.f32 acos.f32 
-                          atan.f32 asinh.f32 atanh.f32 acosh.f32 atan2.f32 exp.f32 exp2.f32 log.f32 log10.f32
-                          log2.f32 logb.f32 ceil.f32 floor.f32 sqrt.f32 cbrt.f32 pow.f32 fmax.f32 fmin.f32 fmod.f32
-                          fabs.f64 sin.f64 cos.f64 tan.f64 sinh.f64 cosh.f64 tanh.f64 asin.f64 acos.f64 
-                          atan.f64 asinh.f64 atanh.f64 acosh.f64 atan2.f64 exp.f64 exp2.f64 log.f64 log10.f64
-                          log2.f64 logb.f64 ceil.f64 floor.f64 sqrt.f64 cbrt.f64 pow.f64 fmax.f64 fmin.f64 fmod.f64))
+(define interesting-ops '(fabs.f32 sin.f32 cos.f32 tan.f32 sinh.f32 cosh.f32 tanh.f32 asin.f32 acos.f32
+                                   atan.f32 asinh.f32 atanh.f32 acosh.f32 atan2.f32 exp.f32 exp2.f32 log.f32 log10.f32
+                                   log2.f32 logb.f32 ceil.f32 floor.f32 sqrt.f32 cbrt.f32 pow.f32 fmax.f32 fmin.f32 fmod.f32
+                                   fabs.f64 sin.f64 cos.f64 tan.f64 sinh.f64 cosh.f64 tanh.f64 asin.f64 acos.f64
+                                   atan.f64 asinh.f64 atanh.f64 acosh.f64 atan2.f64 exp.f64 exp2.f64 log.f64 log10.f64
+                                   log2.f64 logb.f64 ceil.f64 floor.f64 sqrt.f64 cbrt.f64 pow.f64 fmax.f64 fmin.f64 fmod.f64))
+(define max-vars 3)
 
 ;;; ------------------------- HELPERS ---------------------------------
 (define cost-proc (platform-cost-proc (*active-platform*)))
@@ -100,8 +101,6 @@
                  [(? symbol?) (void)]
                  [(list op args ...)
                   (sow expr)
-                  (for ([cut-expr (get-fixed-depth-cuts expr)])
-                    (sow cut-expr))
                   (for ([arg args]
                         [i (in-naturals)])
                     (define args-with-hole (list-set args i cut-hole-symbol))
@@ -134,7 +133,7 @@
   (map (compose batch-pull first) batchrefss))
 
 (define (alpha-rename impl)
-  (define free-vars(free-variables impl))
+  (define free-vars (free-variables impl))
   (define varDict
     (for/hash ([v free-vars]
                [i (in-naturals)])
@@ -159,10 +158,17 @@
   (define ctx (get-ctx expr))
   (format "(FPCore ~a ~a)" vars (prog->fpcore expr ctx)))
 
-(define (candidate-expr? n)
-  (and (not (or (symbol? n) (literal? n) (number? n)))
-       (> (length (free-variables n)) 0)
-       (< (length (free-variables n)) 4)))
+(define (candidate-expr? expr)
+  (and (not (or (symbol? expr) (literal? expr) (number? expr)))
+       has-some-free-vars?
+       has-not-too-many-free-vars?))
+
+(define (has-some-free-vars? expr)
+  (> (length (free-variables expr)) 0))
+
+(define (has-not-too-many-free-vars? expr )
+  (<= (length (free-variables expr)) max-vars))
+
 
 (define (contains-interesting-op? expr)
   (let loop ([expr expr])
@@ -185,13 +191,12 @@
 
 (define roots (file->list (string-append report-dir "/expr_dump.txt")))
 (define roots-no-conditionals (append* (map eliminate-ifs roots)))
-(define canonical-roots (map alpha-rename (run-egg (map alpha-rename roots-no-conditionals))))
-
+(define canonical-roots (filter has-some-free-vars? (run-egg (map alpha-rename roots-no-conditionals))))
 (for ([c canonical-roots])
   (hash-update! root-count-hash c add1 0))
 
 (for ([(root-expr root-count) (in-hash root-count-hash)])
-  (define subexprs (alpha-rename (get-subexpressions root-expr)))
+  (define subexprs (alpha-rename (filter candidate-expr? (get-subexpressions root-expr))))
   (set! subexpr-count (+ subexpr-count (length subexprs)))
   (for ([c subexprs])
     (hash-update! candidate-count-hash c (lambda (old) (+ old root-count)) 0)))
@@ -203,11 +208,12 @@
   (hash-update! canonical-candidate-count-hash candidate (lambda (old) (+ old cand-count)) 0))
 
 (define pairs-raw (hash->list canonical-candidate-count-hash))
-(define filtered-pairs (filter (lambda (x) (candidate-expr? (car x))) pairs-raw))
-(define filtered-pairs* (filter (lambda (x) (and (> (cdr x) 1)
-                                                 (contains-interesting-op? (car x))))
-                                filtered-pairs))
-(define sorted-pairs (sort filtered-pairs* (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
+(define filtered-pairs (filter (lambda (x) (and (> (cdr x) 1)
+                                                (contains-interesting-op? (car x))
+                                                (candidate-expr? (car x))))
+                               pairs-raw))
+
+(define sorted-pairs (sort filtered-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
 (define top-pairs (take sorted-pairs (min (length sorted-pairs) (* 2 candidate-num))))
 (define final-pairs (filter (lambda (x) (> (get-error (car x)) err-threshold)) top-pairs))
 

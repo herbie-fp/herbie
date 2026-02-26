@@ -40,6 +40,16 @@
 
 (define *global-batch* (make-parameter #f))
 
+(define (dump-expr! expr)
+  (when (*dump-exprs*)
+    (displayln expr)))
+
+(define (dump-altns! altns)
+  (when (*dump-exprs*)
+    (define exprs (batch-exprs (*global-batch*)))
+    (for ([altn (in-list altns)])
+      (dump-expr! (exprs (alt-expr altn))))))
+
 ;; These high-level functions give the high-level workflow of Herbie:
 ;; - Initial steps: explain, preprocessing, initialize the alt table
 ;; - the loop: choose some alts, localize, run the patch table, and finalize
@@ -61,6 +71,7 @@
 
     (*preprocessing* preprocessing)
     (define initial-brf (batch-add! (*global-batch*) initial))
+    (dump-expr! initial)
     (*start-brf* initial-brf)
     (define start-alt (alt initial-brf 'start '()))
     (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
@@ -73,8 +84,6 @@
     (for/list ([altn alternatives])
       (define expr (alt-expr altn))
       (define expr* (compile-useful-preprocessing expr context pcontext (*preprocessing*)))
-      (when (*dump-exprs*)
-        (displayln expr))
       (alt expr* 'add-preprocessing (list altn)))))
 
 (define (extract!)
@@ -203,6 +212,7 @@
   (unless (^patched^)
     (raise-user-error 'finalize-iter! "No candidates ready for pruning!"))
 
+  (dump-altns! (^patched^))
   (timeline-event! 'eval)
   (define orig-all-alts (atab-active-alts (^table^)))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
