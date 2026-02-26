@@ -33,6 +33,7 @@
 
 # Observability
 
+- `jq` is installed, use it
 - Herbie runs output a `tmp/<benchmark>/timeline.json` with rich
   observability data for each benchmark.
 - A timeline is a list of phases, each a map from key to "table",
