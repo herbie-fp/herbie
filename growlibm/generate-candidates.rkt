@@ -101,11 +101,7 @@
                  [(? symbol?) (void)]
                  [(list op args ...)
                   (sow expr)
-                  (for ([arg args]
-                        [i (in-naturals)])
-                    (define args-with-hole (list-set args i cut-hole-symbol))
-                    (define cut-expr (cons op args-with-hole))
-                    (sow cut-expr)
+                  (for ([arg args])
                     (loop arg)
                     )]
                  [_ (void)])]))))
