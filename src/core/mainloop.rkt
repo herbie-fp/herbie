@@ -93,17 +93,25 @@
 (define (timeline-push-alts! next-alts)
   (define pending-alts (atab-not-done-alts (^table^)))
   (define active-alts (atab-active-alts (^table^)))
+  (define scores (batch-score-alts active-alts))
+  (define batch-jsexpr (batch->jsexpr (*global-batch*) (map alt-expr active-alts)))
+  (define roots (hash-ref batch-jsexpr 'roots))
   (define repr (context-repr (*context*)))
+  (timeline-push! 'alts-batch batch-jsexpr)
   (for ([alt (in-list active-alts)]
-        [score (in-list (batch-score-alts active-alts))])
+        [score (in-list scores)]
+        [root (in-list roots)])
     (timeline-push! 'alts
-                    (batch->jsexpr (*global-batch*) (list (alt-expr alt)))
+                    root
                     (cond
                       [(set-member? next-alts alt) "next"]
                       [(set-member? pending-alts alt) "fresh"]
                       [else "done"])
                     score
                     (~a (representation-name repr)))))
+
+(define (set-intersect-size keys set)
+  (for/sum ([key (in-list keys)] #:when (set-member? set key)) 1))
 
 (define (expr-recurse-impl expr f)
   (match expr
@@ -171,23 +179,24 @@
   (define-values (errss costs) (atab-eval-altns (^table^) (*global-batch*) patched (*context*)))
   (timeline-event! 'prune)
   (^table^ (atab-add-altns (^table^) patched errss costs (*context*)))
-  (define final-fresh-alts (atab-not-done-alts (^table^)))
-  (define final-done-alts (set-subtract (atab-active-alts (^table^)) final-fresh-alts))
+  (define final-fresh-set (list->seteq (atab-not-done-alts (^table^))))
+  (define final-active-set (list->seteq (atab-active-alts (^table^))))
+  (define final-done-set (set-subtract final-active-set final-fresh-set))
   (timeline-push! 'count
                   (+ (length patched) (length orig-fresh-alts) (length orig-done-alts))
-                  (+ (length final-fresh-alts) (length final-done-alts)))
+                  (+ (set-count final-fresh-set) (set-count final-done-set)))
 
   (define data
     (hash 'new
-          (list (length patched) (length (set-intersect patched final-fresh-alts)))
+          (list (length patched) (set-intersect-size patched final-fresh-set))
           'fresh
-          (list (length orig-fresh-alts) (length (set-intersect orig-fresh-alts final-fresh-alts)))
+          (list (length orig-fresh-alts) (set-intersect-size orig-fresh-alts final-fresh-set))
           'done
           (list (- (length orig-done-alts) (length picked-alts))
-                (- (length (set-intersect orig-done-alts final-done-alts))
-                   (length (set-intersect final-done-alts picked-alts))))
+                (- (set-intersect-size orig-done-alts final-done-set)
+                   (set-intersect-size picked-alts final-done-set)))
           'picked
-          (list (length picked-alts) (length (set-intersect final-done-alts picked-alts)))))
+          (list (length picked-alts) (set-intersect-size picked-alts final-done-set))))
   (timeline-push! 'kept data)
 
   (define repr (context-repr (*context*)))
