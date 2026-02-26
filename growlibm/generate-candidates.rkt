@@ -156,8 +156,8 @@
 
 (define (candidate-expr? expr)
   (and (not (or (symbol? expr) (literal? expr) (number? expr)))
-       has-some-free-vars?
-       has-not-too-many-free-vars?))
+       (has-some-free-vars? expr)
+       (has-not-too-many-free-vars? expr)))
 
 (define (has-some-free-vars? expr)
   (> (length (free-variables expr)) 0))
@@ -181,26 +181,37 @@
 
 ;;; ------------------------- MAIN PIPELINE ---------------------------------
 (define root-count-hash (make-hash))
+(define canonical-root-count-hash (make-hash))
 (define candidate-count-hash (make-hash))
 (define canonical-candidate-count-hash (make-hash))
 (define subexpr-count 0)
 
 (define roots (file->list (string-append report-dir "/expr_dump.txt")))
-(define roots-no-conditionals (append* (map eliminate-ifs roots)))
-(define canonical-roots (filter has-some-free-vars? (run-egg (map alpha-rename roots-no-conditionals))))
-(for ([c canonical-roots])
-  (hash-update! root-count-hash c add1 0))
+(define roots-no-conditionals (map alpha-rename (append* (map eliminate-ifs roots))))
 
-(for ([(root-expr root-count) (in-hash root-count-hash)])
-  (define subexprs (alpha-rename (filter candidate-expr? (get-subexpressions root-expr))))
+(for ([r roots-no-conditionals])
+  (hash-update! root-count-hash r add1 0))
+
+(define root-count-pairs (hash->list root-count-hash))
+(define canonical-roots (run-egg (map car root-count-pairs)))
+
+(for ([c (in-list canonical-roots)]
+      [root-pair (in-list root-count-pairs)])
+  (define root-count (cdr root-pair))
+  (hash-update! canonical-root-count-hash c (lambda (old) (+ old root-count)) 0))
+
+(for ([(root-expr root-count) (in-hash canonical-root-count-hash)])
+  (define subexprs (map alpha-rename (filter candidate-expr? (get-subexpressions root-expr))))
   (set! subexpr-count (+ subexpr-count (length subexprs)))
   (for ([c subexprs])
     (hash-update! candidate-count-hash c (lambda (old) (+ old root-count)) 0)))
 
-(define canonical-candidates (map alpha-rename (run-egg (hash-keys candidate-count-hash))))
+(define candidate-count-pairs (hash->list candidate-count-hash))
+(define canonical-candidates (map alpha-rename (run-egg (map car candidate-count-pairs))))
 
-(for ([candidate canonical-candidates]
-      [cand-count (in-hash-values candidate-count-hash)])
+(for ([candidate (in-list canonical-candidates)]
+      [candidate-pair (in-list candidate-count-pairs)])
+  (define cand-count (cdr candidate-pair))
   (hash-update! canonical-candidate-count-hash candidate (lambda (old) (+ old cand-count)) 0))
 
 (define pairs-raw (hash->list canonical-candidate-count-hash))
