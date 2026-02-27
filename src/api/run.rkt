@@ -147,7 +147,7 @@
     [(cons (? integer? key) rest) (apply hash-ref-path (list-ref hash key) rest)]))
 
 (define (print-test-result i n test result-hash)
-  (eprintf "~a/~a\t" (~a i #:width 3 #:align 'right) n)
+  (eprintf "~a/~a\t" (~a i #:min-width 3 #:align 'right) n)
   (define name (test-name test))
   (match (hash-ref-path result-hash 'status)
     ["failure"
