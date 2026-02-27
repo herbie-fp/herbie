@@ -146,7 +146,7 @@
       ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
       ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
-  ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
+  ;; 5. Extract using constructor names returned by egglog-add-exprs.
   (define stdout-content
     (egglog-multi-extract subproc
                           `(multi-extract ,extract
