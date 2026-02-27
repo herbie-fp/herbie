@@ -932,42 +932,41 @@
   (define (eggref id)
     (cdr (vector-ref egg-nodes id)))
 
+  (define memo (make-hash))
+
   (define (add-enode enode type)
-    (define idx
-      (let loop ([enode enode]
-                 [type type])
-        (define enode*
-          (match enode
-            [(? number?)
-             (if (representation? type)
-                 (literal enode (representation-name type))
-                 enode)]
-            [(? symbol?)
-             (if (string-prefix? (symbol->string enode) "$var")
-                 (egg-var->var enode ctx)
-                 enode)]
-            [(list '$approx (app eggref spec) (app eggref impl))
-             (define spec-type
-               (if (representation? type)
-                   (representation-type type)
-                   type))
-             (approx (loop spec spec-type) (loop impl type))]
-            [(list impl (app eggref args) ...)
-             (define args*
-               (for/list ([arg (in-list args)]
-                          [type (in-list (if (representation? type)
+    (define enode*
+      (match enode
+        [(? number?)
+         (if (representation? type)
+             (literal enode (representation-name type))
+             enode)]
+        [(? symbol?)
+         (if (string-prefix? (symbol->string enode) "$var")
+             (egg-var->var enode ctx)
+             enode)]
+        [(list '$approx spec impl)
+         (define spec-type
+           (if (representation? type)
+               (representation-type type)
+               type))
+         (approx (batchref-idx (add-id spec spec-type)) (batchref-idx (add-id impl type)))]
+        [(list impl args ...)
+         (define args*
+           (for/list ([arg-id (in-list args)]
+                      [arg-type (in-list (if (representation? type)
                                              (impl-info impl 'itype)
                                              (operator-info impl 'itype)))])
-                 (loop arg type)))
-             (cons impl args*)]))
-        (batchref-idx (batch-push! batch enode*))))
+             (batchref-idx (add-id arg-id arg-type))))
+         (cons impl args*)]))
+    (batchref-idx (batch-push! batch enode*)))
+
+  (define (add-id id type)
+    (define key (cons id type))
+    (define idx (hash-ref! memo key (λ () (add-enode (eggref id) type))))
     (batchref batch idx))
 
-  ; same as add-enode but works with index as an input instead of enode
-  (define (add-id id type)
-    (add-enode (eggref id) type))
-
-  (values add-id add-enode))
+  (values add-id (λ (enode type) (batchref batch (add-enode enode type)))))
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
@@ -1039,11 +1038,10 @@
   (match-define (list extract-id _) extract)
   ; extract expr
   (define key (cons id type))
+  (define id* (hash-ref canon key #f))
   (cond
     ; at least one extractable expression
-    [(hash-has-key? canon key)
-     (define id* (hash-ref canon key))
-     (list (extract-id id* type))]
+    [id* (list (extract-id id* type))]
     ; no extractable expressions
     [else (list)]))
 
