@@ -590,5 +590,6 @@
     [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
      (literal (/ (string->number n) (string->number d)) (egglog-num-repr num))]
     [`(,(? egglog-var? var) ,v) (string->symbol v)]
-    [`(Approx ,spec ,impl) (approx (e1->expr spec) (e2->expr impl))] ;;; todo approx bug or not?
+    ; Approx stores a spec expression in E1/M and an implementation in E2/MTy.
+    [`(Approx ,spec ,impl) (approx (e1->expr spec) (e2->expr impl))]
     [`(,impl ,args ...) `(,(hash-ref (e2->id) impl) ,@(map e2->expr args))]))
