@@ -11,6 +11,8 @@
   "../src/core/points.rkt"
   "../src/syntax/batch.rkt"
   "../src/core/egg-herbie.rkt"
+  (rename-in "../src/core/egglog-herbie.rkt"
+             [run-egglog run-egglog-backend])
   "../src/syntax/platform.rkt"
   "../src/utils/common.rkt"
   "../src/utils/errors.rkt")
@@ -128,6 +130,28 @@
   (define batch-pull (batch-exprs batch))
   (map (compose batch-pull first) batchrefss))
 
+(define (run-egglog exprs)
+  (cond
+    [(null? exprs) '()]
+    [else
+     (define spec-exprs (map prog->spec exprs))
+     (define exprs* (map (curry hole 'binary64) spec-exprs))
+     (define ctxs (map get-ctx spec-exprs))
+     (define ctx (ctx-union ctxs))
+     (*context* ctx)
+     (define schedule '(lift rewrite lower))
+     (define-values (batch brfs)
+       (progs->batch exprs*))
+
+     (define batch* (batch-empty))
+     (define copy-f (batch-copy-only! batch* batch))
+     (define brfs* (map copy-f brfs))
+
+     (define runner (make-egglog-runner batch* brfs* (map context-repr ctxs) schedule ctx))
+     (define batchrefss (run-egglog-backend runner batch 'growlibm-candidates #:extract 1))
+     (define batch-pull (batch-exprs batch))
+     (map (compose batch-pull first) batchrefss)]))
+
 (define (alpha-rename impl)
   (define free-vars (free-variables impl))
   (define varDict
@@ -193,7 +217,8 @@
   (hash-update! root-count-hash r add1 0))
 
 (define root-count-pairs (hash->list root-count-hash))
-(define canonical-roots (run-egg (map car root-count-pairs)))
+(displayln (format "num-roots: ~a" (length root-count-pairs)))
+(define canonical-roots (run-egglog (map car root-count-pairs)))
 
 (for ([c (in-list canonical-roots)]
       [root-pair (in-list root-count-pairs)])
@@ -207,7 +232,9 @@
     (hash-update! candidate-count-hash c (lambda (old) (+ old root-count)) 0)))
 
 (define candidate-count-pairs (hash->list candidate-count-hash))
-(define canonical-candidates (map alpha-rename (run-egg (map car candidate-count-pairs))))
+
+(displayln (format "num candidates: ~a" (length candidate-count-pairs)))
+(define canonical-candidates (map alpha-rename (run-egglog (map car candidate-count-pairs))))
 
 (for ([candidate (in-list canonical-candidates)]
       [candidate-pair (in-list candidate-count-pairs)])
