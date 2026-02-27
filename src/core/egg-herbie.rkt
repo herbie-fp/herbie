@@ -26,7 +26,10 @@
          egraph-prove
          egraph-best
          egraph-variations
-         egraph-analyze-rewrite-impact)
+         egraph-analyze-rewrite-impact
+         egraph-eclass-ids
+         egraph-eclass-nodes
+         expr->egg-expr)
 
 (module+ test
   (require rackunit))
@@ -84,7 +87,6 @@
       [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
-  (define reprs (batch-reprs batch ctx))
   (define add-to-egraph
     (batch-recurse
      batch
@@ -137,6 +139,13 @@
         #:when (and (symbol? enode) (not (string-prefix? (symbol->string enode) "$var"))))
     (vector-set! eclass i (cons enode empty-u32vec)))
   eclass)
+
+(define (egraph-eclass-ids ptr)
+  (for/list ([eid (in-u32vector (egraph_get_eclasses ptr))])
+    eid))
+
+(define (egraph-eclass-nodes ptr id)
+  (egraph-get-eclass ptr id))
 
 (define (egraph-expr-equal? ptr expr goal ctx)
   (define-values (batch brfs) (progs->batch (list expr goal)))
