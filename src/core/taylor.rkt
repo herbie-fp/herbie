@@ -278,7 +278,9 @@
   ;(-> term? term? term?)
   (make-series (+ (series-offset left) (series-offset right))
                (λ (f n)
-                 (make-sum (for/list ([i (range (+ n 1))])
+                 (make-sum (for/list ([i (in-range (+ n 1))]
+                                      #:unless (or (equal? (deref (series-ref left i)) 0)
+                                                   (equal? (deref (series-ref right (- n i))) 0)))
                              (list '* (series-ref left i) (series-ref right (- n i))))))))
 
 (define (normalize-series s)
@@ -310,7 +312,7 @@
                (λ (f n)
                  (if (zero? n)
                      `(/ 1 ,(b 0))
-                     `(neg (+ ,@(for/list ([i (range n)])
+                     `(neg (+ ,@(for/list ([i (in-range n)])
                                   `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))
 
 (define (taylor-quotient num denom)
@@ -329,7 +331,7 @@
                  (if (zero? n)
                      `(/ ,(a 0) ,(b 0))
                      `(- (/ ,(a n) ,(b 0))
-                         (+ ,@(for/list ([i (range n)])
+                         (+ ,@(for/list ([i (in-range n)])
                                 `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))
 
 (define (modulo-series var n series)
@@ -393,7 +395,7 @@
                    [(= n 1) `(/ ,(coeffs* 1) (* 3 (cbrt (* ,(f 0) ,(f 0)))))]
                    [else
                     `(/ (- ,(coeffs* n)
-                           ,@(for*/list ([terms (n-sum-to 3 n)]
+                           ,@(for*/list ([terms (in-list (n-sum-to 3 n))]
                                          #:unless (set-member? terms n))
                                (match-define (list a b c) terms)
                                `(* ,(f a) ,(f b) ,(f c))))
@@ -459,7 +461,7 @@
                                  #:unless (equal? (deref coeff) 0))
                         i))
                     `(* (exp ,(coeffs 0))
-                        (+ ,@(for/list ([p (all-partitions n (sort nums >))])
+                        (+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
                                `(* ,@(for/list ([(count num) (in-dict p)])
                                        `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
                                            ,(factorial count)))))))]))))
@@ -477,7 +479,7 @@
                                  [coeff (in-vector coeffs*)]
                                  #:unless (equal? (deref coeff) 0))
                         i))
-                    `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
+                    `(+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
                             (if (= (modulo (apply + (map car p)) 2) 1)
                                 `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
                                     ,@(for/list ([(count num) (in-dict p)])
@@ -498,7 +500,7 @@
                                  [coeff (in-vector coeffs*)]
                                  #:unless (equal? (deref coeff) 0))
                         i))
-                    `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
+                    `(+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
                             (if (= (modulo (apply + (map car p)) 2) 0)
                                 `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
                                     ,@(for/list ([(count num) (in-dict p)])
