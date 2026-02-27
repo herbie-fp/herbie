@@ -69,15 +69,8 @@
   (andmap (curry hash-ref (alt-table-alt->done? atab)) (hash-keys (alt-table-alt->point-idxs atab))))
 
 ;;
-;; Extracting lists from sets or hash tables
-;; need to be treated with care:
-;;   - Internal hash tables and sets may cause
-;;     non-deterministic behavior in ordering.
-;;   - Need to sort to ensure some predictable order
-;;
-;; But why?? Still unclear.
-;; If the conversion from seteq or hasheq to list is guarded
-;; by sorting shouldn't everything else be deterministic???
+;; Hash/set iteration order is unspecified. Always sort extracted alternatives
+;; before iterating so search decisions do not depend on table iteration order.
 ;;
 (define (order-altns altns)
   (sort altns expr<? #:key alt-expr))

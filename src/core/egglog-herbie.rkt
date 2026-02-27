@@ -146,7 +146,7 @@
       ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
       ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
-  ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
+  ;; 5. Extract using constructor names returned by egglog-add-exprs.
   (define stdout-content
     (egglog-multi-extract subproc
                           `(multi-extract ,extract
@@ -590,5 +590,6 @@
     [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
      (literal (/ (string->number n) (string->number d)) (egglog-num-repr num))]
     [`(,(? egglog-var? var) ,v) (string->symbol v)]
-    [`(Approx ,spec ,impl) (approx (e1->expr spec) (e2->expr impl))] ;;; todo approx bug or not?
+    ; Approx stores a spec expression in E1/M and an implementation in E2/MTy.
+    [`(Approx ,spec ,impl) (approx (e1->expr spec) (e2->expr impl))]
     [`(,impl ,args ...) `(,(hash-ref (e2->id) impl) ,@(map e2->expr args))]))

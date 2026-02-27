@@ -187,7 +187,6 @@
     (raise-user-error
      'sindices->spoints/binary
      "mainloop called binary splitpoint search without extractable critical subexpressions"))
-  ; Not totally clear if this should actually use the precondition
   (define spec-brfs (batch-to-spec! batch (list start-prog)))
   (define start-real-compiler (make-real-compiler batch spec-brfs (list ctx*)))
 

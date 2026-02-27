@@ -173,7 +173,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing API
-;; Most calls should be done for testing purposes through these two methods
+;; Test helpers for e1/e2 serialization tables.
 ;;  - `populate-e->id-tables`: Used for testing e1-> expr and e2-> expr.
 ;;                             Populates the e1->id and e2->id tables
 (define (populate-e->id-tables)
