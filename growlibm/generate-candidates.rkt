@@ -11,8 +11,6 @@
   "../src/core/points.rkt"
   "../src/syntax/batch.rkt"
   "../src/core/egg-herbie.rkt"
-  (rename-in "../src/core/egglog-herbie.rkt"
-             [run-egglog run-egglog-backend])
   "../src/syntax/platform.rkt"
   "../src/utils/common.rkt"
   "../src/utils/errors.rkt")
@@ -25,7 +23,7 @@
 (define err-threshold 0.1)
 (define fixed-cut-depths '(2 3 4))
 (define cut-hole-symbol 'HOLE)
-(define egglog-batch-size 1000)
+(define canonical-batch-size 5000)
 (define interesting-ops '(fabs.f32 sin.f32 cos.f32 tan.f32 sinh.f32 cosh.f32 tanh.f32 asin.f32 acos.f32
                                    atan.f32 asinh.f32 atanh.f32 acosh.f32 atan2.f32 exp.f32 exp2.f32 log.f32 log10.f32
                                    log2.f32 logb.f32 ceil.f32 floor.f32 sqrt.f32 cbrt.f32 pow.f32 fmax.f32 fmin.f32 fmod.f32
@@ -131,29 +129,6 @@
   (define batch-pull (batch-exprs batch))
   (map (compose batch-pull first) batchrefss))
 
-(define (run-egglog exprs)
-  (cond
-    [(null? exprs) '()]
-    [else
-     (define spec-exprs (map prog->spec exprs))
-     (define exprs* (map (curry hole 'binary64) spec-exprs))
-     ;; Build contexts from implementation expressions so free variables are preserved.
-     (define ctxs (map get-ctx exprs))
-     (define ctx (ctx-union ctxs))
-     (*context* ctx)
-     (define schedule '(lift rewrite lower))
-     (define-values (batch brfs)
-       (progs->batch exprs*))
-
-     (define batch* (batch-empty))
-     (define copy-f (batch-copy-only! batch* batch))
-     (define brfs* (map copy-f brfs))
-
-     (define runner (make-egglog-runner batch* brfs* (map context-repr ctxs) schedule ctx))
-     (define batchrefss (run-egglog-backend runner batch 'growlibm-candidates #:extract 1))
-     (define batch-pull (batch-exprs batch))
-     (map (compose batch-pull first) batchrefss)]))
-
 (define (split-at-most xs n)
   (let loop ([rest xs] [remaining n] [acc '()])
     (cond
@@ -165,13 +140,8 @@
 (define (merge-canonical-counts! count-pairs out-hash #:canonicalize [canonicalize identity])
   (let loop ([pending count-pairs])
     (unless (null? pending)
-      (define-values (batch rest) (split-at-most pending egglog-batch-size))
+      (define-values (batch rest) (split-at-most pending canonical-batch-size))
       (define canonical-batch (run-egg (map car batch)))
-      (unless (= (length canonical-batch) (length batch))
-        (error 'merge-canonical-counts!
-               "Egglog returned ~a results for a batch of ~a expressions"
-               (length canonical-batch)
-               (length batch)))
       (for ([canonical (in-list canonical-batch)]
             [pair (in-list batch)])
         (define expr* (canonicalize canonical))
@@ -248,7 +218,6 @@
 (define root-count-pairs (hash->list root-count-hash))
 (displayln (format "num-roots: ~a" (length root-count-pairs)))
 (merge-canonical-counts! root-count-pairs canonical-root-count-hash)
-
 
 (for ([(root-expr root-count) (in-hash canonical-root-count-hash)])
   (define subexprs (map alpha-rename (filter candidate-expr? (get-subexpressions root-expr))))
