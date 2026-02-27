@@ -40,15 +40,12 @@
 
 (define *global-batch* (make-parameter #f))
 
-(define (dump-expr! expr)
-  (when (*dump-exprs*)
-    (displayln expr)))
 
 (define (dump-altns! altns)
   (when (*dump-exprs*)
     (define exprs (batch-exprs (*global-batch*)))
     (for ([altn (in-list altns)])
-      (dump-expr! (exprs (alt-expr altn))))))
+      (displayln (exprs (alt-expr altn))))))
 
 ;; These high-level functions give the high-level workflow of Herbie:
 ;; - Initial steps: explain, preprocessing, initialize the alt table
@@ -71,7 +68,6 @@
 
     (*preprocessing* preprocessing)
     (define initial-brf (batch-add! (*global-batch*) initial))
-    (dump-expr! initial)
     (*start-brf* initial-brf)
     (define start-alt (alt initial-brf 'start '()))
     (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))

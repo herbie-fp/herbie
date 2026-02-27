@@ -207,10 +207,11 @@
 (define canonical-candidate-count-hash (make-hash))
 (define subexpr-count 0)
 
-(define roots (map alpha-rename (file->list (string-append report-dir "/expr_dump.txt"))))
+(define roots (file->list (string-append report-dir "/expr_dump.txt")))
+(define roots-no-conditionals (map alpha-rename (append* (map eliminate-ifs roots))))
 
 (displayln "roots renamed")
-(for ([r roots])
+(for ([r roots-no-conditionals])
   (hash-update! root-count-hash r add1 0))
 
 (displayln "hash table setup")
@@ -242,7 +243,7 @@
 
 ;; Output
 (log-info "roots" (length roots) report-dir)
-;;; (log-info "roots no conditionals" (length roots-no-conditionals) report-dir)
+(log-info "roots no conditionals" (length roots-no-conditionals) report-dir)
 (log-info "canonical roots" (hash-count root-count-hash) report-dir)
 (log-info "subexpressions" subexpr-count report-dir)
 (log-info "canonical subexpressions" (hash-count canonical-candidate-count-hash) report-dir)
