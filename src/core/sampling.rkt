@@ -128,13 +128,14 @@
   (define reprs (real-compiler-reprs compiler))
   (define assemble-point (real-compiler-assemble-point compiler))
   (define assemble-output (real-compiler-assemble-output compiler))
+  (define exact-count (length (assemble-output (make-list (vector-length reprs) #f))))
 
   (real-compiler-clear! compiler) ; Clear profiling vector
   (define-values (points exactss)
     (let loop ([sampled 0]
                [skipped 0]
                [points '()]
-               [exactss (make-list (vector-length reprs) '())])
+               [exactss (make-list exact-count '())])
       (define-values (pt hint) (sampler))
       (define-values (status exs) (real-apply compiler pt hint))
       (case status
