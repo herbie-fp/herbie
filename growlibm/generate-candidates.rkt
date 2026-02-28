@@ -23,7 +23,7 @@
 (define err-threshold 0.1)
 (define fixed-cut-depths '(2 3 4))
 (define cut-hole-symbol 'HOLE)
-(define canonical-batch-size 5000)
+(define egg-batch-size 5000)
 (define interesting-ops '(fabs.f32 sin.f32 cos.f32 tan.f32 sinh.f32 cosh.f32 tanh.f32 asin.f32 acos.f32
                                    atan.f32 asinh.f32 atanh.f32 acosh.f32 atan2.f32 exp.f32 exp2.f32 log.f32 log10.f32
                                    log2.f32 logb.f32 ceil.f32 floor.f32 sqrt.f32 cbrt.f32 pow.f32 fmax.f32 fmin.f32 fmod.f32
@@ -129,25 +129,14 @@
   (define batch-pull (batch-exprs batch))
   (map (compose batch-pull first) batchrefss))
 
-(define (split-at-most xs n)
-  (let loop ([rest xs] [remaining n] [acc '()])
-    (cond
-      [(or (null? rest) (zero? remaining))
-       (values (reverse acc) rest)]
-      [else
-       (loop (cdr rest) (sub1 remaining) (cons (car rest) acc))])))
-
-(define (merge-canonical-counts! count-pairs out-hash #:canonicalize [canonicalize identity])
-  (let loop ([pending count-pairs])
-    (unless (null? pending)
-      (define-values (batch rest) (split-at-most pending canonical-batch-size))
-      (define canonical-batch (run-egg (map car batch)))
-      (for ([canonical (in-list canonical-batch)]
-            [pair (in-list batch)])
-        (define expr* (canonicalize canonical))
-        (define count (cdr pair))
-        (hash-update! out-hash expr* (lambda (old) (+ old count)) 0))
-      (loop rest))))
+(define (run-egg-batched batch-size old-hash new-hash)
+  (for ([batch (in-slice batch-size (in-hash-pairs old-hash))])
+    (define canonical-exprs (run-egg (map car batch)))
+    (for ([canonical-expr (in-list canonical-exprs)]
+          [pair (in-list batch)])
+      (define expr* (alpha-rename canonical-expr))
+      (define count (cdr pair))
+      (hash-update! new-hash expr* (lambda (old) (+ old count)) 0))))
 
 (define (alpha-rename impl)
   (define free-vars (free-variables impl))
@@ -201,37 +190,27 @@
     #:exists 'append))
 
 ;;; ------------------------- MAIN PIPELINE ---------------------------------
-(define root-count-hash (make-hash))
-(define canonical-root-count-hash (make-hash))
-(define candidate-count-hash (make-hash))
-(define canonical-candidate-count-hash (make-hash))
-(define subexpr-count 0)
+(define root-hash (make-hash))
+(define canonical-root-hash (make-hash))
+(define candidate-hash (make-hash))
+(define canonical-candidate-hash (make-hash))
 
 (define roots (file->list (string-append report-dir "/expr_dump.txt")))
-(define roots-no-conditionals (map alpha-rename (append* (map eliminate-ifs roots))))
 
-(displayln "roots renamed")
-(for ([r roots-no-conditionals])
-  (hash-update! root-count-hash r add1 0))
+(for ([root (in-list roots)])
+  (for ([expr (in-list (eliminate-ifs root))])
+    (hash-update! root-hash (alpha-rename expr) add1 0)))
 
-(displayln "hash table setup")
+(run-egg-batched egg-batch-size root-hash canonical-root-hash)
 
-(define root-count-pairs (hash->list root-count-hash))
-(displayln (format "num-roots: ~a" (length root-count-pairs)))
-(merge-canonical-counts! root-count-pairs canonical-root-count-hash)
-
-(for ([(root-expr root-count) (in-hash canonical-root-count-hash)])
+(for ([(root-expr root-count) (in-hash canonical-root-hash)])
   (define subexprs (map alpha-rename (filter candidate-expr? (get-subexpressions root-expr))))
-  (set! subexpr-count (+ subexpr-count (length subexprs)))
   (for ([c subexprs])
-    (hash-update! candidate-count-hash c (lambda (old) (+ old root-count)) 0)))
+    (hash-update! candidate-hash c (lambda (old) (+ old root-count)) 0)))
 
-(define candidate-count-pairs (hash->list candidate-count-hash))
+(run-egg-batched egg-batch-size candidate-hash canonical-candidate-hash)
 
-(displayln (format "num candidates: ~a" (length candidate-count-pairs)))
-(merge-canonical-counts! candidate-count-pairs canonical-candidate-count-hash #:canonicalize alpha-rename)
-
-(define pairs-raw (hash->list canonical-candidate-count-hash))
+(define pairs-raw (hash->list canonical-candidate-hash))
 (define filtered-pairs (filter (lambda (x) (and (> (cdr x) 1)
                                                 (contains-interesting-op? (car x))
                                                 (candidate-expr? (car x))))
@@ -243,10 +222,10 @@
 
 ;; Output
 (log-info "roots" (length roots) report-dir)
-(log-info "roots no conditionals" (length roots-no-conditionals) report-dir)
-(log-info "canonical roots" (hash-count root-count-hash) report-dir)
-(log-info "subexpressions" subexpr-count report-dir)
-(log-info "canonical subexpressions" (hash-count canonical-candidate-count-hash) report-dir)
+(log-info "canonical roots" (hash-count canonical-root-hash) report-dir)
+(log-info "candidates" (hash-count candidate-hash) report-dir)
+(log-info "canonical candidates" (hash-count canonical-candidate-hash) report-dir)
+(log-info "filtered candidates" (length filtered-pairs) report-dir)
 
 (define final-output (take final-pairs (min (length final-pairs) candidate-num)))
 (define fpcores-out (map to-fpcore-str final-output))
