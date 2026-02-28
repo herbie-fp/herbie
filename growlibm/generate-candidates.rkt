@@ -127,7 +127,11 @@
   (define runner (make-egraph batch brfs (map context-repr ctxs) schedule (ctx-union ctxs)))
   (define batchrefss (egraph-best runner batch))
   (define batch-pull (batch-exprs batch))
-  (map (compose batch-pull first) batchrefss))
+  (for/list ([orig-expr (in-list exprs)]
+             [refs (in-list batchrefss)])
+    (if (empty? refs)
+        orig-expr                        
+        (batch-pull (first refs)))))     
 
 (define (run-egg-batched batch-size old-hash new-hash)
   (for ([batch (in-slice batch-size (in-hash-pairs old-hash))])
@@ -146,6 +150,22 @@
       (values v (string->symbol (format "z~a" i)))))
   (define impl* (replace-vars varDict impl))
   impl*)
+
+(define (alpha-rename-all impl)
+  (define free-vars (free-variables impl))
+  (define n (length free-vars))
+
+  (define new-vars
+    (for/list ([i (in-range n)])
+      (string->symbol (format "z~a" i))))
+
+  (define perms (permutations new-vars))
+  (for/list ([perm (in-list perms)])
+    (define varDict
+      (for/hash ([v (in-list free-vars)]
+                 [z (in-list perm)])
+        (values v z)))
+    (replace-vars varDict impl)))
 
 (define (ctx-union ctxs)
   (define vars '())
@@ -175,7 +195,6 @@
 (define (has-not-too-many-free-vars? expr )
   (<= (length (free-variables expr)) max-vars))
 
-
 (define (contains-interesting-op? expr)
   (let loop ([expr expr])
     (match expr
@@ -197,16 +216,17 @@
 
 (define roots (file->list (string-append report-dir "/expr_dump.txt")))
 
-(for ([root (in-list roots)])
-  (for ([expr (in-list (eliminate-ifs root))])
-    (hash-update! root-hash (alpha-rename expr) add1 0)))
+(for* ([root (in-list roots)]
+       [expr (in-list (eliminate-ifs root))])
+  (hash-update! root-hash (alpha-rename expr) add1 0))
 
 (run-egg-batched egg-batch-size root-hash canonical-root-hash)
 
-(for ([(root-expr root-count) (in-hash canonical-root-hash)])
-  (define subexprs (map alpha-rename (filter candidate-expr? (get-subexpressions root-expr))))
-  (for ([c subexprs])
-    (hash-update! candidate-hash c (lambda (old) (+ old root-count)) 0)))
+(for* ([(root-expr root-count) (in-hash canonical-root-hash)]
+       [subexpr (in-list (get-subexpressions root-expr))]
+       #:when (candidate-expr? subexpr)
+       [c (in-list (alpha-rename-all subexpr))])
+  (hash-update! candidate-hash c (lambda (old) (+ old root-count)) 0))
 
 (run-egg-batched egg-batch-size candidate-hash canonical-candidate-hash)
 
