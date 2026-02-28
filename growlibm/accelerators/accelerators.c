@@ -325,7 +325,8 @@ double hypot(double x, double y)
 
 
 double verdcos(double x){
-	return -2.0 * sin(x) * sin(x);
+    double sin_x = sin(x);
+	return -2.0 * sin_x * sin_x;
 }
 
 double ncos1p(double z0) {
