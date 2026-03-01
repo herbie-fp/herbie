@@ -39,21 +39,56 @@ jobs:
             ~/.local/share/racket
             ~/Library/Racket/
             ${{ env.APPDATA }}/Racket
-      - name: Install Rust compiler
+      - name: Install Rust compiler (Linux / MacOS)
+        if: runner.os != 'Windows'
         uses: dtolnay/rust-toolchain@stable
         with:
             toolchain: stable
             components: rustfmt, clippy
+      - name: Install Rust compiler (Windows GNU)
+        if: runner.os == 'Windows'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+            toolchain: stable
+            components: rustfmt, clippy
+            targets: x86_64-pc-windows-gnu
       - name: Cache cargo build
         uses: Swatinem/rust-cache@v2
       - uses: actions/checkout@v5
-      - name: "Install dependencies"
+      - name: Setup MSYS2 build tools (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          path-type: inherit
+          install: |
+            diffutils
+            m4
+            make
+            mingw-w64-x86_64-gcc
+            pkgconf
+      - name: "Install dependencies (Windows GNU)"
+        if: runner.os == 'Windows'
+        env:
+          CARGO_BUILD_TARGET: x86_64-pc-windows-gnu
+          CC: gcc
+        run: make install
+      - name: "Install dependencies (Linux / MacOS)"
+        if: runner.os != 'Windows'
         run: make install
       # Build executable and remove Herbie launcher
-      - name: "Build standalone executable"
+      - name: "Build standalone executable (Windows GNU)"
+        if: runner.os == 'Windows'
+        env:
+          CARGO_BUILD_TARGET: x86_64-pc-windows-gnu
+          CC: gcc
+        run: make distribution
+      - name: "Build standalone executable (Linux / MacOS)"
+        if: runner.os != 'Windows'
         run: make distribution
       - name: "Uninstall Herbie launcher"
-        run: raco pkg remove herbie egg-herbie
+        run: raco pkg remove herbie egg-herbie rival3-racket
       # Test executable
       - name: "Test executable, improve tool (Windows)"
         if: runner.os == 'Windows'
@@ -67,3 +102,9 @@ jobs:
       - name: "Test executable, report tool (Linux / MacOS)"
         if: runner.os != 'Windows'
         run: herbie-compiled/bin/herbie report --threads yes bench/tutorial.fpcore graphs
+      - name: "Test executable, report tool with Rival3 (Windows)"
+        if: runner.os == 'Windows'
+        run: herbie-compiled/herbie.exe report --threads yes --enable setup:rival3 bench/tutorial.fpcore graphs-rival3
+      - name: "Test executable, report tool with Rival3 (Linux / MacOS)"
+        if: runner.os != 'Windows'
+        run: herbie-compiled/bin/herbie report --threads yes --enable setup:rival3 bench/tutorial.fpcore graphs-rival3
