@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rival = { git = "https://github.com/herbie-fp/rival3" }
+rival = { git = "https://github.com/herbie-fp/rival-rs" }
 libc = "0.2"
 rug = "1.19"
 lazy_static = "1.4"
