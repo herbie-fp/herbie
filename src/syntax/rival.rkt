@@ -18,24 +18,18 @@
          "../syntax/types.rkt"
          "../syntax/batch.rkt")
 
-(define (repr->disc-type repr)
-  (match (representation-name repr)
-    ['bool 0]
-    ['binary32 1]
-    ['binary64 2]
-    [_ (error 'repr->disc-type "unsupported repr ~a" (representation-name repr))]))
-
 (define (repr->discretization repr)
+  (define type
+    (match (representation-name repr)
+      ['bool 0]
+      ['binary32 1]
+      ['binary64 2]
+      [_ (error "Unknown representation for rival:" (representation-name repr))]))
   (define ulps (repr-ulps repr))
   (discretization (representation-total-bits repr)
                   (representation-bf->repr repr)
                   (lambda (x y) (- (ulps x y) 1))
-                  (repr->disc-type repr)))
-
-(define (make-discretizations reprs)
-  (cons boolean-discretization
-        (for/list ([repr (in-list reprs)])
-          (repr->discretization repr))))
+                  type))
 
 (provide (struct-out real-compiler)
          ival
@@ -84,7 +78,7 @@
 
   ; create the machine
   (define exprs (cons `(assert ,pre*) specs*))
-  (define discs (make-discretizations reprs))
+  (define discs (cons boolean-discretization (map repr->discretization reprs)))
   (define machine (rival-compile exprs vars discs))
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre*) (map expr-size specs*))
