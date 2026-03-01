@@ -2,10 +2,14 @@
 
 (require math/bigfloat
          math/base
-         math/flonum)
+         math/flonum
+         "../utils/errors.rkt")
 
 (provide (struct-out representation)
+         (struct-out array-representation)
          repr->prop
+         array-representation-base
+         array-representation-shape
          shift
          unshift
          <bool>
@@ -15,20 +19,8 @@
          *context*
          context-extend
          context-lookup
-         define-type
-         make-representation)
-
-;; Types
-
-(define type-dict (make-hasheq))
-(define (type-name? x)
-  (hash-has-key? type-dict x))
-
-(define-syntax-rule (define-type name _ ...)
-  (hash-set! type-dict 'name #t))
-
-(define-type real)
-(define-type bool)
+         make-representation
+         make-array-representation)
 
 ;; Representations
 
@@ -39,11 +31,27 @@
   [(define (write-proc repr port mode)
      (fprintf port "#<representation ~a>" (representation-name repr)))])
 
+(struct array-representation representation (elem len) #:transparent)
+
+(define (array-representation-base repr)
+  (if (array-representation? repr)
+      (array-representation-base (array-representation-elem repr))
+      repr))
+
+(define (array-representation-shape repr)
+  (if (array-representation? repr)
+      (cons (array-representation-len repr)
+            (array-representation-shape (array-representation-elem repr)))
+      '()))
+
 ;; Converts a representation into a rounding property
 (define (repr->prop repr)
-  (match (representation-type repr)
-    ['bool '()]
-    ['real (list (cons ':precision (representation-name repr)))]))
+  (match repr
+    [(? array-representation?) (repr->prop (array-representation-elem repr))]
+    [(? representation?)
+     (match (representation-type repr)
+       ['bool '()]
+       ['real (list (cons ':precision (representation-name repr)))])]))
 
 (define (make-representation #:name name
                              #:bf->repr bf->repr
@@ -53,6 +61,16 @@
                              #:total-bits total-bits
                              #:special-value? special-value?)
   (representation name 'real bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value?))
+
+(define (make-array-representation #:elem elem-repr #:len len)
+  (unless (exact-positive-integer? len)
+    (raise-herbie-error "Arrays require a positive length, got ~a" len))
+  (define array-ty `(array ,(representation-type elem-repr) ,len))
+  (define name (string->symbol (format "array~a-~a" (representation-name elem-repr) len)))
+  ;; TODO: Array representations currently inherit scalar conversion slots.
+  ;; These should not be called for arrays; we'll clean up the hierarchy later.
+  (define total-bits (* len (representation-total-bits elem-repr)))
+  (array-representation name array-ty void void void void total-bits void elem-repr len))
 
 (module hairy racket/base
   (require (only-in math/private/bigfloat/mpfr get-mpfr-fun _mpfr-pointer _rnd_t bf-rounding-mode))

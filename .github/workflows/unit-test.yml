@@ -60,7 +60,8 @@ jobs:
           racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs1
           racket infra/diff.rkt graphs0 graphs1
 
-      # Test egglog mode
+      - name: "Run Herbie on array benchmarks"
+        run: racket -l herbie improve bench/arrays /tmp/out.fpcore
       - name: "Run Herbie with egglog"
         run: racket -y infra/ci.rkt --egglog --precision binary64 --seed 1 bench/tutorial.fpcore
 

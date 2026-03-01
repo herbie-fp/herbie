@@ -11,13 +11,37 @@
          rival-herbie)
 
 (require "../config.rkt"
+         "../core/arrays.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
          "../syntax/batch.rkt")
 
+(define (repr->disc-type repr)
+  (match (representation-name repr)
+    ['bool 0]
+    ['binary32 1]
+    ['binary64 2]
+    [_ (error 'repr->disc-type "unsupported repr ~a" (representation-name repr))]))
+
+(define (repr->discretization repr)
+  (define ulps (repr-ulps repr))
+  (discretization (representation-total-bits repr)
+                  (representation-bf->repr repr)
+                  (lambda (x y) (- (ulps x y) 1))
+                  (repr->disc-type repr)))
+
+(define (make-discretizations reprs)
+  (cons boolean-discretization
+        (for/list ([repr (in-list reprs)])
+          (repr->discretization repr))))
+
 (provide (struct-out real-compiler)
+         ival
+         ival?
+         ival-lo
+         ival-hi
          (contract-out
           [make-real-compiler
            (->i
@@ -28,7 +52,7 @@
             [c real-compiler?])]
           [real-apply
            (->* (real-compiler? vector?) ((or/c rival-hints? boolean?)) (values symbol? any/c))]
-          [real-compiler-clear! (-> real-compiler-clear! void?)]
+          [real-compiler-clear! (-> real-compiler? void?)]
           [real-compiler-analyze
            (->* (real-compiler? (vectorof ival?)) ((or/c rival-hints? boolean?)) (listof any/c))]))
 
@@ -47,37 +71,23 @@
       (apply + 1 (map expr-size (cdr expr)))
       1))
 
-(define (repr->discretization repr)
-  (define type
-    (match (representation-name repr)
-      ['bool 0]
-      ['binary32 1]
-      ['binary64 2]
-      [_ (error "Unknown representation for rival:" (representation-name repr))]))
-  (discretization (representation-total-bits repr)
-                  (representation-bf->repr repr)
-                  (lambda (x y) (- (ulp-difference x y repr) 1))
-                  type))
-
 ;; Herbie's wrapper around the Rival machine abstraction.
-(struct real-compiler (pre vars var-reprs exprs reprs machine dump-file))
+(struct real-compiler
+        (pre vars var-reprs exprs reprs machine dump-file assemble-point assemble-output))
 
 ;; Creates a Rival machine.
-;; Takes a batch, a list of batchrefs into the batch, and a context
-;; to encode input variables and their representations.
-;; Optionally, takes a precondition.
 (define (make-real-compiler batch brfs ctxs #:pre [pre '(TRUE)])
-  (define vars (context-vars (first ctxs)))
-  (define reprs (map context-repr ctxs))
-  ;; Convert batchrefs to expressions. This conversion is not slow because
-  ;; Rival internally uses a hasheq-based deduplication optimization.
   (define specs (map (batch-exprs batch) brfs))
+  (define-values (specs* ctxs* pre* assemble-point assemble-output reprs)
+    (flatten-arrays-for-rival specs ctxs pre))
+  (define vars (context-vars (first ctxs*)))
+
   ; create the machine
-  (define exprs (cons `(assert ,pre) specs))
-  (define discs (cons boolean-discretization (map repr->discretization reprs)))
+  (define exprs (cons `(assert ,pre*) specs*))
+  (define discs (make-discretizations reprs))
   (define machine (rival-compile exprs vars discs))
   (timeline-push! 'compiler
-                  (apply + 1 (expr-size pre) (map expr-size specs))
+                  (apply + 1 (expr-size pre*) (map expr-size specs*))
                   (+ (length vars) (rival-profile machine 'instructions)))
 
   (define dump-file
@@ -92,20 +102,23 @@
            (build-path dump-dir (format "~a.rival" i))))
        (define dump-file (open-output-file name #:exists 'replace))
        (pretty-print `(define (f ,@vars)
-                        ,@specs)
+                        ,@specs*)
                      dump-file
                      1)
+       (flush-output dump-file)
        dump-file]
       [else #f]))
 
   ; wrap it with useful information for Herbie
   (real-compiler pre
                  (list->vector vars)
-                 (list->vector (context-var-reprs (first ctxs)))
-                 specs
+                 (list->vector (context-var-reprs (first ctxs*)))
+                 specs*
                  (list->vector reprs)
                  machine
-                 dump-file))
+                 dump-file
+                 assemble-point
+                 assemble-output))
 
 (define (bigfloat->readable-string x)
   (define real (bigfloat->real x)) ; Exact rational unless inf/nan
@@ -116,7 +129,7 @@
 
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
-  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file) compiler)
+  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file _ _) compiler)
   (define start (current-inexact-milliseconds))
   (define pt*
     (for/vector #:length (vector-length vars)
@@ -125,16 +138,21 @@
       ((representation-repr->bf repr) val)))
   (when dump-file
     (define args (map bigfloat->readable-string (vector->list pt*)))
-    (fprintf dump-file "(eval f ~a)\n" (string-join args " ")))
+    (fprintf dump-file "(eval f ~a)\n" (string-join args " "))
+    (flush-output dump-file))
   (define-values (status value bumps iterations aggregated-profile)
-    (with-handlers ([exn:rival:invalid? 
+    (with-handlers ([exn:rival:invalid?
                      (lambda (e) (values 'invalid #f 0 0 (exn:rival:invalid-aggregated-profile e)))]
-                    [exn:rival:unsamplable? 
+                    [exn:rival:unsamplable?
                      (lambda (e) (values 'exit #f 0 0 (exn:rival:unsamplable-aggregated-profile e)))])
       (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
                      [*rival-max-iterations* 5])
         (define-values (result bumps iterations aggregated-profile) (rival-apply machine pt* hint))
-        (values 'valid (rest (vector->list result)) bumps iterations aggregated-profile))))
+        (values 'valid
+                (rest (vector->list result))
+                bumps
+                iterations
+                aggregated-profile)))) ; rest = drop precondition
   (when (> bumps 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"
@@ -160,3 +178,17 @@
 ;; how certain the result is: no, maybe, yes.
 (define (real-compiler-analyze compiler input-ranges [hint #f])
   (rival-analyze-with-hints (real-compiler-machine compiler) input-ranges hint))
+
+(module+ test
+  (require rackunit)
+  (define <b64> <binary64>)
+  (define arr-repr (make-array-representation #:elem <b64> #:len 3))
+  (define arr-ctx (context '(v) arr-repr (list arr-repr)))
+  (define-values (specs* ctxs* pre* _assemble-pt _assemble-out reprs*)
+    (flatten-arrays-for-rival (list 'v) (list arr-ctx) 'TRUE))
+  (check-equal? specs* '(v_0 v_1 v_2))
+  (check-equal? (map context-vars ctxs*) '((v_0 v_1 v_2)))
+  (check-equal? (map context-var-reprs ctxs*) (list (list <b64> <b64> <b64>)))
+  (check-equal? reprs* (list <b64> <b64> <b64>))
+  (check-equal? (_assemble-out '(1 2 3)) '(#(1 2 3)))
+  (check-equal? pre* 'TRUE))

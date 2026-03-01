@@ -3,13 +3,12 @@
 (require math/bigfloat
          math/flonum)
 (require "../core/points.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../core/programs.rkt"
          "../syntax/types.rkt"
          "../syntax/read.rkt"
-         "../utils/alternative.rkt"
-         "../core/bsearch.rkt"
-         "../api/sandbox.rkt")
+         "../core/alternative.rkt"
+         "../core/bsearch.rkt")
 
 (provide make-points-json
          regime-var
@@ -90,8 +89,8 @@
 
   (define splitpoints (hash-ref (car (hash-ref backend 'end)) 'splitpoints))
 
-  ; NOTE ordinals *should* be passed as strings so we can detect truncation if
-  ;   necessary, but this isn't implemented yet.
+  ; NOTE ordinals currently remain numeric; if we need to detect truncation
+  ; in JSON, we can switch to string encoding.
   ; Fields:
   ;   bits: int representing the maximum possible bits of error
   ;   vars: array of n string variable names
@@ -100,8 +99,8 @@
   ;   error: JSON dictionary where keys are {start, end, target1, ..., targetn}.
   ;          Each key's value holds an array like [y0, ..., ym] where y0 etc are
   ;          bits of error for the output on each point
-  ;   ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
-  ;   splitpoints: array with the ordinal splitpoints
+  ;   ticks_by_varidx: array of size n where each entry is [label, ordinal] pairs
+  ;   splitpoints_by_varidx: array of size n where each entry has ordinal splitpoints
   `#hasheq((bits . ,bits)
            (vars . ,(map symbol->string vars))
            (points . ,ordinal-points)

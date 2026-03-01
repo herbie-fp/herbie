@@ -11,10 +11,10 @@
          "../syntax/types.rkt"
          "../syntax/platform.rkt"
          "../syntax/load-platform.rkt"
-         "../utils/alternative.rkt"
+         "../core/alternative.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../core/points.rkt"
          "../reports/common.rkt"
          "../reports/history.rkt"
@@ -491,8 +491,8 @@
 (define (make-sample-result herbie-result job-id)
   (define test (job-result-test herbie-result))
   (define pctx (job-result-backend herbie-result))
-  (define repr (context-repr (test-context test)))
-  (hasheq 'points (pcontext->json pctx repr)))
+  (define ctx (test-context test))
+  (hasheq 'points (pcontext->json pctx ctx)))
 
 (define (make-cost-result herbie-result job-id)
   (hasheq 'cost (job-result-backend herbie-result)))
@@ -569,10 +569,10 @@
           backend-hash))
 
 (define (backend-improve-result-hash-table backend test errcache)
-  (define repr (context-repr (test-context test)))
+  (define ctx (test-context test))
   (define pcontext (improve-result-pcontext backend))
   (hasheq 'pcontext
-          (pcontext->json pcontext repr)
+          (pcontext->json pcontext ctx)
           'start
           (analysis->json (improve-result-start backend) pcontext test errcache)
           'target
@@ -580,9 +580,14 @@
           'end
           (map (curryr analysis->json pcontext test errcache) (improve-result-end backend))))
 
-(define (pcontext->json pcontext repr)
+(define (pcontext->json pcontext ctx)
+  (define var-reprs (context-var-reprs ctx))
+  (define out-repr (context-repr ctx))
   (for/list ([(pt ex) (in-pcontext pcontext)])
-    (list (map (curryr value->json repr) (vector->list pt)) (value->json ex repr))))
+    (list (for/list ([val (in-vector pt)]
+                     [repr (in-list var-reprs)])
+            (value->json val repr))
+          (value->json ex out-repr))))
 
 (define (analysis->json analysis pcontext test errcache)
   (define repr (context-repr (test-context test)))
@@ -611,16 +616,26 @@
           splitpoints))
 
 (define (alt->fpcore test altn)
+  (define out-repr (test-output-repr test))
+  (define out-base-repr (array-representation-base out-repr))
   `(FPCore ,@(filter identity (list (test-identifier test)))
-           ,(for/list ([var (in-list (test-vars test))])
-              (define repr (dict-ref (test-var-repr-names test) var))
-              (if (equal? repr (test-output-repr-name test))
-                  var
-                  (list '! ':precision repr var)))
+           ,(for/list ([var (in-list (test-vars test))]
+                       [repr (in-list (test-var-reprs test))])
+              (cond
+                [(array-representation? repr)
+                 (define dims (array-representation-shape repr))
+                 (define elem-repr (array-representation-base repr))
+                 (if (equal? elem-repr out-base-repr)
+                     (append (list var) dims)
+                     (append (list '! ':precision (representation-name elem-repr) var) dims))]
+                [else
+                 (if (equal? repr out-base-repr)
+                     var
+                     (list '! ':precision (representation-name repr) var))]))
            :name
            ,(test-name test)
            :precision
-           ,(test-output-repr-name test)
+           ,(representation-name out-base-repr)
            ,@(if (equal? (test-pre test) '(TRUE))
                  '()
                  `(:pre ,(prog->fpcore (test-pre test) (test-context test))))

@@ -4,7 +4,7 @@
          math/bigfloat
          racket/hash)
 (require "../utils/common.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
          "../syntax/platform.rkt"
@@ -183,7 +183,6 @@
            [(or (bf> cond-x cond-thres) (bf> cond-y cond-thres))
             (mark-erroneous! subexpr 'cancellation)]
 
-           ; Maybe
            [(or (bf> cond-x maybe-cond-thres) (bf> cond-y maybe-cond-thres))
             (mark-maybe! subexpr 'cancellation)]
            [else #f])]
@@ -228,7 +227,6 @@
            [(or (bf> cond-x cond-thres) (bf> cond-y cond-thres))
             (mark-erroneous! subexpr 'cancellation)]
 
-           ; Maybe
            [(or (bf> cond-x maybe-cond-thres) (bf> cond-y maybe-cond-thres))
             (mark-maybe! subexpr 'cancellation)]
            [else #f])]

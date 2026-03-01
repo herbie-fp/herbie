@@ -6,7 +6,7 @@
 ;; FPCore: the input/output language
 ;;
 ;; - standardized interchange format with other tools
-;; - using loopless, tensorless subset
+;; - using a loopless subset with array literals
 ;; - operators denote real computations while rounding contexts decide format
 ;;
 ;;  <FPCore> ::= (FPCore (<var> ...) <props> ... <expr>)
@@ -57,8 +57,7 @@
 
 #lang racket
 
-(require "../core/programs.rkt"
-         "../utils/common.rkt"
+(require "../utils/common.rkt"
          "../utils/errors.rkt"
          "platform.rkt"
          "matcher.rkt"
@@ -67,6 +66,24 @@
 
 (provide fpcore->prog
          prog->fpcore)
+
+;; Local copies to avoid depending on core/programs.rkt.
+(define (repr-of expr ctx)
+  (match expr
+    [(literal _ precision) (get-representation precision)]
+    [(? symbol?) (context-lookup ctx expr)]
+    [(approx _ impl) (repr-of impl ctx)]
+    [(hole precision _) (get-representation precision)]
+    [(list op _ ...) (impl-info op 'otype)]))
+
+(define (replace-vars dict expr)
+  (let loop ([expr expr])
+    (match expr
+      [(? literal?) expr]
+      [(? number?) expr]
+      [(? symbol?) (dict-ref dict expr expr)]
+      [(approx impl spec) (approx (loop impl) (loop spec))]
+      [(list op args ...) (cons op (map loop args))])))
 
 ;; Expression pre-processing for normalizing expressions.
 ;; Used for conversion from FPCore to other IRs.
@@ -194,6 +211,19 @@
        (if (equal? (repr-of arg* ctx) repr)
            arg*
            (fpcore->impl-app 'cast prop-dict (list arg*) ctx))]
+      [(list 'ref arr idx)
+       (define arr* (loop arr prop-dict))
+       (define idx* (loop idx prop-dict))
+       (define arr-repr (repr-of arr* ctx))
+       (define idx-repr (repr-of idx* ctx))
+       (define impl (assert-fpcore-impl 'ref prop-dict (list arr-repr idx-repr)))
+       (define vars (impl-info impl 'vars))
+       (define pattern
+         (match (impl-info impl 'fpcore)
+           [(list '! _ ... body) body]
+           [body body]))
+       (define subst (pattern-match pattern (list 'ref arr* idx*)))
+       (pattern-substitute (cons impl vars) subst)]
       [(list op args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
        (fpcore->impl-app op prop-dict args* ctx)])))

@@ -2,10 +2,10 @@
 
 (require rackunit)
 (require "../utils/common.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../syntax/types.rkt"
          "../syntax/batch.rkt"
-         "rival.rkt"
+         "../syntax/rival.rkt"
          "rules.rkt"
          "programs.rkt"
          "../syntax/platform.rkt"
@@ -35,6 +35,7 @@
 (define (check-rule test-rule)
   (match-define (rule name p1 p2 _) test-rule)
   (define ctx (env->ctx p1 p2))
+  (define ulps (repr-ulps (context-repr ctx)))
 
   (define-values (batch brfs) (progs->batch (list p1 (drop-sound p2))))
   (match-define (list pts exs1 exs2)
@@ -46,9 +47,7 @@
         [v1 (in-list exs1)]
         [v2 (in-list exs2)])
     (with-check-info* (map make-check-info (context-vars ctx) (vector->list pt))
-                      (λ ()
-                        (with-check-info (['lhs v1] ['rhs v2])
-                                         (check-eq? (ulp-difference v1 v2 (context-repr ctx)) 1))))))
+                      (λ () (with-check-info (['lhs v1] ['rhs v2]) (check-eq? (ulps v1 v2) 1))))))
 
 (module+ main
   (num-test-points (* 100 (num-test-points)))

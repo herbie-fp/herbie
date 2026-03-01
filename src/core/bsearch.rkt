@@ -3,11 +3,11 @@
 (require math/bigfloat
          racket/random)
 (require "../config.rkt"
-         "../utils/alternative.rkt"
+         "../core/alternative.rkt"
          "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../utils/pretty-print.rkt"
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
@@ -15,42 +15,47 @@
          "../syntax/batch.rkt"
          "compiler.rkt"
          "regimes.rkt"
-         "rival.rkt"
+         "../syntax/rival.rkt"
          "sampling.rkt"
          "points.rkt"
          "programs.rkt")
 
 (provide combine-alts
+         combine-alts/binary
          regimes-pcontext-masks)
 
 (module+ test
   (require rackunit))
 
-(define (combine-alts batch best-option start-prog ctx pcontext)
+(define (finish-combine-alts batch alts brf splitindices splitpoints ctx)
+  (define splitpoints* (append splitpoints (list (sp (si-cidx (last splitindices)) brf +nan.0))))
+  (define reprs (batch-reprs batch ctx))
+  (define brf*
+    (for/fold ([brf (alt-expr (list-ref alts (sp-cidx (last splitpoints*))))])
+              ([splitpoint (cdr (reverse splitpoints*))])
+      (define repr (reprs (sp-bexpr splitpoint)))
+      (define if-impl (get-fpcore-impl 'if '() (list (get-representation 'bool) repr repr)))
+      (define <=-impl (get-fpcore-impl '<= '() (list repr repr)))
+      (define lit-brf
+        (batch-add! batch
+                    (literal (repr->real (sp-point splitpoint) repr) (representation-name repr))))
+      (define cmp-brf (batch-add! batch `(,<=-impl ,(sp-bexpr splitpoint) ,lit-brf)))
+      (batch-add! batch `(,if-impl ,cmp-brf ,(alt-expr (list-ref alts (sp-cidx splitpoint))) ,brf))))
+
+  ;; We don't want unused alts in our history!
+  (define-values (alts* splitpoints**) (remove-unused-alts alts splitpoints*))
+  (alt brf* (list 'regimes splitpoints**) alts*))
+
+(define (combine-alts batch best-option ctx)
   (match-define (option splitindices alts pts brf _) best-option)
-  (match splitindices
-    [(list (si cidx _)) (list-ref alts cidx)]
-    [_
-     (timeline-event! 'bsearch)
-     (define splitpoints (sindices->spoints batch pts brf alts splitindices start-prog ctx pcontext))
+  (define splitpoints (sindices->spoints/left batch pts brf splitindices ctx))
+  (finish-combine-alts batch alts brf splitindices splitpoints ctx))
 
-     (define reprs (batch-reprs batch ctx))
-     (define brf*
-       (for/fold ([brf (alt-expr (list-ref alts (sp-cidx (last splitpoints))))])
-                 ([splitpoint (cdr (reverse splitpoints))])
-         (define repr (reprs (sp-bexpr splitpoint)))
-         (define if-impl (get-fpcore-impl 'if '() (list (get-representation 'bool) repr repr)))
-         (define <=-impl (get-fpcore-impl '<= '() (list repr repr)))
-         (define lit-brf
-           (batch-add! batch
-                       (literal (repr->real (sp-point splitpoint) repr) (representation-name repr))))
-         (define cmp-brf (batch-add! batch `(,<=-impl ,(sp-bexpr splitpoint) ,lit-brf)))
-         (batch-add! batch
-                     `(,if-impl ,cmp-brf ,(alt-expr (list-ref alts (sp-cidx splitpoint))) ,brf))))
-
-     ;; We don't want unused alts in our history!
-     (define-values (alts* splitpoints*) (remove-unused-alts alts splitpoints))
-     (alt brf* (list 'regimes splitpoints*) alts*)]))
+(define (combine-alts/binary batch best-option start-prog ctx pcontext)
+  (match-define (option splitindices alts pts brf _) best-option)
+  (define splitpoints
+    (sindices->spoints/binary batch pts brf alts splitindices start-prog ctx pcontext))
+  (finish-combine-alts batch alts brf splitindices splitpoints ctx))
 
 (define (remove-unused-alts alts splitpoints)
   (for/fold ([alts* '()]
@@ -64,9 +69,9 @@
     (values alts** splitpoints**)))
 
 ;; Invariant: (pred p1) and (not (pred p2))
-(define (binary-search-floats pred p1 p2 repr)
+(define (binary-search-floats pred p1 p2 repr ulps)
   (cond
-    [(<= (ulps->bits (ulp-difference p1 p2 repr)) (*binary-search-accuracy*))
+    [(<= (ulps->bits (ulps p1 p2)) (*binary-search-accuracy*))
      (timeline-push! 'stop "narrow-enough" 1)
      (values p1 p2)]
     [else
@@ -80,19 +85,30 @@
        [(eq? cmp 'fail)
         (timeline-push! 'stop "predicate-failed" 1)
         (values p1 p2)]
-       [(negative? cmp) (binary-search-floats pred p3 p2 repr)]
-       [(positive? cmp) (binary-search-floats pred p1 p3 repr)]
+       [(negative? cmp) (binary-search-floats pred p3 p2 repr ulps)]
+       [(positive? cmp) (binary-search-floats pred p1 p3 repr ulps)]
        ;; cmp = 0 usually means sampling failed, so we give up
        [else
         (timeline-push! 'stop "predicate-same" 1)
         (values p1 p2)])]))
 
 (define (extract-subexpression batch brf var pattern-brf ctx)
-  (define free-vars (batch-free-vars batch))
   (define var-brf (batch-add! batch var))
-  (define body-brf (batch-replace-subexpr batch brf pattern-brf var-brf))
-  (define vars* (set-subtract (list->set (context-vars ctx)) (free-vars pattern-brf)))
-  (and (subset? (free-vars body-brf) (set-add vars* var)) body-brf))
+  (if (= (batchref-idx pattern-brf) (batchref-idx var-brf))
+      brf
+      (let ()
+        (define free-vars (batch-free-vars batch))
+        (define body-brf (batch-replace-subexpr batch brf pattern-brf var-brf))
+        (define vars* (set-subtract (list->set (context-vars ctx)) (free-vars pattern-brf)))
+        (and (subset? (free-vars body-brf) (set-add vars* var)) body-brf))))
+
+(define (deterministic-branch-var ctx)
+  (define used-vars (list->set (context-vars ctx)))
+  (let loop ([n 0])
+    (define var (string->symbol (format "branch-~a" n)))
+    (if (set-member? used-vars var)
+        (loop (add1 n))
+        var)))
 
 (define (prepend-argument evaluator val pcontext)
   (define pts
@@ -110,51 +126,15 @@
   (define key (cons brf v))
   (hash-ref! (*prepend-arguement-cache*) key (lambda () (macro v))))
 
-(define (valid-splitpoints? splitpoints)
-  (and (= (set-count (list->set (map sp-bexpr splitpoints))) 1) (nan? (sp-point (last splitpoints)))))
-
 ;; Accepts a list of sindices in one indexed form and returns the
-;; proper splitpoints in float form. A crucial constraint is that the
+;; proper interior splitpoints in float form. A crucial constraint is that the
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
-(define/contract (sindices->spoints batch points brf alts sindices start-prog ctx pcontext)
-  (-> batch?
-      (listof vector?)
-      batchref?
-      (listof alt?)
-      (listof si?)
-      any/c
-      context?
-      pcontext?
-      valid-splitpoints?)
+(define/contract (sindices->spoints/left batch points brf sindices ctx)
+  (-> batch? (listof vector?) batchref? (listof si?) context? (listof sp?))
   (define repr ((batch-reprs batch ctx) brf))
-
   (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf) ctx)))
-
-  (define var (gensym 'branch))
-  (define ctx* (context-extend ctx var repr))
-  (define progs
-    (for/list ([alt (in-list alts)])
-      (extract-subexpression batch (alt-expr alt) var brf ctx)))
-  (define start-prog-sub (extract-subexpression batch start-prog var brf ctx))
-
-  ; Not totally clear if this should actually use the precondition
-  (define spec-brfs (and start-prog (batch-to-spec! batch (list start-prog))))
-  (define start-real-compiler (and start-prog (make-real-compiler batch spec-brfs (list ctx*))))
-
-  (define (prepend-macro v)
-    (prepend-argument start-real-compiler v pcontext))
-
-  (define (find-split brf1 brf2 v1 v2)
-    (define (pred v)
-      (define pctx
-        (parameterize ([*num-points* (*binary-search-test-points*)])
-          (cache-get-prepend v brf prepend-macro)))
-      (match-define (list errs1 errs2) (batch-errors batch (list brf1 brf2) pctx ctx*))
-      (- (errors-score errs1) (errors-score errs2)))
-    (define-values (p1 p2) (binary-search-floats pred v1 v2 repr))
-    (left-point p1 p2))
 
   (define (left-point p1 p2)
     (define left ((representation-repr->bf repr) p1))
@@ -168,42 +148,87 @@
         p1
         ((representation-bf->repr repr) out)))
 
-  (define use-binary
-    (and (flag-set? 'reduce 'binary-search)
-         ;; Binary search is only valid if we correctly extracted the branch expression
-         (andmap identity (cons start-prog-sub progs))))
+  (for/list ([si1 sindices]
+             [si2 (cdr sindices)])
+    (define p1 (eval-expr (list-ref points (sub1 (si-pidx si1)))))
+    (define p2 (eval-expr (list-ref points (si-pidx si1))))
 
-  (append (for/list ([si1 sindices]
-                     [si2 (cdr sindices)])
-            (define brf1 (list-ref progs (si-cidx si1)))
-            (define brf2 (list-ref progs (si-cidx si2)))
+    (define timeline-stop! (timeline-start! 'bstep (value->json p1 repr) (value->json p2 repr)))
+    (define split-at (left-point p1 p2))
+    (timeline-stop!)
 
-            (define p1 (eval-expr (list-ref points (sub1 (si-pidx si1)))))
-            (define p2 (eval-expr (list-ref points (si-pidx si1))))
+    (timeline-push! 'method "left-value")
+    (sp (si-cidx si1) brf split-at)))
 
-            (define timeline-stop!
-              (timeline-start! 'bstep (value->json p1 repr) (value->json p2 repr)))
-            (define split-at
-              (if use-binary
-                  (find-split brf1 brf2 p1 p2)
-                  (left-point p1 p2)))
-            (timeline-stop!)
+(define/contract (sindices->spoints/binary batch points brf alts sindices start-prog ctx pcontext)
+  (-> batch?
+      (listof vector?)
+      batchref?
+      (listof alt?)
+      (listof si?)
+      any/c
+      context?
+      pcontext?
+      (listof sp?))
+  (define repr ((batch-reprs batch ctx) brf))
+  (define ulps (repr-ulps repr))
+  (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf) ctx)))
+  (define brf-node (deref brf))
+  (define var
+    (if (symbol? brf-node)
+        brf-node
+        (deterministic-branch-var ctx)))
+  (define ctx* (context-extend ctx var repr))
+  (define progs
+    (for/list ([alt (in-list alts)])
+      (extract-subexpression batch (alt-expr alt) var brf ctx)))
+  (define start-prog-sub (extract-subexpression batch start-prog var brf ctx))
+  (unless (and start-prog-sub (andmap identity progs))
+    (raise-user-error
+     'sindices->spoints/binary
+     "mainloop called binary splitpoint search without extractable critical subexpressions"))
+  (define spec-brfs (batch-to-spec! batch (list start-prog)))
+  (define start-real-compiler (make-real-compiler batch spec-brfs (list ctx*)))
 
-            (timeline-push! 'method (if use-binary "binary-search" "left-value"))
-            (sp (si-cidx si1) brf split-at))
-          (list (sp (si-cidx (last sindices)) brf +nan.0))))
+  (define (prepend-macro v)
+    (prepend-argument start-real-compiler v pcontext))
+
+  (define (find-split si1 si2 p1 p2)
+    (define brf1 (list-ref progs (si-cidx si1)))
+    (define brf2 (list-ref progs (si-cidx si2)))
+    (define (pred v)
+      (define pctx
+        (parameterize ([*num-points* (*binary-search-test-points*)])
+          (cache-get-prepend v brf prepend-macro)))
+      (match-define (list errs1 errs2) (batch-errors batch (list brf1 brf2) pctx ctx*))
+      (- (errors-score errs1) (errors-score errs2)))
+    (define-values (bp1 _) (binary-search-floats pred p1 p2 repr ulps))
+    bp1)
+
+  (for/list ([si1 sindices]
+             [si2 (cdr sindices)])
+    (define p1 (eval-expr (list-ref points (sub1 (si-pidx si1)))))
+    (define p2 (eval-expr (list-ref points (si-pidx si1))))
+
+    (define timeline-stop! (timeline-start! 'bstep (value->json p1 repr) (value->json p2 repr)))
+    (define split-at (find-split si1 si2 p1 p2))
+    (timeline-stop!)
+
+    (timeline-push! 'method "binary-search")
+    (sp (si-cidx si1) brf split-at)))
 
 (define (regimes-pcontext-masks pcontext splitpoints alts ctx)
   (define num-alts (length alts))
+  (define num-points (pcontext-length pcontext))
   (define bexpr (sp-bexpr (car splitpoints)))
   (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
   (define prog (compile-prog bexpr ctx*))
-
-  (flip-lists (for/list ([(pt ex) (in-pcontext pcontext)])
-                (define val (prog pt))
-                (define alt-id
-                  (for/first ([right (in-list splitpoints)]
-                              #:when (or (equal? (sp-point right) +nan.0)
-                                         (<=/total val (sp-point right) (context-repr ctx*))))
-                    (sp-cidx right)))
-                (build-list num-alts (curry = alt-id)))))
+  (define masks (build-vector num-alts (λ (_) (make-vector num-points #f))))
+  (for ([(pt _) (in-pcontext pcontext)]
+        [idx (in-naturals)])
+    (define val (prog pt))
+    (for/first ([right (in-list splitpoints)]
+                #:when (or (equal? (sp-point right) +nan.0)
+                           (<=/total val (sp-point right) (context-repr ctx*))))
+      (vector-set! (vector-ref masks (sp-cidx right)) idx #t)))
+  masks)
