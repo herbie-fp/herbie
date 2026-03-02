@@ -56,6 +56,7 @@
 
 (define (infer-splitpoints batch branch-brfs brf-vals reprs alts err-cols errs ctx pcontext)
   (timeline-push! 'inputs (batch->jsexpr batch (map alt-expr alts)))
+  (define err-cols/bits (err-cols->bit-cols err-cols))
   (define cerrs (hash-copy errs))
   (define brf-data (map cons branch-brfs brf-vals))
   (define sorted-brfs
@@ -71,7 +72,7 @@
               ([(brf brf-vals) (in-dict sorted-brfs)]
                ;; stop if we've computed this (and following) branch-brf on more alts and it's still worse
                #:break (> (hash-ref cerrs brf -1) best-err))
-      (define opt (option-on-brf batch alts err-cols pts-vec brf brf-vals ctx reprs))
+      (define opt (option-on-brf batch alts err-cols err-cols/bits pts-vec brf brf-vals ctx reprs))
       (define err
         (+ (errors-score (option-errors opt))
            (length (option-split-indices opt)))) ;; one-bit penalty per split
@@ -122,7 +123,13 @@
       (vector-set! (vector-ref vals i) p out)))
   (vector->list vals))
 
-(define (option-on-brf batch alts err-cols pts-vec brf brf-vals-vec ctx reprs)
+(define (err-cols->bit-cols err-cols)
+  (for/list ([err-col (in-list err-cols)])
+    (for/flvector #:length (vector-length err-col)
+                  ([err (in-vector err-col)])
+                  (real->double-flonum (log err 2)))))
+
+(define (option-on-brf batch alts err-cols err-cols/bits pts-vec brf brf-vals-vec ctx reprs)
   (define timeline-stop! (timeline-start! 'times (batch->jsexpr batch (list brf))))
   (define repr (reprs brf))
   (define sorted-indices
@@ -138,7 +145,7 @@
           (for/list ([idx (in-vector sorted-indices 1)]
                      [prev-idx (in-vector sorted-indices 0 (sub1 (vector-length sorted-indices)))])
             (</total (vector-ref brf-vals-vec prev-idx) (vector-ref brf-vals-vec idx) repr))))
-  (define split-indices (infer-split-indices err-cols sorted-indices can-split?))
+  (define split-indices (infer-split-indices err-cols/bits sorted-indices can-split?))
   (define out
     (option split-indices alts pts* brf (pick-errors split-indices sorted-indices err-cols)))
   (timeline-stop!)
@@ -179,6 +186,7 @@
   (define alts (map make-alt (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
   (define err-lsts `((,(expt 2 53) 1) (1 ,(expt 2 53))))
   (define err-cols (map list->vector err-lsts))
+  (define err-cols/bits (err-cols->bit-cols err-cols))
   (define pts-vec (pcontext-points pctx))
 
   (define (test-regimes expr goal)
@@ -187,7 +195,7 @@
     (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
     (define reprs (batch-reprs batch ctx))
     (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-brf batch alts err-cols pts-vec brf brf-vals ctx reprs)
+           (option-on-brf batch alts err-cols err-cols/bits pts-vec brf brf-vals ctx reprs)
            goal))
 
   ;; This is a basic sanity test
@@ -221,14 +229,14 @@
   (define (ulps->bits x)
     (real->double-flonum (log x 2)))
 
-  (: sorted-error-prefix-sums (-> (Vectorof Nonnegative-Integer) (Vectorof Integer) FlVector))
+  (: sorted-error-prefix-sums (-> FlVector (Vectorof Integer) FlVector))
   (define (sorted-error-prefix-sums alt-errors sorted-indices)
     (define number-of-points (vector-length sorted-indices))
     (define prefix-sums (make-flvector number-of-points))
     (for/fold ([sum 0.0])
               ([point-idx (in-vector sorted-indices)]
                [i (in-naturals)])
-      (define next-sum (fl+ sum (ulps->bits (vector-ref alt-errors point-idx))))
+      (define next-sum (fl+ sum (flvector-ref alt-errors point-idx)))
       (flvector-set! prefix-sums i next-sum)
       next-sum)
     prefix-sums)
@@ -239,8 +247,7 @@
   ;; Returns a list of split indices saying which alt to use for which
   ;; range of points. Starting at 1 going up to num-points.
   ;; Alts are indexed 0 and points are index 1.
-  (: infer-split-indices
-     (-> (Listof (Vectorof Nonnegative-Integer)) (Vectorof Integer) (Listof Boolean) (Listof si)))
+  (: infer-split-indices (-> (Listof FlVector) (Vectorof Integer) (Listof Boolean) (Listof si)))
   (define (infer-split-indices err-cols sorted-indices can-split)
     ;; Converts the list to vector form for faster processing
     (define can-split-vec (list->vector can-split))
