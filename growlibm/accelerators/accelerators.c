@@ -37,6 +37,32 @@ static inline void unsorted_two_sum(double a, double b, double *s, double *e) {
     fast_two_sum(a, b, s, e);
 }
 
+static inline double root5_positive(double x) {
+    const double one_fifth = 0.2;
+    int e;
+    double m = frexp(x, &e);
+    int q = e / 5;
+    int r = e % 5;
+
+    if (r < 0) {
+        r += 5;
+        q -= 1;
+    }
+
+    // x = 2^(5q) * s, with s in [0.5, 16). This keeps Newton updates stable.
+    double s = ldexp(m, r);
+    double u = exp(one_fifth * log1p(s - 1.0));
+
+    for (int i = 0; i < 2; ++i) {
+        double u2 = u * u;
+        double u4 = u2 * u2;
+        double ratio = s / u4;
+        u = one_fifth * fma(4.0, u, ratio);
+    }
+
+    return ldexp(u, q);
+}
+
 
 double sinprod(double x, double y) {
     double p = x * y;
@@ -331,6 +357,50 @@ double verdcos(double x){
 
 double ncos1p(double z0) {
 	return tan((0.5 * z0)) * sin(z0);
+}
+
+double pown2o3(double z0) {
+    double r = cbrt(z0);
+    return 1.0 / (r * r);
+}
+
+double pow2o5(double z0) {
+    if (isnan(z0)) return z0 + z0;
+    if (z0 == 0.0) return 0.0;
+    if (isinf(z0)) return INFINITY;
+
+    double r = root5_positive(fabs(z0));
+    return r * r;
+}
+
+double pow3o5(double z0) {
+    if (isnan(z0)) return z0 + z0;
+    if (z0 == 0.0) return z0;
+    if (isinf(z0)) return z0;
+
+    double r = root5_positive(fabs(z0));
+    double mag = r * r * r;
+    return (z0 < 0.0) ? -mag : mag;
+}
+
+double pow5o3(double z0) {
+    double r = cbrt(z0);
+    return z0 * r * r;
+}
+
+double pown16o5(double z0) {
+    if (isnan(z0)) return z0 + z0;
+    if (z0 == 0.0) return INFINITY;
+    if (isinf(z0)) return 0.0;
+
+    double r = root5_positive(fabs(z0));
+    int e;
+    double m = frexp(r, &e);
+    double m2 = m * m;
+    double m4 = m2 * m2;
+    double m8 = m4 * m4;
+    double m16 = m8 * m8;
+    return ldexp(1.0 / m16, -16 * e);
 }
 
 double pow1ms(double x, double y) {

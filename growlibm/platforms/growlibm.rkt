@@ -291,3 +291,38 @@
 ;;;   #:impl (from-accelerators 'cosquot)
 ;;;   #:fpcore (! :precision binary64 (cosquot x y))
 ;;;   #:cost 10000)
+
+(define-operation (pown2o3.f64 [z0 <binary64>])
+  <binary64>
+  #:spec (pow z0 -2/3)
+  #:impl (from-accelerators 'pown2o3)
+  #:fpcore (! :precision binary64 (pown2o3 z0))
+  #:cost 6400)
+
+(define-operation (pow2o5.f64 [z0 <binary64>])
+  <binary64>
+  #:spec (pow z0 2/5)
+  #:impl (from-accelerators 'pow2o5)
+  #:fpcore (! :precision binary64 (pow2o5 z0))
+  #:cost 6400)
+
+(define-operation (pow3o5.f64 [z0 <binary64>])
+  <binary64>
+  #:spec (pow z0 3/5)
+  #:impl (from-accelerators 'pow3o5)
+  #:fpcore (! :precision binary64 (pow3o5 z0))
+  #:cost 6400)
+
+(define-operation (pow5o3.f64 [z0 <binary64>])
+  <binary64>
+  #:spec (pow z0 5/3)
+  #:impl (from-accelerators 'pow5o3)
+  #:fpcore (! :precision binary64 (pow5o3 z0))
+  #:cost 6400)
+
+(define-operation (pown16o5.f64 [z0 <binary64>])
+  <binary64>
+  #:spec (pow z0 -16/5)
+  #:impl (from-accelerators 'pown16o5)
+  #:fpcore (! :precision binary64 (pown16o5 z0))
+  #:cost 6400)

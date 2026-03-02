@@ -19,6 +19,11 @@ double powcos2(double x);
 double powcos4(double x);
 double powcos6(double x);
 double ncos1p(double x);
+double pown2o3(double x);
+double pow2o5(double x);
+double pow3o5(double x);
+double pow5o3(double x);
+double pown16o5(double x);
 double pow1ms(double x, double y);
 
 #ifdef __cplusplus

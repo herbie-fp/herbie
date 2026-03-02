@@ -4,13 +4,18 @@ import sys
 
 NUM_RUNS = 250
 BASE_DIR = "growlibm/timing"
-unary_accelerators = ['log1pmd', 'invgud', 'verdcos', 'powcos2', 'powcos4', 'powcos6']
-binary_accelerators = ['sinprod', 'cosprod', 'sinquot', 'cosquot', 'hypot', 'powcos', 'pow1ms']
-unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'exp2', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc'] + unary_accelerators
+unary_accelerators = ['log1pmd', 'invgud', 'verdcos', 'powcos2', 'powcos4', 'powcos6', 'pown2o3', 'pow2o5', 'pow3o5', 'pow5o3', 'pown16o5']
+binary_accelerators = ['sinprod', 'cosprod', 'hypot', 'powcos', 'pow1ms']
+unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'exp', 'exp2', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc'] + unary_accelerators
 binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', 'fmod', 'pow', 'remainder'] + binary_accelerators
 # to_test = ['sin_xy', 'cos_xy', 'sin_quotient_xy', 'cos_quotient_xy', 'sin', 'cos', '/']
 #'log', 'log1pmd', 'invgud', 'hypot', 'verdcos', 'sin', 'cos', 'sinprod', 'cosprod',
-to_test =  ['pow', 'cos', 'pow1ms']
+to_test =  ['+', 'pow','pow1ms', 'pown2o3', 'pow2o5', 'pow3o5', 'pow5o3', 'pown16o5']
+# to_test = binary_ops + unary_ops 
+times = {}
+costs = {}
+plus_time = 0
+
 class FPCore(object):
     def __init__(self, core, arity) -> None:
         self.arity = arity
@@ -120,8 +125,18 @@ if __name__ == "__main__":
     print('--------------------------------------------------')
     print('|', 'op'.ljust(20), '|', 'unsorted'.ljust(10), '|', 'sorted'.ljust(10), '|')
     print('--------------------------------------------------')
-    times = {}
+
     for op in to_test:
         points = sample_points(generate_fpcore(op), seed)
-        print('|', op.ljust(20), '|', f'{time_op(op, False, points):.5f} ms', '|', f'{time_op(op, True, points):.5f} ms', '|')
+        unsorted = time_op(op, False, points)
+        sorted = time_op(op, True, points)
+        times[op] = unsorted
+        if op == "+": plus_time = unsorted 
+        print('|', op.ljust(20), '|', f'{unsorted:.5f} ms', '|', f'{sorted:.5f} ms', '|')
     print('--------------------------------------------------')
+
+    for op, time in times.items():
+        costs[op] = time/plus_time * 0.2
+    
+    for op, cost in costs.items():
+        print(op, cost)
