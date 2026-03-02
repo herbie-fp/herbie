@@ -71,9 +71,11 @@ jobs:
             pkgconf
       - name: "Install dependencies (Windows GNU)"
         if: runner.os == 'Windows'
+        shell: msys2 {0}
         env:
           CARGO_BUILD_TARGET: x86_64-pc-windows-gnu
-          CC: gcc
+          CC: x86_64-w64-mingw32-gcc
+          CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
         run: make install
       - name: "Install dependencies (Linux / MacOS)"
         if: runner.os != 'Windows'
@@ -81,9 +83,11 @@ jobs:
       # Build executable and remove Herbie launcher
       - name: "Build standalone executable (Windows GNU)"
         if: runner.os == 'Windows'
+        shell: msys2 {0}
         env:
           CARGO_BUILD_TARGET: x86_64-pc-windows-gnu
-          CC: gcc
+          CC: x86_64-w64-mingw32-gcc
+          CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
         run: make distribution
       - name: "Build standalone executable (Linux / MacOS)"
         if: runner.os != 'Windows'
