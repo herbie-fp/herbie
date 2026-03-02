@@ -48,11 +48,10 @@ jobs:
             components: rustfmt, clippy
       - name: Install Rust compiler (Windows GNU)
         if: runner.os == 'Windows'
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
-            toolchain: stable
+            toolchain: stable-x86_64-pc-windows-gnu
             components: rustfmt, clippy
-            targets: x86_64-pc-windows-gnu
       - name: Cache cargo build
         uses: Swatinem/rust-cache@v2
       - uses: actions/checkout@v5
@@ -73,6 +72,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: msys2 {0}
         env:
+          RUSTUP_TOOLCHAIN: stable-x86_64-pc-windows-gnu
           CARGO_BUILD_TARGET: x86_64-pc-windows-gnu
           CC: x86_64-w64-mingw32-gcc
           CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
@@ -85,6 +85,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: msys2 {0}
         env:
+          RUSTUP_TOOLCHAIN: stable-x86_64-pc-windows-gnu
           CARGO_BUILD_TARGET: x86_64-pc-windows-gnu
           CC: x86_64-w64-mingw32-gcc
           CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
