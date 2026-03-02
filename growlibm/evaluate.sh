@@ -28,7 +28,7 @@ racket -y src/main.rkt report \
 
 racket -y src/main.rkt report \
         --seed "$SEED" \
-        --platform herbie20 \
+        --platform c \
         --num-enodes $NUM_ENODES \
         $BENCHDIR \
         $REPORTDIR/herbie20_base
@@ -124,4 +124,5 @@ racket -y src/main.rkt report \
 #         "$BENCHDIR" \
 #         "$REPORTDIR/growlibmbest_base" 
 
-python3 growlibm/evaluate-report.py $REPORTDIR $PLATFORM
+python3 growlibm/evaluate-report.py "$REPORTDIR" "$PLATFORM"
+python3 growlibm/evaluate-frontier.py "$REPORTDIR" "$PLATFORM"

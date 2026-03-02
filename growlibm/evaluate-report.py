@@ -14,7 +14,7 @@ if platform == "proj":
 elif platform == "basilisk":
     accelerators = ["powcos", "powcos2", "powcos4", "powcos6", "ncos1p"]
 elif platform == "coolprop":
-    accelerators = ["pow1ms"]
+    accelerators = ["pow1ms", "pown2o3", "pow2o5", "pow3o5", "pow5o3", "pown16o5"]
 else:
     accelerators = []
 
