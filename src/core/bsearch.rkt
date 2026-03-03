@@ -196,12 +196,15 @@
   (define (find-split si1 si2 p1 p2)
     (define brf1 (list-ref progs (si-cidx si1)))
     (define brf2 (list-ref progs (si-cidx si2)))
+    (define eval-errors (compile-batch batch (list brf1 brf2) ctx*))
+    (define score-ulps (repr-ulps (context-repr ctx*)))
     (define (pred v)
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
           (cache-get-prepend v brf prepend-macro)))
-      (match-define (list errs1 errs2) (batch-errors batch (list brf1 brf2) pctx ctx*))
-      (- (errors-score errs1) (errors-score errs2)))
+      (for/sum ([(pt ex) (in-pcontext pctx)])
+               (match-define (vector out1 out2) (eval-errors pt))
+               (- (ulps->bits (score-ulps out1 ex)) (ulps->bits (score-ulps out2 ex)))))
     (define-values (bp1 _) (binary-search-floats pred p1 p2 repr ulps))
     bp1)
 
