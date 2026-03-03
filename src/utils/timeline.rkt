@@ -201,7 +201,7 @@
 (define-timeline baseline [baseline])
 (define-timeline count [input +] [output +])
 (define-timeline alts #:unmergable)
-(define-timeline alts-batch #:unmergable)
+(define-timeline batch #:unmergable)
 (define-timeline inputs #:unmergable)
 (define-timeline outputs #:unmergable)
 (define-timeline sampling #:custom merge-sampling-tables)
