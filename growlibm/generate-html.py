@@ -43,7 +43,7 @@ def format_accelerator_rows(accelerators, counts):
         name = html.escape(str(acc.get("name", "")))
         spec = html.escape(str(acc.get("spec", "")))
         count = counts.get(acc.get("name"), 0)
-        if count == 0:
+        if count < 2:
             continue
         rows.append(f'<tr><td>{name}</td><td><code>{spec}</code></td><td>{count}</td></tr>')
     return "".join(rows)
