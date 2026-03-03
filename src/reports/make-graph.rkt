@@ -2,6 +2,7 @@
 
 (require (only-in xml write-xexpr xexpr?)
          (only-in fpbench core->tex *expr-cse-able?* [core-common-subexpr-elim core-cse]))
+(require math/flonum)
 
 (require "../core/alternative.rkt"
          "../utils/common.rkt"
@@ -15,6 +16,10 @@
 
 (provide make-graph
          dummy-graph)
+
+(define (flvector-maxall v)
+  (for/fold ([x 0.0]) ([err (in-flvector v)])
+    (max x err)))
 
 (define (dummy-graph command)
   `(html (head (meta ([charset "utf-8"]))
@@ -83,13 +88,13 @@
                        (list '("Report" . "../index.html") '("Metrics" . "timeline.html"))
                        (list '("Metrics" . "timeline.html"))))
      (div ([id "large"])
-          ,(render-comparison
-            "Percentage Accurate"
-            (format-accuracy (errors-score start-error) repr #:unit "%")
-            (format-accuracy (errors-score end-error) repr #:unit "%")
-            #:title (format "Minimum Accuracy: ~a → ~a"
-                            (format-accuracy (apply max (map ulps->bits start-error)) repr #:unit "%")
-                            (format-accuracy (apply max (map ulps->bits end-error)) repr #:unit "%")))
+          ,(render-comparison "Percentage Accurate"
+                              (format-accuracy (errors-score start-error) repr #:unit "%")
+                              (format-accuracy (errors-score end-error) repr #:unit "%")
+                              #:title
+                              (format "Minimum Accuracy: ~a → ~a"
+                                      (format-accuracy (flvector-maxall start-error) repr #:unit "%")
+                                      (format-accuracy (flvector-maxall end-error) repr #:unit "%")))
           ,(render-large "Time" (format-time time))
           ,(render-large "Alternatives" (~a (length end-exprs)))
           ,(render-large "Speedup"

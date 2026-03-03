@@ -16,8 +16,8 @@
          real->ordinal
          splitpoints->json)
 
-(define (ulps->bits-tenths x)
-  (string->number (real->decimal-string (ulps->bits x) 1)))
+(define (bits->tenths x)
+  (string->number (real->decimal-string x 1)))
 
 (define (splitpoints->json vars alt repr)
   (for/list ([var (in-list vars)])
@@ -57,9 +57,16 @@
 
   (define vars (test-vars test))
   (define bits (representation-total-bits repr))
-  (define start-error (map ulps->bits-tenths start-errors))
-  (define target-error (map (lambda (alt-error) (map ulps->bits-tenths alt-error)) target-errors))
-  (define end-error (map ulps->bits-tenths (car end-errors)))
+  (define start-error
+    (for/list ([err (in-flvector start-errors)])
+      (bits->tenths err)))
+  (define target-error
+    (for/list ([alt-error (in-list target-errors)])
+      (for/list ([err (in-flvector alt-error)])
+        (bits->tenths err))))
+  (define end-error
+    (for/list ([err (in-flvector (car end-errors))])
+      (bits->tenths err)))
 
   (define target-error-entries
     (for/list ([i (in-naturals)]

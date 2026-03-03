@@ -28,7 +28,7 @@
 
 (define (pareto-regimes batch sorted start-prog ctx pcontext)
   (timeline-event! 'regimes)
-  (define err-cols (map list->vector (batch-errors batch (map alt-expr sorted) pcontext ctx)))
+  (define err-cols (batch-errors batch (map alt-expr sorted) pcontext ctx))
   (define branches
     (if (null? sorted)
         '()
@@ -150,24 +150,21 @@
   out)
 
 (define/contract (pick-errors split-indices sorted-indices err-cols)
-  (-> (listof si?) vector? (listof vector?) (listof nonnegative-integer?))
+  (-> (listof si?) vector? (listof flvector?) flvector?)
   (define err-cols-vec (list->vector err-cols))
-  (for/list ([i (in-naturals)]
-             [point-idx (in-vector sorted-indices)])
-    (define alt-idx (si-cidx (findf (lambda (x) (< i (si-pidx x))) split-indices)))
-    (vector-ref (vector-ref err-cols-vec alt-idx) point-idx)))
-
-(define (errors-score/vec err-vec)
-  (/ (for/sum ([err (in-vector err-vec)]) (ulps->bits err)) (vector-length err-vec)))
+  (for/flvector #:length (vector-length sorted-indices)
+                ([i (in-naturals)] [point-idx (in-vector sorted-indices)])
+                (define alt-idx (si-cidx (findf (lambda (x) (< i (si-pidx x))) split-indices)))
+                (flvector-ref (vector-ref err-cols-vec alt-idx) point-idx)))
 
 (define (baseline-errors-score err-cols)
-  (apply min (map errors-score/vec err-cols)))
+  (apply min (map errors-score err-cols)))
 
 (define (oracle-errors-score err-cols)
-  (define num-points (vector-length (first err-cols)))
+  (define num-points (flvector-length (first err-cols)))
   (/ (for/sum ([point-idx (in-range num-points)])
-              (ulps->bits (for/fold ([max-err 0]) ([err-col (in-list err-cols)])
-                            (max max-err (vector-ref err-col point-idx)))))
+              (for/fold ([max-err 0.0]) ([err-col (in-list err-cols)])
+                (max max-err (flvector-ref err-col point-idx))))
      num-points))
 
 (module+ test
@@ -177,8 +174,7 @@
   (define ctx (context '(x) <binary64> (list <binary64>)))
   (define pctx (mk-pcontext '(#(0.5) #(4.0)) '(1.0 1.0)))
   (define alts (map make-alt (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
-  (define err-lsts `((,(expt 2 53) 1) (1 ,(expt 2 53))))
-  (define err-cols (map list->vector err-lsts))
+  (define err-cols (list (flvector 53.0 0.0) (flvector 0.0 53.0)))
   (define pts-vec (pcontext-points pctx))
 
   (define (test-regimes expr goal)
@@ -217,21 +213,11 @@
   ;; pidx = Point index: The index of the point to the left of which we should split.
   (struct si ([cidx : Integer] [pidx : Integer]) #:prefab)
 
-  (: ulps->bits (-> Nonnegative-Integer Flonum))
-  (define (ulps->bits x)
-    (real->double-flonum (log x 2)))
-
-  (: sorted-error-prefix-sums (-> (Vectorof Nonnegative-Integer) (Vectorof Integer) FlVector))
-  (define (sorted-error-prefix-sums alt-errors sorted-indices)
-    (define number-of-points (vector-length sorted-indices))
-    (define prefix-sums (make-flvector number-of-points))
-    (for/fold ([sum 0.0])
-              ([point-idx (in-vector sorted-indices)]
-               [i (in-naturals)])
-      (define next-sum (fl+ sum (ulps->bits (vector-ref alt-errors point-idx))))
-      (flvector-set! prefix-sums i next-sum)
-      next-sum)
-    prefix-sums)
+  (: resort-errors (-> FlVector (Vectorof Integer) FlVector))
+  (define (resort-errors alt-errors sorted-indices)
+    (for/flvector #:length (vector-length sorted-indices)
+                  ([point-idx (in-vector sorted-indices)])
+                  (flvector-ref alt-errors point-idx)))
 
   ;; This is the core main loop of the regimes algorithm.
   ;; Takes in alt-major error columns, point-sorting indices, and a list of
@@ -239,8 +225,7 @@
   ;; Returns a list of split indices saying which alt to use for which
   ;; range of points. Starting at 1 going up to num-points.
   ;; Alts are indexed 0 and points are index 1.
-  (: infer-split-indices
-     (-> (Listof (Vectorof Nonnegative-Integer)) (Vectorof Integer) (Listof Boolean) (Listof si)))
+  (: infer-split-indices (-> (Listof FlVector) (Vectorof Integer) (Listof Boolean) (Listof si)))
   (define (infer-split-indices err-cols sorted-indices can-split)
     ;; Converts the list to vector form for faster processing
     (define can-split-vec (list->vector can-split))
@@ -248,7 +233,7 @@
       :
       (Listof FlVector)
       (for/list ([err-col (in-list err-cols)])
-        (sorted-error-prefix-sums err-col sorted-indices)))
+        (flvector-sums (resort-errors err-col sorted-indices))))
 
     ;; Set up data needed for algorithm
     (define number-of-points (vector-length can-split-vec))

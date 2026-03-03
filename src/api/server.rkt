@@ -4,6 +4,7 @@
 (require (only-in xml write-xexpr))
 (require json)
 (require data/queue)
+(require math/flonum)
 
 (require "../syntax/read.rkt"
          "../syntax/sugar.rkt"
@@ -497,6 +498,13 @@
 (define (make-cost-result herbie-result job-id)
   (hasheq 'cost (job-result-backend herbie-result)))
 
+(define (bits->ulps bits repr)
+  (inexact->exact (round (expt 2 bits))))
+
+(define (bits-errors->ulps-list errs repr)
+  (for/list ([err (in-flvector errs)])
+    (bits->ulps err repr)))
+
 (define (make-error-result herbie-result job-id)
   (define test (job-result-test herbie-result))
   (define errs
@@ -504,7 +512,7 @@
       (list (for/list ([val (in-vector pt)]
                        [repr (in-list (context-var-reprs (test-context test)))])
               (value->json val repr))
-            (format-bits (ulps->bits err)))))
+            (format-bits err))))
   (hasheq 'points errs))
 
 (define (make-alternatives-result herbie-result job-id)

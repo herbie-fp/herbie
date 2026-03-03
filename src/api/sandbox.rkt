@@ -1,6 +1,7 @@
 #lang racket
 
 (require racket/engine
+         math/flonum
          json)
 
 (require "../syntax/read.rkt"
@@ -102,7 +103,7 @@
   (define-values (_ test-pcontext) (partition-pcontext pcontext))
   (define errs (errors (test-input test) test-pcontext (*context*)))
   (for/list ([(pt _) (in-pcontext test-pcontext)]
-             [err (in-list errs)])
+             [err (in-flvector errs)])
     (cons pt err)))
 
 (define (get-explanations test pcontext)

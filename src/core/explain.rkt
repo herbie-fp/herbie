@@ -2,6 +2,7 @@
 
 (require racket/set
          math/bigfloat
+         math/flonum
          racket/hash)
 (require "../utils/common.rkt"
          "../syntax/float.rkt"
@@ -527,7 +528,7 @@
 
   (define true-error-hash
     (for/hash ([(key _) (in-pcontext pctx)]
-               [value (in-list (errors expr pctx ctx))])
+               [value (in-flvector (errors expr pctx ctx))])
       (values key value)))
 
   (define explanations-table

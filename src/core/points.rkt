@@ -1,6 +1,7 @@
 #lang racket
 
-(require "../syntax/float.rkt"
+(require math/flonum
+         "../syntax/float.rkt"
          "../syntax/types.rkt"
          "../syntax/batch.rkt"
          "compiler.rkt")
@@ -58,7 +59,7 @@
   (/ (apply + s) (length s)))
 
 (define (errors-score e)
-  (apply average (map ulps->bits e)))
+  (/ (flvector-sum e) (flvector-length e)))
 
 (define (errors expr pcontext ctx)
   (first (exprs-errors (list expr) pcontext ctx)))
@@ -77,15 +78,22 @@
   (generate-errors fn pcontext ctx num-exprs))
 
 (define (generate-errors fn pcontext ctx num-exprs)
-  (define ulps (repr-ulps (context-repr ctx)))
-
-  ;; This generates the errors array in reverse because that's how lists work
+  (define repr (context-repr ctx))
+  (define ulps (repr-ulps repr))
+  (define max-ulps (+ 1 (expt 2 (representation-total-bits repr))))
+  (define invalid-bits (real->double-flonum (representation-total-bits repr)))
   (define num-points (pcontext-length pcontext))
-  (define results (make-vector num-exprs '()))
-  (for ([point (in-vector (pcontext-points pcontext) (- num-points 1) -1 -1)]
-        [exact (in-vector (pcontext-exacts pcontext) (- num-points 1) -1 -1)])
+  (define results (build-vector num-exprs (lambda (_) (make-flvector num-points invalid-bits))))
+  (for ([point (in-vector (pcontext-points pcontext))]
+        [exact (in-vector (pcontext-exacts pcontext))]
+        [pidx (in-naturals)])
     (define outs (fn point))
     (for ([out (in-vector outs)]
-          [i (in-naturals)])
-      (vector-set! results i (cons (ulps out exact) (vector-ref results i)))))
+          [result (in-vector results)])
+      (define err-ulps (ulps out exact))
+      (flvector-set! result
+                     pidx
+                     (if (= err-ulps max-ulps)
+                         invalid-bits
+                         (ulps->bits err-ulps)))))
   (vector->list results))
