@@ -9,7 +9,7 @@
 
 (require math/bigfloat
          (prefix-in r2: rival)
-         (prefix-in r3: rival3-racket))
+         (prefix-in r3: rival3))
 
 (require "../config.rkt"
          "../core/arrays.rkt"
