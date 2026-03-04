@@ -97,7 +97,7 @@
   (define batch-jsexpr (batch->jsexpr (*global-batch*) (map alt-expr active-alts)))
   (define roots (hash-ref batch-jsexpr 'roots))
   (define repr (context-repr (*context*)))
-  (timeline-push! 'alts-batch batch-jsexpr)
+  (timeline-push! 'batch batch-jsexpr)
   (for ([alt (in-list active-alts)]
         [score (in-list scores)]
         [root (in-list roots)])

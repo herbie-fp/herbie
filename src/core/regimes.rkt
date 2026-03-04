@@ -37,6 +37,7 @@
     (if (flag-set? 'reduce 'branch-expressions)
         branches
         (map (curry batch-add! batch) (context-vars ctx))))
+  (timeline-push! 'batch (batch->jsexpr batch (append (map alt-expr sorted) branch-brfs)))
   (define brf-vals (brf-values* batch branch-brfs ctx pcontext))
   (define reprs (batch-reprs batch ctx))
   (define errs (make-hash))
@@ -143,7 +144,7 @@
     (option split-indices alts pts* brf (pick-errors split-indices sorted-indices err-cols)))
   (timeline-stop!)
   (timeline-push! 'branch
-                  (batch->jsexpr batch (list brf))
+                  (batchref-idx brf)
                   (errors-score (option-errors out))
                   (length split-indices)
                   (~a (representation-name repr)))

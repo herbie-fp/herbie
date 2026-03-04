@@ -34,6 +34,8 @@
 # Observability
 
 - `jq` is installed, use it
+- If you're investigating a single benchmark, copy it to a file named
+  `test.fpcore` and run just that file.
 - Herbie runs output a `tmp/<benchmark>/timeline.json` with rich
   observability data for each benchmark.
 - A timeline is a list of phases, each a map from key to "table",
