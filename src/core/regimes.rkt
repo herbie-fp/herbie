@@ -237,9 +237,10 @@
     (define-values (batch brfs) (progs->batch (list expr)))
     (define brf (car brfs))
     (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
+    (define brf-root (first (hash-ref (batch->jsexpr batch (list brf)) 'roots)))
     (define reprs (batch-reprs batch ctx))
     (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-brf batch alts err-cols err-cols/bits pts-vec brf brf-vals ctx reprs)
+           (option-on-brf batch alts err-cols err-cols/bits pts-vec brf brf-root brf-vals ctx reprs)
            goal))
 
   ;; This is a basic sanity test
