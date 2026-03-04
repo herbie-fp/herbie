@@ -1,12 +1,10 @@
-.PHONY: help install egg-herbie rival3-racket nightly index start-server deploy
+.PHONY: help install egg-herbie nightly index start-server deploy
 
 help:
 	@echo "Type 'make install' to install Herbie"
 	@echo "Then type 'racket -l herbie web' to run it."
 
-RIVAL3_DIR := rival3
-
-install: clean egg-herbie rival3-racket egglog-herbie update
+install: clean egg-herbie egglog-herbie update
 
 clean:
 	raco pkg remove --force --no-docs herbie && echo "Uninstalled old herbie" || :
@@ -15,12 +13,11 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Uninstalled old egg-herbie" || :
-	raco pkg remove --force --no-docs rival3-racket && echo "Uninstalled old rival3-racket" || :
-	rm -rf $(RIVAL3_DIR)
 
 update:
 	raco pkg install --update-deps --no-docs --auto --name herbie src/
 	raco pkg update --auto rival
+	raco pkg update --auto rival3
 	raco pkg update --name herbie --deps search-auto src/
 
 egg-herbie:
@@ -34,12 +31,6 @@ egg-herbie:
 
 egglog-herbie:
 	cargo install --git "https://github.com/egraphs-good/egglog-experimental" --branch main egglog-experimental
-
-rival3-racket:
-	git clone https://github.com/herbie-fp/rival3 $(RIVAL3_DIR)
-	cargo build --release --manifest-path=$(RIVAL3_DIR)/rival3-ffi/Cargo.toml
-	raco pkg install ./$(RIVAL3_DIR)/rival3-racket
-
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/
