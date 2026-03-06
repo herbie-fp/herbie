@@ -5,9 +5,11 @@ set -e -x
 
 # Ensure egglog is in the path
 export PATH="$HOME/.cargo/bin/:$PATH"
-# rustup update
+rustup update
 
-# make install
+# Keep nightly installs isolated and consistent across install/run steps.
+export PLTADDONDIR="${PLTADDONDIR:-pltlibs}"
+make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
