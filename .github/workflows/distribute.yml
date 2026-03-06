@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - rival3-distribute-fix
+      - rival3-distribution-fix
   workflow_dispatch:
 
 env:
