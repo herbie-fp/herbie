@@ -12,14 +12,14 @@ REPORTDIR="reports"
 
 rustup update
 make install
-BENCHDIR="bench/basilisk/"
+BENCHDIR="bench/proj/"
 NUM_ITERS=2
 NUM_CANDIDATES=1000
 NUM_ADD=20
 
-# BENCHDIR="bench/mathematics/statistics.fpcore"
+# BENCHDIR="bench/numerics/kahan.fpcore"
 # NUM_ITERS=1
-# NUM_CANDIDATES=1000
+# NUM_CANDIDATES=100
 # NUM_ADD=5
 
 cp growlibm/grow-template.rkt growlibm/grow.rkt

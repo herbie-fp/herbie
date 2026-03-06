@@ -30,7 +30,7 @@
                                    atan.f64 asinh.f64 atanh.f64 acosh.f64 atan2.f64 exp.f64 exp2.f64 log.f64 log10.f64
                                    log2.f64 logb.f64 ceil.f64 floor.f64 sqrt.f64 cbrt.f64 pow.f64 fmax.f64 fmin.f64 fmod.f64))
 (define max-vars 3)
-
+(struct candidate (spec cost count ctx))
 ;;; ------------------------- HELPERS ---------------------------------
 (define cost-proc (platform-cost-proc (*active-platform*)))
 
@@ -167,8 +167,8 @@
   (for/list ([orig-expr (in-list exprs)]
              [refs (in-list batchrefss)])
     (if (empty? refs)
-        orig-expr                        
-        (batch-pull (first refs)))))     
+        orig-expr
+        (batch-pull (first refs)))))
 
 (define (run-egg-batched batch-size old-hash new-hash)
   (for ([batch (in-slice batch-size (in-hash-pairs old-hash))])
@@ -215,11 +215,10 @@
         (set! var-reprs (append var-reprs (list repr))))))
   (context vars (get-representation 'binary64) var-reprs))
 
-(define (to-fpcore-str pair)
-  (define expr (car pair))
+(define (to-fpcore-str cand)
+  (define expr (candidate-spec cand))
   (define vars (free-variables expr))
-  (define ctx (get-ctx expr))
-  (format "(FPCore ~a ~a)" vars (prog->fpcore expr ctx)))
+  (format "(FPCore ~a ~a)" vars (prog->fpcore expr (candidate-ctx cand))))
 
 (define (candidate-expr? expr)
   (and (not (or (symbol? expr) (literal? expr) (number? expr)))
@@ -268,31 +267,47 @@
 (run-egg-batched egg-batch-size candidate-hash canonical-candidate-hash)
 
 (define pairs-raw (hash->list canonical-candidate-hash))
-(define filtered-pairs (filter (lambda (x) (and (> (cdr x) 1)
-                                                (contains-interesting-op? (car x))
-                                                (candidate-expr? (car x))))
-                               pairs-raw))
+(define candidates (map (lambda (p) (candidate (car p) (get-cost (car p)) (cdr p) (get-ctx (car p))))
+                        pairs-raw))
 
-(define sorted-pairs (sort filtered-pairs (lambda (p1 p2) (> (cdr p1) (cdr p2)))))
-(define top-pairs (take sorted-pairs (min (length sorted-pairs) (* 2 candidate-num))))
-(define final-pairs (filter (lambda (x) (> (get-error (car x)) err-threshold)) top-pairs))
+(define filtered-candidates (filter (lambda (c) (and (> (candidate-count c) 1)
+                                                     (contains-interesting-op? (candidate-spec c))
+                                                     (candidate-expr? (candidate-spec c))))
+                                    candidates))
+
+(define sorted-candidates (sort filtered-candidates (lambda (c1 c2)
+                                                      (> (/ (candidate-count c1) (candidate-cost c1))
+                                                         (/ (candidate-count c2) (candidate-cost c2))))))
+
+(define top-candidates (take sorted-candidates (min (length sorted-candidates) (* 2 candidate-num))))
+(define final-candidates (filter (lambda (x) (> (get-error (candidate-spec x))
+                                                err-threshold))
+                                 top-candidates))
 
 ;; Output
 (log-info "roots" (length roots) report-dir)
 (log-info "canonical roots" (hash-count canonical-root-hash) report-dir)
 (log-info "candidates" (hash-count candidate-hash) report-dir)
 (log-info "canonical candidates" (hash-count canonical-candidate-hash) report-dir)
-(log-info "filtered candidates" (length filtered-pairs) report-dir)
+(log-info "filtered candidates" (length filtered-candidates) report-dir)
 
-(define final-output (take final-pairs (min (length final-pairs) candidate-num)))
+(define final-output (take final-candidates (min (length final-candidates) candidate-num)))
 (define fpcores-out (map to-fpcore-str final-output))
-(define counts-out (map (lambda (p) (cons (prog->fpcore (car p) (get-ctx (car p))) (cdr p)))
+(define counts-out (map (lambda (c) (cons (prog->fpcore (candidate-spec c)
+                                                        (candidate-ctx c))
+                                          (candidate-count c)))
                         final-output))
 
-(define costs-out (map (lambda (p) (cons (prog->fpcore (car p) (get-ctx (car p))) (get-cost (car p))))
+(define costs-out (map (lambda (c) (cons (prog->fpcore (candidate-spec c)
+                                                       (candidate-ctx c))
+                                         (candidate-cost c)))
                        final-output))
 
-(define full-cands-out (map (lambda (c) (format "~a, ~a\n" (prog->fpcore (car c) (get-ctx (car c))) (cdr c))) sorted-pairs))
+(define full-cands-out (map (lambda (c) (format "~a, ~a\n"
+                                                (prog->fpcore (candidate-spec c)
+                                                              (candidate-ctx c))
+                                                (candidate-count c)))
+                            sorted-candidates))
 
 (with-output-to-file (string-append report-dir "/full-candidates.txt")
   (lambda () (for-each display full-cands-out))
