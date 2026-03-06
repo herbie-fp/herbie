@@ -158,11 +158,6 @@ def main():
 
     series = [
         {
-            "label": "c platform",
-            "results_path": reports_path / "herbie20_base" / "results.json",
-            "color": "#1f77b4",
-        },
-        {
             "label": "no accelerators",
             "results_path": reports_path / "vanilla_base" / "results.json",
             "color": "#ff7f0e",

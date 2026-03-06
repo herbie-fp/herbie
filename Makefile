@@ -56,7 +56,7 @@ minimal-distribution:
 
 nightly:
 	make compile-accelerators
-	make evaluate-coolprop
+	make evaluate-proj
 
 time-ops:
 	make compile-accelerators
