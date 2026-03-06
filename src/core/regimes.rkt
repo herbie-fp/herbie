@@ -37,7 +37,13 @@
     (if (flag-set? 'reduce 'branch-expressions)
         branches
         (map (curry batch-add! batch) (context-vars ctx))))
-  (timeline-push! 'batch (batch->jsexpr batch (append (map alt-expr sorted) branch-brfs)))
+  (define batch-jsexpr (batch->jsexpr batch (append (map alt-expr sorted) branch-brfs)))
+  (timeline-push! 'batch batch-jsexpr)
+  (define branch-roots (drop (hash-ref batch-jsexpr 'roots) (length sorted)))
+  (define branch-root-map
+    (for/hash ([brf (in-list branch-brfs)]
+               [root (in-list branch-roots)])
+      (values brf root)))
   (define brf-vals (brf-values* batch branch-brfs ctx pcontext))
   (define reprs (batch-reprs batch ctx))
   (define errs (make-hash))
@@ -48,14 +54,32 @@
       ; Only return one option if not pareto mode
       [else
        (define opt
-         (infer-splitpoints batch branch-brfs brf-vals reprs alts err-cols errs ctx pcontext))
+         (infer-splitpoints batch
+                            branch-brfs
+                            branch-root-map
+                            brf-vals
+                            reprs
+                            alts
+                            err-cols
+                            errs
+                            ctx
+                            pcontext))
        (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
        (cons opt (loop (take alts high) (take err-cols high)))])))
 
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-splitpoints batch branch-brfs brf-vals reprs alts err-cols errs ctx pcontext)
+(define (infer-splitpoints batch
+                           branch-brfs
+                           branch-root-map
+                           brf-vals
+                           reprs
+                           alts
+                           err-cols
+                           errs
+                           ctx
+                           pcontext)
   (timeline-push! 'inputs (batch->jsexpr batch (map alt-expr alts)))
   (define err-cols/bits (err-cols->bit-cols err-cols))
   (define cerrs (hash-copy errs))
@@ -73,7 +97,17 @@
               ([(brf brf-vals) (in-dict sorted-brfs)]
                ;; stop if we've computed this (and following) branch-brf on more alts and it's still worse
                #:break (> (hash-ref cerrs brf -1) best-err))
-      (define opt (option-on-brf batch alts err-cols err-cols/bits pts-vec brf brf-vals ctx reprs))
+      (define opt
+        (option-on-brf batch
+                       alts
+                       err-cols
+                       err-cols/bits
+                       pts-vec
+                       brf
+                       (hash-ref branch-root-map brf)
+                       brf-vals
+                       ctx
+                       reprs))
       (define err
         (+ (errors-score (option-errors opt))
            (length (option-split-indices opt)))) ;; one-bit penalty per split
@@ -130,7 +164,16 @@
                   ([err (in-vector err-col)])
                   (real->double-flonum (log err 2)))))
 
-(define (option-on-brf batch alts err-cols err-cols/bits pts-vec brf brf-vals-vec ctx reprs)
+(define (option-on-brf batch
+                       alts
+                       err-cols
+                       err-cols/bits
+                       pts-vec
+                       brf
+                       branch-root
+                       brf-vals-vec
+                       ctx
+                       reprs)
   (define timeline-stop! (timeline-start! 'times (batch->jsexpr batch (list brf))))
   (define repr (reprs brf))
   (define sorted-indices
@@ -151,7 +194,7 @@
     (option split-indices alts pts* brf (pick-errors split-indices sorted-indices err-cols)))
   (timeline-stop!)
   (timeline-push! 'branch
-                  (batchref-idx brf)
+                  branch-root
                   (errors-score (option-errors out))
                   (length split-indices)
                   (~a (representation-name repr)))
@@ -194,9 +237,10 @@
     (define-values (batch brfs) (progs->batch (list expr)))
     (define brf (car brfs))
     (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
+    (define brf-root (first (hash-ref (batch->jsexpr batch (list brf)) 'roots)))
     (define reprs (batch-reprs batch ctx))
     (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-brf batch alts err-cols err-cols/bits pts-vec brf brf-vals ctx reprs)
+           (option-on-brf batch alts err-cols err-cols/bits pts-vec brf brf-root brf-vals ctx reprs)
            goal))
 
   ;; This is a basic sanity test
