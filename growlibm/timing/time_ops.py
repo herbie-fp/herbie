@@ -10,8 +10,9 @@ unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', '
 binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', 'fmod', 'pow', 'remainder'] + binary_accelerators
 # to_test = ['sin_xy', 'cos_xy', 'sin_quotient_xy', 'cos_quotient_xy', 'sin', 'cos', '/']
 #'log', 'log1pmd', 'invgud', 'hypot', 'verdcos', 'sin', 'cos', 'sinprod', 'cosprod',
-to_test =  ['+', 'pow','pow1ms', 'pown2o3', 'pow2o5', 'pow3o5', 'pow5o3', 'pown16o5']
-to_test = ['+', 'log1pmd', 'invgud', 'hypot', 'verdcos', 'sinprod', 'cosprod',]
+# to_test =  ['+', 'pow','pow1ms', 'pown2o3', 'pow2o5', 'pow3o5', 'pow5o3', 'pown16o5']
+to_test = ['+', 'pow1ms']
+# 'invgud', 'hypot', 'verdcos', 'sinprod', 'cosprod'
 # to_test = binary_ops + unary_ops 
 times = {}
 costs = {}
