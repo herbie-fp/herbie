@@ -498,13 +498,6 @@
 (define (make-cost-result herbie-result job-id)
   (hasheq 'cost (job-result-backend herbie-result)))
 
-(define (bits->ulps bits repr)
-  (inexact->exact (round (expt 2 bits))))
-
-(define (bits-errors->ulps-list errs repr)
-  (for/list ([err (in-flvector errs)])
-    (bits->ulps err repr)))
-
 (define (make-error-result herbie-result job-id)
   (define test (job-result-test herbie-result))
   (define errs
@@ -617,7 +610,7 @@
           'history
           history-json
           'errors
-          test-errors
+          (flvector->list test-errors)
           'cost
           cost
           'splitpoints

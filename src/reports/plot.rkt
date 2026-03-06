@@ -58,14 +58,14 @@
   (define vars (test-vars test))
   (define bits (representation-total-bits repr))
   (define start-error
-    (for/list ([err (in-flvector start-errors)])
+    (for/list ([err (in-list start-errors)])
       (bits->tenths err)))
   (define target-error
     (for/list ([alt-error (in-list target-errors)])
-      (for/list ([err (in-flvector alt-error)])
+      (for/list ([err (in-list alt-error)])
         (bits->tenths err))))
   (define end-error
-    (for/list ([err (in-flvector (car end-errors))])
+    (for/list ([err (in-list (car end-errors))])
       (bits->tenths err)))
 
   (define target-error-entries

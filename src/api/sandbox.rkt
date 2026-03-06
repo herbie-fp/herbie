@@ -247,14 +247,14 @@
 
      ; starting expr analysis
      (define start-expr (read (open-input-string (hash-ref start 'expr))))
-     (define start-score (errors-score (hash-ref start 'errors)))
+     (define start-score (errors-score (list->flvector (hash-ref start 'errors))))
      (define start-cost (hash-ref start 'cost))
 
      (define target-cost-score
        (for/list ([target targets])
          (define target-expr (read (open-input-string (hash-ref target 'expr))))
          (define tar-cost (hash-ref target 'cost))
-         (define tar-score (errors-score (hash-ref target 'errors)))
+         (define tar-score (errors-score (list->flvector (hash-ref target 'errors))))
 
          (list tar-cost tar-score)))
 
@@ -269,7 +269,7 @@
          (read (open-input-string (hash-ref end-analysis 'expr)))))
      (define end-scores
        (for/list ([end-analysis (in-list end)])
-         (errors-score (hash-ref end-analysis 'errors))))
+         (errors-score (list->flvector (hash-ref end-analysis 'errors)))))
      (define end-costs (map (curryr hash-ref 'cost) end))
 
      ; terribly formatted pareto-optimal frontier

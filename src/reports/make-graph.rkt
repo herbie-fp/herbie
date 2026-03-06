@@ -17,10 +17,6 @@
 (provide make-graph
          dummy-graph)
 
-(define (flvector-maxall v)
-  (for/fold ([x 0.0]) ([err (in-flvector v)])
-    (max x err)))
-
 (define (dummy-graph command)
   `(html (head (meta ([charset "utf-8"]))
                (title "Result page for the " ,(~a command) " command is not available right now.")
@@ -63,7 +59,8 @@
     (let ([better (filter number?
                           (for/list ([err end-errors]
                                      [cost end-costs]
-                                     #:when (<= (errors-score err) (errors-score start-error)))
+                                     #:when (<= (errors-score (list->flvector err))
+                                                (errors-score (list->flvector start-error))))
                             (if (zero? cost) ; catching division by zero
                                 #f
                                 (/ start-cost cost))))])
@@ -88,13 +85,13 @@
                        (list '("Report" . "../index.html") '("Metrics" . "timeline.html"))
                        (list '("Metrics" . "timeline.html"))))
      (div ([id "large"])
-          ,(render-comparison "Percentage Accurate"
-                              (format-accuracy (errors-score start-error) repr #:unit "%")
-                              (format-accuracy (errors-score end-error) repr #:unit "%")
-                              #:title
-                              (format "Minimum Accuracy: ~a → ~a"
-                                      (format-accuracy (flvector-maxall start-error) repr #:unit "%")
-                                      (format-accuracy (flvector-maxall end-error) repr #:unit "%")))
+          ,(render-comparison
+            "Percentage Accurate"
+            (format-accuracy (errors-score (list->flvector start-error)) repr #:unit "%")
+            (format-accuracy (errors-score (list->flvector end-error)) repr #:unit "%")
+            #:title (format "Minimum Accuracy: ~a → ~a"
+                            (format-accuracy (apply max start-error) repr #:unit "%")
+                            (format-accuracy (apply max end-error) repr #:unit "%")))
           ,(render-large "Time" (format-time time))
           ,(render-large "Alternatives" (~a (length end-exprs)))
           ,(render-large "Speedup"
@@ -141,7 +138,9 @@
                   (h2 "Initial Program"
                       ": "
                       (span ((class "subhead"))
-                            (data ,(format-accuracy (errors-score start-error) repr #:unit "%"))
+                            (data ,(format-accuracy (errors-score (list->flvector start-error))
+                                                    repr
+                                                    #:unit "%"))
                             " accurate, "
                             (data "1.0×")
                             " speedup")
@@ -156,23 +155,23 @@
                   #:unless (equal? start-expr expr))
          (set! alt-number (add1 alt-number))
          (define-values (dropdown body) (render-program expr ctx #:ident identifier #:pre pre))
-         `(section ([id ,(format "alternative~a" i)] (class "programs"))
-                   (h2 "Alternative "
-                       ,(~a alt-number)
-                       ": "
-                       (span ((class "subhead"))
-                             (data ,(format-accuracy (errors-score errs) repr #:unit "%"))
-                             " accurate, "
-                             (data ,(if (zero? cost)
-                                        "N/A"
-                                        (~r (/ start-cost cost) #:precision '(= 1)))
-                                   "×")
-                             " speedup")
-                       ,dropdown
-                       ,(render-help "report.html#alternatives"))
-                   ,body
-                   (details (summary "Derivation")
-                            (ol ((class "history")) ,@(render-history history ctx)))))
+         `(section
+           ([id ,(format "alternative~a" i)] (class "programs"))
+           (h2 "Alternative "
+               ,(~a alt-number)
+               ": "
+               (span ((class "subhead"))
+                     (data ,(format-accuracy (errors-score (list->flvector errs)) repr #:unit "%"))
+                     " accurate, "
+                     (data ,(if (zero? cost)
+                                "N/A"
+                                (~r (/ start-cost cost) #:precision '(= 1)))
+                           "×")
+                     " speedup")
+               ,dropdown
+               ,(render-help "report.html#alternatives"))
+           ,body
+           (details (summary "Derivation") (ol ((class "history")) ,@(render-history history ctx)))))
      ,@(for/list ([i (in-naturals 1)]
                   [target (in-list targets)])
          (define target-error (hash-ref target 'errors))
@@ -184,7 +183,9 @@
                          ,(~a i)
                          ": "
                          (span ((class "subhead"))
-                               (data ,(format-accuracy (errors-score target-error) repr #:unit "%"))
+                               (data ,(format-accuracy (errors-score (list->flvector target-error))
+                                                       repr
+                                                       #:unit "%"))
                                " accurate, "
                                (data ,(~r (/ start-cost target-cost) #:precision '(= 1)) "×")
                                " speedup")
