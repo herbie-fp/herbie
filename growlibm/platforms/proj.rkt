@@ -220,13 +220,6 @@
   #:fpcore (! :precision binary64 (log1pmd x))
   #:cost 1.019)
 
-(define-operation (logfabs1p.f64 [z0 <binary64>])
-  <binary64>
-  #:spec (log (fabs (- -1.0 z0)))
-  #:impl (from-accelerators 'logfabs1p)
-  #:fpcore (! :precision binary64 (logfabs1p z0))
-  #:cost 0.875)
-
 ;;; (define-operation (invgudf.f32 [x <binary32>])
 ;;;   <binary32>
 ;;;   #:spec (log (tan (* (+ (+ x x) (PI)) 1/4)))
