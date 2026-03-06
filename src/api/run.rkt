@@ -1,6 +1,7 @@
 #lang racket
 
-(require json)
+(require json
+         math/flonum)
 (require "../reports/common.rkt"
          "../reports/pages.rkt"
          "../reports/timeline.rkt"
@@ -152,8 +153,10 @@
     [_
      (define bits (representation-total-bits (test-output-repr test)))
      (define time (hash-ref-path result-hash 'time))
-     (define start-score (errors-score (hash-ref-path result-hash 'backend 'start 'errors)))
-     (define end-score (errors-score (hash-ref-path result-hash 'backend 'end 0 'errors)))
+     (define start-score
+       (errors-score (list->flvector (hash-ref-path result-hash 'backend 'start 'errors))))
+     (define end-score
+       (errors-score (list->flvector (hash-ref-path result-hash 'backend 'end 0 'errors))))
      (eprintf "[~as]  ~a% → ~a%\t~a\n"
               (~r (/ time 1000) #:min-width 6 #:precision '(= 1))
               (~r (* 100 (- 1 (/ start-score bits))) #:min-width 3 #:precision 0)

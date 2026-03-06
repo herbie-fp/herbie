@@ -1,6 +1,7 @@
 #lang racket
 
 (require racket/hash)
+(require math/flonum)
 (require "../core/alternative.rkt"
          "../utils/common.rkt"
          "../utils/pareto.rkt"
@@ -20,7 +21,7 @@
           (atab-add-altns (alt-table? (listof alt?) any/c any/c context? . -> . alt-table?))
           (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
           (atab-completed? (alt-table? . -> . boolean?))
-          (atab-min-errors (alt-table? . -> . (listof real?)))
+          (atab-min-errors (alt-table? . -> . flvector?))
           (alt-batch-costs (batch? . -> . (batchref? representation? . -> . real?)))))
 
 ;; Public API
@@ -47,7 +48,7 @@
   (define cost ((alt-batch-costs batch) (alt-expr initial-alt) (context-repr ctx)))
   (define errs (batchref-errors (alt-expr initial-alt) pcontext ctx))
   (alt-table (for/vector #:length (pcontext-length pcontext)
-                         ([err (in-list errs)])
+                         ([err (in-flvector errs)])
                (list (pareto-point cost err (list initial-alt))))
              (hasheq initial-alt
                      (for/list ([idx (in-range (pcontext-length pcontext))])
@@ -206,17 +207,16 @@
 
 (define (atab-add-altn atab altn errs cost ctx)
   (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
-  (define max-error (+ 1 (expt 2 (representation-total-bits (context-repr ctx)))))
-
+  (define max-valid-bits (representation-total-bits (context-repr ctx)))
   ;; Check  whether altn is already inserted into atab
   (match (hash-has-key? alt->point-idxs altn)
     [#f
      (define point-idx->alts*
        (for/vector #:length (vector-length point-idx->alts)
                    ([pcurve (in-vector point-idx->alts)]
-                    [err (in-list errs)])
+                    [err (in-flvector errs)])
          (cond
-           [(< err max-error) ; Only include points if they are valid
+           [(<= err max-valid-bits) ; Only include points if they are valid
             (define ppt (pareto-point cost err (list altn)))
             (pareto-union (list ppt) pcurve #:combine append)]
            [else pcurve])))
@@ -231,7 +231,7 @@
 
 (define (atab-min-errors atab)
   (define pnt-idx->alts (alt-table-point-idx->alts atab))
-  (for/list ([idx (in-range (pcontext-length (alt-table-pcontext atab)))])
-    (define curve (vector-ref pnt-idx->alts idx))
-    ;; Curve is sorted so lowest error is first
-    (pareto-point-error (first curve))))
+  (for/flvector #:length (pcontext-length (alt-table-pcontext atab))
+                ([curve (in-vector pnt-idx->alts)])
+                ;; Curve is sorted so lowest error is first
+                (pareto-point-error (first curve))))

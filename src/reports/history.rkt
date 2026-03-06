@@ -2,7 +2,8 @@
 
 (require (only-in xml write-xexpr xexpr?)
          (only-in fpbench core->tex supported-by-lang?)
-         json)
+         json
+         math/flonum)
 (require "../core/rules.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
@@ -150,12 +151,12 @@
            (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]))
 
 (define (errors-score-masked errs mask)
+  (define mask-count (for/sum ([use? (in-vector mask)] #:when use?) 1))
   (define masked-errs
-    (for/list ([err (in-list errs)]
-               [use? (in-vector mask)]
-               #:when use?)
-      err))
-  (errors-score (if (empty? masked-errs) errs masked-errs)))
+    (for/flvector #:length mask-count
+                  ([err (in-flvector errs)] [use? (in-vector mask)] #:when use?)
+                  err))
+  (errors-score (if (zero? mask-count) errs masked-errs)))
 
 (define (render-proof proof-json ctx)
   `(div ((class "proof"))

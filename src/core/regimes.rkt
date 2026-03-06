@@ -28,7 +28,7 @@
 
 (define (pareto-regimes batch sorted start-prog ctx pcontext)
   (timeline-event! 'regimes)
-  (define err-cols (map list->vector (batch-errors batch (map alt-expr sorted) pcontext ctx)))
+  (define err-cols (batch-errors batch (map alt-expr sorted) pcontext ctx))
   (define branches
     (if (null? sorted)
         '()
@@ -81,7 +81,6 @@
                            ctx
                            pcontext)
   (timeline-push! 'inputs (batch->jsexpr batch (map alt-expr alts)))
-  (define err-cols/bits (err-cols->bit-cols err-cols))
   (define cerrs (hash-copy errs))
   (define brf-data (map cons branch-brfs brf-vals))
   (define sorted-brfs
@@ -101,7 +100,6 @@
         (option-on-brf batch
                        alts
                        err-cols
-                       err-cols/bits
                        pts-vec
                        brf
                        (hash-ref branch-root-map brf)
@@ -158,22 +156,7 @@
       (vector-set! (vector-ref vals i) p out)))
   (vector->list vals))
 
-(define (err-cols->bit-cols err-cols)
-  (for/list ([err-col (in-list err-cols)])
-    (for/flvector #:length (vector-length err-col)
-                  ([err (in-vector err-col)])
-                  (real->double-flonum (log err 2)))))
-
-(define (option-on-brf batch
-                       alts
-                       err-cols
-                       err-cols/bits
-                       pts-vec
-                       brf
-                       branch-root
-                       brf-vals-vec
-                       ctx
-                       reprs)
+(define (option-on-brf batch alts err-cols pts-vec brf branch-root brf-vals-vec ctx reprs)
   (define timeline-stop! (timeline-start! 'times (batch->jsexpr batch (list brf))))
   (define repr (reprs brf))
   (define sorted-indices
@@ -189,7 +172,7 @@
           (for/list ([idx (in-vector sorted-indices 1)]
                      [prev-idx (in-vector sorted-indices 0 (sub1 (vector-length sorted-indices)))])
             (</total (vector-ref brf-vals-vec prev-idx) (vector-ref brf-vals-vec idx) repr))))
-  (define split-indices (infer-split-indices err-cols/bits sorted-indices can-split?))
+  (define split-indices (infer-split-indices err-cols sorted-indices can-split?))
   (define out
     (option split-indices alts pts* brf (pick-errors split-indices sorted-indices err-cols)))
   (timeline-stop!)
@@ -201,24 +184,21 @@
   out)
 
 (define/contract (pick-errors split-indices sorted-indices err-cols)
-  (-> (listof si?) vector? (listof vector?) (listof nonnegative-integer?))
+  (-> (listof si?) vector? (listof flvector?) flvector?)
   (define err-cols-vec (list->vector err-cols))
-  (for/list ([i (in-naturals)]
-             [point-idx (in-vector sorted-indices)])
-    (define alt-idx (si-cidx (findf (lambda (x) (< i (si-pidx x))) split-indices)))
-    (vector-ref (vector-ref err-cols-vec alt-idx) point-idx)))
-
-(define (errors-score/vec err-vec)
-  (/ (for/sum ([err (in-vector err-vec)]) (ulps->bits err)) (vector-length err-vec)))
+  (for/flvector #:length (vector-length sorted-indices)
+                ([i (in-naturals)] [point-idx (in-vector sorted-indices)])
+                (define alt-idx (si-cidx (findf (lambda (x) (< i (si-pidx x))) split-indices)))
+                (flvector-ref (vector-ref err-cols-vec alt-idx) point-idx)))
 
 (define (baseline-errors-score err-cols)
-  (apply min (map errors-score/vec err-cols)))
+  (apply min (map errors-score err-cols)))
 
 (define (oracle-errors-score err-cols)
-  (define num-points (vector-length (first err-cols)))
+  (define num-points (flvector-length (first err-cols)))
   (/ (for/sum ([point-idx (in-range num-points)])
-              (ulps->bits (for/fold ([max-err 0]) ([err-col (in-list err-cols)])
-                            (max max-err (vector-ref err-col point-idx)))))
+              (for/fold ([max-err 0.0]) ([err-col (in-list err-cols)])
+                (max max-err (flvector-ref err-col point-idx))))
      num-points))
 
 (module+ test
@@ -228,9 +208,7 @@
   (define ctx (context '(x) <binary64> (list <binary64>)))
   (define pctx (mk-pcontext '(#(0.5) #(4.0)) '(1.0 1.0)))
   (define alts (map make-alt (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
-  (define err-lsts `((,(expt 2 53) 1) (1 ,(expt 2 53))))
-  (define err-cols (map list->vector err-lsts))
-  (define err-cols/bits (err-cols->bit-cols err-cols))
+  (define err-cols (list (flvector 53.0 0.0) (flvector 0.0 53.0)))
   (define pts-vec (pcontext-points pctx))
 
   (define (test-regimes expr goal)
@@ -240,7 +218,7 @@
     (define brf-root (first (hash-ref (batch->jsexpr batch (list brf)) 'roots)))
     (define reprs (batch-reprs batch ctx))
     (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-brf batch alts err-cols err-cols/bits pts-vec brf brf-root brf-vals ctx reprs)
+           (option-on-brf batch alts err-cols pts-vec brf brf-root brf-vals ctx reprs)
            goal))
 
   ;; This is a basic sanity test
@@ -270,21 +248,11 @@
   ;; pidx = Point index: The index of the point to the left of which we should split.
   (struct si ([cidx : Integer] [pidx : Integer]) #:prefab)
 
-  (: ulps->bits (-> Nonnegative-Integer Flonum))
-  (define (ulps->bits x)
-    (real->double-flonum (log x 2)))
-
-  (: sorted-error-prefix-sums (-> FlVector (Vectorof Integer) FlVector))
-  (define (sorted-error-prefix-sums alt-errors sorted-indices)
-    (define number-of-points (vector-length sorted-indices))
-    (define prefix-sums (make-flvector number-of-points))
-    (for/fold ([sum 0.0])
-              ([point-idx (in-vector sorted-indices)]
-               [i (in-naturals)])
-      (define next-sum (fl+ sum (flvector-ref alt-errors point-idx)))
-      (flvector-set! prefix-sums i next-sum)
-      next-sum)
-    prefix-sums)
+  (: resort-errors (-> FlVector (Vectorof Integer) FlVector))
+  (define (resort-errors alt-errors sorted-indices)
+    (for/flvector #:length (vector-length sorted-indices)
+                  ([point-idx (in-vector sorted-indices)])
+                  (flvector-ref alt-errors point-idx)))
 
   ;; This is the core main loop of the regimes algorithm.
   ;; Takes in alt-major error columns, point-sorting indices, and a list of
@@ -300,7 +268,7 @@
       :
       (Listof FlVector)
       (for/list ([err-col (in-list err-cols)])
-        (sorted-error-prefix-sums err-col sorted-indices)))
+        (flvector-sums (resort-errors err-col sorted-indices))))
 
     ;; Set up data needed for algorithm
     (define number-of-points (vector-length can-split-vec))
