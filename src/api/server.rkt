@@ -300,11 +300,13 @@
      (set! worker-count (processor-count)))
    (for ([i (in-range worker-count)])
      (hash-set! waiting-workers i (make-worker i)))
+   (define dead-worker-evts (map place-dead-evt (hash-values waiting-workers)))
    (log "~a workers ready.\n" (hash-count waiting-workers))
    (define waiting (make-hash))
    (log "Manager waiting to assign work.\n")
    (for ([i (in-naturals)])
-     (match (place-channel-get ch)
+     (match (apply sync ch dead-worker-evts)
+       [(? evt?) (error 'make-manager "worker place died")]
 
        ;; Private API
        [(list 'assign self)
@@ -428,7 +430,8 @@
    (define timeline #f)
    (define current-job-id #f)
    (for ([_ (in-naturals)])
-     (match (place-channel-get ch)
+     (match (sync ch (thread-dead-evt worker-thread))
+       [(? evt?) (error 'make-worker "worker thread died")]
        [(list 'apply manager command job-id)
         (set! timeline (*timeline*))
         (set! current-job-id job-id)
