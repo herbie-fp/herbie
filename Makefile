@@ -56,7 +56,7 @@ minimal-distribution:
 
 nightly:
 	make compile-accelerators
-	make evaluate-coolprop
+	make evaluate-proj
 
 time-ops:
 	make compile-accelerators
@@ -78,6 +78,10 @@ compile-accelerators:
 		growlibm/accelerators/e_rem_pio2.c \
 		growlibm/accelerators/powcos.c \
 		growlibm/accelerators/invgud.c
+
+generate-table:
+	racket growlibm/generate-table.rkt
+	pandoc growlibm/accelerator-table.tex -o out.html
 
 upgrade:
 	git pull
