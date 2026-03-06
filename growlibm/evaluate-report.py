@@ -7,7 +7,7 @@ class report:
 
 reports_path = sys.argv[1]
 platform = sys.argv[2]
-platforms = ["vanilla", "herbie20", "growlibm"] 
+platforms = ["vanilla", "growlibm"] 
 options = ["base"]
 if platform == "proj":
     accelerators = ["sinprod", "cosprod", "sinquot", "cosquot", "log1pmd", "invgud", "hypot", "verdcos"]

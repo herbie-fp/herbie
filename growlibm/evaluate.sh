@@ -16,7 +16,7 @@ SEED=$(date "+%Y%j")
 BENCHDIR="$1"
 REPORTDIR="$2"
 PLATFORM="$3"
-NUM_ENODES="32000"
+NUM_ENODES="16000"
 
 mkdir -p "$REPORTDIR"
 rm -rf "reports"/* || echo "nothing to delete"
@@ -28,12 +28,12 @@ racket -y src/main.rkt report \
         $BENCHDIR \
         $REPORTDIR/growlibm_base
 
-racket -y src/main.rkt report \
-        --seed "$SEED" \
-        --platform c \
-        --num-enodes $NUM_ENODES \
-        $BENCHDIR \
-        $REPORTDIR/herbie20_base
+# racket -y src/main.rkt report \
+#         --seed "$SEED" \
+#         --platform c \
+#         --num-enodes $NUM_ENODES \
+#         $BENCHDIR \
+#         $REPORTDIR/herbie20_base
 
 racket -y src/main.rkt report \
         --seed $SEED \
