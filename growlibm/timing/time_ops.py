@@ -11,6 +11,7 @@ binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', '
 # to_test = ['sin_xy', 'cos_xy', 'sin_quotient_xy', 'cos_quotient_xy', 'sin', 'cos', '/']
 #'log', 'log1pmd', 'invgud', 'hypot', 'verdcos', 'sin', 'cos', 'sinprod', 'cosprod',
 to_test =  ['+', 'pow','pow1ms', 'pown2o3', 'pow2o5', 'pow3o5', 'pow5o3', 'pown16o5']
+to_test = ['+', 'log1pmd', 'invgud', 'hypot', 'verdcos', 'sinprod', 'cosprod',]
 # to_test = binary_ops + unary_ops 
 times = {}
 costs = {}
@@ -136,7 +137,7 @@ if __name__ == "__main__":
     print('--------------------------------------------------')
 
     for op, time in times.items():
-        costs[op] = time/plus_time * 0.2
+        costs[op] = time/plus_time * 128
     
     for op, cost in costs.items():
         print(op, cost)
