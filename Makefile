@@ -55,7 +55,8 @@ minimal-distribution:
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 nightly:
-	make time-ops
+	make compile-accelerators
+	make evaluate-proj
 
 time-ops:
 	mkdir -p growlibm/timing/drivers
