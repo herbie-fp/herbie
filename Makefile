@@ -58,6 +58,7 @@ nightly:
 	make time-ops
 
 time-ops:
+	mkdir -p growlibm/timing/drivers
 	make compile-accelerators
 	python3 growlibm/timing/time_ops.py
 

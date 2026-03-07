@@ -4,7 +4,7 @@ import sys
 
 NUM_RUNS = 250
 BASE_DIR = "growlibm/timing"
-unary_accelerators = ['log1pmd', 'invgud', 'verdcos', 'powcos2', 'powcos4', 'powcos6', 'pown2o3', 'pow2o5', 'pow3o5', 'pow5o3', 'pown16o5']
+unary_accelerators = ['log1pmd', 'invgud', 'verdcos', 'powcos2', 'powcos4', 'powcos6']
 binary_accelerators = ['sinprod', 'cosprod', 'hypot', 'powcos', 'pow1ms']
 unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'exp', 'exp2', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc'] + unary_accelerators
 binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', 'fmod', 'pow', 'remainder'] + binary_accelerators
@@ -14,6 +14,7 @@ binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', '
 to_test = ['+', 'log1pmd', 'invgud', 'hypot', 'verdcos', 'sinprod', 'cosprod']
 # 'invgud', 'hypot', 'verdcos', 'sinprod', 'cosprod'
 # to_test = binary_ops + unary_ops 
+to_test = binary_ops + unary_ops 
 times = {}
 costs = {}
 plus_time = 0
