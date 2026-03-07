@@ -77,7 +77,8 @@ compile-accelerators:
 		growlibm/accelerators/cosquot.c \
 		growlibm/accelerators/e_rem_pio2.c \
 		growlibm/accelerators/powcos.c \
-		growlibm/accelerators/invgud.c
+		growlibm/accelerators/invgud.c \
+		-lm
 
 generate-table:
 	racket growlibm/generate-table.rkt

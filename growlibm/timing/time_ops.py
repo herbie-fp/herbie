@@ -91,8 +91,15 @@ def generate_driver(compiled, input_points, arity, filepath):
         print('}', file=f)
 
 def run_command(args):
-    result = subprocess.run(args, capture_output=True, text=True, check=True)
-    return result.stdout
+    try:
+        result = subprocess.run(args, capture_output=True, text=True, check=True)
+        return result.stdout
+    except subprocess.CalledProcessError as err:
+        if err.stdout:
+            print(err.stdout, file=sys.stderr, end="")
+        if err.stderr:
+            print(err.stderr, file=sys.stderr, end="")
+        raise
 
 def sample_points(fpcore, seed):
     cmd = ['racket', f'{BASE_DIR}/sample.rkt', fpcore.core]
@@ -113,7 +120,18 @@ def time_op(op, sort_points, points):
     driver_name = f'{'sorted' if sort_points else 'unsorted'}_{op_name}.c'
     generate_driver(result, _points, str(fpcore.arity), f'{BASE_DIR}/drivers/{driver_name}')
 
-    run_command(['clang', '-O2', '-I', '..', f'{BASE_DIR}/drivers/{driver_name}', '-o', 'benchmark', '-Lgrowlibm/accelerators', '-laccelerators'])
+    run_command([
+        'clang',
+        '-O2',
+        '-I',
+        '..',
+        f'{BASE_DIR}/drivers/{driver_name}',
+        '-o',
+        'benchmark',
+        '-Lgrowlibm/accelerators',
+        '-laccelerators',
+        '-lm'
+    ])
 
     result = run_command(['./benchmark'])
     return float(result)
