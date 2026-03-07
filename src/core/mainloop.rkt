@@ -221,7 +221,7 @@
 (define (make-regime! batch alts start-prog)
   (define ctx (*context*))
   (define repr (context-repr ctx))
-  (define alt-costs (alt-batch-costs batch))
+  (define alt-costs (alt-batch-costs batch ctx))
 
   (cond
     [(and (flag-set? 'reduce 'regimes)
@@ -232,7 +232,7 @@
           (get-fpcore-impl '<= '() (list repr repr)))
      (define opts
        (pareto-regimes batch
-                       (sort alts < #:key (compose (curryr alt-costs repr) alt-expr))
+                       (sort alts < #:key (compose alt-costs alt-expr))
                        start-prog
                        ctx
                        (*pcontext*)))

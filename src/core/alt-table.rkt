@@ -22,30 +22,31 @@
           (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
           (atab-completed? (alt-table? . -> . boolean?))
           (atab-min-errors (alt-table? . -> . flvector?))
-          (alt-batch-costs (batch? . -> . (batchref? representation? . -> . real?)))))
+          (alt-batch-costs (batch? context? . -> . (batchref? . -> . real?)))))
 
 ;; Public API
 
 (struct alt-table (point-idx->alts alt->point-idxs alt->done? alt->cost pcontext all) #:prefab)
 
-(define (alt-batch-costs batch)
+(define (alt-batch-costs batch ctx)
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
+  (define reprs (batch-reprs batch ctx))
   (batch-recurse batch
-                 (λ (brf recurse repr)
+                 (λ (brf recurse)
                    (define node (deref brf))
+                   (define repr (reprs brf))
                    (match node
                      [(? literal?) ((node-cost-proc node repr))]
                      [(? symbol?) ((node-cost-proc node repr))]
                      [(? number?) 0] ; specs
-                     [(approx _ impl) (recurse impl repr)]
+                     [(approx _ impl) (recurse impl)]
                      [(list (? (negate impl-exists?) impl) args ...) 0] ; specs
                      [(list impl args ...)
                       (define cost-proc (node-cost-proc node repr))
-                      (define itypes (impl-info impl 'itype))
-                      (apply cost-proc (map recurse args itypes))]))))
+                      (apply cost-proc (map recurse args))]))))
 
 (define (make-alt-table batch pcontext initial-alt ctx)
-  (define cost ((alt-batch-costs batch) (alt-expr initial-alt) (context-repr ctx)))
+  (define cost ((alt-batch-costs batch ctx) (alt-expr initial-alt)))
   (define errs (batchref-errors (alt-expr initial-alt) pcontext ctx))
   (alt-table (for/vector #:length (pcontext-length pcontext)
                          ([err (in-flvector errs)])
@@ -177,7 +178,7 @@
 (define (atab-eval-altns atab batch altns ctx)
   (define brfs (map alt-expr altns))
   (define errss (batch-errors batch brfs (alt-table-pcontext atab) ctx))
-  (define costs (map (curryr (alt-batch-costs batch) (context-repr ctx)) brfs))
+  (define costs (map (alt-batch-costs batch ctx) brfs))
   (values errss costs))
 
 (define (atab-add-altns atab altns errss costs ctx)
