@@ -109,13 +109,13 @@
   ;;
   ;;   (rule () (
   ;;     (let a1 ...)
-  ;;     (set (const1) a1)
+  ;;     (union (const1) a1)
   ;;
   ;;     (let a2 ...)
-  ;;     (set (const2) a2)
+  ;;     (union (const2) a2)
   ;;
   ;;     (let b1 ...)
-  ;;     (set (const3) b1)
+  ;;     (union (const3) b1)
   ;;   )
   ;;   :ruleset init)
   ;;
@@ -479,9 +479,9 @@
     ; Send the constructor definition
     (egglog-send subproc `(constructor ,constructor-name () M :unextractable))
 
-    ; Add the binding and constructor set to all-bindings for the future rule
+    ; Add the binding and constructor union to all-bindings for the future rule
     (set! all-bindings (cons curr-var-spec-binding all-bindings))
-    (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings))
+    (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
 
     (set! constructor-num (add1 constructor-num)))
 
@@ -500,9 +500,9 @@
     ; Send the constructor definition
     (egglog-send subproc `(constructor ,constructor-name () MTy :unextractable))
 
-    ; Add the binding and constructor set to all-bindings for the future rule
+    ; Add the binding and constructor union to all-bindings for the future rule
     (set! all-bindings (cons curr-var-typed-binding all-bindings))
-    (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings))
+    (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
 
     (set! constructor-num (add1 constructor-num)))
 
@@ -534,7 +534,7 @@
     (egglog-send subproc `(constructor ,constructor-name () ,curr-datatype :unextractable))
 
     (set! all-bindings (cons curr-binding-exprs all-bindings))
-    (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings))
+    (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
 
     (set! constructor-num (add1 constructor-num)))
 
