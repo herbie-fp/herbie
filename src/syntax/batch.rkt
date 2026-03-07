@@ -90,31 +90,21 @@
 
 ;; batch-recurse iterates only over its children
 ;; A lot of parts of Herbie rely on that
-;; batch-recurse panics if user provides different arguments for the same calls
-;; TODO: what if user provides the same object but it is changed inside? "equal?" may not distinguish it
 (define (batch-recurse batch f)
   (define out (make-dvector (batch-length batch)))
   (define visited (make-dvector (batch-length batch) #f))
-  (λ (brf . args)
+  (λ (brf)
     (match-define (batchref b idx) brf)
     (unless (eq? b batch)
       (error 'batch-recurse "Batchref belongs to a different batch"))
-    (let loop ([brf (batchref batch idx)]
-               [args args])
+    (let loop ([brf (batchref batch idx)])
       (define idx (batchref-idx brf))
       (cond
-        [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx))
-         (unless (equal? args (dvector-ref visited idx))
-           (error 'batch-recurse
-                  "Cache violation for ~a, cached with ~a, provided with ~a"
-                  brf
-                  (dvector-ref visited idx)
-                  args))
-         (dvector-ref out idx)]
+        [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx)) (dvector-ref out idx)]
         [else
-         (define res (apply f brf (λ (brf . args) (loop brf args)) args))
+         (define res (f brf loop))
          (dvector-set! out idx res)
-         (dvector-set! visited idx args)
+         (dvector-set! visited idx #t)
          res]))))
 
 (define (brfs-belong-to-batch? batch brfs)
