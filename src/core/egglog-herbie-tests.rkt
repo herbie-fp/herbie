@@ -404,16 +404,16 @@
                    ((let a1 (Var
                              "x")
                       )
-                    (set (const1) a1)
+                    (union (const1) a1)
                     (let a2 (Var
                              "y")
                       )
-                    (set (const2) a2)
+                    (union (const2) a2)
                     (let b1 (Add
                              a1
                              a2)
                       )
-                    (set (const3) b1))
+                    (union (const3) b1))
                    :ruleset
                    init)
             '(run init 1)))
@@ -429,8 +429,12 @@
 
     (match-define (list node-values '() (list "false"))
       (egglog-send subproc '(print-size) '(run unsound-rule 1) '(extract (unsound))))
-    (check-equal? (sort node-values string<?)
-                  '("Add: 1" "Var: 2" "const1: 1" "const2: 1" "const3: 1" "unsound: 1"))
+    (define parsed-node-values
+      (for/list ([entry (in-list (with-input-from-string (string-join node-values "\n") read))])
+        (match entry
+          [(list relation count) (cons relation count)])))
+    (check-equal? (sort parsed-node-values symbol<? #:key car)
+                  '((Add . 1) (Var . 2) (const1 . 1) (const2 . 1) (const3 . 1) (unsound . 1)))
 
     ;; last two
     (check-equal? '((Var "y")) (egglog-extract subproc '(extract (const2) 1)))
