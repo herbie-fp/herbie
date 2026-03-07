@@ -90,9 +90,9 @@ def generate_driver(compiled, input_points, arity, filepath):
         print('    return 0;', file=f)
         print('}', file=f)
 
-def run_command(args):
+def run_command(args, env=None):
     try:
-        result = subprocess.run(args, capture_output=True, text=True, check=True)
+        result = subprocess.run(args, capture_output=True, text=True, check=True, env=env)
         return result.stdout
     except subprocess.CalledProcessError as err:
         if err.stdout:
@@ -120,7 +120,7 @@ def time_op(op, sort_points, points):
     driver_name = f'{'sorted' if sort_points else 'unsorted'}_{op_name}.c'
     generate_driver(result, _points, str(fpcore.arity), f'{BASE_DIR}/drivers/{driver_name}')
 
-    run_command([
+    cmd = [
         'clang',
         '-O2',
         '-I',
@@ -131,7 +131,11 @@ def time_op(op, sort_points, points):
         '-Lgrowlibm/accelerators',
         '-laccelerators',
         '-lm'
-    ])
+    ]
+    if sys.platform.startswith('linux'):
+        cmd.append('-Wl,-rpath,$ORIGIN/growlibm/accelerators')
+
+    run_command(cmd)
 
     result = run_command(['./benchmark'])
     return float(result)
