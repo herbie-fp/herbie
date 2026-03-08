@@ -52,60 +52,60 @@
                   #:spec (neg x)
                   #:impl (compose flsingle -)
                   #:fpcore (! :precision binary32 (- x))
-                  #:cost 64)
+                  #:cost 0.1604774535809016)
 
 (define-operations ([x <binary32>] [y <binary32>])
   <binary32>
   #:fpcore (! :precision binary32 _)
-  [+.f32 #:spec (+ x y) #:impl (compose flsingle +) #:cost 64]
-  [-.f32 #:spec (- x y) #:impl (compose flsingle -) #:cost 64]
-  [*.f32 #:spec (* x y) #:impl (compose flsingle *) #:cost 128]
-  [/.f32 #:spec (/ x y) #:impl (compose flsingle /) #:cost 320])
+  [+.f32 #:spec (+ x y) #:impl (compose flsingle +) #:cost 0.2]
+  [-.f32 #:spec (- x y) #:impl (compose flsingle -) #:cost 0.15729442970822285]
+  [*.f32 #:spec (* x y) #:impl (compose flsingle *) #:cost 0.16233421750663113]
+  [/.f32 #:spec (/ x y) #:impl (compose flsingle /) #:cost 0.1623342175066312])
 
 (define-operations ([x <binary32>])
   <binary32>
   #:fpcore (! :precision binary32 _)
-  [fabs.f32 #:spec (fabs x) #:impl (from-libm 'fabsf) #:cost 64]
-  [sin.f32 #:spec (sin x) #:impl (from-libm 'sinf) #:cost 3200]
-  [cos.f32 #:spec (cos x) #:impl (from-libm 'cosf) #:cost 3200]
-  [tan.f32 #:spec (tan x) #:impl (from-libm 'tanf) #:cost 3200]
-  [sinh.f32 #:spec (sinh x) #:impl (from-libm 'sinhf) #:cost 3200]
-  [cosh.f32 #:spec (cosh x) #:impl (from-libm 'coshf) #:cost 3200]
-  [acos.f32 #:spec (acos x) #:impl (from-libm 'acosf) #:cost 3200]
-  [acosh.f32 #:spec (acosh x) #:impl (from-libm 'acoshf) #:cost 3200]
-  [asin.f32 #:spec (asin x) #:impl (from-libm 'asinf) #:cost 3200]
-  [asinh.f32 #:spec (asinh x) #:impl (from-libm 'asinhf) #:cost 3200]
-  [atan.f32 #:spec (atan x) #:impl (from-libm 'atanf) #:cost 3200]
-  [atanh.f32 #:spec (atanh x) #:impl (from-libm 'atanhf) #:cost 3200]
-  [cbrt.f32 #:spec (cbrt x) #:impl (from-libm 'cbrtf) #:cost 3200]
-  [ceil.f32 #:spec (ceil x) #:impl (from-libm 'ceilf) #:cost 3200]
-  [erf.f32 #:spec (erf x) #:impl (from-libm 'erff) #:cost 3200]
-  [exp.f32 #:spec (exp x) #:impl (from-libm 'expf) #:cost 3200]
-  [exp2.f32 #:spec (exp2 x) #:impl (from-libm 'exp2f) #:cost 3200]
-  [floor.f32 #:spec (floor x) #:impl (from-libm 'floorf) #:cost 3200]
-  [lgamma.f32 #:spec (lgamma x) #:impl (from-libm 'lgammaf) #:cost 3200]
-  [log.f32 #:spec (log x) #:impl (from-libm 'logf) #:cost 3200]
-  [log10.f32 #:spec (log10 x) #:impl (from-libm 'log10f) #:cost 3200]
-  [log2.f32 #:spec (log2 x) #:impl (from-libm 'log2f) #:cost 3200]
-  [logb.f32 #:spec (logb x) #:impl (from-libm 'logbf) #:cost 3200]
-  [rint.f32 #:spec (rint x) #:impl (from-libm 'rintf) #:cost 3200]
-  [round.f32 #:spec (round x) #:impl (from-libm 'roundf) #:cost 3200]
-  [sqrt.f32 #:spec (sqrt x) #:impl (from-libm 'sqrtf) #:cost 320]
-  [tanh.f32 #:spec (tanh x) #:impl (from-libm 'tanhf) #:cost 3200]
-  [tgamma.f32 #:spec (tgamma x) #:impl (from-libm 'tgammaf) #:cost 3200]
-  [trunc.f32 #:spec (trunc x) #:impl (from-libm 'truncf) #:cost 3200])
+  [fabs.f32 #:spec (fabs x) #:impl (from-libm 'fabsf) #:cost 0.16339522546419077]
+  [sin.f32 #:spec (sin x) #:impl (from-libm 'sinf) #:cost 1.849602122015914]
+  [cos.f32 #:spec (cos x) #:impl (from-libm 'cosf) #:cost 2.1132625994694925]
+  [tan.f32 #:spec (tan x) #:impl (from-libm 'tanf) #:cost 2.0647214854111398]
+  [sinh.f32 #:spec (sinh x) #:impl (from-libm 'sinhf) #:cost 1.8466843501326242]
+  [cosh.f32 #:spec (cosh x) #:impl (from-libm 'coshf) #:cost 1.5644562334217484]
+  [acos.f32 #:spec (acos x) #:impl (from-libm 'acosf) #:cost 1.2037135278514572]
+  [acosh.f32 #:spec (acosh x) #:impl (from-libm 'acoshf) #:cost 1.740053050397878]
+  [asin.f32 #:spec (asin x) #:impl (from-libm 'asinf) #:cost 2.8885941644562316]
+  [asinh.f32 #:spec (asinh x) #:impl (from-libm 'asinhf) #:cost 1.8161803713527835]
+  [atan.f32 #:spec (atan x) #:impl (from-libm 'atanf) #:cost 1.7543766578249333]
+  [atanh.f32 #:spec (atanh x) #:impl (from-libm 'atanhf) #:cost 1.7429708222811646]
+  [cbrt.f32 #:spec (cbrt x) #:impl (from-libm 'cbrtf) #:cost 1.7570291777188307]
+  [ceil.f32 #:spec (ceil x) #:impl (from-libm 'ceilf) #:cost 0.16233421750663143]
+  [erf.f32 #:spec (erf x) #:impl (from-libm 'erff) #:cost 1.7509283819628623]
+  [exp.f32 #:spec (exp x) #:impl (from-libm 'expf) #:cost 1.317771883289124]
+  [exp2.f32 #:spec (exp2 x) #:impl (from-libm 'exp2f) #:cost 1.3342175066312973]
+  [floor.f32 #:spec (floor x) #:impl (from-libm 'floorf) #:cost 0.15305039787798388]
+  [lgamma.f32 #:spec (lgamma x) #:impl (from-libm 'lgammaf) #:cost 3.319893899204241]
+  [log.f32 #:spec (log x) #:impl (from-libm 'logf) #:cost 1.2010610079575588]
+  [log10.f32 #:spec (log10 x) #:impl (from-libm 'log10f) #:cost 1.3061007957559676]
+  [log2.f32 #:spec (log2 x) #:impl (from-libm 'log2f) #:cost 1.2506631299734736]
+  [logb.f32 #:spec (logb x) #:impl (from-libm 'logbf) #:cost 0.6071618037135276]
+  [rint.f32 #:spec (rint x) #:impl (from-libm 'rintf) #:cost 0.16896551724137895]
+  [round.f32 #:spec (round x) #:impl (from-libm 'roundf) #:cost 0.1623342175066311]
+  [sqrt.f32 #:spec (sqrt x) #:impl (from-libm 'sqrtf) #:cost 0.30848806366047715]
+  [tanh.f32 #:spec (tanh x) #:impl (from-libm 'tanhf) #:cost 1.370291777188328]
+  [tgamma.f32 #:spec (tgamma x) #:impl (from-libm 'tgammaf) #:cost 1.890185676392571]
+  [trunc.f32 #:spec (trunc x) #:impl (from-libm 'truncf) #:cost 0.16419098143236055])
 
 (define-operations ([x <binary32>] [y <binary32>])
   <binary32>
   #:fpcore (! :precision binary32 _)
-  [pow.f32 #:spec (pow x y) #:impl (from-libm 'powf) #:cost 3200]
-  [atan2.f32 #:spec (atan2 x y) #:impl (from-libm 'atan2f) #:cost 3200]
-  [copysign.f32 #:spec (copysign x y) #:impl (from-libm 'copysignf) #:cost 3200]
-  [fdim.f32 #:spec (fdim x y) #:impl (from-libm 'fdimf) #:cost 3200]
-  [fmax.f32 #:spec (fmax x y) #:impl (from-libm 'fmaxf) #:cost 3200]
-  [fmin.f32 #:spec (fmin x y) #:impl (from-libm 'fminf) #:cost 3200]
-  [fmod.f32 #:spec (fmod x y) #:impl (from-libm 'fmodf) #:cost 3200]
-  [remainder.f32 #:spec (remainder x y) #:impl (from-libm 'remainderf) #:cost 3200])
+  [pow.f32 #:spec (pow x y) #:impl (from-libm 'powf) #:cost 2.4204244031830218]
+  [atan2.f32 #:spec (atan2 x y) #:impl (from-libm 'atan2f) #:cost 3.4103448275862043]
+  [copysign.f32 #:spec (copysign x y) #:impl (from-libm 'copysignf) #:cost 0.16074270557029158]
+  [fdim.f32 #:spec (fdim x y) #:impl (from-libm 'fdimf) #:cost 1.1522546419098134]
+  [fmax.f32 #:spec (fmax x y) #:impl (from-libm 'fmaxf) #:cost 0.16870026525198942]
+  [fmin.f32 #:spec (fmin x y) #:impl (from-libm 'fminf) #:cost 0.15968169761273193]
+  [fmod.f32 #:spec (fmod x y) #:impl (from-libm 'fmodf) #:cost 2.5676392572944255]
+  [remainder.f32 #:spec (remainder x y) #:impl (from-libm 'remainderf) #:cost 3.292307692307691])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -139,64 +139,64 @@
                   #:spec (neg x)
                   #:impl -
                   #:fpcore (! :precision binary64 (- x))
-                  #:cost 128)
+                  #:cost 0.1604774535809016)
 
 (define-operations ([x <binary64>] [y <binary64>])
   <binary64>
   #:fpcore (! :precision binary64 _)
-  [+.f64 #:spec (+ x y) #:impl + #:cost 128]
-  [-.f64 #:spec (- x y) #:impl - #:cost 128]
-  [*.f64 #:spec (* x y) #:impl * #:cost 256]
-  [/.f64 #:spec (/ x y) #:impl / #:cost 640])
+  [+.f64 #:spec (+ x y) #:impl + #:cost 0.2]
+  [-.f64 #:spec (- x y) #:impl - #:cost 0.15729442970822285]
+  [*.f64 #:spec (* x y) #:impl * #:cost 0.16233421750663113]
+  [/.f64 #:spec (/ x y) #:impl / #:cost 0.1623342175066312])
 
 (define-operations ([x <binary64>])
   <binary64>
   #:fpcore (! :precision binary64 _)
-  [fabs.f64 #:spec (fabs x) #:impl (from-libm 'fabs) #:cost 128]
-  [sin.f64 #:spec (sin x) #:impl (from-libm 'sin) #:cost 6400]
-  [cos.f64 #:spec (cos x) #:impl (from-libm 'cos) #:cost 6400]
-  [tan.f64 #:spec (tan x) #:impl (from-libm 'tan) #:cost 6400]
-  [sinh.f64 #:spec (sinh x) #:impl (from-libm 'sinh) #:cost 6400]
-  [cosh.f64 #:spec (cosh x) #:impl (from-libm 'cosh) #:cost 6400]
-  [acos.f64 #:spec (acos x) #:impl (from-libm 'acos) #:cost 6400]
-  [acosh.f64 #:spec (acosh x) #:impl (from-libm 'acosh) #:cost 6400]
-  [asin.f64 #:spec (asin x) #:impl (from-libm 'asin) #:cost 6400]
-  [asinh.f64 #:spec (asinh x) #:impl (from-libm 'asinh) #:cost 6400]
-  [atan.f64 #:spec (atan x) #:impl (from-libm 'atan) #:cost 6400]
-  [atanh.f64 #:spec (atanh x) #:impl (from-libm 'atanh) #:cost 6400]
-  [cbrt.f64 #:spec (cbrt x) #:impl (from-libm 'cbrt) #:cost 6400]
-  [ceil.f64 #:spec (ceil x) #:impl (from-libm 'ceil) #:cost 6400]
-  [erf.f64 #:spec (erf x) #:impl (from-libm 'erf) #:cost 6400]
-  [exp.f64 #:spec (exp x) #:impl (from-libm 'exp) #:cost 6400]
-  [exp2.f64 #:spec (exp2 x) #:impl (from-libm 'exp2) #:cost 6400]
-  [floor.f64 #:spec (floor x) #:impl (from-libm 'floor) #:cost 6400]
-  [lgamma.f64 #:spec (lgamma x) #:impl (from-libm 'lgamma) #:cost 6400]
-  [log.f64 #:spec (log x) #:impl (from-libm 'log) #:cost 6400]
-  [log10.f64 #:spec (log10 x) #:impl (from-libm 'log10) #:cost 6400]
-  [log2.f64 #:spec (log2 x) #:impl (from-libm 'log2) #:cost 6400]
-  [logb.f64 #:spec (logb x) #:impl (from-libm 'logb) #:cost 6400]
-  [rint.f64 #:spec (rint x) #:impl (from-libm 'rint) #:cost 6400]
-  [round.f64 #:spec (round x) #:impl (from-libm 'round) #:cost 6400]
-  [sqrt.f64 #:spec (sqrt x) #:impl (from-libm 'sqrt) #:cost 640]
-  [tanh.f64 #:spec (tanh x) #:impl (from-libm 'tanh) #:cost 6400]
-  [tgamma.f64 #:spec (tgamma x) #:impl (from-libm 'tgamma) #:cost 6400]
-  [trunc.f64 #:spec (trunc x) #:impl (from-libm 'trunc) #:cost 6400])
+  [fabs.f64 #:spec (fabs x) #:impl (from-libm 'fabs) #:cost 0.16339522546419077]
+  [sin.f64 #:spec (sin x) #:impl (from-libm 'sin) #:cost 1.849602122015914]
+  [cos.f64 #:spec (cos x) #:impl (from-libm 'cos) #:cost 2.1132625994694925]
+  [tan.f64 #:spec (tan x) #:impl (from-libm 'tan) #:cost 2.0647214854111398]
+  [sinh.f64 #:spec (sinh x) #:impl (from-libm 'sinh) #:cost 1.8466843501326242]
+  [cosh.f64 #:spec (cosh x) #:impl (from-libm 'cosh) #:cost 1.5644562334217484]
+  [acos.f64 #:spec (acos x) #:impl (from-libm 'acos) #:cost 1.2037135278514572]
+  [acosh.f64 #:spec (acosh x) #:impl (from-libm 'acosh) #:cost 1.740053050397878]
+  [asin.f64 #:spec (asin x) #:impl (from-libm 'asin) #:cost 2.8885941644562316]
+  [asinh.f64 #:spec (asinh x) #:impl (from-libm 'asinh) #:cost 1.8161803713527835]
+  [atan.f64 #:spec (atan x) #:impl (from-libm 'atan) #:cost 1.7543766578249333]
+  [atanh.f64 #:spec (atanh x) #:impl (from-libm 'atanh) #:cost 1.7429708222811646]
+  [cbrt.f64 #:spec (cbrt x) #:impl (from-libm 'cbrt) #:cost 1.7570291777188307]
+  [ceil.f64 #:spec (ceil x) #:impl (from-libm 'ceil) #:cost 0.16233421750663143]
+  [erf.f64 #:spec (erf x) #:impl (from-libm 'erf) #:cost 1.7509283819628623]
+  [exp.f64 #:spec (exp x) #:impl (from-libm 'exp) #:cost 1.317771883289124]
+  [exp2.f64 #:spec (exp2 x) #:impl (from-libm 'exp2) #:cost 1.3342175066312973]
+  [floor.f64 #:spec (floor x) #:impl (from-libm 'floor) #:cost 0.15305039787798388]
+  [lgamma.f64 #:spec (lgamma x) #:impl (from-libm 'lgamma) #:cost 3.319893899204241]
+  [log.f64 #:spec (log x) #:impl (from-libm 'log) #:cost 1.2010610079575588]
+  [log10.f64 #:spec (log10 x) #:impl (from-libm 'log10) #:cost 1.3061007957559676]
+  [log2.f64 #:spec (log2 x) #:impl (from-libm 'log2) #:cost 1.2506631299734736]
+  [logb.f64 #:spec (logb x) #:impl (from-libm 'logb) #:cost 0.6071618037135276]
+  [rint.f64 #:spec (rint x) #:impl (from-libm 'rint) #:cost 0.16896551724137895]
+  [round.f64 #:spec (round x) #:impl (from-libm 'round) #:cost 0.1623342175066311]
+  [sqrt.f64 #:spec (sqrt x) #:impl (from-libm 'sqrt) #:cost 0.30848806366047715]
+  [tanh.f64 #:spec (tanh x) #:impl (from-libm 'tanh) #:cost 1.370291777188328]
+  [tgamma.f64 #:spec (tgamma x) #:impl (from-libm 'tgamma) #:cost 1.890185676392571]
+  [trunc.f64 #:spec (trunc x) #:impl (from-libm 'trunc) #:cost 0.16419098143236055])
 
 (define-operations ([x <binary64>] [y <binary64>])
   <binary64>
   #:fpcore (! :precision binary64 _)
-  [pow.f64 #:spec (pow x y) #:impl (from-libm 'pow) #:cost 6400]
-  [atan2.f64 #:spec (atan2 x y) #:impl (from-libm 'atan2) #:cost 6400]
-  [copysign.f64 #:spec (copysign x y) #:impl (from-libm 'copysign) #:cost 6400]
-  [fdim.f64 #:spec (fdim x y) #:impl (from-libm 'fdim) #:cost 6400]
-  [fmax.f64 #:spec (fmax x y) #:impl (from-libm 'fmax) #:cost 6400]
-  [fmin.f64 #:spec (fmin x y) #:impl (from-libm 'fmin) #:cost 6400]
-  [fmod.f64 #:spec (fmod x y) #:impl (from-libm 'fmod) #:cost 6400]
-  [remainder.f64 #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 6400])
+  [pow.f64 #:spec (pow x y) #:impl (from-libm 'pow) #:cost 2.4204244031830218]
+  [atan2.f64 #:spec (atan2 x y) #:impl (from-libm 'atan2) #:cost 3.4103448275862043]
+  [copysign.f64 #:spec (copysign x y) #:impl (from-libm 'copysign) #:cost 0.16074270557029158]
+  [fdim.f64 #:spec (fdim x y) #:impl (from-libm 'fdim) #:cost 1.1522546419098134]
+  [fmax.f64 #:spec (fmax x y) #:impl (from-libm 'fmax) #:cost 0.16870026525198942]
+  [fmin.f64 #:spec (fmin x y) #:impl (from-libm 'fmin) #:cost 0.15968169761273193]
+  [fmod.f64 #:spec (fmod x y) #:impl (from-libm 'fmod) #:cost 2.5676392572944255]
+  [remainder.f64 #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 3.292307692307691])
 
 (define-operation (pow1ms.f64 [x <binary64>] [y <binary64>])
   <binary64>
   #:spec (pow (* (- 1 x) (- 1 x)) y) 
   #:impl (from-accelerators 'pow1ms)
   #:fpcore (! :precision binary64 (pow1ms x y))
-  #:cost 3046)
+  #:cost 4.236074270557025)
