@@ -55,7 +55,7 @@ minimal-distribution:
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 nightly:
-	make evaluate-coolprop
+	make evaluate-basilisk
 
 time-ops:
 	mkdir -p growlibm/timing/drivers
