@@ -13,6 +13,7 @@
          "derivations.rkt"
          "patch.rkt"
          "points.rkt"
+         "compiler.rkt"
          "preprocess.rkt"
          "programs.rkt"
          "regimes.rkt"
@@ -122,6 +123,27 @@
 (define (reconstruct! starting-alts new-alts)
   (timeline-event! 'reconstruct)
 
+  (define (group-equivalent-alts alts)
+    (define fn (compile-batch (*global-batch*) (map alt-expr alts) (*context*)))
+    (define signatures (make-vector (length alts) '()))
+
+    (for ([pt (in-vector (pcontext-points (*pcontext*)))])
+      (define outs (fn pt))
+      (for ([out (in-vector outs)]
+            [idx (in-naturals)])
+        (vector-set! signatures idx (cons out (vector-ref signatures idx)))))
+
+    (define seen (make-hash))
+    (reverse (for/fold ([grouped '()])
+                       ([altn (in-list alts)]
+                        [signature (in-vector signatures)])
+               (define key (cons (get-starting-expr altn) signature))
+               (cond
+                 [(hash-has-key? seen key) grouped]
+                 [else
+                  (hash-set! seen key #t)
+                  (cons altn grouped)]))))
+
   (define (compute-referrers parents root)
     (define seen (mutable-seteq))
     (define (recurse! cur)
@@ -158,7 +180,9 @@
                          (recurse child)))
     (void))
   (for-each (batch-recurse batch walk-body) (map alt-expr starting-alts))
-  (define grouped-alts (group-by get-starting-expr new-alts))
+  (define new-alts* (group-equivalent-alts new-alts))
+  (timeline-push! 'count (length new-alts) (length new-alts*))
+  (define grouped-alts (group-by get-starting-expr new-alts*))
 
   (remove-duplicates
    (for*/list ([start-alts (in-list grouped-alts)]
