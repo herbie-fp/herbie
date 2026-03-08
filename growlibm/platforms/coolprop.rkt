@@ -2,50 +2,55 @@
 
 ;; Herbie 2.0 platform. Based on the C Windows platform, but with
 ;; every operation having heuristic costs from Herbie 2.0.
+
 (require math/flonum)
+
+(define 64bit-move-cost 0.125)
+(define 32bit-move-cost 0.125)
+(define boolean-move-cost 0.100)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-representation <bool> #:cost 1)
+(define-representation <bool> #:cost boolean-move-cost)
 
 (define-operations ()
   <bool>
-  [TRUE #:spec (TRUE) #:impl (const true) #:fpcore TRUE #:cost 1]
-  [FALSE #:spec (FALSE) #:impl (const false) #:fpcore FALSE #:cost 1])
+  [TRUE #:spec (TRUE) #:impl (const true) #:fpcore TRUE #:cost boolean-move-cost]
+  [FALSE #:spec (FALSE) #:impl (const false) #:fpcore FALSE #:cost boolean-move-cost])
 
 (define-operations ([x <bool>] [y <bool>])
   <bool>
-  [and #:spec (and x y) #:impl (lambda v (andmap values v)) #:cost 1]
-  [or #:spec (or x y) #:impl (lambda v (ormap values v)) #:cost 1])
+  [and #:spec (and x y) #:impl (lambda v (andmap values v)) #:cost boolean-move-cost]
+  [or #:spec (or x y) #:impl (lambda v (ormap values v)) #:cost boolean-move-cost])
 
-(define-operation (not [x <bool>]) <bool> #:spec (not x) #:impl not #:cost 1)
+(define-operation (not [x <bool>]) <bool> #:spec (not x) #:impl not #:cost boolean-move-cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-representation <binary32> #:cost 32)
+(define-representation <binary32> #:cost 32bit-move-cost)
 
 (define-operation (if.f32 [c <bool>] [t <binary32>] [f <binary32>])
                   <binary32>
                   #:spec (if c t f)
                   #:impl if-impl
-                  #:cost (if-cost 1))
+                  #:cost (if-cost boolean-move-cost))
 
 (define-operations ([x <binary32>] [y <binary32>])
   <bool>
-  [==.f32 #:spec (== x y) #:impl = #:cost 128]
-  [!=.f32 #:spec (!= x y) #:impl (negate =) #:cost 128]
-  [<.f32 #:spec (< x y) #:impl < #:cost 128]
-  [>.f32 #:spec (> x y) #:impl > #:cost 128]
-  [<=.f32 #:spec (<= x y) #:impl <= #:cost 128]
-  [>=.f32 #:spec (>= x y) #:impl >= #:cost 128])
+  [==.f32 #:spec (== x y) #:impl = #:cost 32bit-move-cost]
+  [!=.f32 #:spec (!= x y) #:impl (negate =) #:cost 32bit-move-cost]
+  [<.f32 #:spec (< x y) #:impl < #:cost 32bit-move-cost]
+  [>.f32 #:spec (> x y) #:impl > #:cost 32bit-move-cost]
+  [<=.f32 #:spec (<= x y) #:impl <= #:cost 32bit-move-cost]
+  [>=.f32 #:spec (>= x y) #:impl >= #:cost 32bit-move-cost])
 
 (define-operations ()
   <binary32>
   #:fpcore (! :precision binary32 _)
-  [PI.f32 #:spec (PI) #:impl (const (flsingle pi)) #:fpcore PI #:cost 32]
-  [E.f32 #:spec (E) #:impl (const (flsingle (exp 1))) #:fpcore E #:cost 32]
-  [INFINITY.f32 #:spec (INFINITY) #:impl (const +inf.0) #:fpcore INFINITY #:cost 32]
-  [NAN.f32 #:spec (NAN) #:impl (const +nan.0) #:fpcore NAN #:cost 32])
+  [PI.f32 #:spec (PI) #:impl (const (flsingle pi)) #:fpcore PI #:cost 32bit-move-cost]
+  [E.f32 #:spec (E) #:impl (const (flsingle (exp 1))) #:fpcore E #:cost 32bit-move-cost]
+  [INFINITY.f32 #:spec (INFINITY) #:impl (const +inf.0) #:fpcore INFINITY #:cost 32bit-move-cost]
+  [NAN.f32 #:spec (NAN) #:impl (const +nan.0) #:fpcore NAN #:cost 32bit-move-cost])
 
 (define-operation (neg.f32 [x <binary32>])
                   <binary32>
@@ -109,30 +114,30 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-representation <binary64> #:cost 64)
+(define-representation <binary64> #:cost 64bit-move-cost)
 
 (define-operation (if.f64 [c <bool>] [t <binary64>] [f <binary64>])
                   <binary64>
                   #:spec (if c t f)
                   #:impl if-impl
-                  #:cost (if-cost 1))
+                  #:cost (if-cost boolean-move-cost))
 
 (define-operations ([x <binary64>] [y <binary64>])
   <bool>
-  [==.f64 #:spec (== x y) #:impl = #:cost 256]
-  [!=.f64 #:spec (!= x y) #:impl (negate =) #:cost 256]
-  [<.f64 #:spec (< x y) #:impl < #:cost 256]
-  [>.f64 #:spec (> x y) #:impl > #:cost 256]
-  [<=.f64 #:spec (<= x y) #:impl <= #:cost 256]
-  [>=.f64 #:spec (>= x y) #:impl >= #:cost 256])
+  [==.f64 #:spec (== x y) #:impl = #:cost 64bit-move-cost]
+  [!=.f64 #:spec (!= x y) #:impl (negate =) #:cost 64bit-move-cost]
+  [<.f64 #:spec (< x y) #:impl < #:cost 64bit-move-cost]
+  [>.f64 #:spec (> x y) #:impl > #:cost 64bit-move-cost]
+  [<=.f64 #:spec (<= x y) #:impl <= #:cost 64bit-move-cost]
+  [>=.f64 #:spec (>= x y) #:impl >= #:cost 64bit-move-cost])
 
 (define-operations ()
   <binary64>
   #:fpcore (! :precision binary64 _)
-  [PI.f64 #:spec (PI) #:impl (const pi) #:fpcore PI #:cost 64]
-  [E.f64 #:spec (E) #:impl (const (exp 1)) #:fpcore E #:cost 64]
-  [INFINITY #:spec (INFINITY) #:impl (const +inf.0) #:fpcore INFINITY #:cost 64]
-  [NAN.f64 #:spec (NAN) #:impl (const +nan.0) #:fpcore NAN #:cost 64])
+  [PI.f64 #:spec (PI) #:impl (const pi) #:fpcore PI #:cost 64bit-move-cost]
+  [E.f64 #:spec (E) #:impl (const (exp 1)) #:fpcore E #:cost 64bit-move-cost]
+  [INFINITY #:spec (INFINITY) #:impl (const +inf.0) #:fpcore INFINITY #:cost 64bit-move-cost]
+  [NAN.f64 #:spec (NAN) #:impl (const +nan.0) #:fpcore NAN #:cost 64bit-move-cost])
 
 (define-operation (neg.f64 [x <binary64>])
                   <binary64>
