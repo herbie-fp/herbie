@@ -601,23 +601,25 @@
   (define (enode-typed? enode)
     (or (number? enode) (symbol? enode) (and (list? enode) (andmap eclass-well-typed? (cdr enode)))))
 
-  (define (check-typed! dirty?-vec)
-    (define dirty? #f)
-    (define dirty?-vec* (make-vector n #f))
-    (for ([id (in-range n)]
-          #:when (vector-ref dirty?-vec id)
-          #:unless (vector-ref typed?-vec id)
-          #:when (ormap enode-typed? (vector-ref id->eclass id)))
-      (vector-set! typed?-vec id #t)
-      (define parent-ids (vector-ref id->parents id))
-      (unless (vector-empty? parent-ids)
-        (set! dirty? #t)
-        (for ([parent-id (in-vector parent-ids)])
-          (vector-set! dirty?-vec* parent-id #t))))
-    (when dirty?
-      (check-typed! dirty?-vec*)))
-
   ; mark all well-typed e-classes and prune nodes that are not well-typed
+  (define (check-typed! dirty?-vec)
+    (define rerun? #f)
+    (for ([id (in-range n)]
+          [dirty? (in-vector dirty?-vec)]
+          [typed? (in-vector typed?-vec)]
+          [eclass (in-vector id->eclass)]
+          [parent-ids (in-vector id->parents)]
+          #:when dirty?)
+      (vector-set! dirty?-vec id #f)
+      (when (and (not typed?) (ormap enode-typed? eclass))
+        (vector-set! typed?-vec id #t)
+        (for ([parent-id (in-vector parent-ids)])
+          (vector-set! dirty?-vec parent-id #t)
+          (when (< parent-id id)
+            (set! rerun? #t)))))
+    (when rerun?
+      (check-typed! dirty?-vec)))
+
   (check-typed! (vector-copy id->leaf?))
   (for ([id (in-range n)])
     (define eclass (vector-ref id->eclass id))
