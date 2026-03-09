@@ -16,31 +16,28 @@ SEED=$(date "+%Y%j")
 BENCHDIR="$1"
 REPORTDIR="$2"
 PLATFORM="$3"
-NUM_ENODES="16000"
-
-mkdir -p "$REPORTDIR"
-rm -rf "reports"/* || echo "nothing to delete"
+NUM_ENODES="32000"
 
 racket -y src/main.rkt report \
         --seed $SEED \
         --platform $PLATFORM \
         --num-enodes $NUM_ENODES \
         $BENCHDIR \
-        $REPORTDIR/growlibm_base
+        $REPORTDIR/$PLATFORM/growlibm_base
 
 racket -y src/main.rkt report \
         --seed "$SEED" \
         --platform c \
         --num-enodes $NUM_ENODES \
         $BENCHDIR \
-        $REPORTDIR/herbie20_base
+        $REPORTDIR/$PLATFORM/herbie20_base
 
 racket -y src/main.rkt report \
         --seed $SEED \
         --platform vanilla \
         --num-enodes $NUM_ENODES \
         $BENCHDIR \
-        $REPORTDIR/vanilla_base
+        $REPORTDIR/$PLATFORM/vanilla_base
 
 # if [[ "$(uname -s)" == "Darwin" ]]; then
 #     clang -dynamiclib -O3 -o growlibm/libaccelerators.dylib \
