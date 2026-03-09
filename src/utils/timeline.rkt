@@ -128,13 +128,14 @@
             (current-gc-milliseconds)
             'memory
             (list (list (current-memory-use #f) (current-memory-use 'cumulative)))))
-  (reverse (for/list ([evt (unbox (*timeline*))]
-                      [next (cons end (unbox (*timeline*)))])
-             (define evt* (hash-copy evt))
-             (hash-update! evt* 'time (λ (v) (- (hash-ref next 'time) v)))
-             (hash-update! evt* 'gc-time (λ (v) (- (hash-ref next 'gc-time) v)))
-             (hash-update! evt* 'memory (λ (v) (diff-memory-records (hash-ref next 'memory) v)))
-             evt*)))
+  (timeline-reattribute-gc
+   (reverse (for/list ([evt (in-list (unbox (*timeline*)))]
+                       [next (in-list (cons end (unbox (*timeline*))))])
+              (define evt* (hash-copy evt))
+              (hash-update! evt* 'time (λ (v) (- (hash-ref next 'time) v)))
+              (hash-update! evt* 'gc-time (λ (v) (- (hash-ref next 'gc-time) v)))
+              (hash-update! evt* 'memory (λ (v) (diff-memory-records (hash-ref next 'memory) v)))
+              evt*))))
 
 (define timeline-types (make-hasheq))
 
@@ -253,4 +254,6 @@
   (define gc-phase
     (make-hasheq
      (list (cons 'type "gc") (cons 'time total-gc-time) (cons 'allocations allocation-table))))
-  (append adjusted-phases (list gc-phase)))
+  (if (zero? total-gc-time)
+      adjusted-phases
+      (append adjusted-phases (list gc-phase))))
