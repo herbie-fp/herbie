@@ -15,6 +15,7 @@
          batch-length ; Batch -> Integer
          batch-tree-size ; Batch -> List<Batchref> -> Integer
          batch-free-vars ; Batch -> (Batchref -> Set<Var>)
+         batch-free-vars/ignore ; Batch -> Batchref -> (Batchref -> Set<Var>)
          in-batch ; Batch -> Sequence<Node>
          batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-exprs
@@ -154,6 +155,22 @@
                       (define arg-free-vars (mutable-set))
                       (expr-recurse node (lambda (i) (set-union! arg-free-vars (recurse i))))
                       arg-free-vars]))))
+
+(define (batch-free-vars/ignore batch ignored)
+  (define ignored-idx (batchref-idx ignored))
+  (batch-recurse batch
+                 (lambda (brf recurse)
+                   (cond
+                     [(= (batchref-idx brf) ignored-idx) (set)]
+                     [else
+                      (define node (deref brf))
+                      (cond
+                        [(symbol? node) (set node)]
+                        [(approx? node) (recurse (approx-impl node))]
+                        [else
+                         (define arg-free-vars (mutable-set))
+                         (expr-recurse node (lambda (i) (set-union! arg-free-vars (recurse i))))
+                         arg-free-vars])]))))
 
 (define (batch-tree-size batch brfs)
   (define counts

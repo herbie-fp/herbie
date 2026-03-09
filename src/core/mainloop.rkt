@@ -260,17 +260,16 @@
                        start-prog
                        ctx
                        (*pcontext*)))
+     (define free-vars (batch-free-vars batch))
      (for/list ([opt (in-list opts)])
        (match-define (option splitindices opt-alts _ brf _) opt)
        (timeline-event! 'bsearch)
-       (define exprs (batch-exprs batch))
-       (define branch-expr (exprs brf))
        (define use-binary?
          (and (flag-set? 'reduce 'binary-search)
               (> (length splitindices) 1)
-              (critical-subexpression? (exprs start-prog) branch-expr)
+              (critical-subexpression? batch start-prog brf free-vars)
               (for/and ([alt (in-list opt-alts)])
-                (critical-subexpression? (exprs (alt-expr alt)) branch-expr))))
+                (critical-subexpression? batch (alt-expr alt) brf free-vars))))
        (cond
          [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
          [use-binary? (combine-alts/binary batch opt start-prog ctx (*pcontext*))]

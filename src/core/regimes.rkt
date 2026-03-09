@@ -127,21 +127,23 @@
   best)
 
 (define (exprs-to-branch-on batch start-prog ctx)
-  (define exprs (batch-exprs batch))
-  (define start-expr (exprs start-prog))
+  (define free-vars (batch-free-vars batch))
+  (define reprs (batch-reprs batch ctx))
+  (define subexprs (batch-reachable batch (list start-prog)))
   ;; We can only binary search if the branch expression is critical
   ;; for the start program and is real-typed.
-  (for/list ([subexpr (set-union (context-vars ctx) (all-subexpressions start-expr))]
-             #:when (critical-subexpression? start-expr subexpr)
-             #:when (equal? (representation-type (repr-of subexpr ctx)) 'real))
-    (batch-add! batch subexpr)))
+  (for/list ([subexpr (in-list subexprs)]
+             #:when (equal? (representation-type (reprs subexpr)) 'real)
+             #:when (critical-subexpression? batch start-prog subexpr free-vars))
+    subexpr))
 
 ;; Requires that expr is not a λ expression
-(define (critical-subexpression? expr subexpr)
-  (define crit-vars (free-variables subexpr))
-  (define replaced-expr (replace-expression expr subexpr 1))
-  (define non-crit-vars (free-variables replaced-expr))
-  (and (not (null? crit-vars)) (null? (set-intersect crit-vars non-crit-vars))))
+(define (critical-subexpression? batch expr subexpr free-vars)
+  (define crit-vars (free-vars subexpr))
+  (and (not (set-empty? crit-vars))
+       (let ([non-crit-vars ((batch-free-vars/ignore batch subexpr) expr)])
+         (for/and ([v (in-set crit-vars)])
+           (not (set-member? non-crit-vars v))))))
 
 (define (brf-values* batch brfs ctx pcontext)
   (define count (length brfs))
