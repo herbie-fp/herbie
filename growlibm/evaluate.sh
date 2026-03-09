@@ -19,6 +19,7 @@ PLATFORM="$3"
 NUM_ENODES="32000"
 
 mkdir -p "$REPORTDIR"
+mkdir -p "$REPORTDIR/$PLATFORM"
 
 racket -y src/main.rkt report \
         --seed $SEED \
