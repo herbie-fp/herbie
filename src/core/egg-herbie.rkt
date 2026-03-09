@@ -601,23 +601,25 @@
   (define (enode-typed? enode)
     (or (number? enode) (symbol? enode) (and (list? enode) (andmap eclass-well-typed? (cdr enode)))))
 
-  (define (check-typed! dirty?-vec)
-    (define dirty? #f)
-    (define dirty?-vec* (make-vector n #f))
-    (for ([id (in-range n)]
-          #:when (vector-ref dirty?-vec id)
-          #:unless (vector-ref typed?-vec id)
-          #:when (ormap enode-typed? (vector-ref id->eclass id)))
-      (vector-set! typed?-vec id #t)
-      (define parent-ids (vector-ref id->parents id))
-      (unless (vector-empty? parent-ids)
-        (set! dirty? #t)
-        (for ([parent-id (in-vector parent-ids)])
-          (vector-set! dirty?-vec* parent-id #t))))
-    (when dirty?
-      (check-typed! dirty?-vec*)))
-
   ; mark all well-typed e-classes and prune nodes that are not well-typed
+  (define (check-typed! dirty?-vec)
+    (define rerun? #f)
+    (for ([id (in-range n)]
+          [dirty? (in-vector dirty?-vec)]
+          [typed? (in-vector typed?-vec)]
+          [eclass (in-vector id->eclass)]
+          [parent-ids (in-vector id->parents)]
+          #:when dirty?)
+      (vector-set! dirty?-vec id #f)
+      (when (and (not typed?) (ormap enode-typed? eclass))
+        (vector-set! typed?-vec id #t)
+        (for ([parent-id (in-vector parent-ids)])
+          (vector-set! dirty?-vec parent-id #t)
+          (when (< parent-id id)
+            (set! rerun? #t)))))
+    (when rerun?
+      (check-typed! dirty?-vec)))
+
   (check-typed! (vector-copy id->leaf?))
   (for ([id (in-range n)])
     (define eclass (vector-ref id->eclass id))
@@ -800,41 +802,47 @@
   (unless analysis
     (set! analysis (make-vector n #f)))
   (define dirty?-vec (vector-copy leaf?)) ; visit eclass on next pass?
-  (define changed?-vec (make-vector n #f)) ; eclass was changed last iteration
+  (define changed?-vec0 (make-vector n #f)) ; eclass was changed last iteration
+  (define changed?-vec*0 (make-vector n #f)) ; eclass changed this iteration
 
   ; run the analysis
-  (let sweep! ([iter 0])
-    (define dirty? #f)
-    (define dirty?-vec* (make-vector n #f))
-    (define changed?-vec* (make-vector n #f))
+  (let sweep! ([iter 0]
+               [changed?-vec changed?-vec0]
+               [changed?-vec* changed?-vec*0])
+    (define rerun? #f)
     (for ([id (in-range n)]
-          #:when (vector-ref dirty?-vec id))
-      (define eclass (vector-ref eclasses id))
+          [dirty-this? (in-vector dirty?-vec)]
+          [eclass (in-vector eclasses)]
+          [parent-ids (in-vector parents)]
+          #:when dirty-this?)
+      (vector-set! dirty?-vec id #f)
       (when (eclass-proc analysis changed?-vec iter eclass id)
         ; eclass analysis was updated: need to revisit the parents
-        (define parent-ids (vector-ref parents id))
+        ; expose updates to later eclasses in this iteration
+        (vector-set! changed?-vec id #t)
         (vector-set! changed?-vec* id #t)
         (for ([parent-id (in-vector parent-ids)])
-          (vector-set! dirty?-vec* parent-id #t)
-          (set! dirty? #t))))
-    ; if dirty, analysis has not converged so loop
-    (when dirty?
-      (set! dirty?-vec dirty?-vec*) ; update eclasses that require visiting
-      (set! changed?-vec changed?-vec*) ; update eclasses that have changed
-      (sweep! (add1 iter))))
+          (vector-set! dirty?-vec parent-id #t)
+          (when (<= parent-id id)
+            (set! rerun? #t)))))
+    ; if rerun, analysis has not converged so loop
+    (when rerun?
+      (vector-fill! changed?-vec #f)
+      (sweep! (add1 iter) changed?-vec* changed?-vec)))
 
   ; Invariant: all eclasses have an analysis
   (for ([id (in-range n)]
-        #:unless (vector-ref analysis id))
+        [eclass-analysis (in-vector analysis)]
+        #:unless eclass-analysis)
     (define types (regraph-types regraph))
     (error 'regraph-analyze
            "analysis not run on all eclasses: ~a ~a"
            eclass-proc
            (for/vector #:length n
-                       ([id (in-range n)])
-             (define type (vector-ref types id))
-             (define eclass (vector-ref eclasses id))
-             (define eclass-analysis (vector-ref analysis id))
+                       ([id (in-range n)]
+                        [type (in-vector types)]
+                        [eclass (in-vector eclasses)]
+                        [eclass-analysis (in-vector analysis)])
              (list id type eclass eclass-analysis))))
 
   analysis)
