@@ -12,7 +12,8 @@ export PLTADDONDIR="${PLTADDONDIR:-pltlibs}"
 make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
-SEED=$(date "+%Y%j")
+# SEED=$(date "+%Y%j")
+SEED="2026068"
 BENCHDIR="$1"
 REPORTDIR="$2"
 PLATFORM="$3"
