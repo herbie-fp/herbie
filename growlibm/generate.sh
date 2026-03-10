@@ -14,8 +14,8 @@ rustup update
 make install
 BENCHDIR="bench/basilisk/"
 NUM_ITERS=2
-NUM_CANDIDATES=1000
-NUM_ADD=20
+NUM_CANDIDATES=625
+NUM_ADD=25
 
 # BENCHDIR="bench/numerics/kahan.fpcore"
 # NUM_ITERS=1
