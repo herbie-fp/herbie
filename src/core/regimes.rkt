@@ -3,6 +3,7 @@
 (require math/flonum
          "../core/alternative.rkt"
          "../utils/common.rkt"
+         "../utils/pareto.rkt"
          "../syntax/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
@@ -25,8 +26,6 @@
   #:methods gen:custom-write
   [(define (write-proc opt port mode)
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
-
-(struct brf-options (brf branch-root pts sorted-indices splitss scores) #:transparent)
 
 (define (pareto-regimes batch sorted start-prog ctx pcontext)
   (timeline-event! 'regimes)
@@ -51,74 +50,42 @@
   (define brf-vals (brf-values* batch branch-brfs ctx pcontext))
   (define reprs (batch-reprs batch ctx))
   (define pts-vec (pcontext-points pcontext))
-  (define branch-options*
+  (define option-curve
     (for/list ([brf (in-list branch-brfs)]
                [brf-vals-vec (in-list brf-vals)])
-      (options-on-brf batch
-                      err-cols-vec
-                      pts-vec
-                      brf
-                      (hash-ref branch-root-map brf)
-                      brf-vals-vec
-                      ctx
-                      reprs)))
-  (define errs (make-hash))
+      (branch-option-curve batch
+                           alts-vec
+                           err-cols-vec
+                           pts-vec
+                           brf
+                           (hash-ref branch-root-map brf)
+                           brf-vals-vec
+                           ctx
+                           reprs)))
+  (define combined-option-curve
+    (for/fold ([curve '()]) ([branch-curve (in-list option-curve)])
+      (pareto-union curve branch-curve #:combine (lambda (old _new) old))))
   (let loop ([count alt-count])
-    (cond
-      [(zero? count) '()]
-      ; Only return one option if not pareto mode
-      [else
-       (define opt
-         (infer-splitpoints batch branch-options* alts-vec err-cols-vec count errs ctx pcontext))
-       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
-       (cons opt (loop high))])))
-
-;; `infer-splitpoints` and `combine-alts` are split so the mainloop
-;; can insert a timeline break between them.
-
-(define (infer-splitpoints batch branch-options* alts-vec err-cols-vec count errs ctx pcontext)
-  (define alts
-    (for/list ([idx (in-range count)])
-      (vector-ref alts-vec idx)))
-  (define err-cols
-    (for/list ([idx (in-range count)])
-      (vector-ref err-cols-vec idx)))
-  (timeline-push! 'inputs (batch->jsexpr batch (map alt-expr alts)))
-  (define cerrs (hash-copy errs))
-  (define sorted-brfs
-    (sort branch-options*
-          (lambda (x y)
-            (< (hash-ref cerrs (brf-options-brf x) -1) (hash-ref cerrs (brf-options-brf y) -1)))))
-
-  ;; invariant:
-  ;; errs[bexpr] is some best option on branch expression bexpr computed on more alts than we have right now.
-  (define-values (best best-err)
-    (for/fold ([best '()]
-               [best-err +inf.0]
-               #:result (values best best-err))
-              ([brf-opts (in-list sorted-brfs)]
-               ;; stop if we've computed this (and following) branch-brf on more alts and it's still worse
-               #:break (> (hash-ref cerrs (brf-options-brf brf-opts) -1) best-err))
-      (define opt (select-option brf-opts alts err-cols count))
-      (define err
-        (+ (/ (flvector-ref (brf-options-scores brf-opts) (sub1 count)) (pcontext-length pcontext))
-           1))
-      (hash-set! errs (brf-options-brf brf-opts) err)
-      (if (< err best-err)
-          (values opt err)
-          (values best best-err))))
-
-  (timeline-push! 'count (length alts) (length (option-split-indices best)))
-  (define output-brfs
-    (for/list ([sidx (option-split-indices best)])
-      (alt-expr (list-ref alts (si-cidx sidx)))))
-  (timeline-push! 'outputs (batch->jsexpr batch output-brfs))
-  (timeline-push! 'baseline (baseline-errors-score err-cols))
-  (timeline-push! 'accuracy (errors-score (option-errors best)))
-  (define repr (context-repr ctx))
-  (timeline-push! 'repr (~a (representation-name repr)))
-  (timeline-push! 'oracle (oracle-errors-score err-cols))
-  best)
+    (if (zero? count)
+        '()
+        (let* ([ppt (select-curve-point combined-option-curve count)]
+               [opt (pareto-point-data ppt)]
+               [output-brfs (for/list ([sidx (in-list (option-split-indices opt))])
+                              (alt-expr (list-ref (option-alts opt) (si-cidx sidx))))]
+               [next-count (si-cidx (argmax (lambda (sidx) (si-cidx sidx))
+                                            (option-split-indices opt)))])
+          (timeline-push! 'inputs (batch->jsexpr batch (map alt-expr (option-alts opt))))
+          (timeline-push! 'count (length (option-alts opt)) (length (option-split-indices opt)))
+          (timeline-push! 'outputs (batch->jsexpr batch output-brfs))
+          (timeline-push! 'baseline
+                          (baseline-errors-score (prefix-error-columns err-cols-vec
+                                                                       (pareto-point-cost ppt))))
+          (timeline-push! 'accuracy (errors-score (option-errors opt)))
+          (timeline-push! 'repr (~a (representation-name (context-repr ctx))))
+          (timeline-push! 'oracle
+                          (oracle-errors-score (prefix-error-columns err-cols-vec
+                                                                     (pareto-point-cost ppt))))
+          (cons opt (loop next-count))))))
 
 (define (exprs-to-branch-on batch start-prog ctx)
   (define exprs (batch-exprs batch))
@@ -150,7 +117,22 @@
       (vector-set! (vector-ref vals i) p out)))
   (vector->list vals))
 
-(define (options-on-brf batch err-cols-vec pts-vec brf branch-root brf-vals-vec ctx reprs)
+(define (prefix-error-columns err-cols-vec count)
+  (for/list ([idx (in-range count)])
+    (vector-ref err-cols-vec idx)))
+
+(define (select-curve-point curve count)
+  (findf (lambda (ppt) (<= (pareto-point-cost ppt) count)) curve))
+
+(define (branch-option-curve batch
+                             alts-vec
+                             err-cols-vec
+                             pts-vec
+                             brf
+                             branch-root
+                             brf-vals-vec
+                             ctx
+                             reprs)
   (define timeline-stop! (timeline-start! 'times (batch->jsexpr batch (list brf))))
   (define repr (reprs brf))
   (define sorted-indices
@@ -167,31 +149,31 @@
                      [prev-idx (in-vector sorted-indices 0 (sub1 (vector-length sorted-indices)))])
             (</total (vector-ref brf-vals-vec prev-idx) (vector-ref brf-vals-vec idx) repr))))
   (define-values (splitss scores)
-    (infer-split-indices* (vector->list err-cols-vec) sorted-indices can-split?))
+    (infer-option-prefixes (vector->list err-cols-vec) sorted-indices can-split?))
+  (define full-count-splits (vector-ref splitss (sub1 (vector-length splitss))))
   (timeline-stop!)
   (timeline-push! 'branch
                   branch-root
                   (/ (flvector-ref scores (sub1 (flvector-length scores)))
                      (vector-length sorted-indices))
-                  (length (vector-ref splitss (sub1 (vector-length splitss))))
+                  (length full-count-splits)
                   (~a (representation-name repr)))
-  (brf-options brf branch-root pts* sorted-indices splitss scores))
-
-(define (select-option brf-opts alts err-cols count)
-  (define split-indices (vector-ref (brf-options-splitss brf-opts) (sub1 count)))
-  (option split-indices
-          alts
-          (brf-options-pts brf-opts)
-          (brf-options-brf brf-opts)
-          (pick-errors split-indices (brf-options-sorted-indices brf-opts) err-cols)))
+  (for/fold ([curve '()]) ([count (in-range 1 (add1 (vector-length splitss)))])
+    (define split-indices (vector-ref splitss (sub1 count)))
+    (define alts
+      (for/list ([idx (in-range count)])
+        (vector-ref alts-vec idx)))
+    (define error (+ (/ (flvector-ref scores (sub1 count)) (vector-length sorted-indices)) 1))
+    (define opt
+      (option split-indices alts pts* brf (pick-errors split-indices sorted-indices err-cols-vec)))
+    (pareto-union curve (list (pareto-point count error opt)) #:combine (lambda (old _new) old))))
 
 (define/contract (pick-errors split-indices sorted-indices err-cols)
-  (-> (listof si?) vector? (listof flvector?) flvector?)
-  (define err-cols-vec (list->vector err-cols))
+  (-> (listof si?) vector? vector? flvector?)
   (for/flvector #:length (vector-length sorted-indices)
                 ([i (in-naturals)] [point-idx (in-vector sorted-indices)])
                 (define alt-idx (si-cidx (findf (lambda (x) (< i (si-pidx x))) split-indices)))
-                (flvector-ref (vector-ref err-cols-vec alt-idx) point-idx)))
+                (flvector-ref (vector-ref err-cols alt-idx) point-idx)))
 
 (define (baseline-errors-score err-cols)
   (apply min (map errors-score err-cols)))
@@ -217,29 +199,42 @@
     (define-values (batch brfs) (progs->batch (list expr)))
     (define brf (car brfs))
     (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
+    (define err-cols-vec (list->vector err-cols))
     (define brf-root (first (hash-ref (batch->jsexpr batch (list brf)) 'roots)))
     (define reprs (batch-reprs batch ctx))
-    (define err-cols-vec (list->vector err-cols))
     (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (select-option (options-on-brf batch err-cols-vec pts-vec brf brf-root brf-vals ctx reprs)
-                          alts
-                          err-cols
-                          (length alts))
+           (pareto-point-data (first (branch-option-curve batch
+                                                          (list->vector alts)
+                                                          err-cols-vec
+                                                          pts-vec
+                                                          brf
+                                                          brf-root
+                                                          brf-vals
+                                                          ctx
+                                                          reprs)))
            goal))
 
   (define (test-regimes/prefixes expr goals)
     (define-values (batch brfs) (progs->batch (list expr)))
     (define brf (car brfs))
     (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
+    (define err-cols-vec (list->vector err-cols))
     (define brf-root (first (hash-ref (batch->jsexpr batch (list brf)) 'roots)))
     (define reprs (batch-reprs batch ctx))
-    (define err-cols-vec (list->vector err-cols))
-    (define opts (options-on-brf batch err-cols-vec pts-vec brf brf-root brf-vals ctx reprs))
+    (define options
+      (map pareto-point-data
+           (reverse (branch-option-curve batch
+                                         (list->vector alts)
+                                         err-cols-vec
+                                         pts-vec
+                                         brf
+                                         brf-root
+                                         brf-vals
+                                         ctx
+                                         reprs))))
     (for ([goal (in-list goals)]
-          [count (in-range 1 (add1 (length goals)))])
-      (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
-             (select-option opts (take alts count) (take err-cols count) count)
-             goal)))
+          [opt (in-list options)])
+      (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y)) opt goal)))
 
   ;; This is a basic sanity test
   (test-regimes 'x '(1 0))
@@ -261,8 +256,7 @@
 
 (module core typed/racket
   (provide (struct-out si)
-           infer-split-indices
-           infer-split-indices*)
+           infer-option-prefixes)
   (require math/flonum)
 
   ;; Struct representing a splitindex
@@ -282,12 +276,12 @@
   ;; Returns a list of split indices saying which alt to use for which
   ;; range of points. Starting at 1 going up to num-points.
   ;; Alts are indexed 0 and points are index 1.
-  (: infer-split-indices*
+  (: infer-option-prefixes
      (-> (Listof FlVector)
          (Vectorof Integer)
          (Listof Boolean)
          (Values (Vectorof (Listof si)) FlVector)))
-  (define (infer-split-indices* err-cols sorted-indices can-split)
+  (define (infer-option-prefixes err-cols sorted-indices can-split)
     ;; Converts the list to vector form for faster processing
     (define can-split-vec (list->vector can-split))
     (define number-of-alts (length err-cols))
@@ -411,11 +405,6 @@
       (for/flvector #:length number-of-alts
                     ([alt-idx (in-range number-of-alts)])
                     (flvector-ref (vector-ref result-error-sums alt-idx) (sub1 number-of-points))))
-    (values splitss scores))
-
-  (: infer-split-indices (-> (Listof FlVector) (Vectorof Integer) (Listof Boolean) (Listof si)))
-  (define (infer-split-indices err-cols sorted-indices can-split)
-    (define-values (splitss _) (infer-split-indices* err-cols sorted-indices can-split))
-    (vector-ref splitss (sub1 (vector-length splitss)))))
+    (values splitss scores)))
 
 (require (submod "." core))
