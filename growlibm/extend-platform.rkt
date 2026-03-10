@@ -19,7 +19,7 @@
 (define accelerators-path "reports/accelerators.json")
 (define grow-platform-path "growlibm/grow.rkt")
 
-(define implication-threshold 0.5)
+(define implication-threshold 0.95)
 (define top-k (string->number (vector-ref (current-command-line-arguments) 1)))
 (define implication-seed (string->number (vector-ref (current-command-line-arguments) 2)))
 (disable-flag! 'generate 'taylor)
@@ -200,7 +200,7 @@
             0.0
             (/ diff original-err)))
       (displayln  (format "     ~a: ~a, ~a ~a ~a" (candidate-name cand-b) (candidate-spec cand-b) err diff improvement-ratio))
-      (when (> improvement-ratio implication-threshold)
+      (when (> err implication-threshold)
         (displayln (format "     -> IMPLICATION DETECTED: ~a implies ~a" name-a (candidate-name cand-b)))
         (define name-b (candidate-name cand-b))
         (hash-set! implied-by name-b (set-add (hash-ref implied-by name-b (set)) name-a))))))
