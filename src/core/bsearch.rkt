@@ -47,12 +47,12 @@
   (alt brf* (list 'regimes splitpoints**) alts*))
 
 (define (combine-alts batch best-option ctx)
-  (match-define (option splitindices alts pts brf _) best-option)
+  (match-define (option splitindices alts pts brf) best-option)
   (define splitpoints (sindices->spoints/left batch pts brf splitindices ctx))
   (finish-combine-alts batch alts brf splitindices splitpoints ctx))
 
 (define (combine-alts/binary batch best-option start-prog ctx pcontext)
-  (match-define (option splitindices alts pts brf _) best-option)
+  (match-define (option splitindices alts pts brf) best-option)
   (define splitpoints
     (sindices->spoints/binary batch pts brf alts splitindices start-prog ctx pcontext))
   (finish-combine-alts batch alts brf splitindices splitpoints ctx))
