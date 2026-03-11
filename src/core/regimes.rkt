@@ -40,7 +40,7 @@
   (timeline-event! 'regimes)
   (define alts-vec (list->vector sorted))
   (define alt-count (vector-length alts-vec))
-  (define err-cols-vec (list->vector (batch-errors batch (map alt-expr sorted) pcontext ctx)))
+  (define err-cols (batch-errors batch (map alt-expr sorted) pcontext ctx))
   (define branch-brfs
     (if (flag-set? 'reduce 'branch-expressions)
         (exprs-to-branch-on batch start-prog ctx)
@@ -61,7 +61,7 @@
                [brf-vals-vec (in-list brf-vals)])
       (define timeline-stop! (timeline-start! 'times (batch->jsexpr batch (list brf))))
       (define repr (reprs brf))
-      (define curve (branch-options batch alts-vec err-cols-vec pts-vec brf brf-vals-vec repr))
+      (define curve (branch-options batch alts-vec err-cols pts-vec brf brf-vals-vec repr))
       (define last-point (last curve))
       (timeline-stop!)
       (timeline-push! 'branch
@@ -84,10 +84,10 @@
     (timeline-push! 'inputs (batch->jsexpr batch (map alt-expr (option-alts opt))))
     (timeline-push! 'count (length (option-alts opt)) (length (option-split-indices opt)))
     (timeline-push! 'outputs (batch->jsexpr batch output-brfs))
-    (timeline-push! 'baseline (baseline-errors-score err-cols-vec (pareto-point-cost ppt)))
+    (timeline-push! 'baseline (baseline-errors-score err-cols (pareto-point-cost ppt)))
     (timeline-push! 'accuracy (- (pareto-point-error ppt) (length (option-split-indices opt))))
     (timeline-push! 'repr (~a (representation-name (context-repr ctx))))
-    (timeline-push! 'oracle (oracle-errors-score err-cols-vec (pareto-point-cost ppt)))
+    (timeline-push! 'oracle (oracle-errors-score err-cols (pareto-point-cost ppt)))
     opt))
 
 (define (exprs-to-branch-on batch start-prog ctx)
@@ -108,14 +108,14 @@
   (and (not (null? crit-vars)) (null? (set-intersect crit-vars non-crit-vars))))
 
 (define (baseline-errors-score err-cols count)
-  (for/fold ([best +inf.0]) ([idx (in-range count)])
-    (min best (errors-score (vector-ref err-cols idx)))))
+  (for/fold ([best +inf.0]) ([err-col (in-list (take err-cols count))])
+    (min best (errors-score err-col))))
 
 (define (oracle-errors-score err-cols count)
-  (define num-points (flvector-length (vector-ref err-cols 0)))
+  (define num-points (flvector-length (first err-cols)))
   (/ (for/sum ([point-idx (in-range num-points)])
-              (for/fold ([max-err 0.0]) ([idx (in-range count)])
-                (max max-err (flvector-ref (vector-ref err-cols idx) point-idx))))
+              (for/fold ([max-err 0.0]) ([err-col (in-list (take err-cols count))])
+                (max max-err (flvector-ref err-col point-idx))))
      num-points))
 
 (define (brf-values* batch brfs ctx pcontext)
@@ -130,7 +130,7 @@
       (vector-set! (vector-ref vals i) p out)))
   (vector->list vals))
 
-(define (branch-options batch alts-vec err-cols-vec pts-vec brf brf-vals-vec repr)
+(define (branch-options batch alts-vec err-cols pts-vec brf brf-vals-vec repr)
   (define sorted-indices
     (vector-sort (build-vector (vector-length brf-vals-vec) values)
                  (lambda (i j)
@@ -139,15 +139,12 @@
     (for/list ([i (in-vector sorted-indices)])
       (vector-ref pts-vec i)))
   (define can-split?
-    (for/vector #:length (vector-length sorted-indices)
-                ([idx (in-vector sorted-indices)]
-                 [i (in-naturals)])
-      (if (zero? i)
-          #f
-          (let ([prev-idx (vector-ref sorted-indices (sub1 i))])
-            (</total (vector-ref brf-vals-vec prev-idx) (vector-ref brf-vals-vec idx) repr)))))
+    (cons #f
+          (for/list ([idx (in-vector sorted-indices 1)]
+                     [prev-idx (in-vector sorted-indices 0)])
+            (</total (vector-ref brf-vals-vec prev-idx) (vector-ref brf-vals-vec idx) repr))))
 
-  (define-values (splitss scores) (infer-option-prefixes err-cols-vec sorted-indices can-split?))
+  (define-values (splitss scores) (infer-option-prefixes err-cols sorted-indices can-split?))
 
   (define points
     (for/list ([count (in-range 1 (add1 (vector-length splitss)))])
@@ -172,28 +169,24 @@
     (define-values (batch brfs) (progs->batch (list expr)))
     (define brf (car brfs))
     (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
-    (define err-cols-vec (list->vector err-cols))
     (define brf-root (first (hash-ref (batch->jsexpr batch (list brf)) 'roots)))
     (define reprs (batch-reprs batch ctx))
     (check
      (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
      (pareto-point-data
-      (first
-       (branch-options batch (list->vector alts) err-cols-vec pts-vec brf brf-vals (reprs brf))))
+      (first (branch-options batch (list->vector alts) err-cols pts-vec brf brf-vals (reprs brf))))
      goal))
 
   (define (test-regimes/prefixes expr goals)
     (define-values (batch brfs) (progs->batch (list expr)))
     (define brf (car brfs))
     (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
-    (define err-cols-vec (list->vector err-cols))
     (define brf-root (first (hash-ref (batch->jsexpr batch (list brf)) 'roots)))
     (define reprs (batch-reprs batch ctx))
     (define options
-      (map
-       pareto-point-data
-       (reverse
-        (branch-options batch (list->vector alts) err-cols-vec pts-vec brf brf-vals (reprs brf)))))
+      (map pareto-point-data
+           (reverse
+            (branch-options batch (list->vector alts) err-cols pts-vec brf brf-vals (reprs brf)))))
     (for ([goal (in-list goals)]
           [opt (in-list options)])
       (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y)) opt goal)))
@@ -212,8 +205,8 @@
 
 (define (valid-splitindices? can-split? split-indices)
   (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
-         (and (> pidx 0) (vector-ref can-split? pidx)))
-       (= (si-pidx (last split-indices)) (vector-length can-split?))))
+         (and (> pidx 0) (list-ref can-split? pidx)))
+       (= (si-pidx (last split-indices)) (length can-split?))))
 
 (module core typed/racket
   (provide (struct-out si)
@@ -238,21 +231,22 @@
   ;; range of points. Starting at 1 going up to num-points.
   ;; Alts are indexed 0 and points are index 1.
   (: infer-option-prefixes
-     (-> (Vectorof FlVector)
+     (-> (Listof FlVector)
          (Vectorof Integer)
-         (Vectorof Boolean)
+         (Listof Boolean)
          (Values (Vectorof (Listof si)) FlVector)))
   (define (infer-option-prefixes err-cols sorted-indices can-split)
-    (define number-of-alts (vector-length err-cols))
+    (define can-split-vec (list->vector can-split))
+    (define number-of-alts (length err-cols))
     (define flvec-psums
       (for/vector #:length number-of-alts
-                  ([err-col (in-vector err-cols)])
+                  ([err-col (in-list err-cols)])
         :
         FlVector
         (flvector-sums (resort-errors err-col sorted-indices))))
 
     ;; Set up data needed for algorithm
-    (define number-of-points (vector-length can-split))
+    (define number-of-points (vector-length can-split-vec))
     ;; min-weight is used as penalty to favor not adding split points
     (define min-weight (fl number-of-points))
 
@@ -306,7 +300,7 @@
         ;; available alt.
         (for ([prev-split-idx (in-range point-idx)]
               [prev-alt-error-sum (in-flvector alt-error-sums)]
-              [can-split (in-vector can-split 1)]
+              [can-split (in-vector can-split-vec 1)]
               #:when can-split)
           (define best-alt-idx (vector-ref best-alt-idxs prev-split-idx))
           (define best-alt-cost (flvector-ref best-alt-costs prev-split-idx))
@@ -321,7 +315,7 @@
               [r-error-sum (in-flvector alt-result-error-sums)]
               [best-alt-idx (in-vector best-alt-idxs)]
               [best-alt-cost (in-flvector best-alt-costs)]
-              [can-split (in-vector can-split 1)]
+              [can-split (in-vector can-split-vec 1)]
               #:when can-split)
           (define alt-error-sum (+ r-error-sum best-alt-cost min-weight))
           (define set-cond
