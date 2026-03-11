@@ -261,7 +261,7 @@
                        ctx
                        (*pcontext*)))
      (for/list ([opt (in-list opts)])
-       (match-define (option splitindices opt-alts _ brf _) opt)
+       (match-define (option splitindices opt-alts _ brf) opt)
        (timeline-event! 'bsearch)
        (define exprs (batch-exprs batch))
        (define branch-expr (exprs brf))
