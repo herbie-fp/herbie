@@ -86,7 +86,6 @@
     (timeline-push! 'outputs (batch->jsexpr batch output-brfs))
     (timeline-push! 'baseline (baseline-errors-score err-cols (pareto-point-cost ppt)))
     (timeline-push! 'accuracy (- (pareto-point-error ppt) (length (option-split-indices opt))))
-    (timeline-push! 'repr (~a (representation-name (context-repr ctx))))
     (timeline-push! 'oracle (oracle-errors-score err-cols (pareto-point-cost ppt)))
     opt))
 
