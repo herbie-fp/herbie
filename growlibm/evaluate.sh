@@ -29,12 +29,12 @@ racket -y src/main.rkt report \
         $BENCHDIR \
         $REPORTDIR/$PLATFORM/growlibm_base
 
-racket -y src/main.rkt report \
-        --seed "$SEED" \
-        --platform c \
-        --num-enodes $NUM_ENODES \
-        $BENCHDIR \
-        $REPORTDIR/$PLATFORM/herbie20_base
+# racket -y src/main.rkt report \
+#         --seed "$SEED" \
+#         --platform c \
+#         --num-enodes $NUM_ENODES \
+#         $BENCHDIR \
+#         $REPORTDIR/$PLATFORM/herbie20_base
 
 racket -y src/main.rkt report \
         --seed $SEED \
@@ -129,3 +129,4 @@ racket -y src/main.rkt report \
 
 python3 growlibm/evaluate-report.py "$REPORTDIR/$PLATFORM" "$PLATFORM"
 python3 growlibm/evaluate-frontier.py "$REPORTDIR/$PLATFORM" "$PLATFORM"
+python3 growlibm/evaluate-best-alt-bars.py "$REPORTDIR/$PLATFORM" "$PLATFORM"
