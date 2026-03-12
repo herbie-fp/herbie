@@ -126,6 +126,7 @@
   (define (group-equivalent-alts alts)
     (define fn (compile-batch (*global-batch*) (map alt-expr alts) (*context*)))
     (define signatures (make-vector (length alts) '()))
+    (define batch-cost (alt-batch-costs (*global-batch*) (*context*)))
 
     (for ([pt (in-vector (pcontext-points (*pcontext*)))])
       (define outs (fn pt))
@@ -133,16 +134,20 @@
             [idx (in-naturals)])
         (vector-set! signatures idx (cons out (vector-ref signatures idx)))))
 
-    (define seen (make-hash))
-    (reverse (for/fold ([grouped '()])
-                       ([altn (in-list alts)]
-                        [signature (in-vector signatures)])
-               (define key (cons (get-starting-expr altn) signature))
-               (cond
-                 [(hash-has-key? seen key) grouped]
-                 [else
-                  (hash-set! seen key #t)
-                  (cons altn grouped)]))))
+    (define (best-alt alt1 alt2)
+      (define cost1 (batch-cost (alt-expr alt1)))
+      (define cost2 (batch-cost (alt-expr alt2)))
+      (if (or (< cost1 cost2) (and (= cost1 cost2) (expr<? (alt-expr alt1) (alt-expr alt2))))
+          alt1
+          alt2))
+
+    (define groups (make-hash))
+    (for ([altn (in-list alts)]
+          [signature (in-vector signatures)])
+      (define key (cons (get-starting-expr altn) signature))
+      (hash-update! groups key (curry best-alt altn) altn))
+
+    (hash-values groups))
 
   (define (compute-referrers parents root)
     (define seen (mutable-seteq))
