@@ -127,6 +127,3 @@ racket -y src/main.rkt report \
 #         "$BENCHDIR" \
 #         "$REPORTDIR/growlibmbest_base" 
 
-python3 growlibm/evaluate-report.py "$REPORTDIR/$PLATFORM" "$PLATFORM"
-python3 growlibm/evaluate-frontier.py "$REPORTDIR/$PLATFORM" "$PLATFORM"
-python3 growlibm/evaluate-best-alt-bars.py "$REPORTDIR/$PLATFORM" "$PLATFORM"
