@@ -113,8 +113,8 @@
 (define (oracle-errors-score err-cols count)
   (define num-points (flvector-length (first err-cols)))
   (/ (for/sum ([point-idx (in-range num-points)])
-              (for/fold ([max-err 0.0]) ([err-col (in-list (take err-cols count))])
-                (max max-err (flvector-ref err-col point-idx))))
+              (for/fold ([best-err +inf.0]) ([err-col (in-list (take err-cols count))])
+                (min best-err (flvector-ref err-col point-idx))))
      num-points))
 
 (define (brf-values* batch brfs ctx pcontext)
@@ -168,7 +168,6 @@
     (define-values (batch brfs) (progs->batch (list expr)))
     (define brf (car brfs))
     (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
-    (define brf-root (first (hash-ref (batch->jsexpr batch (list brf)) 'roots)))
     (define reprs (batch-reprs batch ctx))
     (check
      (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
@@ -180,7 +179,6 @@
     (define-values (batch brfs) (progs->batch (list expr)))
     (define brf (car brfs))
     (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
-    (define brf-root (first (hash-ref (batch->jsexpr batch (list brf)) 'roots)))
     (define reprs (batch-reprs batch ctx))
     (define options
       (map pareto-point-data
@@ -199,8 +197,10 @@
   ;; splitpoint (the second, since it is better at the further point).
   (test-regimes (literal 1 'binary64) '(0))
 
-  (test-regimes `(if.f64 (==.f64 x ,(literal 0.5 'binary64)) ,(literal 1 'binary64) (NAN.f64))
-                '(1 0)))
+  (test-regimes `(if.f64 (==.f64 x ,(literal 0.5 'binary64)) ,(literal 1 'binary64) (NAN.f64)) '(1 0))
+
+  (check-equal? (baseline-errors-score err-cols 2) 26.5)
+  (check-equal? (oracle-errors-score err-cols 2) 0.0))
 
 (define (valid-splitindices? can-split? split-indices)
   (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
