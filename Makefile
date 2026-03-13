@@ -87,7 +87,7 @@ compile-accelerators:
 
 generate-table:
 	racket growlibm/eval/generate-table.rkt
-	pandoc growlibm/accelerator-table.tex -o out.html
+	pandoc growlibm/eval/accelerator-table.tex -o out.html
 
 make-graphs:
 	python3 growlibm/eval/evaluate-frontier.py reports/proj PROJ --accelerators-only --max-relative-speedup 1.5
