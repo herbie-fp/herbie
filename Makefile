@@ -86,8 +86,16 @@ compile-accelerators:
 		-lm
 
 generate-table:
-	racket growlibm/generate-table.rkt
+	racket growlibm/eval/generate-table.rkt
 	pandoc growlibm/accelerator-table.tex -o out.html
+
+make-graphs:
+	python3 growlibm/eval/evaluate-frontier.py reports/proj PROJ --accelerators-only --max-relative-speedup 1.5
+	python3 growlibm/eval/evaluate-frontier.py reports/basilisk Basilisk --accelerators-only --max-relative-speedup 2.5
+	python3 growlibm/eval/evaluate-frontier.py reports/coolprop CoolProp --accelerators-only --max-relative-speedup 2
+	python3 growlibm/eval/evaluate-best-alt-bars.py reports/proj PROJ
+	python3 growlibm/eval/evaluate-best-alt-bars.py reports/basilisk Basilisk
+	python3 growlibm/eval/evaluate-best-alt-bars.py reports/coolprop CoolProp 
 
 upgrade:
 	git pull

@@ -1,20 +1,16 @@
-import subprocess
+import argparse
 import math
+import subprocess
 import sys
 
-NUM_RUNS = 250
+DEFAULT_NUM_RUNS = 250
 BASE_DIR = "growlibm/timing"
 unary_accelerators = ['log1pmd', 'invgud', 'verdcos', 'powcos2', 'powcos4', 'powcos6']
 binary_accelerators = ['sinprod', 'cosprod', 'hypot', 'powcos', 'pow1ms']
 unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'exp', 'exp2', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc'] + unary_accelerators
 binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', 'fmod', 'pow', 'remainder'] + binary_accelerators
-# to_test = ['sin_xy', 'cos_xy', 'sin_quotient_xy', 'cos_quotient_xy', 'sin', 'cos', '/']
-#'log', 'log1pmd', 'invgud', 'hypot', 'verdcos', 'sin', 'cos', 'sinprod', 'cosprod',
-# to_test =  ['+', 'pow','pow1ms', 'pown2o3', 'pow2o5', 'pow3o5', 'pow5o3', 'pown16o5']
-to_test = ['+', 'log1pmd', 'invgud', 'hypot', 'verdcos', 'sinprod', 'cosprod']
-# 'invgud', 'hypot', 'verdcos', 'sinprod', 'cosprod'
-# to_test = binary_ops + unary_ops 
-to_test = binary_ops + unary_ops 
+all_ops = binary_ops + unary_ops
+default_ops = all_ops
 times = {}
 costs = {}
 plus_time = 0
@@ -48,7 +44,62 @@ def generate_fpcore(op : str) -> FPCore:
         core = format_fpcore(op, 2)
     return core
 
-def generate_driver(compiled, input_points, arity, filepath):
+def positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("value must be positive")
+    return parsed
+
+def parse_args(argv):
+    parser = argparse.ArgumentParser(
+        description="Time growlibm ops by sampling inputs, compiling a driver, and benchmarking it."
+    )
+    parser.add_argument(
+        "--seed",
+        help="Seed passed to sample.rkt",
+    )
+    parser.add_argument(
+        "--runs",
+        type=positive_int,
+        default=DEFAULT_NUM_RUNS,
+        help=f"Number of benchmark iterations per op (default: {DEFAULT_NUM_RUNS})",
+    )
+    parser.add_argument(
+        "--sample-limit",
+        type=positive_int,
+        help="Limit the number of sampled inputs per op",
+    )
+    parser.add_argument(
+        "--ops",
+        nargs="+",
+        default=default_ops,
+        help=f"Ops to benchmark (default: {' '.join(default_ops)})",
+    )
+    parser.add_argument(
+        "--order",
+        choices=["both", "sorted", "unsorted"],
+        default="both",
+        help="Whether to benchmark sorted inputs, unsorted inputs, or both",
+    )
+    parser.add_argument(
+        "legacy_seed",
+        nargs="?",
+        help="Backward-compatible positional seed",
+    )
+
+    args = parser.parse_args(argv)
+    if args.seed is not None and args.legacy_seed is not None:
+        parser.error("pass the seed either positionally or with --seed, not both")
+
+    args.seed = args.seed if args.seed is not None else args.legacy_seed
+
+    invalid_ops = [op for op in args.ops if op not in all_ops]
+    if invalid_ops:
+        parser.error(f"unknown ops: {', '.join(invalid_ops)}")
+
+    return args
+
+def generate_driver(compiled, input_points, arity, filepath, runs):
     with open(filepath, 'w') as f:
         print('#include <math.h>', file=f)
         print('#include <stdio.h>', file=f)
@@ -57,7 +108,7 @@ def generate_driver(compiled, input_points, arity, filepath):
         print('#include \"../../accelerators/accelerators.h\"', file=f)
         print('#define TRUE 1', file=f)
         print('#define FALSE 0', file=f)
-        print(f'#define NUM_RUNS {NUM_RUNS}', file=f)
+        print(f'#define NUM_RUNS {runs}', file=f)
 
         print(f'static inline {compiled}', file=f)
 
@@ -108,7 +159,28 @@ def sample_points(fpcore, seed):
     result = run_command(cmd)
     return [i.split() for i in result.splitlines()]
 
-def time_op(op, sort_points, points):
+def order_modes(order):
+    if order == "sorted":
+        return [("sorted", True)]
+    if order == "unsorted":
+        return [("unsorted", False)]
+    return [("unsorted", False), ("sorted", True)]
+
+def print_header(order):
+    print('--------------------------------------------------')
+    if order == "both":
+        print('|', 'op'.ljust(20), '|', 'unsorted'.ljust(10), '|', 'sorted'.ljust(10), '|')
+    else:
+        print('|', 'op'.ljust(20), '|', order.ljust(10), '|')
+    print('--------------------------------------------------')
+
+def print_result_row(op, timings, order):
+    if order == "both":
+        print('|', op.ljust(20), '|', f'{timings["unsorted"]:.5f} ms', '|', f'{timings["sorted"]:.5f} ms', '|')
+    else:
+        print('|', op.ljust(20), '|', f'{timings[order]:.5f} ms', '|')
+
+def time_op(op, sort_points, points, runs):
     fpcore = generate_fpcore(op)
     points = list(points)
     if sort_points:
@@ -117,8 +189,9 @@ def time_op(op, sort_points, points):
 
     result = run_command(['racket', f'{BASE_DIR}/compile.rkt', fpcore.core])
     op_name = 'div' if op == '/' else op
-    driver_name = f'{'sorted' if sort_points else 'unsorted'}_{op_name}.c'
-    generate_driver(result, _points, str(fpcore.arity), f'{BASE_DIR}/drivers/{driver_name}')
+    order_name = "sorted" if sort_points else "unsorted"
+    driver_name = f"{order_name}_{op_name}.c"
+    generate_driver(result, _points, str(fpcore.arity), f'{BASE_DIR}/drivers/{driver_name}', runs)
 
     cmd = [
         'clang',
@@ -141,27 +214,42 @@ def time_op(op, sort_points, points):
     return float(result)
 
 if __name__ == "__main__":
-    seed = None
-    if len(sys.argv) == 2:
-        seed = sys.argv[1]
-    elif len(sys.argv) == 3 and sys.argv[1] == '--seed':
-        seed = sys.argv[2]
+    args = parse_args(sys.argv[1:])
+    mode_list = order_modes(args.order)
+
+    print_header(args.order)
+
+    for op in args.ops:
+        points = sample_points(generate_fpcore(op), args.seed)
+        if args.sample_limit is not None:
+            points = points[:args.sample_limit]
+
+        if not points:
+            raise RuntimeError(f"no sample points generated for {op}")
+
+        print(
+            f"Timing {op} with {len(points)} sample points and {args.runs} runs...",
+            file=sys.stderr,
+        )
+
+        timings = {}
+        for label, sort_points in mode_list:
+            timings[label] = time_op(op, sort_points, points, args.runs)
+
+        primary_label = "unsorted" if "unsorted" in timings else mode_list[0][0]
+        times[op] = timings[primary_label]
+        if op == "+":
+            plus_time = timings[primary_label]
+
+        print_result_row(op, timings, args.order)
 
     print('--------------------------------------------------')
-    print('|', 'op'.ljust(20), '|', 'unsorted'.ljust(10), '|', 'sorted'.ljust(10), '|')
-    print('--------------------------------------------------')
 
-    for op in to_test:
-        points = sample_points(generate_fpcore(op), seed)
-        unsorted = time_op(op, False, points)
-        sorted = time_op(op, True, points)
-        times[op] = unsorted
-        if op == "+": plus_time = unsorted 
-        print('|', op.ljust(20), '|', f'{unsorted:.5f} ms', '|', f'{sorted:.5f} ms', '|')
-    print('--------------------------------------------------')
+    if plus_time > 0:
+        for op, time in times.items():
+            costs[op] = time / plus_time * .2
 
-    for op, time in times.items():
-        costs[op] = time/plus_time * .2
-    
-    for op, cost in costs.items():
-        print(op, cost)
+        for op, cost in costs.items():
+            print(op, cost)
+    else:
+        print("Skipping cost ratios because '+' was not benchmarked.", file=sys.stderr)
