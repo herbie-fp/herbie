@@ -8,6 +8,14 @@ typedef struct {
   double lo;
 } dd_t;
 
+static inline void sincos_wrapper(double x, double *s, double *c) {
+#if defined(__APPLE__)
+  __sincos(x, s, c);
+#else
+  sincos(x, s, c);
+#endif
+}
+
 static inline dd_t dd_make(double hi, double lo) {
   double s = hi + lo;
   double e = lo - (s - hi);
@@ -463,16 +471,6 @@ static void split_32(double a, double *hi, double *lo) {
   }
 }
 
-static dd_t two_over_pi_dd(void) {
-  dd_t acc = dd_from_double(0.0);
-  int i;
-  for (i = 0; i < (int)(sizeof(TWO_OVER_PI_LIMBS) / sizeof(TWO_OVER_PI_LIMBS[0])); ++i) {
-    double term = ldexp((double)TWO_OVER_PI_LIMBS[i], -16 * (i + 1));
-    acc = dd_add_d(acc, term);
-  }
-  return acc;
-}
-
 static void build_y_pi_stream(double y, ypi_stream_t *stream) {
   split_32(y, &stream->y_hi, &stream->y_lo);
 }
@@ -504,22 +502,28 @@ static int grow_expansion_zeroelim(int elen, const double *e, double b, double *
   return hlen;
 }
 
-static int expansion_add_term(int len, double *exp, double term, double *scratch) {
-  int out = grow_expansion_zeroelim(len, exp, term, scratch);
-  memcpy(exp, scratch, (size_t)out * sizeof(double));
-  return out;
-}
-
 static int expansion_add_terms_signed(int len,
                                       double *exp,
                                       int nterms,
                                       const double *terms,
                                       double sign,
                                       double *scratch) {
+  double *cur = exp;
+  double *next = scratch;
   int i;
+
   for (i = 0; i < nterms; ++i) {
-    len = expansion_add_term(len, exp, sign * terms[i], scratch);
+    double *tmp;
+    len = grow_expansion_zeroelim(len, cur, sign * terms[i], next);
+    tmp = cur;
+    cur = next;
+    next = tmp;
   }
+
+  if (cur != exp) {
+    memcpy(exp, cur, (size_t)len * sizeof(double));
+  }
+
   return len;
 }
 
@@ -557,18 +561,33 @@ static int build_candidate_expansion(const ypi_stream_t *stream,
                                      int shift,
                                      double *cand,
                                      double *scratch) {
+  double *cur = cand;
+  double *next = scratch;
   int len = 1;
   int n = N_PI_LIMBS;
   int i;
-  cand[0] = 0.0;
+  cur[0] = 0.0;
 
   for (i = n - 1; i >= 0; --i) {
     int e = shift - 16 * i;
     double limb = (double)PI_LIMBS[i];
     double t_hi = ldexp(stream->y_hi, e) * limb;
     double t_lo = ldexp(stream->y_lo, e) * limb;
-    len = expansion_add_term(len, cand, t_hi, scratch);
-    len = expansion_add_term(len, cand, t_lo, scratch);
+    double *tmp;
+
+    len = grow_expansion_zeroelim(len, cur, t_hi, next);
+    tmp = cur;
+    cur = next;
+    next = tmp;
+
+    len = grow_expansion_zeroelim(len, cur, t_lo, next);
+    tmp = cur;
+    cur = next;
+    next = tmp;
+  }
+
+  if (cur != cand) {
+    memcpy(cand, cur, (size_t)len * sizeof(double));
   }
 
   return len;
@@ -579,16 +598,12 @@ typedef struct {
   int quotient_mod2;
 } reduce_out_t;
 
-static reduce_out_t hp_reduce_x_mod_y_pi(double ax, double ay, const ypi_stream_t *stream) {
+static reduce_out_t hp_reduce_x_mod_y_pi(double ax, const ypi_stream_t *stream) {
   reduce_out_t out;
   double rem[EXP_CAP], cand[EXP_CAP], diff[EXP_CAP], mod[EXP_CAP], scratch[EXP_CAP];
   int rem_len = 1;
   int mod_len;
   dd_t mod_dd;
-  dd_t two_over_pi;
-  dd_t inv_pi;
-  dd_t inv_mod;
-  dd_t q_seed;
   int shift;
   int i;
 
@@ -602,17 +617,12 @@ static reduce_out_t hp_reduce_x_mod_y_pi(double ax, double ay, const ypi_stream_
   mod_dd = expansion_to_dd(mod_len, mod);
   if (!(mod_dd.hi > 0.0) || !isfinite(mod_dd.hi)) return out;
 
-  /* 2/pi table gives a quotient seed; exponent ratio backs it up. */
-  two_over_pi = two_over_pi_dd();
-  inv_pi = dd_mul_d(two_over_pi, 0.5);
-  inv_mod = dd_div_d(inv_pi, ay);
-  q_seed = dd_mul_d(inv_mod, ax);
-
+  /*
+   * Since ax/mod_dd.hi differs from the exact quotient by less than a factor
+   * of two, the exponent gap is already a safe upper bound on the top quotient
+   * bit. That is enough to seed the binary subtraction loop.
+   */
   shift = ilogb(ax) - ilogb(mod_dd.hi);
-  if (q_seed.hi > 0.0 && isfinite(q_seed.hi)) {
-    int qexp = ilogb(q_seed.hi);
-    if (qexp > shift) shift = qexp;
-  }
   if (shift < 0) shift = 0;
 
   while (shift > 0) {
@@ -697,7 +707,7 @@ int reduce_x_mod_y_pi(double x, double y, double *r_hi, double *r_lo, int *quoti
   }
 
   build_y_pi_stream(ay, &stream);
-  red = hp_reduce_x_mod_y_pi(ax, ay, &stream);
+  red = hp_reduce_x_mod_y_pi(ax, &stream);
 
   if (!isfinite(red.remainder.hi)) return -1;
 
@@ -722,11 +732,42 @@ int reduce_x_over_y_mod_pi(double x, double y, double *z_hi, double *z_lo, int *
 }
 
 static double cos_dd(dd_t z) {
-  double ch = cos(z.hi);
-  double sh = sin(z.hi);
-  double cl = cos(z.lo);
-  double sl = sin(z.lo);
-  return ch * cl - sh * sl;
+  double sh, ch, sl, cl;
+  sincos_wrapper(z.hi, &sh, &ch);
+  sincos_wrapper(z.lo, &sl, &cl);
+  return fma(-sh, sl, ch * cl);
+}
+
+static double sin_dd(dd_t z) {
+  double sh, ch, sl, cl;
+  sincos_wrapper(z.hi, &sh, &ch);
+  sincos_wrapper(z.lo, &sl, &cl);
+  return fma(sh, cl, ch * sl);
+}
+
+/*
+ * Compute sin(x/y) using x mod (y*pi) reduction, then divide by y in dd.
+ */
+double sinquot(double x, double y) {
+  double z_hi, z_lo;
+  int qmod2;
+  int neg;
+  dd_t z;
+  double out;
+
+  if (isnan(x) || isnan(y)) return NAN;
+  if (y == 0.0) return NAN;
+  if (isinf(x)) return NAN;
+  if (x == 0.0 || isinf(y)) return x / y;
+
+  if (reduce_x_over_y_mod_pi(x, y, &z_hi, &z_lo, &qmod2) != 0) return NAN;
+
+  z = dd_make(z_hi, z_lo);
+  out = sin_dd(z);
+  neg = signbit(x) ^ signbit(y);
+  if (qmod2) out = -out;
+  if (neg) out = -out;
+  return out;
 }
 
 /*

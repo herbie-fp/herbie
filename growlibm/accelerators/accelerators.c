@@ -86,19 +86,6 @@ double cosprod(double x, double y) {
     return fma(cos_p, cos_q, -sin_p * sin_q);
 }
 
-double sinquot(double x, double y) {
-    // idea: break y into chunks, PI into chunks 
-    double p = x / y;            
-    double r = fma(-p, y, x);    
-    double q = r / y;             
-
-    double sin_p, cos_p, sin_q, cos_q;
-    sincos_wrapper(p, &sin_p, &cos_p); 
-    sincos_wrapper(q, &sin_q, &cos_q); 
-
-    return fma(sin_p, cos_q, cos_p * sin_q);
-}
-
 // double cos_quotient_xy(double x, double y) {
 //     double p = x / y;
 //     double r = fma(-p, y, x);
