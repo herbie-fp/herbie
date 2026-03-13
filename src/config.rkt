@@ -8,7 +8,7 @@
 
 (define default-flags
   #hash([precision . ()]
-        [setup . (search preprocess)]
+        [setup . (search preprocess rival3)]
         [localize . ()]
         [generate . (rr taylor proofs evaluate)]
         [reduce . (regimes binary-search branch-expressions)]
@@ -23,7 +23,7 @@
         [reduce . (avg-error simplify)]
         [rules . (numerics special bools branches)]))
 
-(define debug-flags #hash([generate . (egglog)] [dump . (egg rival egglog trace)] [setup . (rival3)]))
+(define debug-flags #hash([generate . (egglog)] [dump . (egg rival egglog trace)] [setup . (rival2)]))
 
 (define all-flags (hash-union default-flags deprecated-flags debug-flags #:combine set-union))
 

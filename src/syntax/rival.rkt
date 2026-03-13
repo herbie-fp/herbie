@@ -20,7 +20,7 @@
          "../syntax/batch.rkt")
 
 (define (use-rival3?)
-  (flag-set? 'setup 'rival3))
+  (and (flag-set? 'setup 'rival3) (not (flag-set? 'setup 'rival2))))
 
 (define-syntax-rule (define/rival (name args ...) r2-impl r3-impl)
   (define (name args ...)
