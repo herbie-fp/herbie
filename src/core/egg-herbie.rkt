@@ -1033,9 +1033,15 @@
         ((node-cost-proc node repr))]
        ; approx node
        [(list '$approx _ impl) (rec impl)]
-       [(list (? impl-exists?) args ...) ; impls
-        (define cost-proc (node-cost-proc node type))
-        (apply cost-proc (map rec args))])]
+       [(list (? impl-exists? impl) args ...) ; impls
+        (match (pow-impl-args impl args)
+          [(cons _ e)
+           #:when (let ([n (vector-ref (regraph-constants regraph) e)])
+                    (fraction-with-odd-denominator? n))
+           +inf.0]
+          [_
+           (define cost-proc (node-cost-proc node type))
+           (apply cost-proc (map rec args))])])]
     [else (default-egg-cost-proc regraph cache node type rec)]))
 
 ;; Extracts the best expression according to the extractor.
