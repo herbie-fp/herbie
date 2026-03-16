@@ -55,7 +55,7 @@ minimal-distribution:
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 nightly:
-	make evaluate
+	make evaluate-basilisk
 
 time-ops:
 	mkdir -p growlibm/timing/drivers
@@ -86,6 +86,7 @@ compile-accelerators:
 		-lm
 
 generate-table:
+	make compile-accelerators
 	racket growlibm/eval/generate-table.rkt
 	pandoc growlibm/eval/accelerator-table.tex -o out.html
 
