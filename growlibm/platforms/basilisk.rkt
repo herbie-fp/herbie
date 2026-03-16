@@ -268,14 +268,14 @@
   #:spec (pow (cos x) 2)
   #:impl (from-accelerators 'powcos2)
   #:fpcore (! :precision binary64 (powcos2 x))
-  #:cost 4.108)
+  #:cost 4.056)
 
 (define-operation (powcos4.f64 [x <binary64>])
   <binary64>
   #:spec (pow (cos x) 4)
   #:impl (from-accelerators 'powcos4)
   #:fpcore (! :precision binary64 (powcos4 x))
-  #:cost 4.037)
+  #:cost 3.461)
 
 (define-operation (powcos6.f64 [x <binary64>])
   <binary64>

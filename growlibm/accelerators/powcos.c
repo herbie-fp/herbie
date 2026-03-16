@@ -138,13 +138,13 @@ static int fast_reduce(double *h, double *l, double x, double *err1) {
  *   lo = 0x1p-40;
  *
  *   p2 = remez(cos(sqrt(x))^2, 10, [0;hi]);
- *   q2 = remez((sin(sqrt(x))/sqrt(x))^2, 10, [lo;hi]);
+ *   q2 = remez((sin(sqrt(x))/sqrt(x))^2, 7, [lo;hi]);
  *
  *   p4 = remez(cos(sqrt(x))^4, 10, [0;hi]);
- *   q4 = remez((sin(sqrt(x))/sqrt(x))^4, 9, [lo;hi]);
+ *   q4 = remez((sin(sqrt(x))/sqrt(x))^4, 8, [lo;hi]);
  *
- *   p6 = remez(cos(sqrt(x))^6, 12, [0;hi]);
- *   q6 = remez((sin(sqrt(x))/sqrt(x))^6, 10, [lo;hi]);
+ *   p6 = remez(cos(sqrt(x))^6, 11, [0;hi]);
+ *   q6 = remez((sin(sqrt(x))/sqrt(x))^6, 9, [lo;hi]);
  *
  *   lcos = remez(log(cos(sqrt(x))), 12, [0;hi]);
  *   lsinc = remez(log(sin(sqrt(x))/sqrt(x)), 12, [lo;hi]);
@@ -212,9 +212,41 @@ static inline int powcos_reduce_full(double x, double *r, double *z) {
 }
 
 static inline void powcos_reduce(double x, int *odd_quadrant, double *z) {
-  double r;
-  int n = powcos_reduce_full(x, &r, z);
-  *odd_quadrant = n & 1;
+  const long double two_pi = 0x1.921fb54442d18469898cc51701b8p+2L;
+  const double min_fast = 0x1.6a09e667f3bccp-27;
+  double ax = fabs(x);
+
+  if (ax <= min_fast) {
+    *odd_quadrant = 0;
+    *z = x * x;
+    return;
+  }
+
+  double h, l, err1;
+  int i = fast_reduce(&h, &l, ax, &err1);
+  long double frac = (long double)i * 0x1p-11L + (long double)h + (long double)l;
+  long double s = 4.0L * frac;
+  int n_abs = (int)floorl(s + 0.5L);
+  long double dist = fabsl(s - (long double)n_abs);
+  long double tol = fmaxl(4.0L * (long double)err1 + 0x1p-68L, 0x1p-60L);
+
+  if (dist <= tol) {
+    double r_slow;
+    *odd_quadrant = powcos_reduce_full_slow(x, &r_slow, z) & 1;
+    return;
+  }
+
+  long double delta = (long double)(i - (n_abs << 9)) * 0x1p-11L + (long double)h + (long double)l;
+  if ((n_abs & 1) && fabsl(delta) < 0x1p-12L) {
+    double r_slow;
+    *odd_quadrant = powcos_reduce_full_slow(x, &r_slow, z) & 1;
+    return;
+  }
+
+  long double rr = fabsl(delta) * two_pi;
+  *odd_quadrant = n_abs & 1;
+  *z = (double)(rr * rr);
+  if (*z < 0.0) *z = 0.0;
 }
 
 static inline double powcos_logcos_even(double z) {
@@ -341,46 +373,40 @@ static inline double powcos2_even(double z) {
   const double c9 = -0x1.67fe89745f754p-36;
   const double c10 = 0x1.d73498c8bd4a1p-43;
 
-  double p = c10;
+  double z2 = z * z;
+  double z4 = z2 * z2;
+  double a0 = fma(c1, z, c0);
+  double a1 = fma(c3, z, c2);
+  double a2 = fma(c5, z, c4);
+  double a3 = fma(c7, z, c6);
+  double a4 = fma(c9, z, c8);
+  double b0 = fma(a1, z2, a0);
+  double b1 = fma(a3, z2, a2);
+  double b2 = fma(c10, z2, a4);
 
-  p = fma(z, p, c9);
-  p = fma(z, p, c8);
-  p = fma(z, p, c7);
-  p = fma(z, p, c6);
-  p = fma(z, p, c5);
-  p = fma(z, p, c4);
-  p = fma(z, p, c3);
-  p = fma(z, p, c2);
-  p = fma(z, p, c1);
-  return fma(z, p, c0);
+  return fma(z4, fma(z4, b2, b1), b0);
 }
 
 static inline double powcos2_odd(double z) {
   const double c0 = 0x1p0;
-  const double c1 = -0x1.5555555555555p-2;
-  const double c2 = 0x1.6c16c16c16c17p-5;
-  const double c3 = -0x1.a01a01a01a01ap-9;
-  const double c4 = 0x1.27e4fb7789f53p-13;
-  const double c5 = -0x1.1eed8eff8cf8cp-18;
-  const double c6 = 0x1.93974a8b5d10cp-24;
-  const double c7 = -0x1.ae7f3df1dcb7fp-30;
-  const double c8 = 0x1.6827473c57c4ap-36;
-  const double c9 = -0x1.e51c9a372e0a1p-43;
-  const double c10 = 0x1.065b5bbc3e42fp-49;
+  const double c1 = -0x1.5555555555526p-2;
+  const double c2 = 0x1.6c16c16c1396cp-5;
+  const double c3 = -0x1.a01a019d88418p-9;
+  const double c4 = 0x1.27e4fa71665d5p-13;
+  const double c5 = -0x1.1eed1d7abc2e1p-18;
+  const double c6 = 0x1.9360c51731d53p-24;
+  const double c7 = -0x1.a0d3a53bb2a66p-30;
 
-  double p = c10;
+  double z2 = z * z;
+  double z4 = z2 * z2;
+  double a0 = fma(c1, z, c0);
+  double a1 = fma(c3, z, c2);
+  double a2 = fma(c5, z, c4);
+  double a3 = fma(c7, z, c6);
+  double b0 = fma(a1, z2, a0);
+  double b1 = fma(a3, z2, a2);
 
-  p = fma(z, p, c9);
-  p = fma(z, p, c8);
-  p = fma(z, p, c7);
-  p = fma(z, p, c6);
-  p = fma(z, p, c5);
-  p = fma(z, p, c4);
-  p = fma(z, p, c3);
-  p = fma(z, p, c2);
-  p = fma(z, p, c1);
-  p = fma(z, p, c0);
-  return z * p;
+  return z * fma(b1, z4, b0);
 }
 
 static inline double powcos4_even(double z) {
@@ -396,65 +422,60 @@ static inline double powcos4_even(double z) {
   const double c9 = -0x1.65bcf671d6a5bp-20;
   const double c10 = 0x1.af57cb5a3478fp-25;
 
-  double p = c10;
+  double z2 = z * z;
+  double z4 = z2 * z2;
+  double a0 = fma(c1, z, c0);
+  double a1 = fma(c3, z, c2);
+  double a2 = fma(c5, z, c4);
+  double a3 = fma(c7, z, c6);
+  double a4 = fma(c9, z, c8);
+  double b0 = fma(a1, z2, a0);
+  double b1 = fma(a3, z2, a2);
+  double b2 = fma(c10, z2, a4);
 
-  p = fma(z, p, c9);
-  p = fma(z, p, c8);
-  p = fma(z, p, c7);
-  p = fma(z, p, c6);
-  p = fma(z, p, c5);
-  p = fma(z, p, c4);
-  p = fma(z, p, c3);
-  p = fma(z, p, c2);
-  p = fma(z, p, c1);
-  return fma(z, p, c0);
+  return fma(z4, fma(z4, b2, b1), b0);
 }
 
 static inline double powcos4_odd(double z) {
-  const double c0 = 0x1p0;
-  const double c1 = -0x1.5555555555553p-1;
-  const double c2 = 0x1.99999999997a8p-3;
-  const double c3 = -0x1.26bd167c0852bp-5;
-  const double c4 = 0x1.1ea5d39878adfp-8;
-  const double c5 = -0x1.937e0fd3ecdb9p-12;
-  const double c6 = 0x1.ae7839bc9e641p-16;
-  const double c7 = -0x1.681b6ae9fe044p-20;
-  const double c8 = 0x1.e366d52d3bc14p-25;
-  const double c9 = -0x1.ebc219a82bff8p-30;
+  const double c0 = 0x1.ffffffffffffep-1;
+  const double c1 = -0x1.55555555553b3p-1;
+  const double c2 = 0x1.9999999987e71p-3;
+  const double c3 = -0x1.26bd1677757cdp-5;
+  const double c4 = 0x1.1ea5d26743b09p-8;
+  const double c5 = -0x1.937db673fc21cp-12;
+  const double c6 = 0x1.ae68da502d504p-16;
+  const double c7 = -0x1.6690ee1152ba5p-20;
+  const double c8 = 0x1.b8c14729bedbbp-25;
 
-  double p = c9;
   double z2 = z * z;
+  double z4 = z2 * z2;
+  double a0 = fma(c1, z, c0);
+  double a1 = fma(c3, z, c2);
+  double a2 = fma(c5, z, c4);
+  double a3 = fma(c7, z, c6);
+  double b0 = fma(a1, z2, a0);
+  double b1 = fma(a3, z2, a2);
+  double p = fma(z4, c8, b1);
 
-  p = fma(z, p, c8);
-  p = fma(z, p, c7);
-  p = fma(z, p, c6);
-  p = fma(z, p, c5);
-  p = fma(z, p, c4);
-  p = fma(z, p, c3);
-  p = fma(z, p, c2);
-  p = fma(z, p, c1);
-  p = fma(z, p, c0);
-  return z2 * p;
+  return z2 * fma(p, z4, b0);
 }
 
 static inline double powcos6_even(double z) {
   const double c0 = 0x1p0;
-  const double c1 = -0x1.7ffffffffffffp1;
-  const double c2 = 0x1.fffffffffffbcp1;
-  const double c3 = -0x1.91111111107a3p1;
-  const double c4 = 0x1.9c09c09bf3d9ap0;
-  const double c5 = -0x1.2669de13746e7p-1;
-  const double c6 = 0x1.304cf0f24b59ap-3;
-  const double c7 = -0x1.d5b1e698b8d72p-6;
-  const double c8 = 0x1.16a95f7bb5981p-8;
-  const double c9 = -0x1.04ec786fcaa79p-11;
-  const double c10 = 0x1.89f77be3a0fb1p-15;
-  const double c11 = -0x1.e09ae6fc72eefp-19;
-  const double c12 = 0x1.9a4019bfa2cc6p-23;
+  const double c1 = -0x1.7ffffffffffb7p1;
+  const double c2 = 0x1.fffffffffe9fp1;
+  const double c3 = -0x1.91111110e7345p1;
+  const double c4 = 0x1.9c09c096e854fp0;
+  const double c5 = -0x1.2669ddb654337p-1;
+  const double c6 = 0x1.304ce86f325c6p-3;
+  const double c7 = -0x1.d5b0e0678c10ep-6;
+  const double c8 = 0x1.169eda0ecc00bp-8;
+  const double c9 = -0x1.045db550df2a2p-11;
+  const double c10 = 0x1.805ebd95d229p-15;
+  const double c11 = -0x1.81bda2f54204ep-19;
 
-  double p = c12;
+  double p = c11;
 
-  p = fma(z, p, c11);
   p = fma(z, p, c10);
   p = fma(z, p, c9);
   p = fma(z, p, c8);
@@ -470,21 +491,19 @@ static inline double powcos6_even(double z) {
 
 static inline double powcos6_odd(double z) {
   const double c0 = 0x1p0;
-  const double c1 = -0x1.ffffffffffffcp-1;
-  const double c2 = 0x1.ddddddddddb97p-2;
-  const double c3 = -0x1.1566abc00a1dap-3;
-  const double c4 = 0x1.c2c6d7152cacep-6;
-  const double c5 = -0x1.119e49a44e122p-8;
-  const double c6 = 0x1.02d77dde2068p-11;
-  const double c7 = -0x1.893a8807c7f4fp-15;
-  const double c8 = 0x1.ea74a051ce86ep-19;
-  const double c9 = -0x1.fa4aa22594da1p-23;
-  const double c10 = 0x1.8251aa381e5aap-27;
+  const double c1 = -0x1.ffffffffffe0bp-1;
+  const double c2 = 0x1.ddddddddd0bd2p-2;
+  const double c3 = -0x1.1566abbdeeaedp-3;
+  const double c4 = 0x1.c2c6d66365e44p-6;
+  const double c5 = -0x1.119e38d182a31p-8;
+  const double c6 = 0x1.02d58db1900b4p-11;
+  const double c7 = -0x1.88f3c7c8d3f8cp-15;
+  const double c8 = 0x1.e45c04a52b0cbp-19;
+  const double c9 = -0x1.afd99d3e80f2bp-23;
 
-  double p = c10;
+  double p = c9;
   double z2 = z * z;
 
-  p = fma(z, p, c9);
   p = fma(z, p, c8);
   p = fma(z, p, c7);
   p = fma(z, p, c6);
