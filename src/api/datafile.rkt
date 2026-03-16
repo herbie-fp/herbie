@@ -26,6 +26,7 @@
               output
               spec
               target-prog
+              has-accelerator-alt
               start
               result
               target
@@ -106,6 +107,7 @@
                              output
                              spec
                              target-prog
+                             has-accelerator-alt
                              start-bits
                              end-bits
                              target-bits
@@ -131,6 +133,7 @@
                                              #f
                                              (~s spec)))
                                 (target-prog . ,(~s target-prog))
+                                (has-accelerator-alt . ,has-accelerator-alt)
                                 (time . ,time)
                                 (link . ,(~a link))
                                 (cost-accuracy . ,cost-accuracy))))
@@ -201,6 +204,7 @@
                               (or (parse-string (hash-ref test 'spec "#f"))
                                   (parse-string (get 'input)))
                               (parse-string (hash-ref test 'target-prog "#f"))
+                              (hash-ref test 'has-accelerator-alt #f)
                               (get 'start)
                               (get 'end)
                               (get 'target)
