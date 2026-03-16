@@ -550,20 +550,20 @@ double powcos6(double x) {
 }
 
 double powcos(double x, double y) {
-  double r, z, c;
+  double r, z;
   int n, k;
 
   if (!isfinite(x) || !isfinite(y)) return pow(cos(x), y);
 
   n = powcos_reduce_full(x, &r, &z);
   k = n & 3;
-  c = powcos_reduced_cos(k, r);
 
-  if (c > 0.0) {
-    double logc;
-    if (powcos_logcos_positive(k, r, z, &logc)) return exp(y * logc);
-    return exp(y * log(c));
+  double logc;
+  if (__builtin_expect(powcos_logcos_positive(k, r, z, &logc), 1)) {
+    return exp(y * logc);
   }
 
+  double c = powcos_reduced_cos(k, r);
+  if (c > 0.0) return exp(y * log(c));
   return pow(c, y);
 }
