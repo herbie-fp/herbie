@@ -565,8 +565,8 @@
   ;;   4. Unsoundness is detected (bad-merge? becomes true)
 
   (egglog-send subproc
-               (let-scheduler bo (back-off))
                `(run-schedule
+                 (let-scheduler bo (back-off))
                  (repeat ,iter-limit
                          (seq (run-with bo ,tag :until (<= ,node-limit (get-size!)))
                               (run-with bo const-fold :until (<= ,node-limit (get-size!)))
