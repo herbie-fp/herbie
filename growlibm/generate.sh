@@ -24,7 +24,7 @@ log_time() {
 
 rustup update
 make install
-BENCHDIR="bench/libraries/proj/"
+BENCHDIR="bench/proj/"
 NUM_ITERS=2
 NUM_CANDIDATES=625
 NUM_ADD=25
