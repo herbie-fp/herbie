@@ -12,7 +12,7 @@ REPORTDIR="reports"
 
 rustup update
 make install
-BENCHDIR="bench/proj/"
+BENCHDIR="bench/libraries/mathjs/"
 NUM_ITERS=2
 NUM_CANDIDATES=625
 NUM_ADD=25
