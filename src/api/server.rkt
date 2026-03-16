@@ -534,7 +534,7 @@
               (append (list (improve-result-start backend))
                       (improve-result-target backend)
                       (improve-result-end backend))))
-       (define exprs (append-map collect-expressions all-alts))
+       (define exprs (remove-duplicates (append-map collect-expressions all-alts)))
        (make-hash (map cons exprs (exprs-errors exprs pcontext ctx)))]
       [else #f]))
 
@@ -604,7 +604,7 @@
   (define splitpoints
     (for/list ([var (in-list vars)])
       (if (equal? var (regime-var alt))
-          (for/list ([val (regime-splitpoints alt)])
+          (for/list ([val (in-list (regime-splitpoints alt))])
             (real->ordinal (repr->real val repr) repr))
           '())))
 
