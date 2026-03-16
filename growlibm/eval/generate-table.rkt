@@ -144,10 +144,11 @@
       (escape-latex (hash-ref row 'name))
       (escape-latex (hash-ref row 'origin))
       (escape-latex (hash-ref row 'spec))
+      (escape-latex (hash-ref row 'spec-cost))
+      (escape-latex (hash-ref row 'spec-accuracy))
       (escape-latex (hash-ref row 'cost))
       (escape-latex (hash-ref row 'accuracy))
-      (escape-latex (hash-ref row 'spec-cost))
-      (escape-latex (hash-ref row 'spec-accuracy))))
+))
    "\n"))
 
 (define (render-latex rows)
