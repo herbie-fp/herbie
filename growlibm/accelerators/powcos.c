@@ -140,11 +140,11 @@ static int fast_reduce(double *h, double *l, double x, double *err1) {
  *   p2 = remez(cos(sqrt(x))^2, 10, [0;hi]);
  *   q2 = remez((sin(sqrt(x))/sqrt(x))^2, 10, [lo;hi]);
  *
- *   p4 = remez(cos(sqrt(x))^4, 12, [0;hi]);
- *   q4 = remez((sin(sqrt(x))/sqrt(x))^4, 11, [lo;hi]);
+ *   p4 = remez(cos(sqrt(x))^4, 10, [0;hi]);
+ *   q4 = remez((sin(sqrt(x))/sqrt(x))^4, 9, [lo;hi]);
  *
- *   p6 = remez(cos(sqrt(x))^6, 14, [0;hi]);
- *   q6 = remez((sin(sqrt(x))/sqrt(x))^6, 12, [lo;hi]);
+ *   p6 = remez(cos(sqrt(x))^6, 12, [0;hi]);
+ *   q6 = remez((sin(sqrt(x))/sqrt(x))^6, 10, [lo;hi]);
  *
  *   lcos = remez(log(cos(sqrt(x))), 12, [0;hi]);
  *   lsinc = remez(log(sin(sqrt(x))/sqrt(x)), 12, [lo;hi]);
@@ -342,6 +342,7 @@ static inline double powcos2_even(double z) {
   const double c10 = 0x1.d73498c8bd4a1p-43;
 
   double p = c10;
+
   p = fma(z, p, c9);
   p = fma(z, p, c8);
   p = fma(z, p, c7);
@@ -368,6 +369,7 @@ static inline double powcos2_odd(double z) {
   const double c10 = 0x1.065b5bbc3e42fp-49;
 
   double p = c10;
+
   p = fma(z, p, c9);
   p = fma(z, p, c8);
   p = fma(z, p, c7);
@@ -383,22 +385,19 @@ static inline double powcos2_odd(double z) {
 
 static inline double powcos4_even(double z) {
   const double c0 = 0x1p0;
-  const double c1 = -0x1p1;
-  const double c2 = 0x1.aaaaaaaaaaaabp0;
-  const double c3 = -0x1.82d82d82d82d7p-1;
-  const double c4 = 0x1.a69a69a69a646p-3;
-  const double c5 = -0x1.290ce07300967p-5;
-  const double c6 = 0x1.1f354a6319c66p-8;
-  const double c7 = -0x1.93b083f15cdc7p-12;
-  const double c8 = 0x1.ae85f553203f1p-16;
-  const double c9 = -0x1.68287f29a8505p-20;
-  const double c10 = 0x1.e52e382a474a4p-25;
-  const double c11 = -0x1.0b9bdd32afa63p-29;
-  const double c12 = 0x1.c3d9afe7af577p-35;
+  const double c1 = -0x1.ffffffffffff9p0;
+  const double c2 = 0x1.aaaaaaaaaa8d1p0;
+  const double c3 = -0x1.82d82d82d250dp-1;
+  const double c4 = 0x1.a69a69a569afap-3;
+  const double c5 = -0x1.290ce04ee58dap-5;
+  const double c6 = 0x1.1f35450cc75ffp-8;
+  const double c7 = -0x1.93af80479dc8ap-12;
+  const double c8 = 0x1.ae6633e30ed9fp-16;
+  const double c9 = -0x1.65bcf671d6a5bp-20;
+  const double c10 = 0x1.af57cb5a3478fp-25;
 
-  double p = c12;
-  p = fma(z, p, c11);
-  p = fma(z, p, c10);
+  double p = c10;
+
   p = fma(z, p, c9);
   p = fma(z, p, c8);
   p = fma(z, p, c7);
@@ -413,23 +412,19 @@ static inline double powcos4_even(double z) {
 
 static inline double powcos4_odd(double z) {
   const double c0 = 0x1p0;
-  const double c1 = -0x1.5555555555555p-1;
-  const double c2 = 0x1.999999999999ap-3;
-  const double c3 = -0x1.26bd167c126bcp-5;
-  const double c4 = 0x1.1ea5d39bcd99dp-8;
-  const double c5 = -0x1.937e111757f5dp-12;
-  const double c6 = 0x1.ae788473aac71p-16;
-  const double c7 = -0x1.68261d744f3d9p-20;
-  const double c8 = 0x1.e5420d88ee091p-25;
-  const double c9 = -0x1.0cde0e2e8326cp-29;
-  const double c10 = 0x1.f1543e4cbb6fcp-35;
-  const double c11 = -0x1.6b49952869679p-40;
+  const double c1 = -0x1.5555555555553p-1;
+  const double c2 = 0x1.99999999997a8p-3;
+  const double c3 = -0x1.26bd167c0852bp-5;
+  const double c4 = 0x1.1ea5d39878adfp-8;
+  const double c5 = -0x1.937e0fd3ecdb9p-12;
+  const double c6 = 0x1.ae7839bc9e641p-16;
+  const double c7 = -0x1.681b6ae9fe044p-20;
+  const double c8 = 0x1.e366d52d3bc14p-25;
+  const double c9 = -0x1.ebc219a82bff8p-30;
 
-  double p = c11;
+  double p = c9;
   double z2 = z * z;
 
-  p = fma(z, p, c10);
-  p = fma(z, p, c9);
   p = fma(z, p, c8);
   p = fma(z, p, c7);
   p = fma(z, p, c6);
@@ -444,25 +439,21 @@ static inline double powcos4_odd(double z) {
 
 static inline double powcos6_even(double z) {
   const double c0 = 0x1p0;
-  const double c1 = -0x1.8p1;
-  const double c2 = 0x1p2;
-  const double c3 = -0x1.9111111111111p1;
-  const double c4 = 0x1.9c09c09c09bfcp0;
-  const double c5 = -0x1.2669de1558b3p-1;
-  const double c6 = 0x1.304cf1280299ap-3;
-  const double c7 = -0x1.d5b1ee95d42b1p-6;
-  const double c8 = 0x1.16a9c7a8acb5p-8;
-  const double c9 = -0x1.04f3c49fc766p-11;
-  const double c10 = 0x1.8aa8b914aad39p-15;
-  const double c11 = -0x1.eb85a420b4fa4p-19;
-  const double c12 = 0x1.000eb090ba619p-22;
-  const double c13 = -0x1.be9d7261577e9p-27;
-  const double c14 = 0x1.1d995a7fa5433p-31;
+  const double c1 = -0x1.7ffffffffffffp1;
+  const double c2 = 0x1.fffffffffffbcp1;
+  const double c3 = -0x1.91111111107a3p1;
+  const double c4 = 0x1.9c09c09bf3d9ap0;
+  const double c5 = -0x1.2669de13746e7p-1;
+  const double c6 = 0x1.304cf0f24b59ap-3;
+  const double c7 = -0x1.d5b1e698b8d72p-6;
+  const double c8 = 0x1.16a95f7bb5981p-8;
+  const double c9 = -0x1.04ec786fcaa79p-11;
+  const double c10 = 0x1.89f77be3a0fb1p-15;
+  const double c11 = -0x1.e09ae6fc72eefp-19;
+  const double c12 = 0x1.9a4019bfa2cc6p-23;
 
-  double p = c14;
+  double p = c12;
 
-  p = fma(z, p, c13);
-  p = fma(z, p, c12);
   p = fma(z, p, c11);
   p = fma(z, p, c10);
   p = fma(z, p, c9);
@@ -479,24 +470,20 @@ static inline double powcos6_even(double z) {
 
 static inline double powcos6_odd(double z) {
   const double c0 = 0x1p0;
-  const double c1 = -0x1p0;
-  const double c2 = 0x1.ddddddddddddep-2;
-  const double c3 = -0x1.1566abc011564p-3;
-  const double c4 = 0x1.c2c6d7181c111p-6;
-  const double c5 = -0x1.119e49fd6e1fbp-8;
-  const double c6 = 0x1.02d78b0f1c4cap-11;
-  const double c7 = -0x1.893d0ae3fd69ep-15;
-  const double c8 = 0x1.eac36f66eb4ebp-19;
-  const double c9 = -0x1.00290d2310d7fp-22;
-  const double c10 = 0x1.c5e0f549a38fp-27;
-  const double c11 = -0x1.56a60708e72b9p-31;
-  const double c12 = 0x1.8c1897ddf077dp-36;
+  const double c1 = -0x1.ffffffffffffcp-1;
+  const double c2 = 0x1.ddddddddddb97p-2;
+  const double c3 = -0x1.1566abc00a1dap-3;
+  const double c4 = 0x1.c2c6d7152cacep-6;
+  const double c5 = -0x1.119e49a44e122p-8;
+  const double c6 = 0x1.02d77dde2068p-11;
+  const double c7 = -0x1.893a8807c7f4fp-15;
+  const double c8 = 0x1.ea74a051ce86ep-19;
+  const double c9 = -0x1.fa4aa22594da1p-23;
+  const double c10 = 0x1.8251aa381e5aap-27;
 
-  double p = c12;
+  double p = c10;
   double z2 = z * z;
 
-  p = fma(z, p, c11);
-  p = fma(z, p, c10);
   p = fma(z, p, c9);
   p = fma(z, p, c8);
   p = fma(z, p, c7);

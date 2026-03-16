@@ -404,12 +404,7 @@ double pow1ms(double x, double y) {
 		return exp(y * log_base);
 	}
 
-	double xm2_hi, xm2_lo;
-	unsorted_two_sum(x, -2.0, &xm2_hi, &xm2_lo);
-
-	double prod_hi = x * xm2_hi;
-	double prod_lo = fma(x, xm2_hi, -prod_hi);
-	double delta = prod_hi + fma(x, xm2_lo, prod_lo);
+	double delta = fma(x, x, -2.0 * x);
 
 	if (delta < -1.0) {
 		delta = -1.0;
