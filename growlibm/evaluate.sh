@@ -13,7 +13,7 @@ make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 # SEED=$(date "+%Y%j")
-SEED="1"
+SEED="2026075"
 BENCHDIR="$1"
 REPORTDIR="$2"
 PLATFORM="$3"
