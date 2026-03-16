@@ -19,7 +19,7 @@
 (define accelerators-path "reports/accelerators.json")
 (define grow-platform-path "growlibm/grow.rkt")
 
-(define implication-threshold 0.95)
+(define implication-threshold 95.0)
 (define top-k (string->number (vector-ref (current-command-line-arguments) 1)))
 (define implication-seed (string->number (vector-ref (current-command-line-arguments) 2)))
 (disable-flag! 'generate 'taylor)
@@ -109,6 +109,18 @@
           [else (for/or ([neighbor (hash-ref implied-by curr (set))])
                   (loop neighbor (set-add visited curr)))])))
 
+(define binary64-total-bits
+  (representation-total-bits (get-representation 'binary64)))
+
+(define (error->accuracy err)
+  (- 100.0 (* 100.0 (/ err binary64-total-bits))))
+
+(define (implied-by-accuracy? err)
+  (> (error->accuracy err) implication-threshold))
+
+(define (format-accuracy percent)
+  (~r percent #:precision '(= 1)))
+
 ;;; ------------------------- MAIN PIPELINE ---------------------------------
 (define filename (vector-ref (current-command-line-arguments) 0))
 (define count-list (call-with-input-file "reports/counts.rkt" read))
@@ -193,14 +205,18 @@
           #:unless (equal? (candidate-name cand-b) name-a))
 
       (define err (run-herbie-expr (candidate-spec cand-b) platform-a #:seed implication-seed))
-      (define diff (- (candidate-error cand-b) err))
-      (define original-err (candidate-error cand-b))
-      (define improvement-ratio
-        (if (<= original-err 0)
-            0.0
-            (/ diff original-err)))
-      (displayln  (format "     ~a: ~a, ~a ~a ~a" (candidate-name cand-b) (candidate-spec cand-b) err diff improvement-ratio))
-      (when (> err implication-threshold)
+      (define baseline-err (candidate-error cand-b))
+      (define accuracy (error->accuracy err))
+      (define baseline-accuracy (error->accuracy baseline-err))
+      (displayln
+       (format "     ~a: ~a, post-run ~a bits (~a%%), baseline ~a bits (~a%%)"
+               (candidate-name cand-b)
+               (candidate-spec cand-b)
+               err
+               (format-accuracy accuracy)
+               baseline-err
+               (format-accuracy baseline-accuracy)))
+      (when (implied-by-accuracy? err)
         (displayln (format "     -> IMPLICATION DETECTED: ~a implies ~a" name-a (candidate-name cand-b)))
         (define name-b (candidate-name cand-b))
         (hash-set! implied-by name-b (set-add (hash-ref implied-by name-b (set)) name-a))))))
