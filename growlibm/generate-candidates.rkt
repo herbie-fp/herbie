@@ -21,7 +21,7 @@
 (define report-dir (vector-ref (current-command-line-arguments) 0))
 (define candidate-num (string->number (vector-ref (current-command-line-arguments) 1)))
 (define err-threshold 0.1)
-(define cut-hole-prefix "cut_hole")
+(define cut-hole 'cut_hole)
 (define egg-batch-size 5000)
 (define interesting-ops '(fabs.f32 sin.f32 cos.f32 tan.f32 sinh.f32 cosh.f32 tanh.f32 asin.f32 acos.f32
                                    atan.f32 asinh.f32 atanh.f32 acosh.f32 atan2.f32 exp.f32 exp2.f32 log.f32 log10.f32
@@ -37,78 +37,47 @@
 (define (get-cost expr)
   (cost-proc expr (get-representation 'binary64)))
 
-(define (non-empty-subsets-up-to xs k)
-  (define vec (list->vector xs))
-  (define len (vector-length vec))
-  (define subsets '())
-  (define (search start selected)
-    (unless (null? selected)
-      (set! subsets (cons (reverse selected) subsets)))
-    (when (< (length selected) k)
-      (for ([i (in-range start len)])
-        (search (add1 i) (cons (vector-ref vec i) selected)))))
-  (search 0 '())
-  subsets)
+(define (operator-expr? e)
+  (match e
+    [(list _ _ ...) #t]
+    [_ #f]))
 
-(define (make-cut-hole-vars expr count)
-  (define used-vars (free-variables expr))
-  (let loop ([i 0] [vars '()])
-    (cond
-      [(= (length vars) count) (reverse vars)]
-      [else
-       (define candidate (string->symbol (format "~a~a" cut-hole-prefix i)))
-       (if (member candidate used-vars)
-           (loop (add1 i) vars)
-           (loop (add1 i) (cons candidate vars)))])))
-
-(define (get-above-operator-cuts expr)
+(define (replace-child expr target replacement)
   (match expr
     [(list op args ...)
-     (define cuttable-indices
-       (for/list ([arg (in-list args)]
-                  [idx (in-naturals)]
-                  #:when (match arg
-                           [(list _ _ ...) #t]
-                           [_ #f]))
-         idx))
-     (define index-subsets
-       (non-empty-subsets-up-to cuttable-indices max-vars))
-     (define cuts
-       (for/list ([index-subset (in-list index-subsets)])
-         (define holes (make-cut-hole-vars expr (length index-subset)))
-         (define index->hole
-           (for/hash ([idx (in-list index-subset)]
-                      [hole (in-list holes)])
-             (values idx hole)))
-         (cons op
-               (for/list ([arg (in-list args)]
-                          [idx (in-naturals)])
-                 (hash-ref index->hole idx arg)))))
-     (remove-duplicates
-      (filter (lambda (cut)
-                (<= (length (free-variables cut)) max-vars))
-              cuts))]
+     (cons op
+           (for/list ([arg (in-list args)]
+                      [i (in-naturals)])
+             (if (= i target) replacement arg)))]))
+
+(define (direct-cuts expr)
+  (match expr
+    [(list _ args ...)
+     (for/list ([arg (in-list args)]
+                [i (in-naturals)]
+                #:when (operator-expr? arg))
+       (replace-child expr i cut-hole))]
     [_ '()]))
 
 (define (get-subexpressions expr)
-  (define subexprs
-    (reap [sow]
-          (let loop ([expr expr])
-            (match expr
-              [(? number?) (void)]
-              [(? literal?) (void)]
-              [(? symbol?) (void)]
-              [(list op args ...)
-               ;; Bottom-up traversal: process children first.
-               (for ([arg (in-list args)])
-                 (loop arg))
-               ;; "At each operator": include the operator expression itself.
-               (sow expr)
-               ;; "Above each operator": replace direct operator children with holes.
-               (for ([cut (in-list (get-above-operator-cuts expr))])
-                 (sow cut))]
-              [_ (void)]))))
-  subexprs)
+  (reap [sow]
+        (let loop ([expr expr])
+          (match expr
+            [(or (? number?)
+                 (? literal?)
+                 (? symbol?))
+             (void)]
+            [(list _ args ...)
+             (sow expr)
+             (for ([cut (in-list (direct-cuts expr))])
+               (sow cut))
+             (for ([arg (in-list args)]
+                   [i (in-naturals)])
+               (when (operator-expr? arg)
+                 (for ([cut (in-list (direct-cuts arg))])
+                   (sow (replace-child expr i cut))))
+               (loop arg))]
+            [_ (void)]))))
 
 (define (eliminate-ifs expr)
   (define comparison-bases
@@ -260,9 +229,11 @@
 
 (for* ([(root-expr root-count) (in-hash canonical-root-hash)]
        [subexpr (in-list (get-subexpressions root-expr))]
-       #:when (candidate-expr? subexpr)
-       [c (in-list (alpha-rename-all subexpr))])
-  (hash-update! candidate-hash c (lambda (old) (+ old root-count)) 0))
+       #:when (candidate-expr? subexpr))
+  (define renamed-subexprs (alpha-rename-all subexpr))
+  (define variant-weight (/ root-count (length renamed-subexprs)))
+  (for ([c (in-list renamed-subexprs)])
+    (hash-update! candidate-hash c (lambda (old) (+ old variant-weight)) 0)))
 
 (run-egg-batched egg-batch-size candidate-hash canonical-candidate-hash)
 
