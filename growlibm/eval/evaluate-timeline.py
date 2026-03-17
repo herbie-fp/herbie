@@ -263,9 +263,7 @@ def stage_color(index: int) -> str:
     return palette[index % len(palette)]
 
 
-def render_svg(
-    log_path: Path, run_label: str, checkpoints: list[Checkpoint], stages: list[Stage]
-) -> str:
+def render_svg(checkpoints: list[Checkpoint], stages: list[Stage]) -> str:
     total_elapsed = checkpoints[-1].elapsed_seconds
     width = 1400
     left_margin = 110
@@ -279,7 +277,7 @@ def render_svg(
     bottom_margin = 44
     plot_width = width - left_margin - right_margin
     height = label_top + label_row_gap + (3 * label_line_height) + bottom_margin
-    subtitle = f"{run_label} | total {format_duration(total_elapsed)} | {log_path}"
+    subtitle = f"Total time: {format_duration(total_elapsed)}"
 
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">',
@@ -287,18 +285,15 @@ def render_svg(
         f"<desc id=\"desc\">{html.escape(subtitle)}</desc>",
         """
 <style>
-  text { fill: #1f1f1f; font-family: sans-serif; }
-  .mono { font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, monospace; }
+  text { fill: #1f1f1f; font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif; }
   .title { font-size: 28px; font-weight: 700; }
-  .subtitle { font-size: 14px; fill: #555; }
   .guide { stroke: #999; stroke-width: 1; }
   .label { font-size: 15px; }
   .duration { font-size: 14px; font-weight: 700; }
 </style>
 """.strip(),
         f'<rect x="0" y="0" width="{width}" height="{height}" fill="#ffffff" />',
-        f'<text class="title" x="{left_margin}" y="{top_margin}">growlibm timeline from log</text>',
-        f'<text class="subtitle mono" x="{left_margin}" y="{top_margin + 24}">{html.escape(subtitle)}</text>',
+        f'<text class="title" x="{left_margin}" y="{top_margin}">{html.escape(subtitle)}</text>',
         f'<rect x="{left_margin}" y="{bar_top}" width="{plot_width}" height="{bar_height}" rx="6" fill="#f0f0f0" />',
     ]
 
@@ -307,7 +302,7 @@ def render_svg(
         x_pos = left_margin + (plot_width * stage.elapsed_start_seconds / total_elapsed)
         bar_width = max(2.0, plot_width * stage.duration_seconds / total_elapsed)
         center_x = x_pos + (bar_width / 2.0)
-        label_x = min(max(center_x, left_margin + 70), left_margin + plot_width - 70)
+        label_x = center_x
         label_y = label_top + ((index % 2) * label_row_gap)
         wrapped = textwrap.wrap(stage.label, width=18) or [stage.label]
 
@@ -328,7 +323,7 @@ def render_svg(
 
         duration_y = label_y + min(len(wrapped), 2) * label_line_height
         parts.append(
-            f'<text class="duration mono" x="{label_x:.2f}" y="{duration_y:.2f}" text-anchor="middle">{html.escape(format_duration(stage.duration_seconds))}</text>'
+            f'<text class="duration" x="{label_x:.2f}" y="{duration_y:.2f}" text-anchor="middle">{html.escape(format_duration(stage.duration_seconds))}</text>'
         )
 
     parts.append("</svg>")
@@ -390,7 +385,7 @@ def main() -> None:
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
-        render_svg(log_path=log_path, run_label=run_label, checkpoints=checkpoints, stages=stages),
+        render_svg(checkpoints=checkpoints, stages=stages),
         encoding="utf-8",
     )
 
