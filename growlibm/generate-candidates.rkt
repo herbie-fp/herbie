@@ -231,9 +231,8 @@
        [subexpr (in-list (get-subexpressions root-expr))]
        #:when (candidate-expr? subexpr))
   (define renamed-subexprs (alpha-rename-all subexpr))
-  (define variant-weight (/ root-count (length renamed-subexprs)))
   (for ([c (in-list renamed-subexprs)])
-    (hash-update! candidate-hash c (lambda (old) (+ old variant-weight)) 0)))
+    (hash-update! candidate-hash c (lambda (old) (+ old root-count)) 0)))
 
 (run-egg-batched egg-batch-size candidate-hash canonical-candidate-hash)
 
