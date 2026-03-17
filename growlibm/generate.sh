@@ -70,6 +70,7 @@ for ((i = 0; i < $NUM_ITERS; i++)) do
             --disable "generate:evaluate" \
             "$REPORTDIR/candidates.txt" \
             "$REPORTDIR/iter$i" 
+    log_time "after_run_herbie_candidates_iter_$i"
 
     racket -y "growlibm/extend-platform.rkt"  "$REPORTDIR/iter$i/results.json" $NUM_ADD $SEED
     log_time "after_add_to_platform_iter_$i"
