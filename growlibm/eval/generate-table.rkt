@@ -1,6 +1,7 @@
 #lang racket
 
 (require racket/format
+         racket/file
          racket/list
          racket/runtime-path
          racket/set
@@ -15,6 +16,7 @@
          "../../src/utils/common.rkt")
 
 (define-runtime-path default-output-path "accelerator-table.tex")
+(define-runtime-path default-reports-path "../../reports")
 
 (struct accelerator (impl-name name vars spec cost) #:transparent)
 
@@ -120,6 +122,7 @@
                               (exn-message exn))
                      (hash 'name (symbol->string (accelerator-name acc))
                            'origin (hash-ref accelerator->origin (accelerator-name acc) "")
+                           'report-uses 0
                            'spec (~s (accelerator-spec acc))
                            'cost (format-cost (accelerator-cost acc))
                            'accuracy "n/a"
@@ -130,17 +133,62 @@
     (define spec-error (get-error spec-prog pcontext ctx))
     (hash 'name (symbol->string (accelerator-name acc))
           'origin (hash-ref accelerator->origin (accelerator-name acc) "")
+          'report-uses 0
           'spec (~s (accelerator-spec acc))
           'cost (format-cost (accelerator-cost acc))
           'accuracy (score->accuracy accelerator-error repr)
           'spec-cost (format-cost (cost-proc spec-prog repr))
           'spec-accuracy (score->accuracy spec-error repr))))
 
+(define (accumulate-accelerator-calls! expr accelerator-names counts)
+  (cond
+    [(list? expr)
+     (when (and (pair? expr)
+                (symbol? (first expr))
+                (set-member? accelerator-names (first expr)))
+       (hash-update! counts (first expr) add1 0))
+     (for ([subexpr (in-list expr)])
+       (accumulate-accelerator-calls! subexpr accelerator-names counts))]
+    [(vector? expr)
+     (for ([subexpr (in-vector expr)])
+       (accumulate-accelerator-calls! subexpr accelerator-names counts))]
+    [else (void)]))
+
+(define (collect-report-usage-counts accelerator-names [reports-path default-reports-path])
+  (define counts (make-hasheq))
+  (for ([name (in-set accelerator-names)])
+    (hash-set! counts name 0))
+  (if (directory-exists? reports-path)
+      (for ([path (in-directory reports-path)]
+            #:when (equal? (path->string (file-name-from-path path)) "final-alts.txt"))
+        (with-handlers ([exn:fail?
+                         (lambda (exn)
+                           (eprintf "Warning: failed to read ~a: ~a\n"
+                                    (path->string path)
+                                    (exn-message exn)))])
+          (call-with-input-file path
+            (lambda (in)
+              (let loop ()
+                (define expr (read in))
+                (unless (eof-object? expr)
+                  (accumulate-accelerator-calls! expr accelerator-names counts)
+                  (loop)))))))
+      (eprintf "Warning: reports directory ~a does not exist; usage counts will be zero.\n"
+               (path->string reports-path)))
+  counts)
+
+(define (attach-report-usage row usage-counts)
+  (hash-set row
+            'report-uses
+            (hash-ref usage-counts
+                      (string->symbol (hash-ref row 'name))
+                      0)))
+
 (define (render-rows rows)
   (string-join
    (for/list ([row (in-list rows)])
      (format
-      "~a & ~a & \\texttt{~a} & ~a & ~a & ~a & ~a \\\\"
+      "~a & ~a & ~a & \\texttt{~a} & ~a & ~a & ~a & ~a \\\\"
       (escape-latex (hash-ref row 'name))
       (escape-latex (hash-ref row 'origin))
       (escape-latex (hash-ref row 'spec))
@@ -148,7 +196,9 @@
       (escape-latex (hash-ref row 'spec-accuracy))
       (escape-latex (hash-ref row 'cost))
       (escape-latex (hash-ref row 'accuracy))
-))
+      (hash-ref row 'report-uses)
+
+      ))
    "\n"))
 
 (define (render-latex rows)
@@ -159,9 +209,9 @@
     "\\usepackage[margin=1in]{geometry}\n"
     "\\begin{document}\n"
     "\\section*{growlibm accelerators}\n"
-    "\\begin{tabular}{lllllll}\n"
+    "\\begin{tabular}{llllllll}\n"
     "\\hline\n"
-    "name & origin & spec & cost & accuracy & cost of spec & accuracy of spec \\\\\n"
+    "name & origin & spec & cost of spec & accuracy of spec & cost & accuracy & uses\\\\\n"
     "\\hline\n"
     "~a\n"
     "\\hline\n"
@@ -176,12 +226,12 @@
  #:program "generate-table.rkt"
  #:once-each
  [("--seed") n "Random seed for sampling points."
-  (define parsed (string->number n))
-  (unless (and parsed (exact-integer? parsed))
-    (error 'generate-table.rkt "Invalid --seed value: ~a" n))
-  (seed parsed)]
+             (define parsed (string->number n))
+             (unless (and parsed (exact-integer? parsed))
+               (error 'generate-table.rkt "Invalid --seed value: ~a" n))
+             (seed parsed)]
  [("--output") path "Output LaTeX path."
-  (output-path path)])
+               (output-path path)])
 
 (define accelerators
   (with-handlers ([exn:fail?
@@ -195,6 +245,11 @@
 
 (set-seed! (seed))
 
+(define accelerator-usage-counts
+  (collect-report-usage-counts
+   (for/seteq ([acc (in-list accelerators)])
+     (accelerator-name acc))))
+
 (define (row<? row-a row-b)
   (define origin-a (hash-ref row-a 'origin ""))
   (define origin-b (hash-ref row-b 'origin ""))
@@ -205,7 +260,7 @@
 (define rows
   (sort
    (for/list ([acc (in-list accelerators)])
-     (compute-row acc))
+     (attach-report-usage (compute-row acc) accelerator-usage-counts))
    row<?))
 
 (call-with-output-file (output-path)
