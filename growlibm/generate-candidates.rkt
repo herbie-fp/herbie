@@ -69,8 +69,6 @@
              (void)]
             [(list _ args ...)
              (sow expr)
-             (for ([cut (in-list (direct-cuts expr))])
-               (sow cut))
              (for ([arg (in-list args)]
                    [i (in-naturals)])
                (when (operator-expr? arg)
