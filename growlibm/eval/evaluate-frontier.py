@@ -2,23 +2,8 @@
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
-
-ACCELERATOR_NAMES = [
-    "sinprod",
-    "cosprod",
-    "log1pmd",
-    "invgud",
-    "hypot",
-    "verdcos",
-    "powcos",
-    "powcos2",
-    "powcos4",
-    "powcos6",
-    "pow1ms",
-]
 
 def warn(message):
     print(f"warning: {message}", file=sys.stderr)
@@ -46,13 +31,8 @@ def benchmark_key(test):
         return str(identifier)
     return str(test.get("name") or test.get("link"))
 
-def uses_accelerator(test, accelerator_names):
-    text = " ".join(str(test.get(field, "")) for field in ("output", "target-prog"))
-    for name in accelerator_names:
-        pattern = rf"(?<![A-Za-z0-9_]){re.escape(name)}(?:\.f(?:32|64)\b|\b)"
-        if re.search(pattern, text):
-            return True
-    return False
+def has_accelerator_alt(test):
+    return bool(test.get("has-accelerator-alt", False))
 
 def parse_cost_accuracy(test):
     raw = test.get("cost-accuracy")
@@ -364,7 +344,7 @@ def main():
         benchmark_keys = {
             benchmark_key(test)
             for test in growlibm_results.get("tests", [])
-            if uses_accelerator(test, ACCELERATOR_NAMES)
+            if has_accelerator_alt(test)
         }
         if not benchmark_keys:
             warn("no benchmarks used accelerators; filtered frontier will be empty")

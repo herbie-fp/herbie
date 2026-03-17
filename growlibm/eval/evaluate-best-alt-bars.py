@@ -6,19 +6,6 @@ import re
 import sys
 from pathlib import Path
 
-ACCELERATOR_NAMES = [
-    "sinprod",
-    "cosprod",
-    "log1pmd",
-    "invgud",
-    "hypot",
-    "verdcos",
-    "powcos",
-    "powcos2",
-    "powcos4",
-    "powcos6",
-    "pow1ms",
-]
 def warn(message):
     print(f"warning: {message}", file=sys.stderr)
 
@@ -44,13 +31,8 @@ def parse_point(raw):
         return None
 
 
-def uses_accelerator(test, accelerator_names):
-    text = " ".join(str(test.get(field, "")) for field in ("output", "target-prog"))
-    for name in accelerator_names:
-        pattern = rf"(?<![A-Za-z0-9_]){re.escape(name)}(?:\.f(?:32|64)\b|\b)"
-        if re.search(pattern, text):
-            return True
-    return False
+def has_accelerator_alt(test):
+    return bool(test.get("has-accelerator-alt", False))
 
 
 def most_accurate_alt(test):
@@ -77,8 +59,8 @@ def collect_benchmarks(reports_path):
 
     benchmarks = []
     for grow_test in grow_data.get("tests", []):
-        accelerators = uses_accelerator(grow_test, ACCELERATOR_NAMES)
-        if not accelerators:
+        has_accelerator_alt_flag = has_accelerator_alt(grow_test)
+        if not has_accelerator_alt_flag:
             continue
 
         key = benchmark_key(grow_test)
@@ -95,7 +77,7 @@ def collect_benchmarks(reports_path):
         benchmarks.append(
             {
                 "name": str(grow_test.get("name") or key),
-                "accelerators": accelerators,
+                "accelerators": has_accelerator_alt_flag,
                 "grow_error": grow_alt["error"],
                 "vanilla_error": vanilla_alt["error"],
                 "grow_speedup": grow_alt["speedup"],
@@ -222,7 +204,7 @@ def main():
     benchmarks.sort(key=lambda benchmark: benchmark["vanilla_error"], reverse=True)
 
     platform_key = args.platform.lower()
-    split_at = "inverse-fac" if platform_key == "proj" else None
+    split_at = "forward-y" if platform_key == "proj" else None
     square = platform_key in {"basilisk", "coolprop"}
     base_image_path = reports_path / f"{platform_key}_best-alt-bars.png"
 
