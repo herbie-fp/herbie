@@ -23,6 +23,7 @@
 (define top-k (string->number (vector-ref (current-command-line-arguments) 1)))
 (define implication-seed (string->number (vector-ref (current-command-line-arguments) 2)))
 (disable-flag! 'generate 'taylor)
+(disable-flag! 'generate 'proofs)
 
 ;;; ------------------------- HELPERS ---------------------------------
 (define (register-op! platform fpcore name cost)
