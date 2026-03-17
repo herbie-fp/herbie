@@ -40,7 +40,6 @@
 
 (define *global-batch* (make-parameter #f))
 
-
 (define (dump-altns! altns)
   (when (*dump-exprs*)
     (define exprs (batch-exprs (*global-batch*)))
