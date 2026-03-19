@@ -86,7 +86,6 @@
     (timeline-push! 'outputs (batch->jsexpr batch output-brfs))
     (timeline-push! 'baseline (baseline-errors-score err-cols (pareto-point-cost ppt)))
     (timeline-push! 'accuracy (- (pareto-point-error ppt) (length (option-split-indices opt))))
-    (timeline-push! 'repr (~a (representation-name (context-repr ctx))))
     (timeline-push! 'oracle (oracle-errors-score err-cols (pareto-point-cost ppt)))
     opt))
 
@@ -114,8 +113,8 @@
 (define (oracle-errors-score err-cols count)
   (define num-points (flvector-length (first err-cols)))
   (/ (for/sum ([point-idx (in-range num-points)])
-              (for/fold ([max-err 0.0]) ([err-col (in-list (take err-cols count))])
-                (max max-err (flvector-ref err-col point-idx))))
+              (for/fold ([best-err +inf.0]) ([err-col (in-list (take err-cols count))])
+                (min best-err (flvector-ref err-col point-idx))))
      num-points))
 
 (define (brf-values* batch brfs ctx pcontext)
@@ -169,7 +168,6 @@
     (define-values (batch brfs) (progs->batch (list expr)))
     (define brf (car brfs))
     (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
-    (define brf-root (first (hash-ref (batch->jsexpr batch (list brf)) 'roots)))
     (define reprs (batch-reprs batch ctx))
     (check
      (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
@@ -181,7 +179,6 @@
     (define-values (batch brfs) (progs->batch (list expr)))
     (define brf (car brfs))
     (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
-    (define brf-root (first (hash-ref (batch->jsexpr batch (list brf)) 'roots)))
     (define reprs (batch-reprs batch ctx))
     (define options
       (map pareto-point-data
@@ -200,8 +197,10 @@
   ;; splitpoint (the second, since it is better at the further point).
   (test-regimes (literal 1 'binary64) '(0))
 
-  (test-regimes `(if.f64 (==.f64 x ,(literal 0.5 'binary64)) ,(literal 1 'binary64) (NAN.f64))
-                '(1 0)))
+  (test-regimes `(if.f64 (==.f64 x ,(literal 0.5 'binary64)) ,(literal 1 'binary64) (NAN.f64)) '(1 0))
+
+  (check-equal? (baseline-errors-score err-cols 2) 26.5)
+  (check-equal? (oracle-errors-score err-cols 2) 0.0))
 
 (define (valid-splitindices? can-split? split-indices)
   (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
@@ -238,6 +237,7 @@
   (define (infer-option-prefixes err-cols sorted-indices can-split)
     (define can-split-vec (list->vector can-split))
     (define number-of-alts (length err-cols))
+    (: flvec-psums (Vectorof FlVector))
     (define flvec-psums
       (for/vector #:length number-of-alts
                   ([err-col (in-list err-cols)])
@@ -250,6 +250,9 @@
     ;; min-weight is used as penalty to favor not adding split points
     (define min-weight (fl number-of-points))
 
+    (: result-error-sums (Vectorof FlVector))
+    (: result-alt-idxs (Vectorof (Vectorof Integer)))
+    (: result-prev-idxs (Vectorof (Vectorof Integer)))
     (define result-error-sums
       (for/vector #:length number-of-alts
                   ([alt-idx (in-range number-of-alts)])
@@ -271,6 +274,8 @@
 
     ;; Vectors used to determine the best final segment for each possible split
     ;; when adding alts in increasing cost order.
+    (: best-alt-idxs (Vectorof Integer))
+    (: best-alt-costs FlVector)
     (define best-alt-idxs (make-vector number-of-points number-of-alts))
     (define best-alt-costs (make-flvector number-of-points))
 
@@ -282,11 +287,8 @@
         (vector-set! best-alt-idxs prev-split-idx number-of-alts)
         (flvector-set! best-alt-costs prev-split-idx +inf.0))
 
-      (for ([alt-error-sums (in-vector flvec-psums)]
-            [alt-result-error-sums (in-vector result-error-sums)]
-            [alt-result-alt-idxs (in-vector result-alt-idxs)]
-            [alt-result-prev-idxs (in-vector result-prev-idxs)]
-            [alt-idx (in-naturals)])
+      (for ([alt-idx (in-range number-of-alts)])
+        (define alt-error-sums (vector-ref flvec-psums alt-idx))
         (define single-alt-error (flvector-ref alt-error-sums point-idx))
         (when (< single-alt-error current-best-cost)
           (set! current-best-cost single-alt-error)
@@ -311,6 +313,7 @@
 
         ;; Compare against the best already-computed prefix result for this alt
         ;; budget.
+        (define alt-result-error-sums (vector-ref result-error-sums alt-idx))
         (for ([prev-split-idx (in-range point-idx)]
               [r-error-sum (in-flvector alt-result-error-sums)]
               [best-alt-idx (in-vector best-alt-idxs)]
@@ -332,9 +335,9 @@
             (set! current-alt-idx best-alt-idx)
             (set! current-prev-idx prev-split-idx)))
 
-        (flvector-set! alt-result-error-sums point-idx current-alt-error)
-        (vector-set! alt-result-alt-idxs point-idx current-alt-idx)
-        (vector-set! alt-result-prev-idxs point-idx current-prev-idx)))
+        (flvector-set! (vector-ref result-error-sums alt-idx) point-idx current-alt-error)
+        (vector-set! (vector-ref result-alt-idxs alt-idx) point-idx current-alt-idx)
+        (vector-set! (vector-ref result-prev-idxs alt-idx) point-idx current-prev-idx)))
 
     (define splitss
       (for/vector #:length number-of-alts
