@@ -5,7 +5,8 @@
 (require "../syntax/platform.rkt"
          "../syntax/types.rkt"
          "../utils/common.rkt"
-         "../utils/pareto.rkt")
+         "../utils/pareto.rkt"
+         "../reports/data.rkt")
 
 (provide (struct-out table-row)
          (struct-out report-info)
@@ -13,29 +14,6 @@
          read-datafile
          write-datafile
          merge-datafiles)
-
-(struct table-row
-        (name identifier
-              status
-              pre
-              precision
-              conversions
-              vars
-              warnings
-              input
-              output
-              spec
-              target-prog
-              start
-              result
-              target
-              time
-              link
-              cost-accuracy)
-  #:prefab)
-
-(struct report-info (date commit branch seed flags points iterations tests merged-cost-accuracy)
-  #:prefab)
 
 (define (make-report-info tests #:seed [seed #f])
   (report-info (current-date)

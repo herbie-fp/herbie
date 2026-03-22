@@ -3,16 +3,16 @@
 (require "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../utils/alternative.rkt"
+         "../core/alternative.rkt"
          "../utils/common.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/batch.rkt"
          "egg-herbie.rkt"
          "egglog-herbie.rkt"
          "programs.rkt"
          "rules.rkt"
-         "rival.rkt"
+         "../syntax/rival.rkt"
          "taylor.rkt")
 
 (provide generate-candidates
@@ -31,7 +31,10 @@
                               #;(log ,log-x ,exp-x))))
 
 (define (taylor-alts altns global-batch spec-batch reducer)
-  (define vars (context-vars (*context*)))
+  (define vars
+    (for/list ([var (in-list (context-vars (*context*)))]
+               #:when (equal? (representation-type (context-lookup (*context*) var)) 'real))
+      var))
   (define brfs (map alt-expr altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
   ;; Specs
@@ -46,10 +49,14 @@
         (parameterize ([reduce reducer] ;; reduces over spec-batch
                        [add (λ (x) (batch-add! spec-batch x))]) ;; adds to spec-batch
           ;; Zero expansion
-          (define genexpr0 (batch-add! global-batch 0))
-          (define gen0 (approx (car spec-brfs) (hole (representation-name (car reprs)) genexpr0)))
-          (define brf0 (batch-add! global-batch gen0))
-          (sow (alt brf0 `(taylor zero undef-var) (list (car altns))))
+          (for ([spec-brf (in-list spec-brfs)]
+                [repr (in-list reprs)]
+                [altn (in-list altns)]
+                #:unless (array-representation? repr))
+            (define genexpr0 (batch-add! global-batch 0))
+            (define gen0 (approx spec-brf (hole (representation-name repr) genexpr0)))
+            (define brf0 (batch-add! global-batch gen0))
+            (sow (alt brf0 `(taylor zero undef-var) (list altn))))
 
           ;; Taylor expansions
           ;; List<List<(cons offset coeffs)>>
@@ -121,20 +128,30 @@
 
 (define (run-evaluate altns global-batch)
   (timeline-event! 'sample)
+  (define all-brfs (map alt-expr altns))
+  (define spec-brfs (batch-to-spec! global-batch all-brfs))
   (define free-vars (batch-free-vars global-batch))
-  (define real-altns (filter (compose set-empty? free-vars alt-expr) altns))
+  (define repr-of (batch-reprs global-batch (*context*)))
+  (define real-pairs
+    (for/list ([altn (in-list altns)]
+               [spec-brf (in-list spec-brfs)]
+               #:when (set-empty? (free-vars spec-brf))
+               #:unless (literal? (deref (alt-expr altn)))
+               #:when (equal? (representation-type (repr-of (alt-expr altn))) 'real))
+      (cons altn spec-brf)))
+  (define real-altns (map car real-pairs))
+  (define real-spec-brfs (map cdr real-pairs))
 
   (define brfs (map alt-expr real-altns))
-  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+  (define reprs (map repr-of brfs))
   (define contexts
     (for/list ([repr (in-list reprs)])
       (context '() repr '())))
 
-  (define spec-brfs (batch-to-spec! global-batch brfs))
   (define-values (status pts)
-    (if (null? spec-brfs)
+    (if (null? real-spec-brfs)
         (values 'invalid #f)
-        (let ([real-compiler (make-real-compiler global-batch spec-brfs contexts)])
+        (let ([real-compiler (make-real-compiler global-batch real-spec-brfs contexts)])
           (real-apply real-compiler (vector)))))
   (define literals
     (for/list ([pt (in-list (if (equal? status 'valid)
@@ -143,12 +160,7 @@
                [ctx (in-list contexts)]
                #:when (equal? status 'valid))
       (define repr (context-repr ctx))
-      (match (representation-type repr)
-        ['bool
-         (if pt
-             '(TRUE)
-             '(FALSE))]
-        ['real (literal (repr->real pt repr) (representation-name repr))])))
+      (literal (repr->real pt repr) (representation-name repr))))
 
   (define final-altns
     (for/list ([literal (in-list literals)]
@@ -157,7 +169,7 @@
       (define brf (batch-add! global-batch literal))
       (alt brf '(evaluate) (list altn))))
 
-  (timeline-push! 'inputs (batch->jsexpr global-batch spec-brfs))
+  (timeline-push! 'inputs (batch->jsexpr global-batch real-spec-brfs))
   (timeline-push! 'outputs (map ~a literals))
   final-altns)
 

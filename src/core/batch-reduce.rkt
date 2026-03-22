@@ -110,30 +110,37 @@
 
 (define (reduce-evaluation brf)
   (define batch (batchref-batch brf))
+  (define (pi-multiple expr)
+    (match expr
+      [`(PI) 1]
+      [`(* ,(app deref (? rational? coeff)) ,(app deref '(PI))) coeff]
+      [`(* ,(app deref '(PI)) ,(app deref (? rational? coeff))) coeff]
+      [`(/ ,(app deref '(PI)) ,(app deref (? rational? denom))) (/ denom)]
+      [_ #f]))
   (define node*
     (match (deref brf)
       [(list 'sin (app deref 0)) 0]
       [(list 'cos (app deref 0)) 1]
-      [(list 'sin (app deref (list 'PI))) 0]
-      [(list 'cos (app deref (list 'PI))) -1]
+      [(list 'sin (app deref (app pi-multiple 1))) 0]
+      [(list 'cos (app deref (app pi-multiple 1))) -1]
       [(list 'exp (app deref 1)) '(E)]
       [(list 'tan (app deref 0)) 0]
       [(list 'sinh (app deref 0)) 0]
       [(list 'log (app deref (list 'E))) 1]
       [(list 'exp (app deref 0)) 1]
-      [(list 'tan (app deref (list 'PI))) 0]
+      [(list 'tan (app deref (app pi-multiple 1))) 0]
       [(list 'cosh (app deref 0)) 1]
-      [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 6)))) '(/ (sqrt 3) 2)]
-      [(list 'tan (app deref (list '/ (app deref '(PI)) (app deref 3)))) '(sqrt 3)]
-      [(list 'tan (app deref (list '/ (app deref '(PI)) (app deref 4)))) 1]
-      [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 2)))) 0]
-      [(list 'tan (app deref (list '/ (app deref '(PI)) (app deref 6)))) '(/ 1 (sqrt 3))]
-      [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 3)))) '(/ (sqrt 3) 2)]
-      [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 6)))) 1/2]
-      [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 4)))) '(/ (sqrt 2) 2)]
-      [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 2)))) 1]
-      [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 3)))) 1/2]
-      [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 4)))) '(/ (sqrt 2) 2)]
+      [(list 'cos (app deref (app pi-multiple 1/6))) '(/ (sqrt 3) 2)]
+      [(list 'tan (app deref (app pi-multiple 1/3))) '(sqrt 3)]
+      [(list 'tan (app deref (app pi-multiple 1/4))) 1]
+      [(list 'cos (app deref (app pi-multiple 1/2))) 0]
+      [(list 'tan (app deref (app pi-multiple 1/6))) '(/ 1 (sqrt 3))]
+      [(list 'sin (app deref (app pi-multiple 1/3))) '(/ (sqrt 3) 2)]
+      [(list 'sin (app deref (app pi-multiple 1/6))) 1/2]
+      [(list 'sin (app deref (app pi-multiple 1/4))) '(/ (sqrt 2) 2)]
+      [(list 'sin (app deref (app pi-multiple 1/2))) 1]
+      [(list 'cos (app deref (app pi-multiple 1/3))) 1/2]
+      [(list 'cos (app deref (app pi-multiple 1/4))) '(/ (sqrt 2) 2)]
       [node node]))
   (batch-add! batch node*))
 
@@ -267,7 +274,6 @@
      (batch-add! (global-batch)
                  `(- ,(make-addition-node* pos) ,(make-addition-node* (map negate-term neg))))]))
 
-;; TODO : Use (- x y) when it is simpler
 (define (make-addition-node* terms)
   (match terms
     ['() (batch-push! (global-batch) 0)]

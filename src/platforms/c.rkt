@@ -27,6 +27,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary32> #:cost 32bit-move-cost)
+(define <array32> (make-array-representation #:elem <binary32> #:len 2))
 
 (define-operation (if.f32 [c <bool>] [t <binary32>] [f <binary32>])
                   <binary32>
@@ -99,16 +100,29 @@
   [tgamma.f32 #:spec (tgamma x) #:impl (from-libm 'tgammaf) #:cost 2.625]
   [trunc.f32 #:spec (trunc x) #:impl (from-libm 'truncf) #:cost 0.275])
 
-(define-operations ([x <binary32>] [y <binary32>])
-  <binary32>
-  #:fpcore (! :precision binary32 _)
-  [pow.f32 #:spec (pow x y) #:impl (from-libm 'powf) #:cost 2.000]
-  [atan2.f32 #:spec (atan2 x y) #:impl (from-libm 'atan2f) #:cost 2.000]
-  [copysign.f32 #:spec (copysign x y) #:impl (from-libm 'copysignf) #:cost 0.200]
-  [fdim.f32 #:spec (fdim x y) #:impl (from-libm 'fdimf) #:cost 0.750]
-  [fmax.f32 #:spec (fmax x y) #:impl (from-libm 'fmaxf) #:cost 0.250]
-  [fmin.f32 #:spec (fmin x y) #:impl (from-libm 'fminf) #:cost 0.250]
-  [fmod.f32 #:spec (fmod x y) #:impl (from-libm 'fmodf) #:cost 1.750]
+(define-representation <array32> #:cost (* 2 32bit-move-cost))
+
+(define-operation (array.f32 [x <binary32>] [y <binary32>]) <array32>
+  #:spec (array x y)
+  #:impl (lambda (a b) (vector a b))
+  #:fpcore (! :precision binary32 (array x y))
+  #:cost 0.25)
+
+(define-operation (ref.f32 [arr <array32>] [idx <binary32>]) <binary32>
+  #:spec (ref arr idx)
+  #:impl (lambda (arr idx)
+           (vector-ref arr (inexact->exact (round idx))))
+  #:fpcore (! :precision binary32 (ref arr idx))
+  #:cost 0.2)
+
+(define-operations ([x <binary32>] [y <binary32>]) <binary32> #:fpcore (! :precision binary32 _)
+  [pow.f32       #:spec (pow x y)       #:impl (from-libm 'powf)       #:cost 2.000]
+  [atan2.f32     #:spec (atan2 x y)     #:impl (from-libm 'atan2f)     #:cost 2.000]
+  [copysign.f32  #:spec (copysign x y)  #:impl (from-libm 'copysignf)  #:cost 0.200]
+  [fdim.f32      #:spec (fdim x y)      #:impl (from-libm 'fdimf)      #:cost 0.750]
+  [fmax.f32      #:spec (fmax x y)      #:impl (from-libm 'fmaxf)      #:cost 0.250]
+  [fmin.f32      #:spec (fmin x y)      #:impl (from-libm 'fminf)      #:cost 0.250]
+  [fmod.f32      #:spec (fmod x y)      #:impl (from-libm 'fmodf)      #:cost 1.750]
   [remainder.f32 #:spec (remainder x y) #:impl (from-libm 'remainderf) #:cost 1.000])
 
 (define-operations ([x <binary32>])
@@ -135,6 +149,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary64> #:cost 64bit-move-cost)
+(define <array64> (make-array-representation #:elem <binary64> #:len 2))
+(define <array64r2> (make-array-representation #:elem <array64> #:len 2))
 
 (define-operation (if.f64 [c <bool>] [t <binary64>] [f <binary64>])
                   <binary64>
@@ -207,16 +223,44 @@
   [tgamma.f64 #:spec (tgamma x) #:impl (from-libm 'tgamma) #:cost 2.625]
   [trunc.f64 #:spec (trunc x) #:impl (from-libm 'trunc) #:cost 0.250])
 
-(define-operations ([x <binary64>] [y <binary64>])
-  <binary64>
-  #:fpcore (! :precision binary64 _)
-  [pow.f64 #:spec (pow x y) #:impl (from-libm 'pow) #:cost 2.000]
-  [atan2.f64 #:spec (atan2 x y) #:impl (from-libm 'atan2) #:cost 2.000]
-  [copysign.f64 #:spec (copysign x y) #:impl (from-libm 'copysign) #:cost 0.200]
-  [fdim.f64 #:spec (fdim x y) #:impl (from-libm 'fdim) #:cost 0.750]
-  [fmax.f64 #:spec (fmax x y) #:impl (from-libm 'fmax) #:cost 0.250]
-  [fmin.f64 #:spec (fmin x y) #:impl (from-libm 'fmin) #:cost 0.250]
-  [fmod.f64 #:spec (fmod x y) #:impl (from-libm 'fmod) #:cost 1.750]
+(define-representation <array64> #:cost (* 2 64bit-move-cost))
+(define-representation <array64r2> #:cost (* 2 64bit-move-cost))
+
+(define-operation (array.f64 [x <binary64>] [y <binary64>]) <array64>
+  #:spec (array x y)
+  #:impl (lambda (a b) (vector a b))
+  #:fpcore (! :precision binary64 (array x y))
+  #:cost 0.25)
+
+(define-operation (array2.f64 [x <array64>] [y <array64>]) <array64r2>
+  #:spec (array x y)
+  #:impl (lambda (a b) (vector a b))
+  #:fpcore (array x y)
+  #:cost 0.25)
+
+(define-operation (ref.f64 [arr <array64>] [idx <binary64>]) <binary64>
+  #:spec (ref arr idx)
+  #:impl (lambda (arr idx)
+           (vector-ref arr (inexact->exact (round idx))))
+  #:fpcore (! :precision binary64 (ref arr idx))
+  #:cost 0.2)
+
+(define-operation (ref.r2.f64 [arr <array64r2>] [idx <binary64>]) <array64>
+  #:spec (ref arr idx)
+  #:impl (lambda (arr idx)
+           (vector-ref arr (inexact->exact (round idx))))
+  #:fpcore (! :precision binary64 (ref arr idx))
+  #:cost 0.2)
+
+
+(define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (! :precision binary64 _)
+  [pow.f64       #:spec (pow x y)       #:impl (from-libm 'pow)       #:cost 2.000]
+  [atan2.f64     #:spec (atan2 x y)     #:impl (from-libm 'atan2)     #:cost 2.000]
+  [copysign.f64  #:spec (copysign x y)  #:impl (from-libm 'copysign)  #:cost 0.200]
+  [fdim.f64      #:spec (fdim x y)      #:impl (from-libm 'fdim)      #:cost 0.750]
+  [fmax.f64      #:spec (fmax x y)      #:impl (from-libm 'fmax)      #:cost 0.250]
+  [fmin.f64      #:spec (fmin x y)      #:impl (from-libm 'fmin)      #:cost 0.250]
+  [fmod.f64      #:spec (fmod x y)      #:impl (from-libm 'fmod)      #:cost 1.750]
   [remainder.f64 #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 1.000])
 
 (define-operations ([x <binary64>])
@@ -226,16 +270,10 @@
   [expm1.f64 #:spec (- (exp x) 1) #:impl (from-libm 'expm1) #:fpcore (expm1 x) #:cost 0.900]
   [log1p.f64 #:spec (log (+ 1 x)) #:impl (from-libm 'log1p) #:fpcore (log1p x) #:cost 1.300])
 
-(define-operation (hypot.f64 [x <binary64>] [y <binary64>])
-                  <binary64>
-                  #:spec (sqrt (+ (* x x) (* y y)))
-                  #:impl (from-libm 'hypot)
-                  #:fpcore (! :precision binary64 (hypot x y))
-                  #:cost 1.700)
+(define-operation (hypot.f64 [x <binary64>] [y <binary64>]) <binary64>
+  #:spec (sqrt (+ (* x x) (* y y))) #:impl (from-libm 'hypot)
+  #:fpcore (! :precision binary64 (hypot x y)) #:cost 1.700)
 
-(define-operation (fma.f64 [x <binary64>] [y <binary64>] [z <binary64>])
-                  <binary64>
-                  #:spec (+ (* x y) z)
-                  #:impl (from-libm 'fma)
-                  #:fpcore (! :precision binary64 (fma x y z))
-                  #:cost 0.375)
+(define-operation (fma.f64 [x <binary64>] [y <binary64>] [z <binary64>]) <binary64>
+  #:spec (+ (* x y) z) #:impl (from-libm 'fma)
+  #:fpcore (! :precision binary64 (fma x y z)) #:cost 0.375)

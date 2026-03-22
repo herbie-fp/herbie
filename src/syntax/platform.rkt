@@ -7,7 +7,7 @@
          "matcher.rkt"
          "types.rkt"
          "syntax.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "generators.rkt"
          "batch.rkt")
 

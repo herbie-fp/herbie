@@ -560,7 +560,7 @@ function histogram(id, xdata, ydata, options) {
     var bucketwidth = Math.round(width / bucketnum);
 
     var canvas = document.getElementById(id);
-    if (xdata.length == 0 || (ydata && xdata.length != ydata.length)) { return canvas.remove(); } // Early exit
+    if (xdata.length == 0 || (ydata && xdata.length != ydata.length)) { return canvas.remove(); }
 
     canvas.setAttribute("width", margin + width + margin + "px");
     canvas.setAttribute("height", labels + margin + height + ticks + margin + labels + "px");
