@@ -205,10 +205,8 @@
      (reconstruct-alt altn full-altn can-refer))
    #:key (compose batchref-idx alt-expr)))
 
-
-
-(dump-altns! (^patched^))
 (define (finalize-iter! picked-alts patched)
+  (dump-altns! patched)
 
   (timeline-event! 'eval)
   (define orig-all-alts (atab-active-alts (^table^)))
