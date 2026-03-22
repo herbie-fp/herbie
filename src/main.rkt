@@ -67,6 +67,9 @@
     (define given-seed (read (open-input-string int)))
     (when given-seed
       (set-seed! given-seed))]
+   [("--dump-intermediates")
+    ("Dump all intermediate expressions that Herbie considers")
+    (*dump-intermediates* #t)]
    [("--threads")
     num
     "How many jobs to run in parallel: Processor count is the default."

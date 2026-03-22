@@ -17,6 +17,7 @@
          "preprocess.rkt"
          "programs.rkt"
          "regimes.rkt"
+         "../config.rkt"
          "batch-reduce.rkt")
 
 (provide run-improve!
@@ -200,6 +201,10 @@
 
 ;; Finish iteration
 (define (finalize-iter! picked-alts patched)
+  (when (*dump-intermediates*)
+    (define exprs (batch-exprs (*global-batch*)))
+    (for ([altn (in-list patched)])
+      (displayln (exprs (alt-expr altn)))))
   (timeline-event! 'eval)
   (define orig-all-alts (atab-active-alts (^table^)))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))

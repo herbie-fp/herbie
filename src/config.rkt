@@ -113,6 +113,9 @@
 ;; Number of iterations of the core loop for improving program accuracy
 (define *num-iterations* (make-parameter 4))
 
+;; If Herbie should dump intermediate expressions
+(define *dump-intermediates* (make-parameter #f))
+
 ;; The maximum depth for splitting the space when searching for valid areas of points.
 (define *max-find-range-depth* (make-parameter 12))
 
