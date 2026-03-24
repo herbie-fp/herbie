@@ -1,9 +1,17 @@
 
 # Formatting
 
-- If you modify any Racket run `make fmt` to format the code
+- Use `map` over `for/list` only if it avoids a `lambda`.
+- Always use `in-list` and similar with `for` variants.
+- Always pass `#:length N` to `for/vector`.
+- Do not code defensively. Do not do runtime type checks or fallback.
+  Prefer to examine all callers to establish types, or if they can
+  differ prefer `match` with explicit patterns for all cases, to
+  ensure that an unanticipated values at any point cause errors.
+- Format Racket code with `make fmt` at the top level.
 - Check `git diff` and delete dead code before finishing a task.
 - Update docs in `www/doc/2.3/` if you change user-visible options.
+- Enforce module layering `utils < syntax < core < reports < api`: do not add imports from a lower layer to a higher layer.
 
 # Testing
 
@@ -25,6 +33,9 @@
 
 # Observability
 
+- `jq` is installed, use it
+- If you're investigating a single benchmark, copy it to a file named
+  `test.fpcore` and run just that file.
 - Herbie runs output a `tmp/<benchmark>/timeline.json` with rich
   observability data for each benchmark.
 - A timeline is a list of phases, each a map from key to "table",

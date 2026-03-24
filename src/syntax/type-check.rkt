@@ -8,6 +8,23 @@
          (except-in "platform-language.rkt" quasisyntax))
 (provide assert-program-typed!)
 
+(define (repr-description t)
+  (match t
+    [(? representation?) (representation-name t)]
+    [(? array-representation?)
+     `(array ,(repr-description (array-representation-elem t)) ,(array-representation-len t))]))
+
+(define (repr-compatible-with-precision? repr precision-repr)
+  (match repr
+    [(? array-representation?)
+     (repr-compatible-with-precision? (array-representation-elem repr) precision-repr)]
+    [(? representation?)
+     (or (equal? (representation-type repr) 'bool) (equal? repr precision-repr))]))
+
+(define (array-of elem dims)
+  (for/fold ([out elem]) ([d (in-list (reverse dims))])
+    (make-array-representation #:elem out #:len d)))
+
 (define (assert-program-typed! stx)
   (define-values (vars props body)
     (match (syntax-e stx)
@@ -19,43 +36,47 @@
   (define default-dict `((:precision . ,(*default-precision*))))
   (define prop-dict (apply dict-set* default-dict (map syntax->datum props)))
   (define prec (dict-ref prop-dict ':precision))
+  (define program-repr (get-representation prec))
 
-  (define-values (var-names var-precs)
-    (for/lists (var-names var-precs)
+  (define-values (var-names var-types)
+    (for/lists (var-names var-types)
                ([var (in-list vars)])
                (match (syntax->datum var)
-                 [(list '! props ... name)
+                 [(list '! props ... name dims ...)
                   (define prop-dict (props->dict props))
                   (define arg-prec (dict-ref prop-dict ':precision prec))
-                  (values name arg-prec)]
-                 [(? symbol? name) (values name prec)])))
+                  (define arg-repr (get-representation arg-prec))
+                  (values name (array-of arg-repr dims))]
+                 [(list (? symbol? name) dims ...) (values name (array-of program-repr dims))]
+                 [(? symbol? name) (values name program-repr)])))
 
-  (define ctx (context var-names (get-representation prec) (map get-representation var-precs)))
-  (assert-expression-type! body prop-dict ctx))
+  (define ctx (context var-names program-repr var-types))
+  (values (assert-expression-type! body prop-dict ctx) ctx))
 
 (define (assert-expression-type! stx props ctx)
   (define errs '())
   (define (error! stx fmt . args)
-    (define args*
-      (for/list ([arg (in-list args)])
-        (match arg
-          [(? representation?) (representation-name arg)]
-          [_ arg])))
+    (define args* (map repr-description args))
     (set! errs (cons (cons stx (apply format fmt args*)) errs)))
 
   (define repr (expression->type stx props ctx error!))
-  (unless (equal? repr (context-repr ctx))
-    (error! stx "Expected program of type ~a, got type ~a" (context-repr ctx) repr))
+  (define expected (context-repr ctx))
+  (when (not (repr-compatible-with-precision? repr expected))
+    (error! stx
+            "Expected program of type ~a, got type ~a"
+            (repr-description expected)
+            (repr-description repr)))
 
   (unless (null? errs)
-    (raise-herbie-syntax-error "Program has type errors" #:locations errs)))
+    (raise-herbie-syntax-error "Program has type errors" #:locations errs))
+  repr)
 
 (define (application->string op types)
   (format "(~a ~a)"
           op
           (string-join (for/list ([t types])
                          (if t
-                             (format "<~a>" (representation-name t))
+                             (format "<~a>" (repr-description t))
                              "<?>"))
                        " ")))
 
@@ -90,11 +111,14 @@
        (define cond-ctx (struct-copy context ctx [repr (get-representation 'bool)]))
        (define cond-repr (loop branch prop-dict cond-ctx))
        (unless (equal? (representation-type cond-repr) 'bool)
-         (error! stx "If statement has non-boolean type ~a for branch" cond-repr))
+         (error! stx "If statement has non-boolean type ~a for branch" (repr-description cond-repr)))
        (define ift-repr (loop ifstmt prop-dict ctx))
        (define iff-repr (loop elsestmt prop-dict ctx))
        (unless (equal? ift-repr iff-repr)
-         (error! stx "If statement has different types for if (~a) and else (~a)" ift-repr iff-repr))
+         (error! stx
+                 "If statement has different types for if (~a) and else (~a)"
+                 (repr-description ift-repr)
+                 (repr-description iff-repr)))
        ift-repr]
       [#`(! #,props ... #,body) (loop body (apply dict-set prop-dict (map syntax->datum props)) ctx)]
       [#`(,(? (curry hash-has-key? (*functions*)) fname) #,args ...)
@@ -111,6 +135,31 @@
                  (application->string fname expected)
                  (application->string fname ireprs)))
        repr]
+      [#`(array #,first-elem #,rest-elems ...)
+       (define first-type (loop first-elem prop-dict ctx))
+       (for ([elem (in-list rest-elems)])
+         (define t (loop elem prop-dict ctx))
+         (unless (equal? t first-type)
+           (error! stx
+                   "Array elements have mismatched types: ~a vs ~a"
+                   (repr-description first-type)
+                   (repr-description t))))
+       (array-of first-type (list (+ 1 (length rest-elems))))]
+      [#`(ref #,arr #,idx)
+       (define arr-type (loop arr prop-dict ctx))
+       (define raw (syntax-e idx))
+       (unless (integer? raw)
+         (error! idx "Array index must be a literal integer, got ~a" idx))
+       (match arr-type
+         [(? array-representation?)
+          (define len (array-representation-len arr-type))
+          (define elem (array-representation-elem arr-type))
+          (when (and (integer? raw) (or (< raw 0) (>= raw len)))
+            (error! idx "Array index ~a out of bounds for length ~a" raw len))
+          elem]
+         [_
+          (error! stx "ref expects an array, got ~a" (repr-description arr-type))
+          (get-representation (dict-ref prop-dict ':precision))])]
       [#`(cast #,arg)
        (define irepr (loop arg prop-dict ctx))
        (define repr (get-representation (dict-ref prop-dict ':precision)))
@@ -135,7 +184,6 @@
                   prop-dict)
           (get-representation (dict-ref prop-dict ':precision))]
          [impl (impl-info impl 'otype)])])))
-
 (module+ test
   (require rackunit)
   (require "platform.rkt"
@@ -182,7 +230,10 @@
     (define (check-types env-type rtype expr #:env [env '()])
       (define ctx (context (map car env) env-type (map cdr env)))
       (define repr (expression->type expr (repr->prop env-type) ctx fail!))
-      (check-equal? repr rtype))
+      (cond
+        [(and (representation? repr) (representation? rtype))
+         (check-equal? (representation-name repr) (representation-name rtype))]
+        [else (check-equal? repr rtype)]))
 
     (define (check-fails type expr #:env [env '()])
       (define fail? #f)
@@ -199,4 +250,28 @@
     (check-fails <b64> #'(if (== a 1) 1 0) #:env `((a . ,<bool>)))
     (check-types <b64> <bool> #'(let ([a 1]) TRUE))
     (check-fails <b64> #'(if (== a 1) 1 TRUE) #:env `((a . ,<b64>)))
-    (check-types <b64> <b64> #'(let ([a 1]) a) #:env `((a . ,<bool>)))))
+    (check-types <b64> <b64> #'(let ([a 1]) a) #:env `((a . ,<bool>)))
+
+    ;; Array-aware typing
+    (define vec-type (array-of <b64> '(2)))
+    (define vec3-type (array-of <b64> '(3)))
+    (check-types <b64> vec-type #'(array 1 2))
+    (check-types <b64> vec3-type #'(array 1 2 3))
+    (check-fails <b64> #'(array (array 1) (array 1 2)))
+    (check-types <b64> <b64> #'(ref (array 5 6) 0))
+    (check-types <b64> <b64> #'(ref A 2) #:env `((A . ,vec3-type)))
+    (check-fails <b64> #'(ref A 3) #:env `((A . ,vec3-type)))
+    (check-fails <b64> #'(ref x 0) #:env `((x . ,<b64>))))
+
+  (check-exn exn:fail?
+             (lambda ()
+               (assert-program-typed! #'(FPCore () :precision (array binary64 2) (array 1.0 2.0)))))
+  (check-not-exn (lambda ()
+                   (assert-program-typed! #'(FPCore () :precision binary64 (array 1.0 2.0)))))
+  (check-not-exn (lambda () (assert-program-typed! #'(FPCore ((v 3)) :precision binary64 (ref v 2)))))
+  (check-not-exn (lambda ()
+                   (assert-program-typed! #'(FPCore ((a 3) (b 3))
+                                                    :precision
+                                                    binary64
+                                                    (+ (+ (ref a 0) (ref b 0))
+                                                       (+ (ref a 2) (ref b 2))))))))

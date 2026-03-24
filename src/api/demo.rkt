@@ -22,7 +22,7 @@
          "../syntax/load-platform.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../core/points.rkt"
          "../reports/common.rkt"
          "../reports/core2mathjs.rkt"

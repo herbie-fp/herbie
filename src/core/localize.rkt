@@ -1,9 +1,10 @@
 #lang racket
 
 (require math/bigfloat
+         math/flonum
          racket/hash)
 (require "../utils/common.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -12,7 +13,7 @@
          "compiler.rkt"
          "points.rkt"
          "programs.rkt"
-         "rival.rkt")
+         "../syntax/rival.rkt")
 
 (module+ test
   (require rackunit
@@ -141,7 +142,8 @@
                [var (in-list exact-var-names)])
       (match (representation-type repr)
         ['bool 0] ; We can't subtract booleans so ignore them
-        ['real `(fabs (- ,spec ,var))])))
+        ['real `(fabs (- ,spec ,var))]
+        [_ 0])))
   (define-values (compare-batch compare-brfs) (progs->batch compare-specs))
   (define delta-fn (eval-progs-real compare-batch compare-brfs (map (const delta-ctx) compare-specs)))
 
@@ -226,7 +228,11 @@
     (define data (hash-ref data-hash expr))
     (define abs-error (~s (first (hash-ref data 'absolute-error))))
     (define ulp-error (~s (ulps->bits (first (hash-ref data 'ulp-errs))))) ; unused by Odyssey
-    (define avg-error (format-bits (errors-score (hash-ref data 'ulp-errs))))
+    (define ulp-errs (hash-ref data 'ulp-errs))
+    (define avg-error
+      (format-bits (errors-score (for/flvector #:length (length ulp-errs)
+                                               ([err (in-list ulp-errs)])
+                                               (ulps->bits err)))))
     (define exact-error (~s (translate-booleans (first (hash-ref data 'exact-values)))))
     (define actual-error (~s (translate-booleans (first (hash-ref data 'approx-values)))))
     (define percent-accurate

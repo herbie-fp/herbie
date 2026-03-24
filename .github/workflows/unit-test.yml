@@ -56,11 +56,12 @@ jobs:
           test -f /tmp/out/results.json
       - name: "Run two reports with the same seed and diff them"
         run: |
-          racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs0
-          racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs1
-          racket infra/diff.rkt graphs0 graphs1
+          racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore tmp-0
+          racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore tmp-1
+          racket infra/diff.rkt tmp-0 tmp-1
 
-      # Test egglog mode
+      - name: "Run Herbie on array benchmarks"
+        run: racket -l herbie improve bench/arrays /tmp/out.fpcore
       - name: "Run Herbie with egglog"
         run: racket -y infra/ci.rkt --egglog --precision binary64 --seed 1 bench/tutorial.fpcore
 

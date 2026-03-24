@@ -4,7 +4,7 @@
          math/bigfloat
          ffi/unsafe)
 
-(require "../core/rival.rkt"
+(require "rival.rkt"
          "../config.rkt"
          "types.rkt"
          "batch.rkt")

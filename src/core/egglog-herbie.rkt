@@ -77,11 +77,13 @@
 (define (run-egglog runner output-batch [label #f] #:extract extract) ; multi expression extraction
   (define insert-batch (egglog-runner-batch runner))
   (define insert-brfs (egglog-runner-brfs runner))
+  (define schedule (egglog-runner-schedule runner))
+  (define pform (*active-platform*))
 
   ;;;; SUBPROCESS START ;;;;
   (define subproc (create-new-egglog-subprocess label))
 
-  ;; 1. Add the Prelude (includes all rules) - send directly to egglog
+  ;; 1. Add the prelude - send directly to egglog.
   (prelude subproc #:mixed-egraph? #t)
 
   ;; 2. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
@@ -107,13 +109,13 @@
   ;;
   ;;   (rule () (
   ;;     (let a1 ...)
-  ;;     (set (const1) a1)
+  ;;     (union (const1) a1)
   ;;
   ;;     (let a2 ...)
-  ;;     (set (const2) a2)
+  ;;     (union (const2) a2)
   ;;
   ;;     (let b1 ...)
-  ;;     (set (const3) b1)
+  ;;     (union (const3) b1)
   ;;   )
   ;;   :ruleset init)
   ;;
@@ -138,7 +140,8 @@
 
   ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
 
-  (for ([step (in-list (egglog-runner-schedule runner))])
+  (for ([step (in-list schedule)])
+    (apply egglog-send subproc (egglog-step-commands step pform))
     (match step
       ['lift (egglog-send subproc '(run-schedule (saturate lift)))]
       ['lower (egglog-send subproc '(run-schedule (saturate lower)))]
@@ -146,7 +149,7 @@
       ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
       ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
-  ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
+  ;; 5. Extract using constructor names returned by egglog-add-exprs.
   (define stdout-content
     (egglog-multi-extract subproc
                           `(multi-extract ,extract
@@ -175,36 +178,34 @@
 
   (egglog-send subproc `(datatype M ,@(platform-spec-nodes)))
 
-  (apply egglog-send
-         subproc
-         (append (list `(datatype MTy
-                                  ,@(num-typed-nodes pform)
-                                  ,@(var-typed-nodes pform)
-                                  (Approx M MTy)
-                                  ,@(platform-impl-nodes pform))
-                       `(constructor do-lower (M String) MTy :unextractable)
-                       `(constructor do-lift (MTy) M :unextractable)
-                       `(ruleset lower)
-                       `(ruleset lift)
-                       `(ruleset unsound)
-                       `(function bad-merge? () bool :merge (or old new))
-                       `(ruleset bad-merge-rule)
-                       `(set (bad-merge?) false)
-                       `(rule ((= (Num c1) (Num c2)) (!= c1 c2))
-                              ((set (bad-merge?) true))
-                              :ruleset
-                              bad-merge-rule))
-                 (const-fold-rules)
-                 (impl-lowering-rules pform)
-                 (impl-lifting-rules pform)
-                 (num-lowering-rules)
-                 (num-lifting-rules)
-                 (list (approx-lifting-rule))
-                 (egglog-rewrite-rules (*sound-removal-rules*) 'unsound)
-                 (list `(ruleset rewrite))
-                 (egglog-rewrite-rules (*rules*) 'rewrite)))
+  (egglog-send
+   subproc
+   `(datatype MTy
+              ,@(num-typed-nodes pform)
+              ,@(var-typed-nodes pform)
+              (Approx M MTy)
+              ,@(platform-impl-nodes pform))
+   `(constructor do-lower (M String) MTy :unextractable)
+   `(constructor do-lift (MTy) M :unextractable)
+   `(ruleset lower)
+   `(ruleset lift)
+   `(ruleset unsound)
+   `(function bad-merge? () bool :merge (or old new))
+   `(ruleset bad-merge-rule)
+   `(set (bad-merge?) false)
+   `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule))
 
   (void))
+
+(define (egglog-step-commands step pform)
+  (match step
+    ['lift (append (list (approx-lifting-rule)) (impl-lifting-rules pform) (num-lifting-rules))]
+    ['lower (append (impl-lowering-rules pform) (num-lowering-rules))]
+    ['unsound (egglog-rewrite-rules (*sound-removal-rules*) 'unsound)]
+    ['rewrite
+     (append (list `(ruleset rewrite))
+             (const-fold-rules)
+             (egglog-rewrite-rules (*rules*) 'rewrite))]))
 
 (define (const-fold-rules)
   `((ruleset const-fold)
@@ -478,9 +479,9 @@
     ; Send the constructor definition
     (egglog-send subproc `(constructor ,constructor-name () M :unextractable))
 
-    ; Add the binding and constructor set to all-bindings for the future rule
+    ; Add the binding and constructor union to all-bindings for the future rule
     (set! all-bindings (cons curr-var-spec-binding all-bindings))
-    (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings))
+    (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
 
     (set! constructor-num (add1 constructor-num)))
 
@@ -499,9 +500,9 @@
     ; Send the constructor definition
     (egglog-send subproc `(constructor ,constructor-name () MTy :unextractable))
 
-    ; Add the binding and constructor set to all-bindings for the future rule
+    ; Add the binding and constructor union to all-bindings for the future rule
     (set! all-bindings (cons curr-var-typed-binding all-bindings))
-    (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings))
+    (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
 
     (set! constructor-num (add1 constructor-num)))
 
@@ -533,7 +534,7 @@
     (egglog-send subproc `(constructor ,constructor-name () ,curr-datatype :unextractable))
 
     (set! all-bindings (cons curr-binding-exprs all-bindings))
-    (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings))
+    (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
 
     (set! constructor-num (add1 constructor-num)))
 
@@ -590,5 +591,6 @@
     [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
      (literal (/ (string->number n) (string->number d)) (egglog-num-repr num))]
     [`(,(? egglog-var? var) ,v) (string->symbol v)]
-    [`(Approx ,spec ,impl) (approx (e1->expr spec) (e2->expr impl))] ;;; todo approx bug or not?
+    ; Approx stores a spec expression in E1/M and an implementation in E2/MTy.
+    [`(Approx ,spec ,impl) (approx (e1->expr spec) (e2->expr impl))]
     [`(,impl ,args ...) `(,(hash-ref (e2->id) impl) ,@(map e2->expr args))]))

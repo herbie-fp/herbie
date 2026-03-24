@@ -90,31 +90,21 @@
 
 ;; batch-recurse iterates only over its children
 ;; A lot of parts of Herbie rely on that
-;; batch-recurse panics if user provides different arguments for the same calls
-;; TODO: what if user provides the same object but it is changed inside? "equal?" may not distinguish it
 (define (batch-recurse batch f)
   (define out (make-dvector (batch-length batch)))
   (define visited (make-dvector (batch-length batch) #f))
-  (λ (brf . args)
+  (λ (brf)
     (match-define (batchref b idx) brf)
     (unless (eq? b batch)
       (error 'batch-recurse "Batchref belongs to a different batch"))
-    (let loop ([brf (batchref batch idx)]
-               [args args])
+    (let loop ([brf (batchref batch idx)])
       (define idx (batchref-idx brf))
       (cond
-        [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx))
-         (unless (equal? args (dvector-ref visited idx))
-           (error 'batch-recurse
-                  "Cache violation for ~a, cached with ~a, provided with ~a"
-                  brf
-                  (dvector-ref visited idx)
-                  args))
-         (dvector-ref out idx)]
+        [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx)) (dvector-ref out idx)]
         [else
-         (define res (apply f brf (λ (brf . args) (loop brf args)) args))
+         (define res (f brf loop))
          (dvector-set! out idx res)
-         (dvector-set! visited idx args)
+         (dvector-set! visited idx #t)
          res]))))
 
 (define (brfs-belong-to-batch? batch brfs)
@@ -195,31 +185,49 @@
 (define (jsexpr->batch-exprs jsexpr)
   (define nodes (hash-ref jsexpr 'nodes))
   (define roots (hash-ref jsexpr 'roots))
+  (define node-vec (list->vector nodes))
+
+  ;; Pass 0: mark only the part of the graph reachable from roots.
+  (define reachable? (make-vector (vector-length node-vec) #f))
+  (let loop ([stack roots])
+    (cond
+      [(null? stack) #t]
+      [(vector-ref reachable? (car stack)) (loop (cdr stack))]
+      [else
+       (define idx (car stack))
+       (vector-set! reachable? idx #t)
+       (match (vector-ref node-vec idx)
+         [(list _ args ...) (loop (append args (cdr stack)))]
+         [_ (loop (cdr stack))])]))
 
   ;; Pass 1: count references to each node
-  (define ref-counts (make-vector (length nodes) 0))
+  (define ref-counts (make-vector (vector-length node-vec) 0))
   (for ([root roots])
     (vector-set! ref-counts root (+ 1 (vector-ref ref-counts root))))
   (for ([i (in-naturals)]
-        [node (in-list nodes)])
+        [node (in-vector node-vec)]
+        [reachable (in-vector reachable?)]
+        #:when reachable)
     (match node
-      [(list op args ...)
-       (for ([arg args])
+      [(list _ args ...)
+       (for ([arg (in-list args)])
          (vector-set! ref-counts arg (+ 1 (vector-ref ref-counts arg))))]
       ;; Never dedup constants & variables
       [_ (vector-set! ref-counts i -inf.0)]))
 
   ;; Pass 2: build expressions, using %N for multiply-referenced nodes
-  (define exprs (make-vector (length nodes) #f))
-  (for ([node (in-list nodes)]
-        [i (in-naturals)])
+  (define exprs (make-vector (vector-length node-vec) #f))
+  (for ([i (in-naturals)]
+        [node (in-vector node-vec)]
+        [reachable (in-vector reachable?)]
+        #:when reachable)
     (vector-set! exprs
                  i
                  (match node
                    [(list op args ...)
                     (format "(~a ~a)"
                             op
-                            (string-join (for/list ([arg args])
+                            (string-join (for/list ([arg (in-list args)])
                                            (if (> (vector-ref ref-counts arg) 1)
                                                (format "%~a" arg)
                                                (vector-ref exprs arg)))))]
@@ -228,7 +236,8 @@
   ;; Output: one line per multi-ref node, then root expressions
   (define bindings
     (for/list ([i (in-naturals)]
-               [node (in-list nodes)]
+               [reachable (in-vector reachable?)]
+               #:when reachable
                #:when (> (vector-ref ref-counts i) 1))
       (format "%~a = ~a" i (vector-ref exprs i))))
   (define return-exprs

@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../config.rkt"
-         "../utils/alternative.rkt"
+         "../core/alternative.rkt"
          "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../syntax/platform.rkt"
@@ -13,6 +13,7 @@
          "derivations.rkt"
          "patch.rkt"
          "points.rkt"
+         "compiler.rkt"
          "preprocess.rkt"
          "programs.rkt"
          "regimes.rkt"
@@ -87,23 +88,46 @@
 ;; Herbie. These often wrap other Herbie components, but add logging
 ;; and timeline data.
 
+(define (dump-intermediates! batch altns)
+  (define dump-dir "dump-intermediates")
+  (unless (directory-exists? dump-dir)
+    (make-directory dump-dir))
+  (define name
+    (for/first ([i (in-naturals)]
+                #:unless (file-exists? (build-path dump-dir (format "~a.rktd" i))))
+      (build-path dump-dir (format "~a.rktd" i))))
+  (define exprs (batch-exprs batch))
+  (call-with-output-file name
+                         #:exists 'replace
+                         (lambda (out)
+                           (for ([altn (in-list altns)])
+                             (writeln (exprs (alt-expr altn)) out)))))
+
 (define (batch-score-alts altns)
   (map errors-score (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*) (*context*))))
 
 (define (timeline-push-alts! next-alts)
   (define pending-alts (atab-not-done-alts (^table^)))
   (define active-alts (atab-active-alts (^table^)))
+  (define scores (batch-score-alts active-alts))
+  (define batch-jsexpr (batch->jsexpr (*global-batch*) (map alt-expr active-alts)))
+  (define roots (hash-ref batch-jsexpr 'roots))
   (define repr (context-repr (*context*)))
+  (timeline-push! 'batch batch-jsexpr)
   (for ([alt (in-list active-alts)]
-        [score (in-list (batch-score-alts active-alts))])
+        [score (in-list scores)]
+        [root (in-list roots)])
     (timeline-push! 'alts
-                    (batch->jsexpr (*global-batch*) (list (alt-expr alt)))
+                    root
                     (cond
                       [(set-member? next-alts alt) "next"]
                       [(set-member? pending-alts alt) "fresh"]
                       [else "done"])
                     score
                     (~a (representation-name repr)))))
+
+(define (set-intersect-size keys set)
+  (for/sum ([key (in-list keys)] #:when (set-member? set key)) 1))
 
 (define (expr-recurse-impl expr f)
   (match expr
@@ -113,6 +137,32 @@
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! starting-alts new-alts)
   (timeline-event! 'reconstruct)
+
+  (define (group-equivalent-alts alts)
+    (define fn (compile-batch (*global-batch*) (map alt-expr alts) (*context*)))
+    (define signatures (make-vector (length alts) '()))
+    (define batch-cost (alt-batch-costs (*global-batch*) (*context*)))
+
+    (for ([pt (in-vector (pcontext-points (*pcontext*)))])
+      (define outs (fn pt))
+      (for ([out (in-vector outs)]
+            [idx (in-naturals)])
+        (vector-set! signatures idx (cons out (vector-ref signatures idx)))))
+
+    (define (best-alt alt1 alt2)
+      (define cost1 (batch-cost (alt-expr alt1)))
+      (define cost2 (batch-cost (alt-expr alt2)))
+      (if (or (< cost1 cost2) (and (= cost1 cost2) (expr<? (alt-expr alt1) (alt-expr alt2))))
+          alt1
+          alt2))
+
+    (define groups (make-hash))
+    (for ([altn (in-list alts)]
+          [signature (in-vector signatures)])
+      (define key (cons (get-starting-expr altn) signature))
+      (hash-update! groups key (curry best-alt altn) altn))
+
+    (hash-values groups))
 
   (define (compute-referrers parents root)
     (define seen (mutable-seteq))
@@ -150,7 +200,9 @@
                          (recurse child)))
     (void))
   (for-each (batch-recurse batch walk-body) (map alt-expr starting-alts))
-  (define grouped-alts (group-by get-starting-expr new-alts))
+  (define new-alts* (group-equivalent-alts new-alts))
+  (timeline-push! 'count (length new-alts) (length new-alts*))
+  (define grouped-alts (group-by get-starting-expr new-alts*))
 
   (remove-duplicates
    (for*/list ([start-alts (in-list grouped-alts)]
@@ -163,6 +215,8 @@
 
 ;; Finish iteration
 (define (finalize-iter! picked-alts patched)
+  (when (flag-set? 'dump 'intermediates)
+    (dump-intermediates! (*global-batch*) patched))
   (timeline-event! 'eval)
   (define orig-all-alts (atab-active-alts (^table^)))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
@@ -171,23 +225,24 @@
   (define-values (errss costs) (atab-eval-altns (^table^) (*global-batch*) patched (*context*)))
   (timeline-event! 'prune)
   (^table^ (atab-add-altns (^table^) patched errss costs (*context*)))
-  (define final-fresh-alts (atab-not-done-alts (^table^)))
-  (define final-done-alts (set-subtract (atab-active-alts (^table^)) final-fresh-alts))
+  (define final-fresh-set (list->seteq (atab-not-done-alts (^table^))))
+  (define final-active-set (list->seteq (atab-active-alts (^table^))))
+  (define final-done-set (set-subtract final-active-set final-fresh-set))
   (timeline-push! 'count
                   (+ (length patched) (length orig-fresh-alts) (length orig-done-alts))
-                  (+ (length final-fresh-alts) (length final-done-alts)))
+                  (+ (set-count final-fresh-set) (set-count final-done-set)))
 
   (define data
     (hash 'new
-          (list (length patched) (length (set-intersect patched final-fresh-alts)))
+          (list (length patched) (set-intersect-size patched final-fresh-set))
           'fresh
-          (list (length orig-fresh-alts) (length (set-intersect orig-fresh-alts final-fresh-alts)))
+          (list (length orig-fresh-alts) (set-intersect-size orig-fresh-alts final-fresh-set))
           'done
           (list (- (length orig-done-alts) (length picked-alts))
-                (- (length (set-intersect orig-done-alts final-done-alts))
-                   (length (set-intersect final-done-alts picked-alts))))
+                (- (set-intersect-size orig-done-alts final-done-set)
+                   (set-intersect-size picked-alts final-done-set)))
           'picked
-          (list (length picked-alts) (length (set-intersect final-done-alts picked-alts)))))
+          (list (length picked-alts) (set-intersect-size picked-alts final-done-set))))
   (timeline-push! 'kept data)
 
   (define repr (context-repr (*context*)))
@@ -212,7 +267,7 @@
 (define (make-regime! batch alts start-prog)
   (define ctx (*context*))
   (define repr (context-repr ctx))
-  (define alt-costs (alt-batch-costs batch))
+  (define alt-costs (alt-batch-costs batch ctx))
 
   (cond
     [(and (flag-set? 'reduce 'regimes)
@@ -223,12 +278,12 @@
           (get-fpcore-impl '<= '() (list repr repr)))
      (define opts
        (pareto-regimes batch
-                       (sort alts < #:key (compose (curryr alt-costs repr) alt-expr))
+                       (sort alts < #:key (compose alt-costs alt-expr))
                        start-prog
                        ctx
                        (*pcontext*)))
      (for/list ([opt (in-list opts)])
-       (match-define (option splitindices opt-alts _ brf _) opt)
+       (match-define (option splitindices opt-alts _ brf) opt)
        (timeline-event! 'bsearch)
        (define exprs (batch-exprs batch))
        (define branch-expr (exprs brf))

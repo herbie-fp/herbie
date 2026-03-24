@@ -3,11 +3,11 @@
 (require math/bigfloat
          racket/random)
 (require "../config.rkt"
-         "../utils/alternative.rkt"
+         "../core/alternative.rkt"
          "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../utils/pretty-print.rkt"
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
@@ -15,7 +15,7 @@
          "../syntax/batch.rkt"
          "compiler.rkt"
          "regimes.rkt"
-         "rival.rkt"
+         "../syntax/rival.rkt"
          "sampling.rkt"
          "points.rkt"
          "programs.rkt")
@@ -47,12 +47,12 @@
   (alt brf* (list 'regimes splitpoints**) alts*))
 
 (define (combine-alts batch best-option ctx)
-  (match-define (option splitindices alts pts brf _) best-option)
+  (match-define (option splitindices alts pts brf) best-option)
   (define splitpoints (sindices->spoints/left batch pts brf splitindices ctx))
   (finish-combine-alts batch alts brf splitindices splitpoints ctx))
 
 (define (combine-alts/binary batch best-option start-prog ctx pcontext)
-  (match-define (option splitindices alts pts brf _) best-option)
+  (match-define (option splitindices alts pts brf) best-option)
   (define splitpoints
     (sindices->spoints/binary batch pts brf alts splitindices start-prog ctx pcontext))
   (finish-combine-alts batch alts brf splitindices splitpoints ctx))
@@ -187,7 +187,6 @@
     (raise-user-error
      'sindices->spoints/binary
      "mainloop called binary splitpoint search without extractable critical subexpressions"))
-  ; Not totally clear if this should actually use the precondition
   (define spec-brfs (batch-to-spec! batch (list start-prog)))
   (define start-real-compiler (make-real-compiler batch spec-brfs (list ctx*)))
 
@@ -197,12 +196,15 @@
   (define (find-split si1 si2 p1 p2)
     (define brf1 (list-ref progs (si-cidx si1)))
     (define brf2 (list-ref progs (si-cidx si2)))
+    (define eval-errors (compile-batch batch (list brf1 brf2) ctx*))
+    (define score-ulps (repr-ulps (context-repr ctx*)))
     (define (pred v)
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
           (cache-get-prepend v brf prepend-macro)))
-      (match-define (list errs1 errs2) (batch-errors batch (list brf1 brf2) pctx ctx*))
-      (- (errors-score errs1) (errors-score errs2)))
+      (for/sum ([(pt ex) (in-pcontext pctx)])
+               (match-define (vector out1 out2) (eval-errors pt))
+               (- (ulps->bits (score-ulps out1 ex)) (ulps->bits (score-ulps out2 ex)))))
     (define-values (bp1 _) (binary-search-floats pred p1 p2 repr ulps))
     bp1)
 
@@ -220,15 +222,16 @@
 
 (define (regimes-pcontext-masks pcontext splitpoints alts ctx)
   (define num-alts (length alts))
+  (define num-points (pcontext-length pcontext))
   (define bexpr (sp-bexpr (car splitpoints)))
   (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
   (define prog (compile-prog bexpr ctx*))
-
-  (flip-lists (for/list ([(pt ex) (in-pcontext pcontext)])
-                (define val (prog pt))
-                (define alt-id
-                  (for/first ([right (in-list splitpoints)]
-                              #:when (or (equal? (sp-point right) +nan.0)
-                                         (<=/total val (sp-point right) (context-repr ctx*))))
-                    (sp-cidx right)))
-                (build-list num-alts (curry = alt-id)))))
+  (define masks (build-vector num-alts (λ (_) (make-vector num-points #f))))
+  (for ([(pt _) (in-pcontext pcontext)]
+        [idx (in-naturals)])
+    (define val (prog pt))
+    (for/first ([right (in-list splitpoints)]
+                #:when (or (equal? (sp-point right) +nan.0)
+                           (<=/total val (sp-point right) (context-repr ctx*))))
+      (vector-set! (vector-ref masks (sp-cidx right)) idx #t)))
+  masks)

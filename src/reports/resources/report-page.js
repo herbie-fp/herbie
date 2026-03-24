@@ -566,7 +566,7 @@ function getMinimum(target) {
     }, Infinity);
 }
 
-// HACK I kinda hate this split lambda function, Zane
+// Builds either a normal run row or a comparison row when `other` is present.
 function buildRow(test, other) {
     var smallestTarget = getMinimum(test.target)
 
