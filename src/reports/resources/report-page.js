@@ -945,19 +945,19 @@ async function getResultsJson() {
 }
 
 function storeBenchmarks(tests) {
-    var tempDir = {}
-    var tempAllWarnings = {}
+    const suites = new Set()
+    const warnings = new Set()
     for (let test of tests) {
         const linkComponents = test.link.split("/")
         if (linkComponents.length > 1) {
-            tempDir[linkComponents[0]] = linkComponents[0]
+            suites.add(linkComponents[0])
         }
         for (let warning of test.warnings)  {
-            tempAllWarnings[warning] = warning
+            warnings.add(warning)
         }
     }
-    allSuites = Object.keys(tempDir);
-    allWarnings = Object.keys(tempAllWarnings);
+    allSuites = [...suites];
+    allWarnings = [...warnings];
     update();
 }
 
