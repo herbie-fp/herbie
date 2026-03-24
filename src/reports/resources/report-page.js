@@ -780,7 +780,7 @@ function buildFilterControls(jsonData) {
     return filters;
 }
 
-function showGetJsonError(error) {
+function showGetJsonError() {
     const header = buildHeader("Error loading results")
 
     let is_windows = navigator.userAgent.indexOf("Windows") !== -1;
@@ -827,7 +827,7 @@ function showGetJsonError(error) {
     if (bodyNode) {
         bodyNode.replaceChildren.apply(bodyNode, body);
     } else {
-        document.addEventListener("DOMContentLoaded", () => showGetJsonError(error));
+        document.addEventListener("DOMContentLoaded", () => showGetJsonError());
     }
 }
 
@@ -937,7 +937,7 @@ async function getResultsJson() {
                 headers: { "content-type": "application/json" },
             });
         } catch (err) {
-            return showGetJsonError(err);
+            return showGetJsonError();
         }
         resultsJsonData = (await response.json());
         storeBenchmarks(resultsJsonData.tests)
