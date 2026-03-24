@@ -925,9 +925,7 @@ async function fetchBaseline(url) {
     const json = await response.json()
     if (json.error) return;
 
-    for (let test of json.tests) {
-        diffAgainstFields[test.name] = test;
-    }
+    diffAgainstFields = Object.fromEntries(json.tests.map((test) => [test.name, test]));
     return json;
 }
 
