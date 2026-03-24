@@ -21,7 +21,6 @@
   `(html (head (meta ([charset "utf-8"]))
                (title "Result page for the " ,(~a command) " command is not available right now.")
                ,@js-tex-include
-               (script ([src "https://www.jsdelivr.com/package/npm/mathjs@14"] [defer ""]))
                (script ([src "https://cdn.jsdelivr.net/npm/d3@7"] [defer ""]))
                (script ([src "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6"] [defer ""]))
                (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
@@ -73,7 +72,6 @@
     (head (meta ([charset "utf-8"]))
           (title "Result for " ,(~a (test-name test)))
           ,@js-tex-include
-          (script ([src "https://www.jsdelivr.com/package/npm/mathjs@14"] [defer ""]))
           (script ([src "https://cdn.jsdelivr.net/npm/d3@7"] [defer ""]))
           (script ([src "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6"] [defer ""]))
           (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
