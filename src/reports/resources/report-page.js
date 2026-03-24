@@ -438,7 +438,7 @@ function buildBody(jsonData, otherJsonData) {
         return textElement
     }
 
-    const rows = buildTableContents(jsonData, otherJsonData, filterFunction)
+    const rows = buildTableContents(jsonData, filterFunction)
     const footer = buildDiffFooter(jsonData, otherJsonData, filterFunction)
     const resultsTable = Element("table", { id: "results" }, [
         Element("thead", {}, [
@@ -473,7 +473,7 @@ function compareTests(l, r) {
     return cmp;
 }
 
-function buildTableContents(jsonData, otherJsonData, filterFunction) {
+function buildTableContents(jsonData, filterFunction) {
     var rows = []
     const jsonTest = [...jsonData.tests].sort(compareTests);
     for (let test of jsonTest) {
