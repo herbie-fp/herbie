@@ -163,7 +163,7 @@ function buildDropdown(options, selected, placeholder, onChange) {
             Element("option", { value: opt, selected: selected == opt }, [opt])
         ),
     ]);
-    select.addEventListener("input", () => {
+    select.addEventListener("change", () => {
         onChange(select.value ?? "");
         update();
     });
@@ -396,7 +396,7 @@ function buildStats(summary) {
 }
 
 function buildBody(jsonData, otherJsonData) {
-    let filterFunction = makeFilterFunction();
+    const filterFunction = makeFilterFunction();
 
     const summary = summarizeTests(jsonData.tests);
     summary.testCount = jsonData.tests.length;
