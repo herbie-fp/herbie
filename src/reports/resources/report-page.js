@@ -133,8 +133,8 @@ function formatTime(ms) {
 
 function calculateSpeedup(mergedCostAccuracy) {
     const initial_accuracy = mergedCostAccuracy[0][1]
-    const deepCopy = JSON.parse(JSON.stringify(mergedCostAccuracy[1]))
-    for (const point of deepCopy.reverse()) {
+    const frontier = mergedCostAccuracy[1]
+    for (const point of [...frontier].reverse()) {
         if (point[1] > initial_accuracy) {
             if (typeof point[0] == 'number') {
                 return point[0].toFixed(1) + "×";
