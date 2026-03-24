@@ -291,7 +291,7 @@ function buildCheckboxLabel(classes, text, boolState) {
     ]);
 }
 
-function buildDiffLine(jsonData, show) {
+function buildDiffLine() {
     const urlInput = Element("input", {
         id: "compare-input", value: compareAgainstURL,
         placeholder: "URL to report or JSON file",
@@ -716,7 +716,7 @@ function buildControls(jsonData, diffCount) {
     ])
 }
 
-function buildFilterGroup(jsonData, name, childStateNames) {
+function buildFilterGroup(name) {
     let subFilters = filterGroups[name];
     let label = buildCheckboxLabel(name, toTitleCase(name), filterGroupState[name]);
     label.addEventListener("click", (e) => {
@@ -764,7 +764,7 @@ function buildFilterControls(jsonData) {
 
     let groupButtons = [];
     for (let i in filterGroupState) {
-        groupButtons.push(buildFilterGroup(jsonData, i));
+        groupButtons.push(buildFilterGroup(i));
     }
 
     const filters = Element("details", { id: "filters", open: showFilterDetails }, [
