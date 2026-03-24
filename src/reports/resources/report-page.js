@@ -781,8 +781,8 @@ function buildFilterControls(jsonData) {
 function showGetJsonError() {
     const header = buildHeader("Error loading results")
 
-    let is_windows = navigator.userAgent.indexOf("Windows") !== -1;
-    let page_name = window.location.pathname.split("/").at(-1);
+    const is_windows = navigator.userAgent.indexOf("Windows") !== -1;
+    const page_name = window.location.pathname.split("/").at(-1);
     let page_location;
     if (is_windows) {
         page_location = window.location.pathname.split("/").slice(1, -1).join("\\");
@@ -819,9 +819,9 @@ function showGetJsonError() {
         reason,
     ]);
 
-    let body = [header, message];
+    const body = [header, message];
 
-    let bodyNode = document.querySelector("body");
+    const bodyNode = document.querySelector("body");
     if (bodyNode) {
         bodyNode.replaceChildren.apply(bodyNode, body);
     } else {
