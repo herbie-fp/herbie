@@ -324,7 +324,7 @@ function buildDiffLine() {
     ];
 }
 
-function buildCompareForm(jsonData) {
+function buildCompareForm() {
     const formName = "compare-form"
 
     let radioButtons = [];
@@ -683,13 +683,13 @@ function buildRow(test, other) {
     }
 }
 
-function buildDiffControls(jsonData) {
+function buildDiffControls() {
     var summary = Element("details", { open: showCompareDetails }, [
         Element("summary", {}, [
             Element("h2", {}, ["Diff"]),
-            buildDiffLine(jsonData),
+            buildDiffLine(),
         ]),
-        buildCompareForm(jsonData),
+        buildCompareForm(),
     ])
 
     summary.addEventListener("toggle", (e) => {
@@ -711,7 +711,7 @@ function buildControls(jsonData, diffCount) {
 
     return Element("div", { classList: "report-details" }, [
         displayingDiv,
-        buildDiffControls(jsonData),
+        buildDiffControls(),
         buildFilterControls(jsonData),
     ])
 }
