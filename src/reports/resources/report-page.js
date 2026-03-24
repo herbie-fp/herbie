@@ -732,9 +732,7 @@ function buildFilterGroup(name) {
 function buildFilterControls(jsonData) {
     var testTypeCounts = {}
     for (let test of jsonData.tests) {
-        testTypeCounts[test.status] == null ?
-            testTypeCounts[test.status] = 1 :
-            testTypeCounts[test.status] += 1
+        testTypeCounts[test.status] = (testTypeCounts[test.status] ?? 0) + 1
     }
 
     var filterButtons = []
