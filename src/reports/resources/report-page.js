@@ -9,7 +9,7 @@ var otherJsonData = null
 var resultsJsonData = null
 
 function update() {
-    let bodyNode = document.querySelector("body");
+    const bodyNode = document.querySelector("body");
     bodyNode.replaceChildren.apply(bodyNode, buildBody(resultsJsonData, otherJsonData));
 }
 
