@@ -71,7 +71,7 @@ var filterByWarning = ""
 var allWarnings = []
 
 var sortState = {
-    key: "test",
+    key: "name",
     dir: true, // true = ascending, false = descending
 }
 
