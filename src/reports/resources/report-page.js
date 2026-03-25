@@ -694,9 +694,8 @@ function buildDiffControls() {
 }
 
 function buildControls(jsonData, diffCount) {
-    const showing = diffCount + "/" + jsonData.tests.length;
     var displayingDiv = Element("div", [
-        "Displaying " + showing + " benchmarks",
+        "Displaying " + diffCount + "/" + jsonData.tests.length + " benchmarks",
         " on ", Element("code", jsonData.branch),
         otherJsonData && [
             ", compared with baseline ", Element("code", otherJsonData.branch),
