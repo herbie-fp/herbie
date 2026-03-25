@@ -729,11 +729,16 @@ function buildFilterGroup(name) {
     return label;
 }
 
-function buildFilterControls(jsonData) {
-    var testTypeCounts = {}
-    for (let test of jsonData.tests) {
-        testTypeCounts[test.status] = (testTypeCounts[test.status] ?? 0) + 1
+function countTestsByStatus(tests) {
+    const counts = {}
+    for (const test of tests) {
+        counts[test.status] = (counts[test.status] ?? 0) + 1
     }
+    return counts
+}
+
+function buildFilterControls(jsonData) {
+    const testTypeCounts = countTestsByStatus(jsonData.tests)
 
     var filterButtons = []
     for (let f in filterState) {
