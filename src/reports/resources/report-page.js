@@ -845,7 +845,7 @@ function showGetJsonError() {
     if (bodyNode) {
         bodyNode.replaceChildren.apply(bodyNode, body);
     } else {
-        document.addEventListener("DOMContentLoaded", () => showGetJsonError());
+        document.addEventListener("DOMContentLoaded", showGetJsonError);
     }
 }
 
