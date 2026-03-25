@@ -65,10 +65,7 @@ var showCompareDetails = false;
 
 
 var filterBySuite = ""
-var allSuites = []
-
 var filterByWarning = ""
-var allWarnings = []
 
 var sortState = {
     key: "name",
@@ -737,6 +734,27 @@ function countTestsByStatus(tests) {
     return counts
 }
 
+function collectSuites(tests) {
+    const suites = new Set()
+    for (const test of tests) {
+        const linkComponents = test.link.split("/")
+        if (linkComponents.length > 1) {
+            suites.add(linkComponents[0])
+        }
+    }
+    return [...suites]
+}
+
+function collectWarnings(tests) {
+    const warnings = new Set()
+    for (const test of tests) {
+        for (const warning of test.warnings)  {
+            warnings.add(warning)
+        }
+    }
+    return [...warnings]
+}
+
 function buildFilterControls(jsonData) {
     const testTypeCounts = countTestsByStatus(jsonData.tests)
 
@@ -751,15 +769,15 @@ function buildFilterControls(jsonData) {
         filterButtons.push(button)
     }
 
-    const dropDown = buildDropdown(
-        allSuites,
+    const suiteDropdown = buildDropdown(
+        collectSuites(jsonData.tests),
         filterBySuite,
         "Filter by suite",
         (value) => { filterBySuite = value; },
     );
 
-    const dropDown2 = buildDropdown(
-        allWarnings,
+    const warningDropdown = buildDropdown(
+        collectWarnings(jsonData.tests),
         filterByWarning,
         "Filter to warning",
         (value) => { filterByWarning = value; },
@@ -773,7 +791,7 @@ function buildFilterControls(jsonData) {
     const filters = Element("details", { id: "filters", open: showFilterDetails }, [
         Element("summary", {}, [
             Element("h2", {}, "Filters"),
-            groupButtons, " ", dropDown, " ", dropDown2,
+            groupButtons, " ", suiteDropdown, " ", warningDropdown,
         ]),
         filterButtons,
     ]);
@@ -942,25 +960,8 @@ async function getResultsJson() {
         } catch (err) {
             return showGetJsonError();
         }
-        storeBenchmarks(resultsJsonData.tests)
+        update();
     }
-}
-
-function storeBenchmarks(tests) {
-    const suites = new Set()
-    const warnings = new Set()
-    for (const test of tests) {
-        const linkComponents = test.link.split("/")
-        if (linkComponents.length > 1) {
-            suites.add(linkComponents[0])
-        }
-        for (const warning of test.warnings)  {
-            warnings.add(warning)
-        }
-    }
-    allSuites = [...suites];
-    allWarnings = [...warnings];
-    update();
 }
 
 getResultsJson()
