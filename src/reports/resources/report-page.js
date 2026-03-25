@@ -467,14 +467,18 @@ function compareTests(l, r) {
     return cmp;
 }
 
-function buildTableContents(jsonData, filterFunction) {
-    var rows = []
-    const jsonTest = [...jsonData.tests].sort(compareTests);
-    for (const test of jsonTest) {
+function getVisibleTests(jsonData, filterFunction) {
+    const visibleTests = []
+    for (const test of [...jsonData.tests].sort(compareTests)) {
         const other = diffAgainstFields[test.name];
-        if (filterFunction(test, other)) rows.push(buildRow(test, other));
+        if (filterFunction(test, other)) visibleTests.push(test);
     }
-    return rows;
+    return visibleTests
+}
+
+function buildTableContents(jsonData, filterFunction) {
+    const visibleTests = getVisibleTests(jsonData, filterFunction);
+    return visibleTests.map((test) => buildRow(test, diffAgainstFields[test.name]));
 }
 
 function computeDiffTotal(jsonData, filterFunction) {
