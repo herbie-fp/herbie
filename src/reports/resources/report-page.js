@@ -203,7 +203,7 @@ function on(mark, listeners = {}) {
 
 function plotXY(testsData, otherJsonData) {
     const filteredTests = testsData.tests.filter((test) => {
-        return filterTest(test, getBaselineTest(test));
+        return filterTest(test);
     });
     function onclick(e, d) {
         window.location = d.link + "/graph.html";
@@ -473,8 +473,7 @@ function getBaselineTest(test) {
 function getVisibleTests(jsonData) {
     const visibleTests = []
     for (const test of [...jsonData.tests].sort(compareTests)) {
-        const other = getBaselineTest(test);
-        if (filterTest(test, other)) visibleTests.push(test);
+        if (filterTest(test)) visibleTests.push(test);
     }
     return visibleTests
 }
@@ -490,7 +489,7 @@ function computeDiffTotal(jsonData) {
     for (let test of jsonData.tests) {
         let other = getBaselineTest(test);
         if (!other) continue;
-        if (!filterTest(test, other)) continue;
+        if (!filterTest(test)) continue;
 
         if (radioState == "startAcc") {
             const cur = calculatePercent(test.start / test.bits);
@@ -918,7 +917,8 @@ function filterStatus(baseData) {
     return !filterState[baseData.status]
 }
 
-function filterTest(baseData, diffData) {
+function filterTest(baseData) {
+    const diffData = getBaselineTest(baseData)
     if (filterDirtyEqual(baseData, diffData)) return false
     if (filterSuite(baseData)) return false
     if (filterWarning(baseData)) return false
