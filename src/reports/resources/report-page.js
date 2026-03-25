@@ -202,9 +202,7 @@ function on(mark, listeners = {}) {
 }
 
 function plotXY(testsData, otherJsonData) {
-    const filteredTests = testsData.tests.filter((test) => {
-        return filterTest(test);
-    });
+    const filteredTests = testsData.tests.filter(filterTest);
     function onclick(e, d) {
         window.location = d.link + "/graph.html";
     }
