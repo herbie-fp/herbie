@@ -203,7 +203,7 @@ function on(mark, listeners = {}) {
 
 function plotXY(testsData, otherJsonData) {
     const filteredTests = testsData.tests.filter((test) => {
-        return filterTest(test, diffAgainstFields[test.name]);
+        return filterTest(test, getBaselineTest(test));
     });
     function onclick(e, d) {
         window.location = d.link + "/graph.html";
@@ -213,8 +213,8 @@ function plotXY(testsData, otherJsonData) {
     ];
     if (otherJsonData) {
         marks.push(Plot.arrow(filteredTests, {
-            x1: d => 1 - diffAgainstFields[d.name].start / 64,
-            y1: d => 1 - diffAgainstFields[d.name].end / 64,
+            x1: d => 1 - getBaselineTest(d).start / 64,
+            y1: d => 1 - getBaselineTest(d).end / 64,
             x2: d => 1 - d.start / 64,
             y2: d => 1 - d.end / 64,
             stroke: "#900", strokeWidth: 2,
@@ -466,10 +466,14 @@ function compareTests(l, r) {
     return cmp;
 }
 
+function getBaselineTest(test) {
+    return diffAgainstFields[test.name]
+}
+
 function getVisibleTests(jsonData) {
     const visibleTests = []
     for (const test of [...jsonData.tests].sort(compareTests)) {
-        const other = diffAgainstFields[test.name];
+        const other = getBaselineTest(test);
         if (filterTest(test, other)) visibleTests.push(test);
     }
     return visibleTests
@@ -477,14 +481,14 @@ function getVisibleTests(jsonData) {
 
 function buildTableContents(jsonData) {
     const visibleTests = getVisibleTests(jsonData);
-    return visibleTests.map((test) => buildRow(test, diffAgainstFields[test.name]));
+    return visibleTests.map((test) => buildRow(test, getBaselineTest(test)));
 }
 
 function computeDiffTotal(jsonData) {
     if (!otherJsonData || !radioState) return 0;
     let total = 0;
     for (let test of jsonData.tests) {
-        let other = diffAgainstFields[test.name];
+        let other = getBaselineTest(test);
         if (!other) continue;
         if (!filterTest(test, other)) continue;
 
