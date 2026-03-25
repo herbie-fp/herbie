@@ -309,7 +309,7 @@ function buildDiffLine() {
         id: `toleranceID`, value: filterTolerance,
         size: 10, style: "text-align:right;",
     }, []);
-    toleranceInputField.addEventListener("change", (e) => {
+    toleranceInputField.addEventListener("change", () => {
         filterTolerance = toleranceInputField.value;
         update();
     });
@@ -331,7 +331,7 @@ function buildCompareForm() {
             type: "radio",
             checked: radioState == i,
         }, []);
-        radioElt.addEventListener("click", (e) => {
+        radioElt.addEventListener("click", () => {
             radioState = i;
             update();
         });
@@ -341,7 +341,7 @@ function buildCompareForm() {
     }
 
     const hideEqual = buildCheckboxLabel("hide-equal", "Hide equal", hideDirtyEqual)
-    hideEqual.addEventListener("click", (e) => {
+    hideEqual.addEventListener("click", () => {
         hideDirtyEqual = ! hideDirtyEqual;
         update();
     })
@@ -420,7 +420,7 @@ function buildBody(jsonData, otherJsonData) {
             (stringName != sortState.key ? "–" : sortState.dir ?  "⏶" : "⏷"),
             help && Element("span", { classList: "help-button", title: help }, ["?"]),
         ]);
-        textElement.addEventListener("click", (e) => {
+        textElement.addEventListener("click", () => {
             if (stringName == sortState.key) {
                 sortState.dir = !sortState.dir;
             } else {
@@ -686,7 +686,7 @@ function buildDiffControls() {
         buildCompareForm(),
     ])
 
-    summary.addEventListener("toggle", (e) => {
+    summary.addEventListener("toggle", () => {
         showCompareDetails = summary.open;
     });
 
@@ -792,7 +792,7 @@ function buildFilterControls(jsonData) {
         ]),
         filterButtons,
     ]);
-    filters.addEventListener("toggle", (e) => {
+    filters.addEventListener("toggle", () => {
         showFilterDetails = filters.open;
     });
     return filters;
