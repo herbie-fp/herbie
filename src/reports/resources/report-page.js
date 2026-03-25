@@ -944,12 +944,12 @@ async function getResultsJson() {
 function storeBenchmarks(tests) {
     const suites = new Set()
     const warnings = new Set()
-    for (let test of tests) {
+    for (const test of tests) {
         const linkComponents = test.link.split("/")
         if (linkComponents.length > 1) {
             suites.add(linkComponents[0])
         }
-        for (let warning of test.warnings)  {
+        for (const warning of test.warnings)  {
             warnings.add(warning)
         }
     }
