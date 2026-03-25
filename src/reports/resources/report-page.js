@@ -201,9 +201,9 @@ function on(mark, listeners = {}) {
     return mark
 }
 
-function plotXY(testsData, otherJsonData, filterFunction) {
+function plotXY(testsData, otherJsonData) {
     const filteredTests = testsData.tests.filter((test) => {
-        return filterFunction(test, diffAgainstFields[test.name]);
+        return filterTest(test, diffAgainstFields[test.name]);
     });
     function onclick(e, d) {
         window.location = d.link + "/graph.html";
@@ -414,7 +414,6 @@ function buildTableHeader(stringName, help) {
 }
 
 function buildBody(jsonData, otherJsonData) {
-    const filterFunction = makeFilterFunction();
     const stats = buildStats(jsonData);
 
     const header = buildHeader("Herbie Results")
@@ -422,7 +421,7 @@ function buildBody(jsonData, otherJsonData) {
     const figureRow = Element("div", { classList: "figure-row" }, [
         Element("figure", { id: "xy" }, [
             Element("h2", {}, [tempXY_A]),
-            plotXY(jsonData, otherJsonData, filterFunction),
+            plotXY(jsonData, otherJsonData),
             Element("figcaption", {}, [tempXY_B])
         ]),
         Element("figure", { id: "pareto" }, [
@@ -432,8 +431,8 @@ function buildBody(jsonData, otherJsonData) {
         ])
     ])
 
-    const rows = buildTableContents(jsonData, filterFunction)
-    const footer = buildDiffFooter(jsonData, otherJsonData, filterFunction)
+    const rows = buildTableContents(jsonData)
+    const footer = buildDiffFooter(jsonData, otherJsonData)
     const resultsTable = Element("table", { id: "results" }, [
         Element("thead", {}, [
             Element("tr", {}, [
@@ -467,27 +466,27 @@ function compareTests(l, r) {
     return cmp;
 }
 
-function getVisibleTests(jsonData, filterFunction) {
+function getVisibleTests(jsonData) {
     const visibleTests = []
     for (const test of [...jsonData.tests].sort(compareTests)) {
         const other = diffAgainstFields[test.name];
-        if (filterFunction(test, other)) visibleTests.push(test);
+        if (filterTest(test, other)) visibleTests.push(test);
     }
     return visibleTests
 }
 
-function buildTableContents(jsonData, filterFunction) {
-    const visibleTests = getVisibleTests(jsonData, filterFunction);
+function buildTableContents(jsonData) {
+    const visibleTests = getVisibleTests(jsonData);
     return visibleTests.map((test) => buildRow(test, diffAgainstFields[test.name]));
 }
 
-function computeDiffTotal(jsonData, filterFunction) {
+function computeDiffTotal(jsonData) {
     if (!otherJsonData || !radioState) return 0;
     let total = 0;
     for (let test of jsonData.tests) {
         let other = diffAgainstFields[test.name];
         if (!other) continue;
-        if (!filterFunction(test, other)) continue;
+        if (!filterTest(test, other)) continue;
 
         if (radioState == "startAcc") {
             const cur = calculatePercent(test.start / test.bits);
@@ -511,10 +510,10 @@ function computeDiffTotal(jsonData, filterFunction) {
     return total;
 }
 
-function buildDiffFooter(jsonData, otherJsonData, filterFunction) {
+function buildDiffFooter(jsonData, otherJsonData) {
     if (!otherJsonData || !radioState) return [];
 
-    const total = computeDiffTotal(jsonData, filterFunction);
+    const total = computeDiffTotal(jsonData);
     let color = "diff-time-gray";
     let text = "~";
 
@@ -915,14 +914,12 @@ function filterStatus(baseData) {
     return !filterState[baseData.status]
 }
 
-function makeFilterFunction() {
-    return function filterFunction(baseData, diffData) {
-        if (filterDirtyEqual(baseData, diffData)) return false
-        if (filterSuite(baseData)) return false
-        if (filterWarning(baseData)) return false
-        if (filterStatus(baseData)) return false
-        return true
-    }
+function filterTest(baseData, diffData) {
+    if (filterDirtyEqual(baseData, diffData)) return false
+    if (filterSuite(baseData)) return false
+    if (filterWarning(baseData)) return false
+    if (filterStatus(baseData)) return false
+    return true
 }
 
 async function fetchBaseline(url) {
