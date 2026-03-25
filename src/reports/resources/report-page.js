@@ -444,7 +444,7 @@ function buildBody(jsonData, otherJsonData) {
         rows,
         footer
     ]);
-    return [header, stats, figureRow, buildControls(jsonData, rows.length), resultsTable]
+    return [header, stats, figureRow, buildControls(jsonData, otherJsonData, rows.length), resultsTable]
 }
 
 function compareTests(l, r) {
@@ -697,7 +697,7 @@ function buildDiffControls() {
     return summary;
 }
 
-function buildControls(jsonData, diffCount) {
+function buildControls(jsonData, otherJsonData, diffCount) {
     var displayingDiv = Element("div", [
         "Displaying " + diffCount + "/" + jsonData.tests.length + " benchmarks",
         " on ", Element("code", jsonData.branch),
