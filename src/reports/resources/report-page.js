@@ -394,6 +394,25 @@ function buildStats(jsonData) {
     ]);
 }
 
+function buildTableHeader(stringName, help) {
+    const textElement = Element("th", {}, [
+        toTitleCase(stringName),
+        " ",
+        (stringName != sortState.key ? "–" : sortState.dir ?  "⏶" : "⏷"),
+        help && Element("span", { classList: "help-button", title: help }, ["?"]),
+    ]);
+    textElement.addEventListener("click", () => {
+        if (stringName == sortState.key) {
+            sortState.dir = !sortState.dir;
+        } else {
+            sortState.key = stringName;
+            sortState.dir = true;
+        }
+        update();
+    })
+    return textElement
+}
+
 function buildBody(jsonData, otherJsonData) {
     const filterFunction = makeFilterFunction();
     const stats = buildStats(jsonData);
@@ -412,25 +431,6 @@ function buildBody(jsonData, otherJsonData) {
             Element("figcaption", {}, [tempPareto_B])
         ])
     ])
-
-    function buildTableHeader(stringName, help) {
-        const textElement = Element("th", {}, [
-            toTitleCase(stringName),
-            " ",
-            (stringName != sortState.key ? "–" : sortState.dir ?  "⏶" : "⏷"),
-            help && Element("span", { classList: "help-button", title: help }, ["?"]),
-        ]);
-        textElement.addEventListener("click", () => {
-            if (stringName == sortState.key) {
-                sortState.dir = !sortState.dir;
-            } else {
-                sortState.key = stringName;
-                sortState.dir = true;
-            }
-            update();
-        })
-        return textElement
-    }
 
     const rows = buildTableContents(jsonData, filterFunction)
     const footer = buildDiffFooter(jsonData, otherJsonData, filterFunction)
