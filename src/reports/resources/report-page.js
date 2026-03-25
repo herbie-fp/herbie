@@ -72,7 +72,7 @@ var allWarnings = []
 
 var sortState = {
     key: "name",
-    dir: true, // true = ascending, false = descending
+    dir: true, // true = descending, false = ascending
 }
 
 // Next are various strings used in the UI
