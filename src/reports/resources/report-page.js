@@ -477,7 +477,7 @@ function buildTableContents(jsonData, filterFunction) {
     var rows = []
     const jsonTest = [...jsonData.tests].sort(compareTests);
     for (let test of jsonTest) {
-        let other = diffAgainstFields[test.name];
+        const other = diffAgainstFields[test.name];
         if (filterFunction(test, other)) rows.push(buildRow(test, other));
     }
     return rows;
