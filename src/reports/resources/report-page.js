@@ -914,7 +914,7 @@ async function fetchBaseline(url) {
     if (url.endsWith("/")) url += "results.json";
     compareAgainstURL = url;
 
-    let response = await fetch(url, {
+    const response = await fetch(url, {
         headers: { "content-type": "text/plain" },
         method: "GET",
         mode: "cors",
@@ -929,15 +929,14 @@ async function fetchBaseline(url) {
 
 async function getResultsJson() {
     if (resultsJsonData == null) {
-        let response;
         try {
-            response = await fetch("results.json", {
+            const response = await fetch("results.json", {
                 headers: { "content-type": "application/json" },
             });
+            resultsJsonData = (await response.json());
         } catch (err) {
             return showGetJsonError();
         }
-        resultsJsonData = (await response.json());
         storeBenchmarks(resultsJsonData.tests)
     }
 }
