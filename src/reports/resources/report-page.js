@@ -852,81 +852,75 @@ function showGetJsonError() {
     }
 }
 
+function filterDirtyEqual(baseData, diffData) {
+    if (!hideDirtyEqual) {
+        return false
+    }
+
+    if (radioState == "output") {
+        return baseData.output == diffData.output
+    }
+
+    if (radioState == "startAcc") {
+        const t = baseData.start / baseData.bits
+        const o = diffData.start / diffData.bits
+        const op = calculatePercent(o)
+        const tp = calculatePercent(t)
+        const diff = op - tp
+        return Math.abs((diff).toFixed(1)) <= filterTolerance
+    }
+
+    if (radioState == "endAcc") {
+        const t = baseData.end / baseData.bits
+        const o = diffData.end / diffData.bits
+        const op = calculatePercent(o)
+        const tp = calculatePercent(t)
+        const diff = op - tp
+        return Math.abs((diff).toFixed(1)) <= filterTolerance
+    }
+
+    if (radioState == "targetAcc") {
+        const smallestBase = getMinimum(baseData.target)
+        const smallestDiff = getMinimum(diffData.target)
+
+        const t = smallestBase / baseData.bits
+        const o = smallestDiff / diffData.bits
+        const op = calculatePercent(o)
+        const tp = calculatePercent(t)
+        const diff = op - tp
+        return Math.abs((diff).toFixed(1)) <= filterTolerance
+    }
+
+    if (radioState == "time") {
+        const timeDiff = baseData.time - diffData.time
+        return Math.abs(timeDiff) < (filterTolerance * 1000)
+    }
+
+    return false
+}
+
+function filterSuite(baseData) {
+    const linkComponents = baseData.link.split("/")
+    return filterBySuite &&
+        linkComponents.length > 1 &&
+        // defensive lowerCase
+        filterBySuite.toLowerCase() != linkComponents[0].toLowerCase()
+}
+
+function filterWarning(baseData) {
+    return filterByWarning && baseData.warnings.indexOf(filterByWarning) === -1
+}
+
+function filterStatus(baseData) {
+    return !filterState[baseData.status]
+}
+
 function makeFilterFunction() {
     return function filterFunction(baseData, diffData) {
-
-        // Section to hide diffs that are below the provided tolerance
-        if (hideDirtyEqual) {
-            // Diff Start Accuracy
-            if (radioState == "output") {
-                if (baseData.output != diffData.output) {
-                    return false;
-                }
-            }
-            // Diff Start Accuracy
-            if (radioState == "startAcc") {
-                const t = baseData.start / baseData.bits
-                const o = diffData.start / diffData.bits
-                const op = calculatePercent(o)
-                const tp = calculatePercent(t)
-                var diff = op - tp
-                if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                    return false;
-                }
-            }
-            
-            // Diff Result Accuracy
-            if (radioState == "endAcc") {
-                const t = baseData.end / baseData.bits
-                const o = diffData.end / diffData.bits
-                const op = calculatePercent(o)
-                const tp = calculatePercent(t)
-                var diff = op - tp
-                if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                    return false;
-                }
-            }
-
-            // Diff Target Accuracy
-            if (radioState == "targetAcc") {
-                var smallestBase = getMinimum(baseData.target)
-                var smallestDiff = getMinimum(diffData.target)
-                
-                const t = smallestBase / baseData.bits
-                const o = smallestDiff / diffData.bits
-                const op = calculatePercent(o)
-                const tp = calculatePercent(t)
-                var diff = op - tp
-                if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                    return false;
-                }
-            }
-
-            // Diff Time
-            if (radioState == "time") {
-                var timeDiff = baseData.time - diffData.time
-                if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
-                    return false;
-                }
-            }
-        }
-
-        const linkComponents = baseData.link.split("/")
-        if (filterBySuite && linkComponents.length > 1) {
-            // defensive lowerCase
-            if (filterBySuite.toLowerCase() != linkComponents[0].toLowerCase()) {
-                return false
-            }
-        }
-
-        if (filterByWarning && baseData.warnings.indexOf(filterByWarning) === -1) {
-            return false
-        }
-
-        if (!filterState[baseData.status]) {
-            return false
-        }
-
+        if (filterDirtyEqual(baseData, diffData)) return false
+        if (filterSuite(baseData)) return false
+        if (filterWarning(baseData)) return false
+        if (filterStatus(baseData)) return false
         return true
     }
 }
