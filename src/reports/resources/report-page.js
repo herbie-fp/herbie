@@ -362,7 +362,9 @@ function summarizeTests(tests) {
     }, { totalStart: 0, totalEnd: 0, maxAccuracy: 0, totalTime: 0, crashCount: 0 });
 }
 
-function buildStats(summary) {
+function buildStats(jsonData) {
+    const summary = summarizeTests(jsonData.tests);
+
     return Element("div", { id: "large" }, [
         Element("div", {}, [
             "Average Percentage Accurate: ",
@@ -380,26 +382,21 @@ function buildStats(summary) {
             Element("span", {
                 classList: "number",
                 title: "Crashes and timeouts are considered bad runs."
-            }, [`${summary.crashCount}/${summary.testCount}`])
+            }, [`${summary.crashCount}/${jsonData.tests.length}`])
         ]),
         Element("div", {}, [
             "Speedup:",
             Element("span", {
                 classList: "number",
                 title: "Aggregate speedup of fastest alternative that improves accuracy."
-            }, [calculateSpeedup(summary.mergedCostAccuracy)])
+            }, [calculateSpeedup(jsonData["merged-cost-accuracy"])])
         ]),
     ]);
 }
 
 function buildBody(jsonData, otherJsonData) {
     const filterFunction = makeFilterFunction();
-
-    const summary = summarizeTests(jsonData.tests);
-    summary.testCount = jsonData.tests.length;
-    summary.mergedCostAccuracy = jsonData["merged-cost-accuracy"];
-
-    const stats = buildStats(summary);
+    const stats = buildStats(jsonData);
 
     const header = buildHeader("Herbie Results")
 
