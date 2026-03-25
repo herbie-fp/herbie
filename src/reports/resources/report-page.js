@@ -737,7 +737,7 @@ function buildFilterControls(jsonData) {
 
     var filterButtons = []
     for (let f in filterState) {
-        const name = `${filterNames[f]} (${testTypeCounts[f] ? testTypeCounts[f] : "0"})`
+        const name = `${filterNames[f]} (${testTypeCounts[f] ?? 0})`
         const button = buildCheckboxLabel(f + " sub-filter", name, filterState[f])
         button.addEventListener("click", () => {
             filterState[f] = button.querySelector("input").checked
