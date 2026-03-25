@@ -147,15 +147,23 @@ function calculateSpeedup(mergedCostAccuracy) {
 }
 
 function paretoUnion(curve1, curve2) {
-    const combined = [];
+    const curve1Length = curve1.length;
+    const curve2Length = curve2.length;
+    const output = new Array(curve1Length + curve2Length);
+    let outputLength = 0;
     let index1 = 0;
     let index2 = 0;
 
-    while (index1 < curve1.length && index2 < curve2.length) {
-        const [cost1, error1] = curve1[index1];
-        const [cost2, error2] = curve2[index2];
+    while (index1 < curve1Length && index2 < curve2Length) {
+        const point1 = curve1[index1];
+        const point2 = curve2[index2];
+        const cost1 = point1[0];
+        const error1 = point1[1];
+        const cost2 = point2[0];
+        const error2 = point2[1];
         if (cost1 === cost2 && error1 === error2) {
-            combined.push(curve1[index1]);
+            output[outputLength] = point1;
+            outputLength += 1;
             index1 += 1;
             index2 += 1;
         } else if (cost1 <= cost2 && error1 <= error2) {
@@ -163,16 +171,31 @@ function paretoUnion(curve1, curve2) {
         } else if (cost1 >= cost2 && error1 >= error2) {
             index1 += 1;
         } else if (error1 < error2) {
-            combined.push(curve1[index1]);
+            output[outputLength] = point1;
+            outputLength += 1;
             index1 += 1;
         } else {
-            combined.push(curve2[index2]);
+            output[outputLength] = point2;
+            outputLength += 1;
             index2 += 1;
         }
     }
 
-    return combined.concat(curve1.slice(index1), curve2.slice(index2));
+    while (index1 < curve1Length) {
+        output[outputLength] = curve1[index1];
+        outputLength += 1;
+        index1 += 1;
+    }
+    while (index2 < curve2Length) {
+        output[outputLength] = curve2[index2];
+        outputLength += 1;
+        index2 += 1;
+    }
+    output.length = outputLength;
+    return output;
 }
+
+const PARETO_BLOCK_SIZE = 32;
 
 function paretoConvex(points) {
     const convex = [];
@@ -204,18 +227,56 @@ function paretoShift([cost0, error0], frontier) {
     return frontier.map(([cost, error]) => [cost0 + cost, error0 + error]);
 }
 
-function paretoCombine(frontiers) {
-    const minimizedFrontiers = frontiers.map((frontier) => paretoMinimize(frontier));
-    return minimizedFrontiers.reduce((combined, frontier) => {
-        if (combined.length === 0) {
-            return frontier;
+function paretoUnionBalanced(curves) {
+    let level = curves;
+    while (level.length > 1) {
+        const nextLevel = [];
+        for (let index = 0; index < level.length; index += 2) {
+            if (index + 1 >= level.length) {
+                nextLevel.push(level[index]);
+            } else {
+                nextLevel.push(paretoUnion(level[index], level[index + 1]));
+            }
         }
+        level = nextLevel;
+    }
+    return level[0] || [];
+}
 
-        return combined.reduce((combinedFrontier, point) => {
-            const points = paretoMinimize(paretoShift(point, frontier));
-            return paretoUnion(points, combinedFrontier);
-        }, []);
-    }, []);
+// Merge shifted frontiers in small balanced batches. This keeps the
+// large-large unions that are fast for JS without retaining every
+// shifted frontier at once.
+function paretoCombineTwo(combined, frontier) {
+    if (combined.length === 0) {
+        return frontier;
+    }
+
+    let combinedFrontier = [];
+    for (let index = 0; index < combined.length; index += PARETO_BLOCK_SIZE) {
+        const shiftedFrontiers = [];
+        const limit = Math.min(index + PARETO_BLOCK_SIZE, combined.length);
+        for (let pointIndex = index; pointIndex < limit; pointIndex += 1) {
+            shiftedFrontiers.push(paretoShift(combined[pointIndex], frontier));
+        }
+        combinedFrontier = paretoUnion(paretoUnionBalanced(shiftedFrontiers), combinedFrontier);
+    }
+    return paretoConvex(combinedFrontier);
+}
+
+function paretoCombine(frontiers) {
+    let level = frontiers.map((frontier) => paretoConvex(paretoMinimize(frontier)));
+    while (level.length > 1) {
+        const nextLevel = [];
+        for (let index = 0; index < level.length; index += 2) {
+            if (index + 1 >= level.length) {
+                nextLevel.push(level[index]);
+            } else {
+                nextLevel.push(paretoCombineTwo(level[index], level[index + 1]));
+            }
+        }
+        level = nextLevel;
+    }
+    return level[0] || [];
 }
 
 function calculateMergedCostAccuracy(jsonData) {
