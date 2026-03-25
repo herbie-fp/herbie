@@ -161,7 +161,7 @@ function buildDropdown(options, selected, placeholder, onChange) {
         ),
     ]);
     select.addEventListener("change", () => {
-        onChange(select.value ?? "");
+        onChange(select.value);
         update();
     });
     return select;
