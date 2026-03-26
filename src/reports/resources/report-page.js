@@ -13,6 +13,34 @@ function update() {
     bodyNode.replaceChildren.apply(bodyNode, buildBody(resultsJsonData, otherJsonData));
 }
 
+class DeferredCurveCache {
+    constructor(readJsonData) {
+        this.readJsonData = readJsonData;
+        this.jsonData = null;
+        this.curve = null;
+        this.pending = false;
+    }
+
+    get(jsonData) {
+        this.ensure(jsonData);
+        return this.jsonData === jsonData ? this.curve : null;
+    }
+
+    ensure(jsonData) {
+        if (this.jsonData === jsonData || this.pending) return;
+        this.pending = true;
+        setTimeout(() => {
+            this.jsonData = this.readJsonData();
+            this.curve = calculateMergedCostAccuracy(this.jsonData);
+            this.pending = false;
+            update();
+        }, 0);
+    }
+}
+
+const jointCostCache = new DeferredCurveCache(() => resultsJsonData);
+const otherJointCostCache = new DeferredCurveCache(() => otherJsonData);
+
 // Here is the UI state:
 
 const filterNames = {
@@ -143,6 +171,172 @@ function calculateSpeedup(mergedCostAccuracy) {
     }
 }
 
+function paretoUnion(curve1, curve2) {
+    const curve1Length = curve1.length;
+    const curve2Length = curve2.length;
+    const output = new Array(curve1Length + curve2Length);
+    let outputLength = 0;
+    let index1 = 0;
+    let index2 = 0;
+
+    while (index1 < curve1Length && index2 < curve2Length) {
+        const point1 = curve1[index1];
+        const point2 = curve2[index2];
+        const cost1 = point1[0];
+        const error1 = point1[1];
+        const cost2 = point2[0];
+        const error2 = point2[1];
+        if (cost1 === cost2 && error1 === error2) {
+            output[outputLength] = point1;
+            outputLength += 1;
+            index1 += 1;
+            index2 += 1;
+        } else if (cost1 <= cost2 && error1 <= error2) {
+            index2 += 1;
+        } else if (cost1 >= cost2 && error1 >= error2) {
+            index1 += 1;
+        } else if (error1 < error2) {
+            output[outputLength] = point1;
+            outputLength += 1;
+            index1 += 1;
+        } else {
+            output[outputLength] = point2;
+            outputLength += 1;
+            index2 += 1;
+        }
+    }
+
+    while (index1 < curve1Length) {
+        output[outputLength] = curve1[index1];
+        outputLength += 1;
+        index1 += 1;
+    }
+    while (index2 < curve2Length) {
+        output[outputLength] = curve2[index2];
+        outputLength += 1;
+        index2 += 1;
+    }
+    output.length = outputLength;
+    return output;
+}
+
+const PARETO_BLOCK_SIZE = 32;
+
+function paretoConvex(points) {
+    const convex = [];
+
+    for (const point of points) {
+        convex.push(point);
+        while (convex.length >= 3) {
+            const point2 = convex[convex.length - 1];
+            const point1 = convex[convex.length - 2];
+            const point0 = convex[convex.length - 3];
+            const m01 = (point1[1] - point0[1]) / (point1[0] - point0[0]);
+            const m12 = (point2[1] - point1[1]) / (point2[0] - point1[0]);
+            if (m12 <= m01) {
+                break;
+            }
+            convex.splice(convex.length - 2, 1);
+        }
+    }
+
+    return convex;
+}
+
+function paretoMinimize(points) {
+    const pointsSorted = points.slice().sort((left, right) => left[0] - right[0]);
+    return pointsSorted.reduce((minimized, point) => paretoUnion([point], minimized), []);
+}
+
+function paretoShift([cost0, error0], frontier) {
+    return frontier.map(([cost, error]) => [cost0 + cost, error0 + error]);
+}
+
+function paretoUnionBalanced(curves) {
+    let level = curves;
+    while (level.length > 1) {
+        const nextLevel = [];
+        for (let index = 0; index < level.length; index += 2) {
+            if (index + 1 >= level.length) {
+                nextLevel.push(level[index]);
+            } else {
+                nextLevel.push(paretoUnion(level[index], level[index + 1]));
+            }
+        }
+        level = nextLevel;
+    }
+    return level[0] || [];
+}
+
+// Merge shifted frontiers in small balanced batches. This keeps the
+// large-large unions that are fast for JS without retaining every
+// shifted frontier at once.
+function paretoCombineTwo(combined, frontier) {
+    if (combined.length === 0) {
+        return frontier;
+    }
+
+    let combinedFrontier = [];
+    for (let index = 0; index < combined.length; index += PARETO_BLOCK_SIZE) {
+        const shiftedFrontiers = [];
+        const limit = Math.min(index + PARETO_BLOCK_SIZE, combined.length);
+        for (let pointIndex = index; pointIndex < limit; pointIndex += 1) {
+            shiftedFrontiers.push(paretoShift(combined[pointIndex], frontier));
+        }
+        combinedFrontier = paretoUnion(paretoUnionBalanced(shiftedFrontiers), combinedFrontier);
+    }
+    return paretoConvex(combinedFrontier);
+}
+
+function paretoCombine(frontiers) {
+    let level = frontiers.map((frontier) => paretoConvex(paretoMinimize(frontier)));
+    while (level.length > 1) {
+        const nextLevel = [];
+        for (let index = 0; index < level.length; index += 2) {
+            if (index + 1 >= level.length) {
+                nextLevel.push(level[index]);
+            } else {
+                nextLevel.push(paretoCombineTwo(level[index], level[index + 1]));
+            }
+        }
+        level = nextLevel;
+    }
+    return level[0] || [];
+}
+
+function calculateMergedCostAccuracy(jsonData) {
+    const tests = jsonData.tests;
+    const testsLength = tests.length;
+    const costAccuracies = tests.map((test) => test["cost-accuracy"]);
+    const maximumAccuracy = tests.reduce((sum, test) => sum + test.bits, 0);
+    const initialAccuraciesSum = costAccuracies.reduce((sum, costAccuracy) => {
+        if (!costAccuracy || costAccuracy.length === 0) {
+            return sum;
+        }
+        return sum + costAccuracy[0][1];
+    }, 0);
+    const initialAccuracy = maximumAccuracy > 0
+        ? 1 - initialAccuraciesSum / maximumAccuracy
+        : 1.0;
+    const rescaled = costAccuracies
+        .filter((costAccuracy) => costAccuracy && costAccuracy.length > 0)
+        .map((costAccuracy) => {
+            const [initialPoint, bestPoint, otherPoints] = costAccuracy;
+            const initialCost = Number(initialPoint[0]);
+            return [initialPoint, bestPoint].concat(otherPoints).map((point) => [
+                point[0] / initialCost,
+                point[1],
+            ]);
+        });
+    const frontier = paretoCombine(rescaled).map(([cost, accuracy]) => {
+        if (cost === 0) {
+            return ["N/A", 1 - accuracy / maximumAccuracy];
+        }
+        return [testsLength / cost, 1 - accuracy / maximumAccuracy];
+    });
+    return [[1.0, initialAccuracy], frontier];
+}
+
 //https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
 function toTitleCase(str) {
     return str.replace(
@@ -238,7 +432,15 @@ function plotXY(testsData, otherJsonData) {
 }
 
 function plotPareto(jsonData, otherJsonData) {
-    const [initial, frontier] = jsonData["merged-cost-accuracy"];
+    const mergedCostAccuracy = jointCostCache.get(jsonData);
+    if (mergedCostAccuracy === null) {
+        return Element("div", {
+            style: "max-width: 100%; aspect-ratio: 1;",
+            "aria-label": "Pareto plot loading",
+        }, []);
+    }
+
+    const [initial, frontier] = mergedCostAccuracy;
     let marks = [
         Plot.dot([initial], {
             stroke: "#00a",
@@ -252,7 +454,15 @@ function plotPareto(jsonData, otherJsonData) {
     ];
 
     if (otherJsonData) {
-        const [initial2, frontier2] = otherJsonData["merged-cost-accuracy"];
+        const otherMergedCostAccuracy = otherJointCostCache.get(otherJsonData);
+        if (otherMergedCostAccuracy === null) {
+            return Element("div", {
+                style: "max-width: 100%; aspect-ratio: 1;",
+                "aria-label": "Pareto plot loading",
+            }, []);
+        }
+
+        const [initial2, frontier2] = otherMergedCostAccuracy;
         marks = [
             Plot.dot([initial2], {
                 stroke: "#900",
@@ -360,8 +570,9 @@ function summarizeTests(tests) {
     }, { totalStart: 0, totalEnd: 0, maxAccuracy: 0, totalTime: 0, crashCount: 0 });
 }
 
-function buildStats(jsonData) {
+function buildStats(jsonData, mergedCostAccuracy) {
     const summary = summarizeTests(jsonData.tests);
+    const speedup = mergedCostAccuracy === null ? "⋯" : calculateSpeedup(mergedCostAccuracy);
 
     return Element("div", { id: "large" }, [
         Element("div", {}, [
@@ -387,7 +598,7 @@ function buildStats(jsonData) {
             Element("span", {
                 classList: "number",
                 title: "Aggregate speedup of fastest alternative that improves accuracy."
-            }, [calculateSpeedup(jsonData["merged-cost-accuracy"])])
+            }, [speedup])
         ]),
     ]);
 }
@@ -412,7 +623,8 @@ function buildTableHeader(stringName, help) {
 }
 
 function buildBody(jsonData, otherJsonData) {
-    const stats = buildStats(jsonData);
+    const mergedCostAccuracy = jointCostCache.get(jsonData);
+    const stats = buildStats(jsonData, mergedCostAccuracy);
 
     const header = buildHeader("Herbie Results")
 
