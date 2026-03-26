@@ -13,6 +13,34 @@ function update() {
     bodyNode.replaceChildren.apply(bodyNode, buildBody(resultsJsonData, otherJsonData));
 }
 
+class DeferredCurveCache {
+    constructor(readJsonData) {
+        this.readJsonData = readJsonData;
+        this.jsonData = null;
+        this.curve = null;
+        this.pending = false;
+    }
+
+    get(jsonData) {
+        this.ensure(jsonData);
+        return this.jsonData === jsonData ? this.curve : null;
+    }
+
+    ensure(jsonData) {
+        if (this.jsonData === jsonData || this.pending) return;
+        this.pending = true;
+        setTimeout(() => {
+            this.jsonData = this.readJsonData();
+            this.curve = calculateMergedCostAccuracy(this.jsonData);
+            this.pending = false;
+            update();
+        }, 0);
+    }
+}
+
+const jointCostCache = new DeferredCurveCache(() => resultsJsonData);
+const otherJointCostCache = new DeferredCurveCache(() => otherJsonData);
+
 // Here is the UI state:
 
 const filterNames = {
@@ -404,7 +432,15 @@ function plotXY(testsData, otherJsonData) {
 }
 
 function plotPareto(jsonData, otherJsonData) {
-    const [initial, frontier] = calculateMergedCostAccuracy(jsonData);
+    const mergedCostAccuracy = jointCostCache.get(jsonData);
+    if (mergedCostAccuracy === null) {
+        return Element("div", {
+            style: "max-width: 100%; aspect-ratio: 1;",
+            "aria-label": "Pareto plot loading",
+        }, []);
+    }
+
+    const [initial, frontier] = mergedCostAccuracy;
     let marks = [
         Plot.dot([initial], {
             stroke: "#00a",
@@ -418,7 +454,15 @@ function plotPareto(jsonData, otherJsonData) {
     ];
 
     if (otherJsonData) {
-        const [initial2, frontier2] = calculateMergedCostAccuracy(otherJsonData);
+        const otherMergedCostAccuracy = otherJointCostCache.get(otherJsonData);
+        if (otherMergedCostAccuracy === null) {
+            return Element("div", {
+                style: "max-width: 100%; aspect-ratio: 1;",
+                "aria-label": "Pareto plot loading",
+            }, []);
+        }
+
+        const [initial2, frontier2] = otherMergedCostAccuracy;
         marks = [
             Plot.dot([initial2], {
                 stroke: "#900",
@@ -528,6 +572,7 @@ function summarizeTests(tests) {
 
 function buildStats(jsonData, mergedCostAccuracy) {
     const summary = summarizeTests(jsonData.tests);
+    const speedup = mergedCostAccuracy === null ? "⋯" : calculateSpeedup(mergedCostAccuracy);
 
     return Element("div", { id: "large" }, [
         Element("div", {}, [
@@ -553,7 +598,7 @@ function buildStats(jsonData, mergedCostAccuracy) {
             Element("span", {
                 classList: "number",
                 title: "Aggregate speedup of fastest alternative that improves accuracy."
-            }, [calculateSpeedup(mergedCostAccuracy)])
+            }, [speedup])
         ]),
     ]);
 }
@@ -578,7 +623,7 @@ function buildTableHeader(stringName, help) {
 }
 
 function buildBody(jsonData, otherJsonData) {
-    const mergedCostAccuracy = calculateMergedCostAccuracy(jsonData);
+    const mergedCostAccuracy = jointCostCache.get(jsonData);
     const stats = buildStats(jsonData, mergedCostAccuracy);
 
     const header = buildHeader("Herbie Results")
