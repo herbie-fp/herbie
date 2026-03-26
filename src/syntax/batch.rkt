@@ -24,7 +24,6 @@
          jsexpr->batch-exprs
 
          (struct-out batchref)
-         batchref<?
          deref) ; Batchref -> Expr
 
 ;; Batches store these recursive structures, flattened
@@ -42,9 +41,6 @@
 
 (define (batch-get-nodes b)
   (dvector->vector (batch-nodes b)))
-
-(define (batchref<? brf1 brf2)
-  (< (batchref-idx brf1) (batchref-idx brf2)))
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
