@@ -88,6 +88,21 @@
 ;; Herbie. These often wrap other Herbie components, but add logging
 ;; and timeline data.
 
+(define (dump-intermediates! batch altns)
+  (define dump-dir "dump-intermediates")
+  (unless (directory-exists? dump-dir)
+    (make-directory dump-dir))
+  (define name
+    (for/first ([i (in-naturals)]
+                #:unless (file-exists? (build-path dump-dir (format "~a.rktd" i))))
+      (build-path dump-dir (format "~a.rktd" i))))
+  (define exprs (batch-exprs batch))
+  (call-with-output-file name
+                         #:exists 'replace
+                         (lambda (out)
+                           (for ([altn (in-list altns)])
+                             (writeln (exprs (alt-expr altn)) out)))))
+
 (define (batch-score-alts altns)
   (map errors-score (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*) (*context*))))
 
@@ -200,6 +215,8 @@
 
 ;; Finish iteration
 (define (finalize-iter! picked-alts patched)
+  (when (flag-set? 'dump 'intermediates)
+    (dump-intermediates! (*global-batch*) patched))
   (timeline-event! 'eval)
   (define orig-all-alts (atab-active-alts (^table^)))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
