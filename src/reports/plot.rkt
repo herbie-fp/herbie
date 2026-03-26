@@ -3,13 +3,12 @@
 (require math/bigfloat
          math/flonum)
 (require "../core/points.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../core/programs.rkt"
          "../syntax/types.rkt"
          "../syntax/read.rkt"
-         "../utils/alternative.rkt"
-         "../core/bsearch.rkt"
-         "../api/sandbox.rkt")
+         "../core/alternative.rkt"
+         "../core/bsearch.rkt")
 
 (provide make-points-json
          regime-var
@@ -17,8 +16,8 @@
          real->ordinal
          splitpoints->json)
 
-(define (ulps->bits-tenths x)
-  (string->number (real->decimal-string (ulps->bits x) 1)))
+(define (bits->tenths x)
+  (string->number (real->decimal-string x 1)))
 
 (define (splitpoints->json vars alt repr)
   (for/list ([var (in-list vars)])
@@ -29,7 +28,7 @@
         '())))
 
 (define (make-points-json result-hash)
-  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
+  (define test (load-test+helpers (hash-ref result-hash 'test) (hash-ref result-hash 'helpers "")))
   (define backend (hash-ref result-hash 'backend))
   (define test-points (map first (hash-ref backend 'pcontext)))
   (define repr (test-output-repr test))
@@ -58,9 +57,16 @@
 
   (define vars (test-vars test))
   (define bits (representation-total-bits repr))
-  (define start-error (map ulps->bits-tenths start-errors))
-  (define target-error (map (lambda (alt-error) (map ulps->bits-tenths alt-error)) target-errors))
-  (define end-error (map ulps->bits-tenths (car end-errors)))
+  (define start-error
+    (for/list ([err (in-list start-errors)])
+      (bits->tenths err)))
+  (define target-error
+    (for/list ([alt-error (in-list target-errors)])
+      (for/list ([err (in-list alt-error)])
+        (bits->tenths err))))
+  (define end-error
+    (for/list ([err (in-list (car end-errors))])
+      (bits->tenths err)))
 
   (define target-error-entries
     (for/list ([i (in-naturals)]
@@ -90,8 +96,8 @@
 
   (define splitpoints (hash-ref (car (hash-ref backend 'end)) 'splitpoints))
 
-  ; NOTE ordinals *should* be passed as strings so we can detect truncation if
-  ;   necessary, but this isn't implemented yet.
+  ; NOTE ordinals currently remain numeric; if we need to detect truncation
+  ; in JSON, we can switch to string encoding.
   ; Fields:
   ;   bits: int representing the maximum possible bits of error
   ;   vars: array of n string variable names
@@ -100,8 +106,8 @@
   ;   error: JSON dictionary where keys are {start, end, target1, ..., targetn}.
   ;          Each key's value holds an array like [y0, ..., ym] where y0 etc are
   ;          bits of error for the output on each point
-  ;   ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
-  ;   splitpoints: array with the ordinal splitpoints
+  ;   ticks_by_varidx: array of size n where each entry is [label, ordinal] pairs
+  ;   splitpoints_by_varidx: array of size n where each entry has ordinal splitpoints
   `#hasheq((bits . ,bits)
            (vars . ,(map symbol->string vars))
            (points . ,ordinal-points)

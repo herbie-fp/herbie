@@ -1,6 +1,7 @@
 #lang racket
 
 (require racket/engine
+         math/flonum
          json)
 
 (require "../syntax/read.rkt"
@@ -10,12 +11,12 @@
          "../syntax/load-platform.rkt"
          "../syntax/batch.rkt"
          "../core/localize.rkt"
-         "../utils/alternative.rkt"
+         "../core/alternative.rkt"
          "../core/compiler.rkt"
          "../utils/common.rkt"
          "datafile.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../core/sampling.rkt"
          "../core/mainloop.rkt"
          "../syntax/platform.rkt"
@@ -102,7 +103,7 @@
   (define-values (_ test-pcontext) (partition-pcontext pcontext))
   (define errs (errors (test-input test) test-pcontext (*context*)))
   (for/list ([(pt _) (in-pcontext test-pcontext)]
-             [err (in-list errs)])
+             [err (in-flvector errs)])
     (cons pt err)))
 
 (define (get-explanations test pcontext)
@@ -176,6 +177,7 @@
       (reset!)
       (*context* (test-context test))
       (activate-platform! (*platform-name*))
+      (replay-added-fpcore-operators!)
       (set! timeline (*timeline*))
       (when seed
         (set-seed! seed))
@@ -203,7 +205,6 @@
       [else (compute-result)]))
 
   (define run-custodian (make-custodian))
-  ;; Branch on whether or not we should run inside an engine
   (begin0 (parameterize ([current-custodian run-custodian])
             (define eng (engine in-engine))
             (if (engine-run (*timeout*) eng)
@@ -212,7 +213,7 @@
     (custodian-shutdown-all run-custodian)))
 
 (define (dummy-table-row-from-hash result-hash status link)
-  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
+  (define test (load-test+helpers (hash-ref result-hash 'test) (hash-ref result-hash 'helpers "")))
   (define repr (test-output-repr test))
   (table-row (test-name test)
              (test-identifier test)
@@ -234,7 +235,7 @@
              '()))
 
 (define (get-table-data-from-hash result-hash link)
-  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
+  (define test (load-test+helpers (hash-ref result-hash 'test) (hash-ref result-hash 'helpers "")))
   (define backend (hash-ref result-hash 'backend))
   (define status (hash-ref result-hash 'status))
   (match status
@@ -247,14 +248,14 @@
 
      ; starting expr analysis
      (define start-expr (read (open-input-string (hash-ref start 'expr))))
-     (define start-score (errors-score (hash-ref start 'errors)))
+     (define start-score (errors-score (list->flvector (hash-ref start 'errors))))
      (define start-cost (hash-ref start 'cost))
 
      (define target-cost-score
        (for/list ([target targets])
          (define target-expr (read (open-input-string (hash-ref target 'expr))))
          (define tar-cost (hash-ref target 'cost))
-         (define tar-score (errors-score (hash-ref target 'errors)))
+         (define tar-score (errors-score (list->flvector (hash-ref target 'errors))))
 
          (list tar-cost tar-score)))
 
@@ -269,7 +270,7 @@
          (read (open-input-string (hash-ref end-analysis 'expr)))))
      (define end-scores
        (for/list ([end-analysis (in-list end)])
-         (errors-score (hash-ref end-analysis 'errors))))
+         (errors-score (list->flvector (hash-ref end-analysis 'errors)))))
      (define end-costs (map (curryr hash-ref 'cost) end))
 
      ; terribly formatted pareto-optimal frontier

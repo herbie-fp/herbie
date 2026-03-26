@@ -33,7 +33,8 @@
 
 (define (activate-platform! name)
   (define path (hash-ref default-platforms name (string->path name)))
-  (define platform (hash-ref! platforms name (lambda () (dynamic-require path 'platform))))
+  (define base-platform (hash-ref! platforms name (lambda () (dynamic-require path 'platform))))
+  (define platform (platform-copy base-platform))
 
   (unless platform
     (raise-herbie-error "unknown platform `~a`, found (~a)"

@@ -612,7 +612,8 @@ function onload() {
         const range_div = document.querySelector('#input-ranges')
         range_div.replaceChildren(...varnames.map(range_inputs))
     }
-    CHECK_ERRORS_AND_DRAW_RANGES = check_errors_and_draw_ranges // HACK
+    // Expose the updater so generated range callbacks can trigger a refresh.
+    CHECK_ERRORS_AND_DRAW_RANGES = check_errors_and_draw_ranges
     check_errors_and_draw_ranges()
     
     form.math.addEventListener("input", function () {

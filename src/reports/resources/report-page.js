@@ -9,9 +9,37 @@ var otherJsonData = null
 var resultsJsonData = null
 
 function update() {
-    let bodyNode = document.querySelector("body");
+    const bodyNode = document.querySelector("body");
     bodyNode.replaceChildren.apply(bodyNode, buildBody(resultsJsonData, otherJsonData));
 }
+
+class DeferredCurveCache {
+    constructor(readJsonData) {
+        this.readJsonData = readJsonData;
+        this.jsonData = null;
+        this.curve = null;
+        this.pending = false;
+    }
+
+    get(jsonData) {
+        this.ensure(jsonData);
+        return this.jsonData === jsonData ? this.curve : null;
+    }
+
+    ensure(jsonData) {
+        if (this.jsonData === jsonData || this.pending) return;
+        this.pending = true;
+        setTimeout(() => {
+            this.jsonData = this.readJsonData();
+            this.curve = calculateMergedCostAccuracy(this.jsonData);
+            this.pending = false;
+            update();
+        }, 0);
+    }
+}
+
+const jointCostCache = new DeferredCurveCache(() => resultsJsonData);
+const otherJointCostCache = new DeferredCurveCache(() => otherJsonData);
 
 // Here is the UI state:
 
@@ -65,14 +93,11 @@ var showCompareDetails = false;
 
 
 var filterBySuite = ""
-var allSuites = []
-
 var filterByWarning = ""
-var allWarnings = []
 
 var sortState = {
-    key: "test",
-    dir: true, // true = ascending, false = descending
+    key: "name",
+    dir: true, // true = descending, false = ascending
 }
 
 // Next are various strings used in the UI
@@ -133,8 +158,8 @@ function formatTime(ms) {
 
 function calculateSpeedup(mergedCostAccuracy) {
     const initial_accuracy = mergedCostAccuracy[0][1]
-    const deepCopy = JSON.parse(JSON.stringify(mergedCostAccuracy[1]))
-    for (const point of deepCopy.reverse()) {
+    const frontier = mergedCostAccuracy[1]
+    for (const point of [...frontier].reverse()) {
         if (point[1] > initial_accuracy) {
             if (typeof point[0] == 'number') {
                 return point[0].toFixed(1) + "×";
@@ -144,6 +169,172 @@ function calculateSpeedup(mergedCostAccuracy) {
             }
         }
     }
+}
+
+function paretoUnion(curve1, curve2) {
+    const curve1Length = curve1.length;
+    const curve2Length = curve2.length;
+    const output = new Array(curve1Length + curve2Length);
+    let outputLength = 0;
+    let index1 = 0;
+    let index2 = 0;
+
+    while (index1 < curve1Length && index2 < curve2Length) {
+        const point1 = curve1[index1];
+        const point2 = curve2[index2];
+        const cost1 = point1[0];
+        const error1 = point1[1];
+        const cost2 = point2[0];
+        const error2 = point2[1];
+        if (cost1 === cost2 && error1 === error2) {
+            output[outputLength] = point1;
+            outputLength += 1;
+            index1 += 1;
+            index2 += 1;
+        } else if (cost1 <= cost2 && error1 <= error2) {
+            index2 += 1;
+        } else if (cost1 >= cost2 && error1 >= error2) {
+            index1 += 1;
+        } else if (error1 < error2) {
+            output[outputLength] = point1;
+            outputLength += 1;
+            index1 += 1;
+        } else {
+            output[outputLength] = point2;
+            outputLength += 1;
+            index2 += 1;
+        }
+    }
+
+    while (index1 < curve1Length) {
+        output[outputLength] = curve1[index1];
+        outputLength += 1;
+        index1 += 1;
+    }
+    while (index2 < curve2Length) {
+        output[outputLength] = curve2[index2];
+        outputLength += 1;
+        index2 += 1;
+    }
+    output.length = outputLength;
+    return output;
+}
+
+const PARETO_BLOCK_SIZE = 32;
+
+function paretoConvex(points) {
+    const convex = [];
+
+    for (const point of points) {
+        convex.push(point);
+        while (convex.length >= 3) {
+            const point2 = convex[convex.length - 1];
+            const point1 = convex[convex.length - 2];
+            const point0 = convex[convex.length - 3];
+            const m01 = (point1[1] - point0[1]) / (point1[0] - point0[0]);
+            const m12 = (point2[1] - point1[1]) / (point2[0] - point1[0]);
+            if (m12 <= m01) {
+                break;
+            }
+            convex.splice(convex.length - 2, 1);
+        }
+    }
+
+    return convex;
+}
+
+function paretoMinimize(points) {
+    const pointsSorted = points.slice().sort((left, right) => left[0] - right[0]);
+    return pointsSorted.reduce((minimized, point) => paretoUnion([point], minimized), []);
+}
+
+function paretoShift([cost0, error0], frontier) {
+    return frontier.map(([cost, error]) => [cost0 + cost, error0 + error]);
+}
+
+function paretoUnionBalanced(curves) {
+    let level = curves;
+    while (level.length > 1) {
+        const nextLevel = [];
+        for (let index = 0; index < level.length; index += 2) {
+            if (index + 1 >= level.length) {
+                nextLevel.push(level[index]);
+            } else {
+                nextLevel.push(paretoUnion(level[index], level[index + 1]));
+            }
+        }
+        level = nextLevel;
+    }
+    return level[0] || [];
+}
+
+// Merge shifted frontiers in small balanced batches. This keeps the
+// large-large unions that are fast for JS without retaining every
+// shifted frontier at once.
+function paretoCombineTwo(combined, frontier) {
+    if (combined.length === 0) {
+        return frontier;
+    }
+
+    let combinedFrontier = [];
+    for (let index = 0; index < combined.length; index += PARETO_BLOCK_SIZE) {
+        const shiftedFrontiers = [];
+        const limit = Math.min(index + PARETO_BLOCK_SIZE, combined.length);
+        for (let pointIndex = index; pointIndex < limit; pointIndex += 1) {
+            shiftedFrontiers.push(paretoShift(combined[pointIndex], frontier));
+        }
+        combinedFrontier = paretoUnion(paretoUnionBalanced(shiftedFrontiers), combinedFrontier);
+    }
+    return paretoConvex(combinedFrontier);
+}
+
+function paretoCombine(frontiers) {
+    let level = frontiers.map((frontier) => paretoConvex(paretoMinimize(frontier)));
+    while (level.length > 1) {
+        const nextLevel = [];
+        for (let index = 0; index < level.length; index += 2) {
+            if (index + 1 >= level.length) {
+                nextLevel.push(level[index]);
+            } else {
+                nextLevel.push(paretoCombineTwo(level[index], level[index + 1]));
+            }
+        }
+        level = nextLevel;
+    }
+    return level[0] || [];
+}
+
+function calculateMergedCostAccuracy(jsonData) {
+    const tests = jsonData.tests;
+    const testsLength = tests.length;
+    const costAccuracies = tests.map((test) => test["cost-accuracy"]);
+    const maximumAccuracy = tests.reduce((sum, test) => sum + test.bits, 0);
+    const initialAccuraciesSum = costAccuracies.reduce((sum, costAccuracy) => {
+        if (!costAccuracy || costAccuracy.length === 0) {
+            return sum;
+        }
+        return sum + costAccuracy[0][1];
+    }, 0);
+    const initialAccuracy = maximumAccuracy > 0
+        ? 1 - initialAccuraciesSum / maximumAccuracy
+        : 1.0;
+    const rescaled = costAccuracies
+        .filter((costAccuracy) => costAccuracy && costAccuracy.length > 0)
+        .map((costAccuracy) => {
+            const [initialPoint, bestPoint, otherPoints] = costAccuracy;
+            const initialCost = Number(initialPoint[0]);
+            return [initialPoint, bestPoint].concat(otherPoints).map((point) => [
+                point[0] / initialCost,
+                point[1],
+            ]);
+        });
+    const frontier = paretoCombine(rescaled).map(([cost, accuracy]) => {
+        if (cost === 0) {
+            return ["N/A", 1 - accuracy / maximumAccuracy];
+        }
+        return [testsLength / cost, 1 - accuracy / maximumAccuracy];
+    });
+    return [[1.0, initialAccuracy], frontier];
 }
 
 //https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
@@ -163,8 +354,8 @@ function buildDropdown(options, selected, placeholder, onChange) {
             Element("option", { value: opt, selected: selected == opt }, [opt])
         ),
     ]);
-    select.addEventListener("input", () => {
-        onChange(select.value ?? "");
+    select.addEventListener("change", () => {
+        onChange(select.value);
         update();
     });
     return select;
@@ -204,10 +395,8 @@ function on(mark, listeners = {}) {
     return mark
 }
 
-function plotXY(testsData, otherJsonData, filterFunction) {
-    const filteredTests = testsData.tests.filter((test) => {
-        return filterFunction(test, diffAgainstFields[test.name]);
-    });
+function plotXY(testsData, otherJsonData) {
+    const filteredTests = testsData.tests.filter(filterTest);
     function onclick(e, d) {
         window.location = d.link + "/graph.html";
     }
@@ -216,8 +405,8 @@ function plotXY(testsData, otherJsonData, filterFunction) {
     ];
     if (otherJsonData) {
         marks.push(Plot.arrow(filteredTests, {
-            x1: d => 1 - diffAgainstFields[d.name].start / 64,
-            y1: d => 1 - diffAgainstFields[d.name].end / 64,
+            x1: d => 1 - getBaselineTest(d).start / 64,
+            y1: d => 1 - getBaselineTest(d).end / 64,
             x2: d => 1 - d.start / 64,
             y2: d => 1 - d.end / 64,
             stroke: "#900", strokeWidth: 2,
@@ -243,7 +432,15 @@ function plotXY(testsData, otherJsonData, filterFunction) {
 }
 
 function plotPareto(jsonData, otherJsonData) {
-    const [initial, frontier] = jsonData["merged-cost-accuracy"];
+    const mergedCostAccuracy = jointCostCache.get(jsonData);
+    if (mergedCostAccuracy === null) {
+        return Element("div", {
+            style: "max-width: 100%; aspect-ratio: 1;",
+            "aria-label": "Pareto plot loading",
+        }, []);
+    }
+
+    const [initial, frontier] = mergedCostAccuracy;
     let marks = [
         Plot.dot([initial], {
             stroke: "#00a",
@@ -257,7 +454,15 @@ function plotPareto(jsonData, otherJsonData) {
     ];
 
     if (otherJsonData) {
-        const [initial2, frontier2] = otherJsonData["merged-cost-accuracy"];
+        const otherMergedCostAccuracy = otherJointCostCache.get(otherJsonData);
+        if (otherMergedCostAccuracy === null) {
+            return Element("div", {
+                style: "max-width: 100%; aspect-ratio: 1;",
+                "aria-label": "Pareto plot loading",
+            }, []);
+        }
+
+        const [initial2, frontier2] = otherMergedCostAccuracy;
         marks = [
             Plot.dot([initial2], {
                 stroke: "#900",
@@ -291,7 +496,7 @@ function buildCheckboxLabel(classes, text, boolState) {
     ]);
 }
 
-function buildDiffLine(jsonData, show) {
+function buildDiffLine() {
     const urlInput = Element("input", {
         id: "compare-input", value: compareAgainstURL,
         placeholder: "URL to report or JSON file",
@@ -312,7 +517,7 @@ function buildDiffLine(jsonData, show) {
         id: `toleranceID`, value: filterTolerance,
         size: 10, style: "text-align:right;",
     }, []);
-    toleranceInputField.addEventListener("change", (e) => {
+    toleranceInputField.addEventListener("change", () => {
         filterTolerance = toleranceInputField.value;
         update();
     });
@@ -324,7 +529,7 @@ function buildDiffLine(jsonData, show) {
     ];
 }
 
-function buildCompareForm(jsonData) {
+function buildCompareForm() {
     const formName = "compare-form"
 
     let radioButtons = [];
@@ -334,7 +539,7 @@ function buildCompareForm(jsonData) {
             type: "radio",
             checked: radioState == i,
         }, []);
-        radioElt.addEventListener("click", (e) => {
+        radioElt.addEventListener("click", () => {
             radioState = i;
             update();
         });
@@ -344,7 +549,7 @@ function buildCompareForm(jsonData) {
     }
 
     const hideEqual = buildCheckboxLabel("hide-equal", "Hide equal", hideDirtyEqual)
-    hideEqual.addEventListener("click", (e) => {
+    hideEqual.addEventListener("click", () => {
         hideDirtyEqual = ! hideDirtyEqual;
         update();
     })
@@ -365,7 +570,10 @@ function summarizeTests(tests) {
     }, { totalStart: 0, totalEnd: 0, maxAccuracy: 0, totalTime: 0, crashCount: 0 });
 }
 
-function buildStats(summary) {
+function buildStats(jsonData, mergedCostAccuracy) {
+    const summary = summarizeTests(jsonData.tests);
+    const speedup = mergedCostAccuracy === null ? "⋯" : calculateSpeedup(mergedCostAccuracy);
+
     return Element("div", { id: "large" }, [
         Element("div", {}, [
             "Average Percentage Accurate: ",
@@ -383,33 +591,47 @@ function buildStats(summary) {
             Element("span", {
                 classList: "number",
                 title: "Crashes and timeouts are considered bad runs."
-            }, [`${summary.crashCount}/${summary.testCount}`])
+            }, [`${summary.crashCount}/${jsonData.tests.length}`])
         ]),
         Element("div", {}, [
             "Speedup:",
             Element("span", {
                 classList: "number",
                 title: "Aggregate speedup of fastest alternative that improves accuracy."
-            }, [calculateSpeedup(summary.mergedCostAccuracy)])
+            }, [speedup])
         ]),
     ]);
 }
 
+function buildTableHeader(stringName, help) {
+    const textElement = Element("th", {}, [
+        toTitleCase(stringName),
+        " ",
+        (stringName != sortState.key ? "–" : sortState.dir ?  "⏶" : "⏷"),
+        help && Element("span", { classList: "help-button", title: help }, ["?"]),
+    ]);
+    textElement.addEventListener("click", () => {
+        if (stringName == sortState.key) {
+            sortState.dir = !sortState.dir;
+        } else {
+            sortState.key = stringName;
+            sortState.dir = true;
+        }
+        update();
+    })
+    return textElement
+}
+
 function buildBody(jsonData, otherJsonData) {
-    let filterFunction = makeFilterFunction();
-
-    const summary = summarizeTests(jsonData.tests);
-    summary.testCount = jsonData.tests.length;
-    summary.mergedCostAccuracy = jsonData["merged-cost-accuracy"];
-
-    const stats = buildStats(summary);
+    const mergedCostAccuracy = jointCostCache.get(jsonData);
+    const stats = buildStats(jsonData, mergedCostAccuracy);
 
     const header = buildHeader("Herbie Results")
 
     const figureRow = Element("div", { classList: "figure-row" }, [
         Element("figure", { id: "xy" }, [
             Element("h2", {}, [tempXY_A]),
-            plotXY(jsonData, otherJsonData, filterFunction),
+            plotXY(jsonData, otherJsonData),
             Element("figcaption", {}, [tempXY_B])
         ]),
         Element("figure", { id: "pareto" }, [
@@ -419,27 +641,8 @@ function buildBody(jsonData, otherJsonData) {
         ])
     ])
 
-    function buildTableHeader(stringName, help) {
-        const textElement = Element("th", {}, [
-            toTitleCase(stringName),
-            " ",
-            (stringName != sortState.key ? "–" : sortState.dir ?  "⏶" : "⏷"),
-            help && Element("span", { classList: "help-button", title: help }, ["?"]),
-        ]);
-        textElement.addEventListener("click", (e) => {
-            if (stringName == sortState.key) {
-                sortState.dir = !sortState.dir;
-            } else {
-                sortState.key = stringName;
-                sortState.dir = true;
-            }
-            update();
-        })
-        return textElement
-    }
-
-    const rows = buildTableContents(jsonData, otherJsonData, filterFunction)
-    const footer = buildDiffFooter(jsonData, otherJsonData, filterFunction)
+    const rows = buildTableContents(jsonData)
+    const footer = buildDiffFooter(jsonData, otherJsonData)
     const resultsTable = Element("table", { id: "results" }, [
         Element("thead", {}, [
             Element("tr", {}, [
@@ -453,7 +656,7 @@ function buildBody(jsonData, otherJsonData) {
         rows,
         footer
     ]);
-    return [header, stats, figureRow, buildControls(jsonData, rows.length), resultsTable]
+    return [header, stats, figureRow, buildControls(jsonData, otherJsonData, rows.length), resultsTable]
 }
 
 function compareTests(l, r) {
@@ -473,23 +676,30 @@ function compareTests(l, r) {
     return cmp;
 }
 
-function buildTableContents(jsonData, otherJsonData, filterFunction) {
-    var rows = []
-    const jsonTest = jsonData.tests.sort(compareTests);
-    for (let test of jsonTest) {
-        let other = diffAgainstFields[test.name];
-        if (filterFunction(test, other)) rows.push(buildRow(test, other));
-    }
-    return rows;
+function getBaselineTest(test) {
+    return diffAgainstFields[test.name]
 }
 
-function computeDiffTotal(jsonData, filterFunction) {
+function getVisibleTests(jsonData) {
+    const visibleTests = []
+    for (const test of [...jsonData.tests].sort(compareTests)) {
+        if (filterTest(test)) visibleTests.push(test);
+    }
+    return visibleTests
+}
+
+function buildTableContents(jsonData) {
+    const visibleTests = getVisibleTests(jsonData);
+    return visibleTests.map((test) => buildRow(test, getBaselineTest(test)));
+}
+
+function computeDiffTotal(jsonData) {
     if (!otherJsonData || !radioState) return 0;
     let total = 0;
     for (let test of jsonData.tests) {
-        let other = diffAgainstFields[test.name];
+        let other = getBaselineTest(test);
         if (!other) continue;
-        if (!filterFunction(test, other)) continue;
+        if (!filterTest(test)) continue;
 
         if (radioState == "startAcc") {
             const cur = calculatePercent(test.start / test.bits);
@@ -513,10 +723,10 @@ function computeDiffTotal(jsonData, filterFunction) {
     return total;
 }
 
-function buildDiffFooter(jsonData, otherJsonData, filterFunction) {
+function buildDiffFooter(jsonData, otherJsonData) {
     if (!otherJsonData || !radioState) return [];
 
-    const total = computeDiffTotal(jsonData, filterFunction);
+    const total = computeDiffTotal(jsonData);
     let color = "diff-time-gray";
     let text = "~";
 
@@ -566,7 +776,7 @@ function getMinimum(target) {
     }, Infinity);
 }
 
-// HACK I kinda hate this split lambda function, Zane
+// Builds either a normal run row or a comparison row when `other` is present.
 function buildRow(test, other) {
     var smallestTarget = getMinimum(test.target)
 
@@ -683,26 +893,25 @@ function buildRow(test, other) {
     }
 }
 
-function buildDiffControls(jsonData) {
+function buildDiffControls() {
     var summary = Element("details", { open: showCompareDetails }, [
         Element("summary", {}, [
             Element("h2", {}, ["Diff"]),
-            buildDiffLine(jsonData),
+            buildDiffLine(),
         ]),
-        buildCompareForm(jsonData),
+        buildCompareForm(),
     ])
 
-    summary.addEventListener("toggle", (e) => {
+    summary.addEventListener("toggle", () => {
         showCompareDetails = summary.open;
     });
 
     return summary;
 }
 
-function buildControls(jsonData, diffCount) {
-    const showing = diffCount + "/" + jsonData.tests.length;
+function buildControls(jsonData, otherJsonData, diffCount) {
     var displayingDiv = Element("div", [
-        "Displaying " + showing + " benchmarks",
+        "Displaying " + diffCount + "/" + jsonData.tests.length + " benchmarks",
         " on ", Element("code", jsonData.branch),
         otherJsonData && [
             ", compared with baseline ", Element("code", otherJsonData.branch),
@@ -711,12 +920,12 @@ function buildControls(jsonData, diffCount) {
 
     return Element("div", { classList: "report-details" }, [
         displayingDiv,
-        buildDiffControls(jsonData),
+        buildDiffControls(),
         buildFilterControls(jsonData),
     ])
 }
 
-function buildFilterGroup(jsonData, name, childStateNames) {
+function buildFilterGroup(name) {
     let subFilters = filterGroups[name];
     let label = buildCheckboxLabel(name, toTitleCase(name), filterGroupState[name]);
     label.addEventListener("click", (e) => {
@@ -729,17 +938,41 @@ function buildFilterGroup(jsonData, name, childStateNames) {
     return label;
 }
 
-function buildFilterControls(jsonData) {
-    var testTypeCounts = {}
-    for (let test of jsonData.tests) {
-        testTypeCounts[test.status] == null ?
-            testTypeCounts[test.status] = 1 :
-            testTypeCounts[test.status] += 1
+function countTestsByStatus(tests) {
+    const counts = {}
+    for (const test of tests) {
+        counts[test.status] = (counts[test.status] ?? 0) + 1
     }
+    return counts
+}
+
+function collectSuites(tests) {
+    const suites = new Set()
+    for (const test of tests) {
+        const linkComponents = test.link.split("/")
+        if (linkComponents.length > 1) {
+            suites.add(linkComponents[0])
+        }
+    }
+    return [...suites]
+}
+
+function collectWarnings(tests) {
+    const warnings = new Set()
+    for (const test of tests) {
+        for (const warning of test.warnings)  {
+            warnings.add(warning)
+        }
+    }
+    return [...warnings]
+}
+
+function buildFilterControls(jsonData) {
+    const testTypeCounts = countTestsByStatus(jsonData.tests)
 
     var filterButtons = []
     for (let f in filterState) {
-        const name = `${filterNames[f]} (${testTypeCounts[f] ? testTypeCounts[f] : "0"})`
+        const name = `${filterNames[f]} (${testTypeCounts[f] ?? 0})`
         const button = buildCheckboxLabel(f + " sub-filter", name, filterState[f])
         button.addEventListener("click", () => {
             filterState[f] = button.querySelector("input").checked
@@ -748,15 +981,15 @@ function buildFilterControls(jsonData) {
         filterButtons.push(button)
     }
 
-    const dropDown = buildDropdown(
-        allSuites,
+    const suiteDropdown = buildDropdown(
+        collectSuites(jsonData.tests),
         filterBySuite,
         "Filter by suite",
         (value) => { filterBySuite = value; },
     );
 
-    const dropDown2 = buildDropdown(
-        allWarnings,
+    const warningDropdown = buildDropdown(
+        collectWarnings(jsonData.tests),
         filterByWarning,
         "Filter to warning",
         (value) => { filterByWarning = value; },
@@ -764,27 +997,27 @@ function buildFilterControls(jsonData) {
 
     let groupButtons = [];
     for (let i in filterGroupState) {
-        groupButtons.push(buildFilterGroup(jsonData, i));
+        groupButtons.push(buildFilterGroup(i));
     }
 
     const filters = Element("details", { id: "filters", open: showFilterDetails }, [
         Element("summary", {}, [
             Element("h2", {}, "Filters"),
-            groupButtons, " ", dropDown, " ", dropDown2,
+            groupButtons, " ", suiteDropdown, " ", warningDropdown,
         ]),
         filterButtons,
     ]);
-    filters.addEventListener("toggle", (e) => {
+    filters.addEventListener("toggle", () => {
         showFilterDetails = filters.open;
     });
     return filters;
 }
 
-function showGetJsonError(error) {
+function showGetJsonError() {
     const header = buildHeader("Error loading results")
 
-    let is_windows = navigator.userAgent.indexOf("Windows") !== -1;
-    let page_name = window.location.pathname.split("/").at(-1);
+    const is_windows = navigator.userAgent.indexOf("Windows") !== -1;
+    const page_name = window.location.pathname.split("/").at(-1);
     let page_location;
     if (is_windows) {
         page_location = window.location.pathname.split("/").slice(1, -1).join("\\");
@@ -821,93 +1054,86 @@ function showGetJsonError(error) {
         reason,
     ]);
 
-    let body = [header, message];
+    const body = [header, message];
 
-    let bodyNode = document.querySelector("body");
+    const bodyNode = document.querySelector("body");
     if (bodyNode) {
         bodyNode.replaceChildren.apply(bodyNode, body);
     } else {
-        document.addEventListener("DOMContentLoaded", () => showGetJsonError(error));
+        document.addEventListener("DOMContentLoaded", showGetJsonError);
     }
 }
 
-function makeFilterFunction() {
-    return function filterFunction(baseData, diffData) {
-
-        // Section to hide diffs that are below the provided tolerance
-        if (hideDirtyEqual) {
-            // Diff Start Accuracy
-            if (radioState == "output") {
-                if (baseData.output != diffData.output) {
-                    return false;
-                }
-            }
-            // Diff Start Accuracy
-            if (radioState == "startAcc") {
-                const t = baseData.start / baseData.bits
-                const o = diffData.start / diffData.bits
-                const op = calculatePercent(o)
-                const tp = calculatePercent(t)
-                var diff = op - tp
-                if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                    return false;
-                }
-            }
-            
-            // Diff Result Accuracy
-            if (radioState == "endAcc") {
-                const t = baseData.end / baseData.bits
-                const o = diffData.end / diffData.bits
-                const op = calculatePercent(o)
-                const tp = calculatePercent(t)
-                var diff = op - tp
-                if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                    return false;
-                }
-            }
-
-            // Diff Target Accuracy
-            if (radioState == "targetAcc") {
-                var smallestBase = getMinimum(baseData.target)
-                var smallestDiff = getMinimum(diffData.target)
-                
-                const t = smallestBase / baseData.bits
-                const o = smallestDiff / diffData.bits
-                const op = calculatePercent(o)
-                const tp = calculatePercent(t)
-                var diff = op - tp
-                if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                    return false;
-                }
-            }
-
-            // Diff Time
-            if (radioState == "time") {
-                var timeDiff = baseData.time - diffData.time
-                if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
-                    return false;
-                }
-            }
-        }
-
-        const linkComponents = baseData.link.split("/")
-        if (filterBySuite && linkComponents.length > 1) {
-            // defensive lowerCase
-            if (filterBySuite.toLowerCase() != linkComponents[0].toLowerCase()) {
-                return false
-            }
-        }
-
-        if (filterByWarning && baseData.warnings.indexOf(filterByWarning) === -1) {
-            return false
-        }
-
-        if (!filterState[baseData.status]) {
-            return false
-        }
-
-        return true
+function filterDirtyEqual(baseData, diffData) {
+    if (!hideDirtyEqual) {
+        return false
     }
+
+    if (radioState == "output") {
+        return baseData.output == diffData.output
+    }
+
+    if (radioState == "startAcc") {
+        const t = baseData.start / baseData.bits
+        const o = diffData.start / diffData.bits
+        const op = calculatePercent(o)
+        const tp = calculatePercent(t)
+        const diff = op - tp
+        return Math.abs((diff).toFixed(1)) <= filterTolerance
+    }
+
+    if (radioState == "endAcc") {
+        const t = baseData.end / baseData.bits
+        const o = diffData.end / diffData.bits
+        const op = calculatePercent(o)
+        const tp = calculatePercent(t)
+        const diff = op - tp
+        return Math.abs((diff).toFixed(1)) <= filterTolerance
+    }
+
+    if (radioState == "targetAcc") {
+        const smallestBase = getMinimum(baseData.target)
+        const smallestDiff = getMinimum(diffData.target)
+
+        const t = smallestBase / baseData.bits
+        const o = smallestDiff / diffData.bits
+        const op = calculatePercent(o)
+        const tp = calculatePercent(t)
+        const diff = op - tp
+        return Math.abs((diff).toFixed(1)) <= filterTolerance
+    }
+
+    if (radioState == "time") {
+        const timeDiff = baseData.time - diffData.time
+        return Math.abs(timeDiff) < (filterTolerance * 1000)
+    }
+
+    return false
+}
+
+function filterSuite(baseData) {
+    const linkComponents = baseData.link.split("/")
+    return filterBySuite &&
+        linkComponents.length > 1 &&
+        // defensive lowerCase
+        filterBySuite.toLowerCase() != linkComponents[0].toLowerCase()
+}
+
+function filterWarning(baseData) {
+    return filterByWarning && baseData.warnings.indexOf(filterByWarning) === -1
+}
+
+function filterStatus(baseData) {
+    return !filterState[baseData.status]
+}
+
+function filterTest(baseData) {
+    const diffData = getBaselineTest(baseData)
+    if (filterDirtyEqual(baseData, diffData)) return false
+    if (filterSuite(baseData)) return false
+    if (filterWarning(baseData)) return false
+    if (filterStatus(baseData)) return false
+    return true
 }
 
 async function fetchBaseline(url) {
@@ -916,7 +1142,7 @@ async function fetchBaseline(url) {
     if (url.endsWith("/")) url += "results.json";
     compareAgainstURL = url;
 
-    let response = await fetch(url, {
+    const response = await fetch(url, {
         headers: { "content-type": "text/plain" },
         method: "GET",
         mode: "cors",
@@ -925,42 +1151,22 @@ async function fetchBaseline(url) {
     const json = await response.json()
     if (json.error) return;
 
-    for (let test of json.tests) {
-        diffAgainstFields[test.name] = test;
-    }
+    diffAgainstFields = Object.fromEntries(json.tests.map((test) => [test.name, test]));
     return json;
 }
 
 async function getResultsJson() {
     if (resultsJsonData == null) {
-        let response;
         try {
-            response = await fetch("results.json", {
+            const response = await fetch("results.json", {
                 headers: { "content-type": "application/json" },
             });
+            resultsJsonData = (await response.json());
         } catch (err) {
-            return showGetJsonError(err);
+            return showGetJsonError();
         }
-        resultsJsonData = (await response.json());
-        storeBenchmarks(resultsJsonData.tests)
+        update();
     }
-}
-
-function storeBenchmarks(tests) {
-    var tempDir = {}
-    var tempAllWarnings = {}
-    for (let test of tests) {
-        const linkComponents = test.link.split("/")
-        if (linkComponents.length > 1) {
-            tempDir[linkComponents[0]] = linkComponents[0]
-        }
-        for (let warning of test.warnings)  {
-            tempAllWarnings[warning] = warning
-        }
-    }
-    allSuites = Object.keys(tempDir);
-    allWarnings = Object.keys(tempAllWarnings);
-    update();
 }
 
 getResultsJson()

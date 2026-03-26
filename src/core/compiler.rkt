@@ -3,7 +3,7 @@
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../syntax/platform.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/batch.rkt")
 
@@ -13,56 +13,57 @@
 
 ;; Interpreter taking a narrow IR
 ;; ```
-;; <prog> ::= #(<instr> ..+)
-;; <instr> ::= '(<op-procedure> <index> ...)
+;; <prog> ::= #(<thunk> ..+)
 ;; ```
-;; where <index> refers to a previous virtual register.
 ;; Must also provide the input variables for the program(s)
 ;; as well as the indices of the roots to extract.
-(define (make-progs-interpreter ivec rootvec args)
+(define (make-progs-interpreter tvec rootvec args vregs)
   (define rootlen (vector-length rootvec))
-  (define vregs (make-vector (vector-length ivec)))
+  (define vregs-len (vector-length tvec))
   (define (compiled-prog args*)
     (vector-copy! args 0 args*)
-    (for ([instr (in-vector ivec)]
-          [n (in-naturals)])
-      (vector-set! vregs n (apply-instruction instr vregs)))
+    (for ([thunk (in-vector tvec)]
+          [n (in-range vregs-len)])
+      (vector-set! vregs n (thunk)))
     (for/vector #:length rootlen
                 ([root (in-vector rootvec)])
       (vector-ref vregs root)))
   compiled-prog)
 
-(define (apply-instruction instr regs)
-  ;; By special-casing the 0-3 instruction case,
-  ;; we avoid any allocation in the common case.
-  ;; We could add more cases if we want wider instructions.
-  ;; At some extreme, vector->values plus call-with-values
-  ;; becomes the fastest option.
-  (match instr
-    [(list op) (op)]
-    [(list op a) (op (vector-ref regs a))]
-    [(list op a b) (op (vector-ref regs a) (vector-ref regs b))]
-    [(list op a b c) (op (vector-ref regs a) (vector-ref regs b) (vector-ref regs c))]
-    [(list op args ...) (apply op (map (curry vector-ref regs) args))]))
+(define (make-thunk op argidxs regs)
+  (match argidxs
+    ['() op]
+    [(list a) (λ () (op (vector-ref regs a)))]
+    [(list a b) (λ () (op (vector-ref regs a) (vector-ref regs b)))]
+    [(list a b c) (λ () (op (vector-ref regs a) (vector-ref regs b) (vector-ref regs c)))]
+    [(list args ...)
+     (define argc (length args))
+     (define argv (list->vector args))
+     (λ ()
+       (apply op
+              (for/list ([arg (in-vector argv)])
+                (vector-ref regs arg))))]))
 
 ;; This function:
 ;;   1) copies only nodes associated with provided brfs - so, gets rid of useless nodes
 ;;   2) rewrites these nodes as fl-instructions
-(define (batch-for-compiler batch brfs vars args)
+(define (batch-for-compiler batch brfs vars args vregs)
   (define out (batch-empty))
   (define f
-    (batch-recurse
-     batch
-     (λ (brf recurse)
-       (match (deref brf)
-         [(approx _ impl) (recurse impl)] ;; do not push, it is already a batchref
-         [(? symbol? n)
-          (define idx (index-of vars n))
-          (batch-push! out (list (λ () (vector-ref args idx))))]
-         [(literal value (app get-representation repr))
-          (batch-push! out (list (const (real->repr value repr))))]
-         [(list op args ...)
-          (batch-push! out (cons (impl-info op 'fl) (map (compose batchref-idx recurse) args)))]))))
+    (batch-recurse batch
+                   (λ (brf recurse)
+                     (match (deref brf)
+                       [(approx _ impl) (recurse impl)] ;; do not push, it is already a batchref
+                       [(? symbol? n)
+                        (define idx (index-of vars n))
+                        (batch-push! out (make-thunk (λ () (vector-ref args idx)) '() vregs))]
+                       [(literal value (app get-representation repr))
+                        (batch-push! out (make-thunk (const (real->repr value repr)) '() vregs))]
+                       [(list op args ...)
+                        (batch-push! out
+                                     (make-thunk (impl-info op 'fl)
+                                                 (map (compose batchref-idx recurse) args)
+                                                 vregs))]))))
   (values out (map f brfs)))
 
 ;; Compiles a program of operator implementations into a procedure
@@ -78,17 +79,48 @@
 (define (compile-batch batch brfs ctx)
   (define vars (context-vars ctx))
   (define args (make-vector (length vars)))
-  (define-values (batch* brfs*) (batch-for-compiler batch brfs vars args))
-  (define instructions (batch-get-nodes batch*))
+  (define vregs (make-vector (batch-length batch)))
+  (define-values (batch* brfs*) (batch-for-compiler batch brfs vars args vregs))
+  (define thunks (batch-get-nodes batch*))
   (define rootvec (list->vector (map batchref-idx brfs*)))
 
   (timeline-push! 'compiler (batch-tree-size batch* brfs*) (batch-length batch*))
 
-  (make-progs-interpreter instructions rootvec args))
+  (make-progs-interpreter thunks rootvec args vregs))
 
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
   (define core (compile-progs (list expr) ctx))
+  (define var-reprs (context-var-reprs ctx))
+  (define (leaf-count repr)
+    (if (array-representation? repr)
+        (* (array-representation-len repr) (leaf-count (array-representation-elem repr)))
+        1))
+  (define expected-leaves (for/sum ([repr (in-list var-reprs)]) (leaf-count repr)))
+  (define (assemble-inputs xs)
+    (define idx 0)
+    (define (next)
+      (begin0 (list-ref xs idx)
+        (set! idx (add1 idx))))
+    (define (build repr)
+      (if (array-representation? repr)
+          (for/vector #:length (array-representation-len repr)
+                      ([_ (in-range (array-representation-len repr))])
+            (build (array-representation-elem repr)))
+          (next)))
+    (for/vector #:length (length var-reprs)
+                ([repr (in-list var-reprs)])
+      (build repr)))
   (define (compiled-prog . xs)
-    (vector-ref (apply core xs) 0))
+    (define args*
+      (cond
+        [(= (length xs) (length var-reprs)) (list->vector xs)]
+        [(= (length xs) expected-leaves) (assemble-inputs xs)]
+        [else
+         (error 'compiled-prog
+                "arity mismatch, expected ~a vars or ~a flattened args, got ~a"
+                (length var-reprs)
+                expected-leaves
+                (length xs))]))
+    (vector-ref (core args*) 0))
   compiled-prog)

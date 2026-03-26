@@ -285,6 +285,8 @@ table pre { padding: 0; margin: 0; text-align: left; font-size: 110%; }
 
 .timeline-eval     { --phase-color: #204a87; }
 .timeline-prune    { --phase-color: #3465a4; }
+.timeline-reconstruct { --phase-color: #729fcf; }
+.timeline-gc       { --phase-color: #888a85; }
 .timeline-localize { --phase-color: #729fcf; }
 
 .timeline-rewrite  { --phase-color: #4e9a06; }

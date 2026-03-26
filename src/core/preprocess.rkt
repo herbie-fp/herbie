@@ -5,7 +5,7 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../utils/common.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/batch.rkt"
          "egg-herbie.rkt"
@@ -47,7 +47,6 @@
     (cons `(negabs ,var) (replace-expression `(neg ,spec) var `(neg ,var)))))
 
 ;; Sort identities: f(a, b) = f(b, a)
-;; TODO: require both vars have the same repr
 (define (make-sort-identities spec ctx)
   (define pairs (combinations (context-vars ctx) 2))
   (for/list ([pair (in-list pairs)]

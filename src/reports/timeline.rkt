@@ -3,11 +3,11 @@
          (only-in xml write-xexpr xexpr?)
          racket/date)
 (require "../utils/common.rkt"
-         "../api/datafile.rkt"
+         "data.rkt"
          "common.rkt"
          "../syntax/platform.rkt"
          "../syntax/types.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../config.rkt"
          "../syntax/batch.rkt")
 (provide make-timeline)
@@ -61,18 +61,18 @@
             (span ((class "time")) ,(format-time time) " (" ,(format-percent time total-time) ")"))
         (dl ,@(dict-call curr render-phase-memory 'memory 'gc-time)
             ,@(dict-call curr render-phase-algorithm 'method)
-            ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline 'name 'link 'repr)
+            ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline)
             ,@(dict-call curr render-phase-pruning 'kept)
             ,@(dict-call curr render-phase-error 'min-error)
             ,@(dict-call curr render-phase-egraph 'egraph)
             ,@(dict-call curr render-phase-stop 'stop)
             ,@(dict-call curr render-phase-counts 'count)
-            ,@(dict-call curr render-phase-alts 'alts)
+            ,@(dict-call curr render-phase-alts/shared 'alts 'batch)
             ,@(dict-call curr render-phase-inputs 'inputs 'outputs)
             ,@(dict-call curr render-phase-times 'times)
             ,@(dict-call curr render-phase-series 'series)
             ,@(dict-call curr render-phase-bstep 'bstep)
-            ,@(dict-call curr render-phase-branches 'branch)
+            ,@(dict-call curr render-phase-branches 'branch 'batch)
             ,@(dict-call curr render-phase-sampling 'sampling)
             ,@(dict-call curr (curryr simple-render-phase "Symmetry") 'symmetry)
             ,@(dict-call curr render-phase-outcomes 'outcomes)
@@ -229,7 +229,7 @@
       `((dt ,name) (dd ,@(map (lambda (s) `(p ,(~a s))) (first info))))
       empty))
 
-(define (render-phase-accuracy accuracy oracle baseline repr-name)
+(define (render-phase-accuracy accuracy oracle baseline)
   (define rows
     (sort (for/list ([acc accuracy]
                      [ora oracle]
@@ -240,7 +240,6 @@
 
   (define bits (map first rows))
   (define total-remaining (apply + accuracy))
-  (define repr (get-representation (read (open-input-string (car repr-name)))))
 
   `((dt "Accuracy") (dd (p "Total "
                            ,(format-bits (apply + bits) #:unit #t)
@@ -249,7 +248,7 @@
                            ,(format-percent (apply + bits) total-remaining)
                            ")"
                            (p "Threshold costs "
-                              ,(format-bits (apply + (filter (curry > 1) bits)) repr)
+                              ,(format-bits (apply + (filter (curry > 1) bits)))
                               "b"
                               " ("
                               ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining)
@@ -313,21 +312,25 @@
                       (match-define (list inputs outputs) rec)
                       `(dd ,(~r inputs #:group-sep " ") " → " ,(~r outputs #:group-sep " ")))))
 
-(define (render-phase-alts alts)
+(define (render-phase-alts/shared alts shared-batch)
+  (match-define (list (? hash? shared-batch*)) shared-batch)
+  (define nodes (hash-ref shared-batch* 'nodes))
+  (define (single-root-jsexpr root)
+    (hash 'nodes nodes 'roots (list root)))
   `((dt "Alt Table")
     (dd (details (summary "Click to see full alt table")
                  (table ((class "times"))
                         (thead (tr (th "Status") (th "Accuracy") (th "Program")))
                         ,@
                         (for/list ([rec (in-list alts)])
-                          (match-define (list batch-jsexpr status score repr-name) rec)
+                          (match-define (list root status score repr-name) rec)
                           (define repr (get-representation (read (open-input-string repr-name))))
                           `(tr ,(match status
                                   ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
                                   ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
                                   ["fresh" `(td)])
                                (td ,(format-accuracy score repr #:unit "%") "")
-                               (td (pre ,(jsexpr->batch-exprs batch-jsexpr))))))))))
+                               (td (pre ,(jsexpr->batch-exprs (single-root-jsexpr root)))))))))))
 
 (define (render-phase-times times)
   (define hist-id (make-id))
@@ -371,16 +374,19 @@
                            ,(format-percent (- size compiled) size)
                            " saved)"))))
 
-(define (render-phase-branches branches)
-  `((dt "Results") (dd (table ((class "times"))
-                              (thead (tr (th "Accuracy") (th "Segments") (th "Branch")))
-                              ,@(for/list ([rec (in-list branches)])
-                                  (match-define (list batch-jsexpr score splits repr-name) rec)
-                                  (define repr
-                                    (get-representation (read (open-input-string repr-name))))
-                                  `(tr (td ,(format-accuracy score repr #:unit "%") "")
-                                       (td ,(~a splits))
-                                       (td (pre ,(jsexpr->batch-exprs batch-jsexpr)))))))))
+(define (render-phase-branches branches shared-batch)
+  (match-define (list (? hash? shared-batch*)) shared-batch)
+  (define (single-root-jsexpr root)
+    (hash 'nodes (hash-ref shared-batch* 'nodes) 'roots (list root)))
+  `((dt "Results")
+    (dd (table ((class "times"))
+               (thead (tr (th "Accuracy") (th "Segments") (th "Branch")))
+               ,@(for/list ([rec (in-list branches)])
+                   (match-define (list branch-root score splits repr-name) rec)
+                   (define repr (get-representation (read (open-input-string repr-name))))
+                   `(tr (td ,(format-accuracy score repr #:unit "%") "")
+                        (td ,(~a splits))
+                        (td (pre ,(jsexpr->batch-exprs (single-root-jsexpr branch-root))))))))))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Samples") (dd (table ((class "times"))
@@ -414,26 +420,20 @@
   (define total (apply + (map second sorted)))
   `((dt "Allocations")
     (dd (table ((class "times"))
-               (thead (tr (th "Phase") (th "Allocated") (th "Percent")))
+               (thead (tr (th "Allocated") (th "Percent") (th "Phase")))
                ,@(for/list ([rec (in-list sorted)])
                    (match-define (list type alloc) rec)
-                   `(tr (td ,(~a type))
-                        (td ,(~r (/ alloc (expt 2 20)) #:group-sep " " #:precision '(= 1)) " MiB")
-                        (td ,(format-percent alloc total))))))))
+                   `(tr (td ,(~r (/ alloc (expt 2 20)) #:group-sep " " #:precision '(= 1)) " MiB")
+                        (td ,(format-percent alloc total))
+                        (td (code ,(~a type)))))
+               (tfoot (tr (td ,(~r (/ total (expt 2 20)) #:group-sep " " #:precision '(= 1)) " MiB")
+                          (td ,(format-percent total total))
+                          (td (code "total"))))))))
 
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
 (define (render-about info)
-  (match-define (report-info date
-                             commit
-                             branch
-                             seed
-                             flags
-                             points
-                             iterations
-                             tests
-                             merged-cost-accuracy)
-    info)
+  (match-define (report-info date commit branch seed flags points iterations tests) info)
 
   `(table ((id "about"))
           (tr (th "Date:") (td ,(date->string date)))
