@@ -19,6 +19,7 @@
   '(("base" #:version "8.0") "math-lib"
                              "typed-racket-lib"
                              "profile-lib"
+                             "cover"
                              "rackunit-lib"
                              "web-server-lib"
                              "rival3"
