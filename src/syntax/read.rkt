@@ -295,7 +295,7 @@
 
   ;; Named fpcores become platform operators
   (when func-name
-    (register-fpcore-operator! func-name ctx body* spec))
+    (register-fpcore-operator! func-name (struct-copy context ctx [repr output-repr]) body* spec))
   (check-unused-variables var-names body* pre*)
   (check-weird-variables var-names)
 
@@ -425,6 +425,12 @@
   (register-fpcore-operator! 'sum2 sum2-ctx sum2-prog sum2-prog)
   (define vec-ctx (context '(a) <binary64> (list vec2)))
   (check-equal? (fpcore->prog '(sum2 a) vec-ctx) '(sum2 a))
+
+  ;; array return values
+  (define vec-out-ctx (context '(x y) vec2 (list <binary64> <binary64>)))
+  (define vec-out-prog (fpcore->prog '(array x y) vec-out-ctx))
+  (register-fpcore-operator! 'mkvec vec-out-ctx vec-out-prog vec-out-prog)
+  (check-equal? (prog->spec vec-out-prog) '(array x y))
 
   ;; casting edge cases
   (check-equal? (fpcore->prog `(cast x) ctx) 'x)
