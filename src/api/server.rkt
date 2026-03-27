@@ -289,8 +289,9 @@
                          *node-limit*
                          *max-find-range-depth*
                          *platform-name*
-                         *functions*)
+                         *added-fpcore-operators*)
    (activate-platform! (*platform-name*))
+   (replay-added-fpcore-operators!)
    ; not sure if the above code is actaully needed.
    (define busy-workers (make-hash))
    (define waiting-workers (make-hash))
@@ -416,8 +417,9 @@
                          *node-limit*
                          *max-find-range-depth*
                          *platform-name*
-                         *functions*)
+                         *added-fpcore-operators*)
    (activate-platform! (*platform-name*))
+   (replay-added-fpcore-operators!)
    (define worker-thread
      (thread (λ ()
                (let loop ()
@@ -539,6 +541,8 @@
       [else #f]))
 
   (define test-fpcore (alt->fpcore test (make-alt (test-input test))))
+  (define helper-fpcores (dependent-fpcore-operators->fpcores (test-input test)))
+  (define serialized-helpers (string-join (map ~s helper-fpcores) "\n\n"))
 
   (define fpcores
     (if (equal? (job-result-status herbie-result) 'success)
@@ -561,6 +565,8 @@
 
   (hasheq 'test
           (~s test-fpcore)
+          'helpers
+          serialized-helpers
           'timeline
           timeline
           'profile

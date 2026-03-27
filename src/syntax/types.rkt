@@ -8,6 +8,7 @@
 (provide (struct-out representation)
          (struct-out array-representation)
          repr->prop
+         repr->datum
          array-representation-base
          array-representation-shape
          shift
@@ -52,6 +53,12 @@
      (match (representation-type repr)
        ['bool '()]
        ['real (list (cons ':precision (representation-name repr)))])]))
+
+(define (repr->datum repr)
+  (match repr
+    [(? array-representation?)
+     `(array ,(repr->datum (array-representation-elem repr)) ,(array-representation-len repr))]
+    [(? representation?) (representation-name repr)]))
 
 (define (make-representation #:name name
                              #:bf->repr bf->repr

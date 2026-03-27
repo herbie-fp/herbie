@@ -91,6 +91,36 @@
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
   (define core (compile-progs (list expr) ctx))
+  (define var-reprs (context-var-reprs ctx))
+  (define (leaf-count repr)
+    (if (array-representation? repr)
+        (* (array-representation-len repr) (leaf-count (array-representation-elem repr)))
+        1))
+  (define expected-leaves (for/sum ([repr (in-list var-reprs)]) (leaf-count repr)))
+  (define (assemble-inputs xs)
+    (define idx 0)
+    (define (next)
+      (begin0 (list-ref xs idx)
+        (set! idx (add1 idx))))
+    (define (build repr)
+      (if (array-representation? repr)
+          (for/vector #:length (array-representation-len repr)
+                      ([_ (in-range (array-representation-len repr))])
+            (build (array-representation-elem repr)))
+          (next)))
+    (for/vector #:length (length var-reprs)
+                ([repr (in-list var-reprs)])
+      (build repr)))
   (define (compiled-prog . xs)
-    (vector-ref (apply core xs) 0))
+    (define args*
+      (cond
+        [(= (length xs) (length var-reprs)) (list->vector xs)]
+        [(= (length xs) expected-leaves) (assemble-inputs xs)]
+        [else
+         (error 'compiled-prog
+                "arity mismatch, expected ~a vars or ~a flattened args, got ~a"
+                (length var-reprs)
+                expected-leaves
+                (length xs))]))
+    (vector-ref (core args*) 0))
   compiled-prog)

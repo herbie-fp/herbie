@@ -32,11 +32,13 @@
          platform-copy
          repr-exists?
          get-representation
+         datum->repr
          impl-exists?
          impl-info
          prog->spec
          batch-to-spec!
          get-fpcore-impl
+         reset-fpcore-op-cache!
          (struct-out $platform)
          ;; Platform API
          ;; Operator sets
@@ -81,6 +83,12 @@
   (define platform (*active-platform*))
   (define reprs (platform-representations platform))
   (hash-has-key? reprs name))
+
+(define (datum->repr repr-data)
+  (match repr-data
+    [(? representation?) repr-data]
+    [`(array ,elem ,len) (make-array-representation #:elem (datum->repr elem) #:len len)]
+    [(? symbol? name) (get-representation name)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> LSpec
@@ -197,6 +205,9 @@
     [body (values '() body)]))
 
 (define/reset op-hash #f)
+
+(define (reset-fpcore-op-cache!)
+  (op-hash #f))
 
 ;; For a given FPCore operator, rounding context, and input representations,
 ;; finds the best operator implementation. Panics if none can be found.

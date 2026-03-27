@@ -1,8 +1,13 @@
 #lang racket
 
-(require "../utils/common.rkt"
+(require racket/set
+         "../core/compiler.rkt"
+         "../utils/common.rkt"
          "../utils/errors.rkt"
+         "../utils/timeline.rkt"
          "platform.rkt"
+         "load-platform.rkt"
+         (only-in "platform-language.rkt" create-operator-impl! platform-register-implementation!)
          "sugar.rkt"
          "syntax-check.rkt"
          "syntax.rkt"
@@ -13,6 +18,10 @@
          test-context
          test-output-repr
          test-var-reprs
+         *added-fpcore-operators*
+         dependent-fpcore-operators->fpcores
+         replay-added-fpcore-operators!
+         load-test+helpers
          load-tests
          parse-test)
 
@@ -27,19 +36,117 @@
 (struct test (name identifier vars input output expected spec pre output-repr-name var-repr-names)
   #:prefab)
 
+(struct fpcore-operator-record (name vars output-repr-data var-repr-data body spec) #:prefab)
+
+(define *added-fpcore-operators* (make-parameter '()))
+
 (define (test-output-repr test)
-  (get-representation (test-output-repr-name test)))
+  (datum->repr (test-output-repr-name test)))
 
 (define (test-var-reprs test)
-  (map get-representation (map cdr (test-var-repr-names test))))
+  (map datum->repr (map cdr (test-var-repr-names test))))
 
 (define (test-context test)
-  (define output-repr (get-representation (test-output-repr-name test)))
+  (define output-repr (datum->repr (test-output-repr-name test)))
   (define vars (test-vars test))
   (define var-reprs
     (for/list ([var vars])
-      (get-representation (dict-ref (test-var-repr-names test) var))))
+      (datum->repr (dict-ref (test-var-repr-names test) var))))
   (context (test-vars test) output-repr var-reprs))
+
+(define (record-fpcore-operator name ctx body* spec*)
+  (fpcore-operator-record name
+                          (context-vars ctx)
+                          (repr->datum (context-repr ctx))
+                          (map repr->datum (context-var-reprs ctx))
+                          body*
+                          spec*))
+
+(define (register-fpcore-operator! name ctx body* spec* #:remember? [remember? #t])
+  (define output-repr (context-repr ctx))
+  (define spec-expr (prog->spec spec*))
+  (define fl-proc (compile-prog body* ctx))
+  (define cost ((platform-cost-proc (*active-platform*)) body* output-repr))
+  (define fpcore-expr (cons name (context-vars ctx)))
+  (define impl
+    (create-operator-impl! name ctx #:spec spec-expr #:impl fl-proc #:fpcore fpcore-expr #:cost cost))
+  (platform-register-implementation! (*active-platform*) impl)
+  (when remember?
+    (*added-fpcore-operators* (append (*added-fpcore-operators*)
+                                      (list (record-fpcore-operator name ctx body* spec*))))))
+
+(define (replay-added-fpcore-operators!)
+  (parameterize ([*timeline-disabled* #t])
+    (for ([record (in-list (*added-fpcore-operators*))])
+      (unless (impl-exists? (fpcore-operator-record-name record))
+        (define ctx
+          (context (fpcore-operator-record-vars record)
+                   (datum->repr (fpcore-operator-record-output-repr-data record))
+                   (map datum->repr (fpcore-operator-record-var-repr-data record))))
+        (register-fpcore-operator! (fpcore-operator-record-name record)
+                                   ctx
+                                   (fpcore-operator-record-body record)
+                                   (fpcore-operator-record-spec record)
+                                   #:remember? #f)))))
+
+(define (render-fpcore-argument var repr-data output-precision)
+  (define repr (datum->repr repr-data))
+  (cond
+    [(array-representation? repr)
+     (define dims (array-representation-shape repr))
+     (define elem-precision (representation-name (array-representation-base repr)))
+     (if (equal? elem-precision output-precision)
+         (append (list var) dims)
+         (append (list '! ':precision elem-precision var) dims))]
+    [else
+     (define var-precision (representation-name repr))
+     (if (equal? var-precision output-precision)
+         var
+         (list '! ':precision var-precision var))]))
+
+(define (fpcore-record->fpcore record)
+  (define output-repr (datum->repr (fpcore-operator-record-output-repr-data record)))
+  (define output-precision (representation-name (array-representation-base output-repr)))
+  (define ctx
+    (context (fpcore-operator-record-vars record)
+             output-repr
+             (map datum->repr (fpcore-operator-record-var-repr-data record))))
+  `(FPCore ,(fpcore-operator-record-name record)
+           ,(for/list ([var (in-list (fpcore-operator-record-vars record))]
+                       [repr-data (in-list (fpcore-operator-record-var-repr-data record))])
+              (render-fpcore-argument var repr-data output-precision))
+           :precision
+           ,output-precision
+           ,(prog->fpcore (fpcore-operator-record-body record) ctx)))
+
+(define (prog-operators prog)
+  (match prog
+    [(? literal?) '()]
+    [(? number?) '()]
+    [(? symbol?) '()]
+    [(approx spec impl) (append (prog-operators spec) (prog-operators impl))]
+    [(list op args ...) (remove-duplicates (cons op (append-map prog-operators args)))]))
+
+(define (dependent-fpcore-operators->fpcores prog #:exclude [exclude '()])
+  (define records (*added-fpcore-operators*))
+  (define record-table
+    (for/hash ([record (in-list records)])
+      (values (fpcore-operator-record-name record) record)))
+  (define needed (mutable-set))
+
+  (define (visit prog)
+    (for ([op (in-list (prog-operators prog))]
+          #:when (hash-has-key? record-table op))
+      (unless (set-member? needed op)
+        (set-add! needed op)
+        (visit (fpcore-operator-record-body (hash-ref record-table op))))))
+
+  (visit prog)
+
+  (for/list ([record (in-list records)]
+             #:when (set-member? needed (fpcore-operator-record-name record))
+             #:unless (member (fpcore-operator-record-name record) exclude))
+    (fpcore-record->fpcore record)))
 
 ;; Unfortunately copied from `src/syntax/sugar.rkt`
 (define (expand stx)
@@ -164,10 +271,6 @@
   (define var-names (context-vars ctx))
   (define var-reprs (context-var-reprs ctx))
 
-  ;; Named fpcores need to be added to function table
-  (when func-name
-    (register-function! func-name args default-prec body))
-
   ;; Try props first, then identifier, else the expression itself
   (define name (or (dict-ref prop-dict ':name #f) func-name body))
 
@@ -189,6 +292,10 @@
            (cons val #t))])))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
+
+  ;; Named fpcores become platform operators
+  (when func-name
+    (register-fpcore-operator! func-name (struct-copy context ctx [repr output-repr]) body* spec))
   (check-unused-variables var-names body* pre*)
   (check-weird-variables var-names)
 
@@ -200,10 +307,10 @@
         (dict-ref prop-dict ':herbie-expected #t)
         spec
         pre*
-        (representation-name output-repr)
+        (repr->datum output-repr)
         (for/list ([var (in-list var-names)]
                    [repr (in-list var-reprs)])
-          (cons var (representation-name repr)))))
+          (cons var (repr->datum repr)))))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
@@ -254,6 +361,8 @@
            (load-file fname))))
 
 (define (load-tests path)
+  (activate-platform! (*platform-name*))
+  (*added-fpcore-operators* '())
   (define path*
     (if (string? path)
         (string->path path)
@@ -272,6 +381,12 @@
           (string-join (map (curry format "\"~a\"") duplicates) ", ")))
   out)
 
+(define (load-test+helpers test-src [helpers-src ""])
+  (define chunks
+    (filter (lambda (chunk) (and (string? chunk) (not (string=? chunk ""))))
+            (list helpers-src test-src)))
+  (last (load-tests (open-input-string (string-join chunks "\n\n")))))
+
 (module+ test
   (require rackunit
            "../syntax/float.rkt"
@@ -281,22 +396,41 @@
   (define precision 'binary64)
   (define ctx (context '(x y z a) <binary64> (make-list 4 <binary64>)))
 
-  ;; inlining
+  ;; named FPCore operators
 
   ;; Test classic quadp and quadm examples
-  (register-function! 'discr (list 'a 'b 'c) precision `(sqrt (- (* b b) (* a c))))
+  (define discr-ctx (context '(a b c) <binary64> (make-list 3 <binary64>)))
+  (define discr-body `(sqrt (- (* b b) (* a c))))
+  (define discr-prog (fpcore->prog discr-body discr-ctx))
+  (register-fpcore-operator! 'discr discr-ctx discr-prog discr-prog)
   (define quadp `(/ (+ (- y) (discr x y z)) x))
   (define quadm `(/ (- (- y) (discr x y z)) x))
-  (check-equal? (fpcore->prog quadp ctx)
-                '(/.f64 (+.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 x z)))) x))
-  (check-equal? (fpcore->prog quadm ctx)
-                '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 x z)))) x))
+  (check-equal? (fpcore->prog quadp ctx) '(/.f64 (+.f64 (neg.f64 y) (discr x y z)) x))
+  (check-equal? (fpcore->prog quadm ctx) '(/.f64 (-.f64 (neg.f64 y) (discr x y z)) x))
 
   ;; x^5 = x^3 * x^2
-  (register-function! 'sqr (list 'x) precision '(* x x))
-  (register-function! 'cube (list 'x) precision '(* x x x))
+  (define sqr-ctx (context '(x) <binary64> (list <binary64>)))
+  (define sqr-prog (fpcore->prog '(* x x) sqr-ctx))
+  (register-fpcore-operator! 'sqr sqr-ctx sqr-prog sqr-prog)
+  (define cube-ctx (context '(x) <binary64> (list <binary64>)))
+  (define cube-prog (fpcore->prog '(* x x x) cube-ctx))
+  (register-fpcore-operator! 'cube cube-ctx cube-prog cube-prog)
   (define fifth '(* (cube a) (sqr a)))
-  (check-equal? (fpcore->prog fifth ctx) '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))
+  (check-equal? (fpcore->prog fifth ctx) '(*.f64 (cube a) (sqr a)))
+
+  ;; array arguments
+  (define vec2 (make-array-representation #:elem <binary64> #:len 2))
+  (define sum2-ctx (context '(v) <binary64> (list vec2)))
+  (define sum2-prog (fpcore->prog '(+ (ref v 0) (ref v 1)) sum2-ctx))
+  (register-fpcore-operator! 'sum2 sum2-ctx sum2-prog sum2-prog)
+  (define vec-ctx (context '(a) <binary64> (list vec2)))
+  (check-equal? (fpcore->prog '(sum2 a) vec-ctx) '(sum2 a))
+
+  ;; array return values
+  (define vec-out-ctx (context '(x y) vec2 (list <binary64> <binary64>)))
+  (define vec-out-prog (fpcore->prog '(array x y) vec-out-ctx))
+  (register-fpcore-operator! 'mkvec vec-out-ctx vec-out-prog vec-out-prog)
+  (check-equal? (prog->spec vec-out-prog) '(array x y))
 
   ;; casting edge cases
   (check-equal? (fpcore->prog `(cast x) ctx) 'x)
