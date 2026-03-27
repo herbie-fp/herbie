@@ -1,6 +1,7 @@
 #lang racket
 
 (require cover
+         json
          racket/cmdline
          racket/file
          racket/format
@@ -15,6 +16,18 @@
 (define src-dir (simplify-path (build-path repo-root "src")))
 (define default-seed "1")
 (define default-benchmark "bench/hamming")
+;; The full core RackUnit suite does not currently complete under `cover`;
+;; `bsearch` and `regimes` currently trigger `cover` internal errors.
+(define skipped-rackunit-coverage-files '("src/core/bsearch.rkt" "src/core/regimes.rkt"))
+
+;; These core test modules were probed individually and completed cleanly
+;; in the merged tutorial run, so include them by default.
+(define stable-rackunit-coverage-files
+  '("src/core/arrays.rkt" "src/core/batch-reduce.rkt"
+                          "src/core/egg-herbie.rkt"
+                          "src/core/egglog-herbie-tests.rkt"
+                          "src/core/prove-rules.rkt"
+                          "src/core/test-rules.rkt"))
 
 (define cover-namespace
   (begin
@@ -42,7 +55,22 @@
         path<?))
 
 (define (collect-rackunit-files files)
-  (filter (lambda (path) (regexp-match? #rx"module\\+ test" (file->string path))) files))
+  (filter (lambda (path)
+            (and (regexp-match? #rx"module\\+ test" (file->string path))
+                 ;; The syntax/utils tests add useful coverage quickly and
+                 ;; reliably. Add the core modules that we have confirmed
+                 ;; behave well under merged coverage too.
+                 (or (regexp-match? #rx"/src/syntax/" (path->string path))
+                     (regexp-match? #rx"/src/utils/" (path->string path))
+                     (member (path->string (find-relative-path repo-root path))
+                             stable-rackunit-coverage-files))
+                 (not (member (path->string (find-relative-path repo-root path))
+                              skipped-rackunit-coverage-files))))
+          files))
+
+(define (normalize-rackunit-additions rackunit-additions)
+  (for/list ([path-string (in-list rackunit-additions)])
+    (simple-form-path path-string)))
 
 (define (path->coverage-key path)
   (path->string (simplify-path path)))
@@ -72,13 +100,6 @@
                    [current-live-files #f])
       (with-cover-loggersf thunk))))
 
-(define (run-rackunit-tests env source-files test-files)
-  (with-coverage-runtime env
-                         source-files
-                         (lambda ()
-                           (for ([file (in-list test-files)])
-                             (run-file! (path->coverage-key file) 'test #())))))
-
 (define (run-benchmark-coverage source-files run-args)
   (define env (make-cover-environment))
   (with-coverage-runtime env
@@ -88,11 +109,26 @@
                            (run-file! (path->coverage-key main-file) 'main run-args)))
   (get-test-coverage env))
 
-(define (run-rackunit-coverage source-files test-files)
-  (define env (make-cover-environment))
+(define (run-rackunit-coverages source-files test-files)
   (printf "Running RackUnit tests...\n")
-  (run-rackunit-tests env source-files test-files)
-  (get-test-coverage env))
+  (flush-output)
+  (for/fold ([coverages '()]
+             #:result (reverse coverages))
+            ([file (in-list test-files)])
+    (printf "  RackUnit: ~a\n" (find-relative-path repo-root file))
+    (flush-output)
+    (with-handlers ([exn:fail? (lambda (e)
+                                 (printf "Skipping RackUnit coverage for ~a\n" file)
+                                 (printf "  ~a\n" (exn-message e))
+                                 (flush-output)
+                                 coverages)])
+      (define env (make-cover-environment))
+      (with-coverage-runtime env
+                             source-files
+                             (lambda ()
+                               (compile-file (path->coverage-key file))
+                               (run-file! (path->coverage-key file) 'test #())))
+      (cons (get-test-coverage env) coverages))))
 
 (define (covered-char-status coverage path pos)
   (with-handlers ([exn:fail? (lambda (_) 'irrelevant)])
@@ -106,6 +142,82 @@
     [(member 'covered statuses) 'covered]
     [(member 'uncovered statuses) 'uncovered]
     [else 'irrelevant]))
+
+(define (segment->jsexpr path segment)
+  (match-define (list status start end start-line start-col end-line end-col text) segment)
+  (hasheq 'file
+          (~a (find-relative-path repo-root path))
+          'status
+          (~a status)
+          'start
+          start
+          'end
+          end
+          'start-line
+          start-line
+          'start-column
+          start-col
+          'end-line
+          end-line
+          'end-column
+          end-col
+          'text
+          text))
+
+(define (collect-file-segments coverages path)
+  (define text (file->string path))
+  (define len (string-length text))
+  (let loop ([chars (string->list text)]
+             [pos 1]
+             [line 1]
+             [col 1]
+             [active #f]
+             [segments '()])
+    (define (finish active segments end-pos end-line end-col)
+      (match active
+        [#f segments]
+        [(list status start-pos start-line start-col chars)
+         (cons (list status
+                     start-pos
+                     end-pos
+                     start-line
+                     start-col
+                     end-line
+                     end-col
+                     (list->string (reverse chars)))
+               segments)]))
+    (match chars
+      ['() (reverse (finish active segments len line col))]
+      [(cons ch rest)
+       (define status (merged-char-status coverages path pos))
+       (define next-line
+         (if (char=? ch #\newline)
+             (+ line 1)
+             line))
+       (define next-col
+         (if (char=? ch #\newline)
+             1
+             (+ col 1)))
+       (cond
+         [(eq? status 'irrelevant)
+          (loop rest (+ pos 1) next-line next-col #f (finish active segments pos line col))]
+         [active
+          (match-define (list active-status start-pos start-line start-col active-chars) active)
+          (if (eq? status active-status)
+              (loop rest
+                    (+ pos 1)
+                    next-line
+                    next-col
+                    (list active-status start-pos start-line start-col (cons ch active-chars))
+                    segments)
+              (loop rest
+                    (+ pos 1)
+                    next-line
+                    next-col
+                    (list status pos line col (list ch))
+                    (finish active segments pos line col)))]
+         [else
+          (loop rest (+ pos 1) next-line next-col (list status pos line col (list ch)) segments)])])))
 
 (define (summarize-file coverages path)
   (define text (file->string path))
@@ -182,11 +294,72 @@
             (~r (percent (file-summary-covered-lines summary) (file-summary-relevant-lines summary))
                 #:precision '(= 2)))))
 
+(define (detailed-report-path label output-root run-rackunit?)
+  (build-path output-root
+              (format "~a-~a-coverage.json" label (if run-rackunit? "merged" "benchmark"))))
+
+(define (write-detailed-report label output-root run-rackunit? summaries coverages)
+  (make-directory* output-root)
+  (define relevant-summaries
+    (filter (lambda (summary) (positive? (file-summary-relevant-lines summary))) summaries))
+  (define-values (relevant-lines covered-lines relevant-chars covered-chars)
+    (summaries->totals relevant-summaries))
+  (define out-path (detailed-report-path label output-root run-rackunit?))
+  (call-with-output-file
+   out-path
+   (lambda (out)
+     (write-json (hasheq 'label
+                         label
+                         'kind
+                         (if run-rackunit? "merged" "benchmark")
+                         'line-coverage
+                         (hasheq 'covered
+                                 covered-lines
+                                 'relevant
+                                 relevant-lines
+                                 'percent
+                                 (percent covered-lines relevant-lines))
+                         'char-coverage
+                         (hasheq 'covered
+                                 covered-chars
+                                 'relevant
+                                 relevant-chars
+                                 'percent
+                                 (percent covered-chars relevant-chars))
+                         'files
+                         (for/list ([summary (in-list relevant-summaries)])
+                           (define path (file-summary-path summary))
+                           (hasheq 'file
+                                   (~a (find-relative-path repo-root path))
+                                   'line-coverage
+                                   (hasheq 'covered
+                                           (file-summary-covered-lines summary)
+                                           'relevant
+                                           (file-summary-relevant-lines summary)
+                                           'percent
+                                           (percent (file-summary-covered-lines summary)
+                                                    (file-summary-relevant-lines summary)))
+                                   'char-coverage
+                                   (hasheq 'covered
+                                           (file-summary-covered-chars summary)
+                                           'relevant
+                                           (file-summary-relevant-chars summary)
+                                           'percent
+                                           (percent (file-summary-covered-chars summary)
+                                                    (file-summary-relevant-chars summary)))
+                                   'segments
+                                   (map (curry segment->jsexpr path)
+                                        (collect-file-segments coverages path)))))
+                 out))
+   #:exists 'replace)
+  out-path)
+
 (module+ main
   (define html-output-dir #f)
   (define output-root (build-path repo-root "tmp-coverage"))
   (define run-label #f)
   (define run-rackunit? #f)
+  (define rackunit-additions '())
   (define seed default-seed)
   (define benchmark default-benchmark)
   (command-line
@@ -200,6 +373,10 @@
    [("--output-root") dir "Directory for coverage HTML and report output" (set! output-root dir)]
    [("--html") dir "Directory for HTML coverage output" (set! html-output-dir dir)]
    [("--label") label "Label to print for this run" (set! run-label label)]
+   #:multi [("--rackunit-add")
+            path-string
+            "Add a RackUnit file to the default stable subset"
+            (set! rackunit-additions (cons path-string rackunit-additions))]
    #:args herbie-args
    (define effective-run-label (or run-label (benchmark-label benchmark)))
    (define effective-html-dir (or html-output-dir (default-html-dir benchmark output-root)))
@@ -208,12 +385,15 @@
          (build-default-herbie-args benchmark output-root seed)
          herbie-args))
    (define source-files (collect-source-files))
-   (define test-files (collect-rackunit-files source-files))
+   (define default-test-files (collect-rackunit-files source-files))
+   (define test-files
+     (remove-duplicates (append default-test-files
+                                (normalize-rackunit-additions rackunit-additions))))
    (define run-args (vector->immutable-vector (list->vector effective-herbie-args)))
    (define benchmark-coverage (run-benchmark-coverage source-files run-args))
    (define coverages
      (if run-rackunit?
-         (list benchmark-coverage (run-rackunit-coverage source-files test-files))
+         (cons benchmark-coverage (run-rackunit-coverages source-files test-files))
          (list benchmark-coverage)))
    (define summaries (map (curry summarize-file coverages) source-files))
    (define relevant-files
@@ -226,4 +406,7 @@
          (begin
            (make-directory* effective-html-dir)
            (generate-html-coverage benchmark-coverage relevant-files effective-html-dir))))
+   (define report-path
+     (write-detailed-report effective-run-label output-root run-rackunit? summaries coverages))
+   (printf "Detailed report: ~a\n" report-path)
    (display-summary effective-run-label summaries)))
