@@ -247,12 +247,18 @@
   (for ([op '(sound-/ sound-log sound-pow)])
     (hash-set! (id->e1) op (serialize-op op))
     (hash-set! (e1->id) (serialize-op op) op))
+  (hash-set! (id->e1) 'array 'Array)
+  (hash-set! (e1->id) 'Array 'array)
+  (hash-set! (e1->id) 'Array3 'array)
   (list* '(Num BigRat :cost 4294967295)
          '(Var String :cost 4294967295)
          '(Sound-/ M M M :cost 4294967295)
          '(Sound-Log M M :cost 4294967295)
          '(Sound-Pow M M M :cost 4294967295)
-         (for/list ([op (in-list (all-operators))])
+         '(Array M M :cost 4294967295)
+         '(Array3 M M M :cost 4294967295)
+         (for/list ([op (in-list (all-operators))]
+                    #:unless (eq? op 'array))
            (define arity (length (operator-info op 'itype)))
            (hash-set! (id->e1) op (serialize-op op))
            (hash-set! (e1->id) (serialize-op op) op)
@@ -328,16 +334,21 @@
            :ruleset
            lift)))
 
+(define (serialize-spec-op op arity)
+  (match* (op arity)
+    [('array 2) 'Array]
+    [('array 3) 'Array3]
+    [(_ _) (hash-ref (id->e1) op)]))
+
 (define (expr->egglog-spec-serialized expr s)
   (let loop ([expr expr])
     (match expr
       [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) (string->symbol (string-append s (symbol->string expr)))]
       [(list op args ...)
-       `(,(hash-ref (if (hash-has-key? (id->e1) op)
-                        (id->e1)
-                        (id->e2))
-                    op)
+       `(,(if (hash-has-key? (id->e1) op)
+              (serialize-spec-op op (length args))
+              (hash-ref (id->e2) op))
          ,@(map loop args))])))
 
 (define (serialize-op op)
@@ -349,9 +360,9 @@
   (define impl-split (string-split (symbol->string impl) "."))
   (define op (string->symbol (car impl-split)))
   (define type
-    (if (= 2 (length impl-split))
-        (cadr impl-split)
-        ""))
+    (if (null? (cdr impl-split))
+        ""
+        (string-join (cdr impl-split) "")))
   (string->symbol (string-append (symbol->string (serialize-op op)) type)))
 
 (define (expr->e1-pattern expr)
@@ -359,7 +370,7 @@
     (match expr
       [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) expr]
-      [(list op args ...) `(,(hash-ref (id->e1) op) ,@(map loop args))])))
+      [(list op args ...) `(,(serialize-spec-op op (length args)) ,@(map loop args))])))
 
 (define (egglog-rewrite-rules rules tag)
   (for/list ([rule (in-list rules)]
