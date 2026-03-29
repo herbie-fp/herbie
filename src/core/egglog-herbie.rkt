@@ -556,19 +556,16 @@
   (define node-limit (*node-limit*))
   (define iter-limit (*default-egglog-iter-limit*))
 
-  ;; Use egglog's :until guard with get-size! to stop when node limit is reached.
-  ;; After each iteration, we check for unsound merges via bad-merge-rule.
-  ;; The schedule runs until:
-  ;;   1. Node limit is reached (get-size! >= node-limit)
-  ;;   2. Saturation (no more progress)
-  ;;   3. Iter limit is reached
-  ;;   4. Unsoundness is detected (bad-merge? becomes true)
-
-  (egglog-send subproc
-               `(run-schedule (repeat ,iter-limit
-                                      (seq (run ,tag :until (<= ,node-limit (get-size!)))
-                                           (run const-fold :until (<= ,node-limit (get-size!)))
-                                           (run bad-merge-rule :until (bad-merge?))))))
+  ;; Rewrite one iteration at a time and keep a checkpoint before each step.
+  ;; If a rewrite iteration pushes the e-graph past the node limit, pop once to
+  ;; roll back just that iteration and stop rewriting.
+  (let loop ([iter 0])
+    (when (< iter iter-limit)
+      (egglog-send subproc '(push))
+      (egglog-send subproc `(run ,tag 1) '(run const-fold 1) '(run bad-merge-rule 1))
+      (if (> (egglog-total-size subproc) node-limit)
+          (egglog-send subproc '(pop))
+          (loop (add1 iter)))))
   (void))
 
 (define (egglog-num? id)

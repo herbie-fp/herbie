@@ -425,16 +425,22 @@
     (define lines1 (egglog-extract subproc '(extract (const1) 1)))
     (check-equal? lines1 '((Var "x")))
 
-    ;; Print size
+    (match-define (list '() (list "false"))
+      (egglog-send subproc '(run unsound-rule 1) '(extract (unsound))))
+    (check-equal? (egglog-total-size subproc) 7)
 
-    (match-define (list node-values '() (list "false"))
-      (egglog-send subproc '(print-size) '(run unsound-rule 1) '(extract (unsound))))
-    (define parsed-node-values
-      (for/list ([entry (in-list (with-input-from-string (string-join node-values "\n") read))])
-        (match entry
-          [(list relation count) (cons relation count)])))
-    (check-equal? (sort parsed-node-values symbol<? #:key car)
-                  '((Add . 1) (Var . 2) (const1 . 1) (const2 . 1) (const3 . 1) (unsound . 1)))
+    (egglog-send subproc
+                 '(push)
+                 '(let $extra1 (Var
+                                "z")
+                    )
+                 '(let $extra2 (Add
+                                $extra1
+                                $extra1)
+                    ))
+    (check-equal? (egglog-total-size subproc) 11)
+    (egglog-send subproc '(pop))
+    (check-equal? (egglog-total-size subproc) 7)
 
     ;; last two
     (check-equal? '((Var "y")) (egglog-extract subproc '(extract (const2) 1)))
