@@ -259,7 +259,7 @@
   (egg-parsed->expr (flatten-let egg-expr) ctx (context-repr ctx)))
 
 (module+ test
-  (require "../utils/float.rkt"
+  (require "../syntax/float.rkt"
            "../syntax/load-platform.rkt")
   (activate-platform! (*platform-name*))
   (define ctx (context '(x y z) <binary64> (make-list 3 <binary64>)))
@@ -457,8 +457,9 @@
 
 ;; Returns all representatations (and their types) in the current platform.
 (define (all-reprs/types [pform (*active-platform*)])
-  (remove-duplicates (append-map (lambda (repr) (list repr (representation-type repr)))
-                                 (platform-reprs pform))))
+  (remove-duplicates (cons 'array
+                           (append-map (lambda (repr) (list repr (representation-type repr)))
+                                       (platform-reprs pform)))))
 
 ;; Returns the type(s) of an enode so it can be placed in the proper e-class.
 ;; Typing rules:
@@ -532,7 +533,7 @@
     (u32vector-set! egg-id->idx egg-id idx))
 
   (define types (all-reprs/types))
-  (define type->idx (make-hasheq))
+  (define type->idx (make-hash))
   (for ([type (in-list types)]
         [idx (in-naturals)])
     (hash-set! type->idx type idx))
@@ -600,23 +601,25 @@
   (define (enode-typed? enode)
     (or (number? enode) (symbol? enode) (and (list? enode) (andmap eclass-well-typed? (cdr enode)))))
 
-  (define (check-typed! dirty?-vec)
-    (define dirty? #f)
-    (define dirty?-vec* (make-vector n #f))
-    (for ([id (in-range n)]
-          #:when (vector-ref dirty?-vec id)
-          #:unless (vector-ref typed?-vec id)
-          #:when (ormap enode-typed? (vector-ref id->eclass id)))
-      (vector-set! typed?-vec id #t)
-      (define parent-ids (vector-ref id->parents id))
-      (unless (vector-empty? parent-ids)
-        (set! dirty? #t)
-        (for ([parent-id (in-vector parent-ids)])
-          (vector-set! dirty?-vec* parent-id #t))))
-    (when dirty?
-      (check-typed! dirty?-vec*)))
-
   ; mark all well-typed e-classes and prune nodes that are not well-typed
+  (define (check-typed! dirty?-vec)
+    (define rerun? #f)
+    (for ([id (in-range n)]
+          [dirty? (in-vector dirty?-vec)]
+          [typed? (in-vector typed?-vec)]
+          [eclass (in-vector id->eclass)]
+          [parent-ids (in-vector id->parents)]
+          #:when dirty?)
+      (vector-set! dirty?-vec id #f)
+      (when (and (not typed?) (ormap enode-typed? eclass))
+        (vector-set! typed?-vec id #t)
+        (for ([parent-id (in-vector parent-ids)])
+          (vector-set! dirty?-vec parent-id #t)
+          (when (< parent-id id)
+            (set! rerun? #t)))))
+    (when rerun?
+      (check-typed! dirty?-vec)))
+
   (check-typed! (vector-copy id->leaf?))
   (for ([id (in-range n)])
     (define eclass (vector-ref id->eclass id))
@@ -799,41 +802,47 @@
   (unless analysis
     (set! analysis (make-vector n #f)))
   (define dirty?-vec (vector-copy leaf?)) ; visit eclass on next pass?
-  (define changed?-vec (make-vector n #f)) ; eclass was changed last iteration
+  (define changed?-vec0 (make-vector n #f)) ; eclass was changed last iteration
+  (define changed?-vec*0 (make-vector n #f)) ; eclass changed this iteration
 
   ; run the analysis
-  (let sweep! ([iter 0])
-    (define dirty? #f)
-    (define dirty?-vec* (make-vector n #f))
-    (define changed?-vec* (make-vector n #f))
+  (let sweep! ([iter 0]
+               [changed?-vec changed?-vec0]
+               [changed?-vec* changed?-vec*0])
+    (define rerun? #f)
     (for ([id (in-range n)]
-          #:when (vector-ref dirty?-vec id))
-      (define eclass (vector-ref eclasses id))
+          [dirty-this? (in-vector dirty?-vec)]
+          [eclass (in-vector eclasses)]
+          [parent-ids (in-vector parents)]
+          #:when dirty-this?)
+      (vector-set! dirty?-vec id #f)
       (when (eclass-proc analysis changed?-vec iter eclass id)
         ; eclass analysis was updated: need to revisit the parents
-        (define parent-ids (vector-ref parents id))
+        ; expose updates to later eclasses in this iteration
+        (vector-set! changed?-vec id #t)
         (vector-set! changed?-vec* id #t)
         (for ([parent-id (in-vector parent-ids)])
-          (vector-set! dirty?-vec* parent-id #t)
-          (set! dirty? #t))))
-    ; if dirty, analysis has not converged so loop
-    (when dirty?
-      (set! dirty?-vec dirty?-vec*) ; update eclasses that require visiting
-      (set! changed?-vec changed?-vec*) ; update eclasses that have changed
-      (sweep! (add1 iter))))
+          (vector-set! dirty?-vec parent-id #t)
+          (when (<= parent-id id)
+            (set! rerun? #t)))))
+    ; if rerun, analysis has not converged so loop
+    (when rerun?
+      (vector-fill! changed?-vec #f)
+      (sweep! (add1 iter) changed?-vec* changed?-vec)))
 
   ; Invariant: all eclasses have an analysis
   (for ([id (in-range n)]
-        #:unless (vector-ref analysis id))
+        [eclass-analysis (in-vector analysis)]
+        #:unless eclass-analysis)
     (define types (regraph-types regraph))
     (error 'regraph-analyze
            "analysis not run on all eclasses: ~a ~a"
            eclass-proc
            (for/vector #:length n
-                       ([id (in-range n)])
-             (define type (vector-ref types id))
-             (define eclass (vector-ref eclasses id))
-             (define eclass-analysis (vector-ref analysis id))
+                       ([id (in-range n)]
+                        [type (in-vector types)]
+                        [eclass (in-vector eclasses)]
+                        [eclass-analysis (in-vector analysis)])
              (list id type eclass eclass-analysis))))
 
   analysis)
@@ -931,42 +940,41 @@
   (define (eggref id)
     (cdr (vector-ref egg-nodes id)))
 
+  (define memo (make-hash))
+
   (define (add-enode enode type)
-    (define idx
-      (let loop ([enode enode]
-                 [type type])
-        (define enode*
-          (match enode
-            [(? number?)
-             (if (representation? type)
-                 (literal enode (representation-name type))
-                 enode)]
-            [(? symbol?)
-             (if (string-prefix? (symbol->string enode) "$var")
-                 (egg-var->var enode ctx)
-                 enode)]
-            [(list '$approx (app eggref spec) (app eggref impl))
-             (define spec-type
-               (if (representation? type)
-                   (representation-type type)
-                   type))
-             (approx (loop spec spec-type) (loop impl type))]
-            [(list impl (app eggref args) ...)
-             (define args*
-               (for/list ([arg (in-list args)]
-                          [type (in-list (if (representation? type)
+    (define enode*
+      (match enode
+        [(? number?)
+         (if (representation? type)
+             (literal enode (representation-name type))
+             enode)]
+        [(? symbol?)
+         (if (string-prefix? (symbol->string enode) "$var")
+             (egg-var->var enode ctx)
+             enode)]
+        [(list '$approx spec impl)
+         (define spec-type
+           (if (representation? type)
+               (representation-type type)
+               type))
+         (approx (batchref-idx (add-id spec spec-type)) (batchref-idx (add-id impl type)))]
+        [(list impl args ...)
+         (define args*
+           (for/list ([arg-id (in-list args)]
+                      [arg-type (in-list (if (representation? type)
                                              (impl-info impl 'itype)
                                              (operator-info impl 'itype)))])
-                 (loop arg type)))
-             (cons impl args*)]))
-        (batchref-idx (batch-push! batch enode*))))
+             (batchref-idx (add-id arg-id arg-type))))
+         (cons impl args*)]))
+    (batchref-idx (batch-push! batch enode*)))
+
+  (define (add-id id type)
+    (define key (cons id type))
+    (define idx (hash-ref! memo key (λ () (add-enode (eggref id) type))))
     (batchref batch idx))
 
-  ; same as add-enode but works with index as an input instead of enode
-  (define (add-id id type)
-    (add-enode (eggref id) type))
-
-  (values add-id add-enode))
+  (values add-id (λ (enode type) (batchref batch (add-enode enode type)))))
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
@@ -1038,11 +1046,10 @@
   (match-define (list extract-id _) extract)
   ; extract expr
   (define key (cons id type))
+  (define id* (hash-ref canon key #f))
   (cond
     ; at least one extractable expression
-    [(hash-has-key? canon key)
-     (define id* (hash-ref canon key))
-     (list (extract-id id* type))]
+    [id* (list (extract-id id* type))]
     ; no extractable expressions
     [else (list)]))
 

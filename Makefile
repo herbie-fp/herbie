@@ -26,6 +26,7 @@ clean:
 update:
 	raco pkg install --update-deps --no-docs --auto --name herbie src/
 	raco pkg update --auto rival
+	raco pkg update --auto rival3
 	raco pkg update --name herbie --deps search-auto src/
 
 egg-herbie:
@@ -39,7 +40,6 @@ egg-herbie:
 
 egglog-herbie:
 	cargo install --git "https://github.com/egraphs-good/egglog-experimental" --branch main egglog-experimental
-
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/

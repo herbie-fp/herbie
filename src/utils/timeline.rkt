@@ -128,13 +128,14 @@
             (current-gc-milliseconds)
             'memory
             (list (list (current-memory-use #f) (current-memory-use 'cumulative)))))
-  (reverse (for/list ([evt (unbox (*timeline*))]
-                      [next (cons end (unbox (*timeline*)))])
-             (define evt* (hash-copy evt))
-             (hash-update! evt* 'time (λ (v) (- (hash-ref next 'time) v)))
-             (hash-update! evt* 'gc-time (λ (v) (- (hash-ref next 'gc-time) v)))
-             (hash-update! evt* 'memory (λ (v) (diff-memory-records (hash-ref next 'memory) v)))
-             evt*)))
+  (timeline-reattribute-gc
+   (reverse (for/list ([evt (in-list (unbox (*timeline*)))]
+                       [next (in-list (cons end (unbox (*timeline*))))])
+              (define evt* (hash-copy evt))
+              (hash-update! evt* 'time (λ (v) (- (hash-ref next 'time) v)))
+              (hash-update! evt* 'gc-time (λ (v) (- (hash-ref next 'gc-time) v)))
+              (hash-update! evt* 'memory (λ (v) (diff-memory-records (hash-ref next 'memory) v)))
+              evt*))))
 
 (define timeline-types (make-hasheq))
 
@@ -201,6 +202,7 @@
 (define-timeline baseline [baseline])
 (define-timeline count [input +] [output +])
 (define-timeline alts #:unmergable)
+(define-timeline batch #:unmergable)
 (define-timeline inputs #:unmergable)
 (define-timeline outputs #:unmergable)
 (define-timeline sampling #:custom merge-sampling-tables)
@@ -235,10 +237,13 @@
 
 (define (timeline-reattribute-gc timeline)
   (define total-gc-time (for/sum ([phase (in-list timeline)]) (hash-ref phase 'gc-time 0)))
+  (define allocations-by-phase (make-hash))
+  (for ([phase (in-list timeline)])
+    (define type (hash-ref phase 'type "unknown"))
+    (define alloc (second (first (hash-ref phase 'memory '((0 0))))))
+    (hash-update! allocations-by-phase type (curry + alloc) 0))
   (define allocation-table
-    (for/list ([phase (in-list timeline)])
-      (define type (hash-ref phase 'type "unknown"))
-      (define alloc (second (first (hash-ref phase 'memory '((0 0))))))
+    (for/list ([(type alloc) (in-hash allocations-by-phase)])
       (list type alloc)))
   (define adjusted-phases
     (for/list ([phase (in-list timeline)])
@@ -252,4 +257,6 @@
   (define gc-phase
     (make-hasheq
      (list (cons 'type "gc") (cons 'time total-gc-time) (cons 'allocations allocation-table))))
-  (append adjusted-phases (list gc-phase)))
+  (if (zero? total-gc-time)
+      adjusted-phases
+      (append adjusted-phases (list gc-phase))))

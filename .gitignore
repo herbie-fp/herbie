@@ -7,6 +7,10 @@
 www/demo
 demo.log
 test.fpcore
+tmp
+tmp-*
+dump-*
+.codex
 
 # Related repositories
 /reports
@@ -14,6 +18,7 @@ papers
 plugins
 plugin
 rival
+rival3
 regraph
 egg-herbie/pkg
 odyssey

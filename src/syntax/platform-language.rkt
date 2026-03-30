@@ -26,7 +26,26 @@
   (define env (map cons vars (map representation-type var-reprs)))
   (define otype (representation-type repr))
 
-  (match (rival-type spec env)
+  (define (infer spec)
+    (match spec
+      [(? number?) 'real]
+      [(? symbol? x) (dict-ref env x (lambda () (rival-type spec env)))]
+      [(list 'array elems ...)
+       (if (null? elems)
+           #f
+           (let ([elem-ty (infer (first elems))])
+             (and elem-ty
+                  (for/and ([elem (in-list (rest elems))])
+                    (equal? elem-ty (infer elem)))
+                  `(array ,elem-ty ,(length elems)))))]
+      [(list 'ref arr idx)
+       (match (infer arr)
+         [`(array ,elem-ty ,_) elem-ty]
+         [_ #f])]
+      [_ (rival-type spec env)]))
+  (define spec-type (infer spec))
+
+  (match spec-type
     [(== otype) (void)]
     [#f (error name "expression ~a is ill-typed, expected `~a`" spec otype)]
     [actual-ty (error name "expression ~a has type `~a`, expected `~a`" spec actual-ty otype)]))

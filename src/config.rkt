@@ -23,7 +23,8 @@
         [reduce . (avg-error simplify)]
         [rules . (numerics special bools branches)]))
 
-(define debug-flags #hash([generate . (egglog)] [dump . (egg rival egglog trace)]))
+(define debug-flags
+  #hash([generate . (egglog)] [dump . (egg rival egglog trace intermediates)] [setup . (rival3)]))
 
 (define all-flags (hash-union default-flags deprecated-flags debug-flags #:combine set-union))
 
@@ -134,9 +135,6 @@
 (define *binary-search-test-points* (make-parameter 16))
 (define *binary-search-accuracy* (make-parameter 48))
 
-;; Pherbie related options
-(define *pareto-pick-limit* (make-parameter 5))
-
 ;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))
 
@@ -175,7 +173,7 @@
   (parameterize ([current-error-port (open-output-nowhere)])
     (string-trim (with-output-to-string (λ () (system cmd))))))
 
-(define (git-command #:default [default ""] gitcmd . args)
+(define (git-command #:default default gitcmd . args)
   (cond
     [(or (directory-exists? ".git") (file-exists? ".git")) ; gitlinks like for worktrees
      (define cmd (format "git ~a ~a" gitcmd (string-join args " ")))

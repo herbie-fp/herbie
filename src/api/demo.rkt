@@ -22,7 +22,7 @@
          "../syntax/load-platform.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../core/points.rkt"
          "../reports/common.rkt"
          "../reports/core2mathjs.rkt"
@@ -153,6 +153,7 @@
     (make-directory (*demo-output*)))
 
   (response/xexpr
+   #:preamble (list #"<!doctype html>")
    #:headers (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (server-count)))))
    (herbie-page
     #:title (if (*demo?*) "Herbie web demo" "Herbie")
@@ -265,12 +266,10 @@
                 (λ (op) (write-json resp op)))))
 
 (define (response/error title body)
-  (response/full 400
-                 #"Bad Request"
-                 (current-seconds)
-                 TEXT/HTML-MIME-TYPE
-                 '()
-                 (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
+  (response/xexpr #:code 400
+                  #:message #"Bad Request"
+                  #:preamble (list #"<!doctype html>")
+                  (herbie-page #:title title body)))
 
 (define (get-result req job-id)
   (match (job-results job-id)
