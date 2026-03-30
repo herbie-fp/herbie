@@ -103,6 +103,7 @@ def plot_grouped_bars(
     labels = [format_label(benchmark["name"]) for benchmark in benchmarks]
     grow_values = [benchmark[grow_key] for benchmark in benchmarks]
     vanilla_values = [benchmark[vanilla_key] for benchmark in benchmarks]
+    max_value = max([*grow_values, *vanilla_values], default=0.0)
 
     if square:
         side = max(8.0, 0.7 * len(benchmarks) + 3.0)
@@ -127,6 +128,24 @@ def plot_grouped_bars(
         color="#2ca02c",
         label="growlibm",
     )
+
+    label_offset = max(0.02 * max_value, 0.15)
+    top_limit = max(1.0, max_value + label_offset + 0.4)
+    ax.set_ylim(0, top_limit)
+
+    def add_bar_labels(values, x_offset):
+        for x, value in zip(xs, values):
+            ax.text(
+                x + x_offset,
+                value + label_offset,
+                f"{value:.1f}%",
+                ha="center",
+                va="bottom",
+                fontsize=11,
+            )
+
+    add_bar_labels(vanilla_values, -bar_width / 2)
+    add_bar_labels(grow_values, bar_width / 2)
 
     ax.set_xticks(xs)
     ax.set_xticklabels(

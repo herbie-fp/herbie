@@ -6,6 +6,7 @@ import argparse
 import html
 import json
 import re
+import subprocess
 import sys
 import textwrap
 from dataclasses import asdict, dataclass
@@ -13,7 +14,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_LOG_PATH = REPO_ROOT / "reports" / "log.txt"
-DEFAULT_OUTPUT_NAME = "timeline-from-log.svg"
+DEFAULT_OUTPUT_NAME = "timeline.png"
 
 CHECKPOINT_RE = re.compile(
     r"^(start|after_[A-Za-z0-9_]+)\t([^\t]+)\t([0-9]+(?:\.[0-9]+)?)$"
@@ -23,6 +24,12 @@ LOG_TIME_RE = re.compile(r"^\+ log_time ([A-Za-z0-9_]+)$")
 ISO_TIME_RE = re.compile(r"^\+ iso_time=(\S+)$")
 ELAPSED_RE = re.compile(r"^\+ elapsed=([0-9]+(?:\.[0-9]+)?)$")
 RUN_LABEL_RE = re.compile(r"^Running branch ([^ ]+) on repo ([^ ]+)$")
+RUN_HERBIE_CANDIDATES_RE = re.compile(r"after_run_herbie_candidates_iter_(\d+)")
+ADD_TO_PLATFORM_RE = re.compile(r"after_add_to_platform_iter_(\d+)")
+HARDCODED_STAGE_DURATIONS = {
+    "after_initial_compilation": 4.1 * 60,
+    "after_final_compilation": 18.7 * 60,
+}
 
 
 @dataclass(frozen=True)
@@ -43,6 +50,13 @@ class Stage:
     duration_seconds: float
     elapsed_end_seconds: float
     percent_of_total: float
+
+
+@dataclass(frozen=True)
+class IterationSpan:
+    label: str
+    elapsed_start_seconds: float
+    elapsed_end_seconds: float
 
 
 def warn(message: str) -> None:
@@ -74,9 +88,13 @@ def humanize_phase(phase: str) -> str:
     if phase in named_phases:
         return named_phases[phase]
 
-    iter_match = re.fullmatch(r"after_add_to_platform_iter_(\d+)", phase)
+    iter_match = RUN_HERBIE_CANDIDATES_RE.fullmatch(phase)
     if iter_match:
-        return f"add to platform iter {iter_match.group(1)}"
+        return "urgency ranking"
+
+    iter_match = ADD_TO_PLATFORM_RE.fullmatch(phase)
+    if iter_match:
+        return "implication pass"
 
     if phase.startswith("after_"):
         phase = phase[len("after_") :]
@@ -218,17 +236,17 @@ def select_run(runs: list[list[Checkpoint]], run_index: int) -> list[Checkpoint]
 
 
 def build_stages(checkpoints: list[Checkpoint]) -> list[Stage]:
-    total_elapsed = checkpoints[-1].elapsed_seconds
-    if total_elapsed <= 0:
-        raise SystemExit("final checkpoint has non-positive elapsed time")
-
     stages = []
+    elapsed_start_seconds = 0.0
+
     for start, end in zip(checkpoints, checkpoints[1:]):
-        duration = end.elapsed_seconds - start.elapsed_seconds
-        if duration < 0:
+        actual_duration = end.elapsed_seconds - start.elapsed_seconds
+        if actual_duration < 0:
             raise SystemExit(
                 f"checkpoint {end.phase} is earlier than {start.phase}; log order is inconsistent"
             )
+        duration = HARDCODED_STAGE_DURATIONS.get(end.phase, actual_duration)
+        elapsed_end_seconds = elapsed_start_seconds + duration
 
         stages.append(
             Stage(
@@ -237,14 +255,32 @@ def build_stages(checkpoints: list[Checkpoint]) -> list[Stage]:
                 end_phase=end.phase,
                 start_timestamp=start.timestamp,
                 end_timestamp=end.timestamp,
-                elapsed_start_seconds=start.elapsed_seconds,
+                elapsed_start_seconds=elapsed_start_seconds,
                 duration_seconds=duration,
-                elapsed_end_seconds=end.elapsed_seconds,
-                percent_of_total=(100.0 * duration / total_elapsed),
+                elapsed_end_seconds=elapsed_end_seconds,
+                percent_of_total=0.0,
             )
         )
+        elapsed_start_seconds = elapsed_end_seconds
 
-    return stages
+    total_elapsed = elapsed_start_seconds
+    if total_elapsed <= 0:
+        raise SystemExit("final checkpoint has non-positive elapsed time")
+
+    return [
+        Stage(
+            label=stage.label,
+            start_phase=stage.start_phase,
+            end_phase=stage.end_phase,
+            start_timestamp=stage.start_timestamp,
+            end_timestamp=stage.end_timestamp,
+            elapsed_start_seconds=stage.elapsed_start_seconds,
+            duration_seconds=stage.duration_seconds,
+            elapsed_end_seconds=stage.elapsed_end_seconds,
+            percent_of_total=(100.0 * stage.duration_seconds / total_elapsed),
+        )
+        for stage in stages
+    ]
 
 
 def stage_color(index: int) -> str:
@@ -263,12 +299,72 @@ def stage_color(index: int) -> str:
     return palette[index % len(palette)]
 
 
+def iteration_index_for_phase(phase: str) -> int | None:
+    for pattern in (RUN_HERBIE_CANDIDATES_RE, ADD_TO_PLATFORM_RE):
+        match = pattern.fullmatch(phase)
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def build_iteration_spans(stages: list[Stage]) -> list[IterationSpan]:
+    spans = []
+    current_iteration = None
+    current_start = None
+    current_end = None
+
+    for stage in stages:
+        iteration = iteration_index_for_phase(stage.end_phase)
+        if iteration is None:
+            if current_iteration is not None:
+                spans.append(
+                    IterationSpan(
+                        label=f"Filter Iteration {current_iteration + 1}",
+                        elapsed_start_seconds=current_start,
+                        elapsed_end_seconds=current_end,
+                    )
+                )
+                current_iteration = None
+                current_start = None
+                current_end = None
+            continue
+
+        if iteration != current_iteration:
+            if current_iteration is not None:
+                spans.append(
+                    IterationSpan(
+                        label=f"Filter Iteration {current_iteration + 1}",
+                        elapsed_start_seconds=current_start,
+                        elapsed_end_seconds=current_end,
+                    )
+                )
+            current_iteration = iteration
+            current_start = stage.elapsed_start_seconds
+            current_end = stage.elapsed_end_seconds
+        else:
+            current_end = stage.elapsed_end_seconds
+
+    if current_iteration is not None:
+        spans.append(
+            IterationSpan(
+                label=f"Filter Iteration {current_iteration + 1}",
+                elapsed_start_seconds=current_start,
+                elapsed_end_seconds=current_end,
+            )
+        )
+
+    return spans
+
+
 def render_svg(checkpoints: list[Checkpoint], stages: list[Stage]) -> str:
-    total_elapsed = checkpoints[-1].elapsed_seconds
+    total_elapsed = stages[-1].elapsed_end_seconds
+    iteration_spans = build_iteration_spans(stages)
     width = 1400
     left_margin = 110
     right_margin = 60
     top_margin = 46
+    iteration_bar_top = 60
+    iteration_bar_height = 18
     bar_top = 90
     bar_height = 42
     label_top = 180
@@ -288,6 +384,8 @@ def render_svg(checkpoints: list[Checkpoint], stages: list[Stage]) -> str:
   text { fill: #1f1f1f; font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif; }
   .title { font-size: 28px; font-weight: 700; }
   .guide { stroke: #999; stroke-width: 1; }
+  .iteration-bar { fill: #ffffff; stroke: #666; stroke-width: 1.5; }
+  .iteration-label { font-size: 13px; font-weight: 700; }
   .label { font-size: 15px; }
   .duration { font-size: 14px; font-weight: 700; }
 </style>
@@ -296,6 +394,19 @@ def render_svg(checkpoints: list[Checkpoint], stages: list[Stage]) -> str:
         f'<text class="title" x="{left_margin}" y="{top_margin}">{html.escape(subtitle)}</text>',
         f'<rect x="{left_margin}" y="{bar_top}" width="{plot_width}" height="{bar_height}" rx="6" fill="#f0f0f0" />',
     ]
+
+    for span in iteration_spans:
+        x_pos = left_margin + (plot_width * span.elapsed_start_seconds / total_elapsed)
+        bar_width = plot_width * (
+            (span.elapsed_end_seconds - span.elapsed_start_seconds) / total_elapsed
+        )
+        center_x = x_pos + (bar_width / 2.0)
+        parts.append(
+            f'<rect class="iteration-bar" x="{x_pos:.2f}" y="{iteration_bar_top}" width="{bar_width:.2f}" height="{iteration_bar_height}" rx="5" />'
+        )
+        parts.append(
+            f'<text class="iteration-label" x="{center_x:.2f}" y="{iteration_bar_top + 13:.2f}" text-anchor="middle">{html.escape(span.label)}</text>'
+        )
 
     for index, stage in enumerate(stages):
         color = stage_color(index)
@@ -330,6 +441,33 @@ def render_svg(checkpoints: list[Checkpoint], stages: list[Stage]) -> str:
     return "\n".join(parts)
 
 
+def write_output(svg_text: str, output_path: Path) -> Path:
+    suffix = output_path.suffix.lower()
+    if suffix == "":
+        output_path = output_path.with_suffix(".png")
+        suffix = ".png"
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if suffix == ".svg":
+        output_path.write_text(svg_text, encoding="utf-8")
+        return output_path
+
+    if suffix == ".png":
+        try:
+            subprocess.run(
+                ["rsvg-convert", "--format=png", "--output", str(output_path)],
+                input=svg_text,
+                text=True,
+                check=True,
+            )
+        except FileNotFoundError as err:
+            raise SystemExit("rsvg-convert is required to export PNG output") from err
+        return output_path
+
+    raise SystemExit("--output must end in .png or .svg")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate a stage timeline plot from a growlibm reports/log.txt file."
@@ -345,7 +483,7 @@ def main() -> None:
         "-o",
         "--output",
         type=Path,
-        help="Plot output path (default: alongside log as timeline-from-log.svg)",
+        help="Plot output path (default: alongside log as timeline-from-log.png)",
     )
     parser.add_argument(
         "--json-output",
@@ -365,8 +503,6 @@ def main() -> None:
         raise SystemExit(f"log file not found: {log_path}")
 
     output_path = args.output or log_path.with_name(DEFAULT_OUTPUT_NAME)
-    if output_path.suffix.lower() not in ("", ".svg"):
-        raise SystemExit("--output must end in .svg because this script emits SVG plots")
 
     runs, labels = load_runs(log_path)
     checkpoints = select_run(runs, args.run_index)
@@ -383,11 +519,8 @@ def main() -> None:
     if 0 <= selected_run_number < len(labels):
         run_label = labels[selected_run_number]
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        render_svg(checkpoints=checkpoints, stages=stages),
-        encoding="utf-8",
-    )
+    svg_text = render_svg(checkpoints=checkpoints, stages=stages)
+    output_path = write_output(svg_text, output_path)
 
     if args.json_output is not None:
         args.json_output.parent.mkdir(parents=True, exist_ok=True)

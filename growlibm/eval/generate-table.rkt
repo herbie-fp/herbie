@@ -91,8 +91,7 @@
   (get-output-string out))
 
 (define (score->accuracy score repr)
-  (define bits (representation-total-bits repr))
-  (~a (~r (- 100 (* 100 (/ score bits))) #:precision '(= 2)) "%"))
+  (~r score #:precision '(= 3)))
 
 (define (format-cost cost)
   (if (real? cost)
@@ -188,9 +187,8 @@
   (string-join
    (for/list ([row (in-list rows)])
      (format
-      "~a & ~a & ~a & \\texttt{~a} & ~a & ~a & ~a & ~a \\\\"
+      "~a & ~a & ~a & ~a & ~a & ~a & ~a \\\\"
       (escape-latex (hash-ref row 'name))
-      (escape-latex (hash-ref row 'origin))
       (escape-latex (hash-ref row 'spec))
       (escape-latex (hash-ref row 'spec-cost))
       (escape-latex (hash-ref row 'spec-accuracy))
@@ -211,7 +209,7 @@
     "\\section*{growlibm accelerators}\n"
     "\\begin{tabular}{llllllll}\n"
     "\\hline\n"
-    "name & origin & spec & cost of spec & accuracy of spec & cost & accuracy & uses\\\\\n"
+    "name & spec & naive cost & naive error & expert cost & expert error & uses\\\\\n"
     "\\hline\n"
     "~a\n"
     "\\hline\n"

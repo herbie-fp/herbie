@@ -199,8 +199,8 @@ def main():
     plot_histogram(
         costs,
         output_dir / "costs-histogram.png",
-        "Cost Distribution",
-        "Cost",
+        "Size Distribution",
+        "Size",
         "#4c78a8",
         log_bins(costs, args.bins),
         log_x=True,
@@ -208,8 +208,8 @@ def main():
     plot_histogram(
         counts,
         output_dir / "counts-histogram.png",
-        "Count Distribution",
-        "Count",
+        "Frequency Distribution",
+        "Frequency",
         "#f58518",
         log_bins(counts, args.bins),
         log_x=True,
