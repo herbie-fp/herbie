@@ -172,7 +172,7 @@
   (parameterize ([current-error-port (open-output-nowhere)])
     (string-trim (with-output-to-string (λ () (system cmd))))))
 
-(define (git-command #:default [default ""] gitcmd . args)
+(define (git-command #:default default gitcmd . args)
   (cond
     [(or (directory-exists? ".git") (file-exists? ".git")) ; gitlinks like for worktrees
      (define cmd (format "git ~a ~a" gitcmd (string-join args " ")))

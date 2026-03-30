@@ -23,5 +23,4 @@
               cost-accuracy)
   #:prefab)
 
-(struct report-info (date commit branch seed flags points iterations tests merged-cost-accuracy)
-  #:prefab)
+(struct report-info (date commit branch seed flags points iterations tests) #:prefab)

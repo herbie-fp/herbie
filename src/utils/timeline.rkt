@@ -237,10 +237,13 @@
 
 (define (timeline-reattribute-gc timeline)
   (define total-gc-time (for/sum ([phase (in-list timeline)]) (hash-ref phase 'gc-time 0)))
+  (define allocations-by-phase (make-hash))
+  (for ([phase (in-list timeline)])
+    (define type (hash-ref phase 'type "unknown"))
+    (define alloc (second (first (hash-ref phase 'memory '((0 0))))))
+    (hash-update! allocations-by-phase type (curry + alloc) 0))
   (define allocation-table
-    (for/list ([phase (in-list timeline)])
-      (define type (hash-ref phase 'type "unknown"))
-      (define alloc (second (first (hash-ref phase 'memory '((0 0))))))
+    (for/list ([(type alloc) (in-hash allocations-by-phase)])
       (list type alloc)))
   (define adjusted-phases
     (for/list ([phase (in-list timeline)])
