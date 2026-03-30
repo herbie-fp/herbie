@@ -148,3 +148,4 @@
         [pow-ratio (pow ratio (* 0.5 evar))]
         [product   (* pow-k (* pow-tan pow-ratio))])
    (* 2.0 (- (atan product) (/ PI 4.0)))))
+   
