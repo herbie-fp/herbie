@@ -15,6 +15,13 @@
 (define-runtime-module-path math-platform "../platforms/math.rkt")
 (define-runtime-module-path rival-platform "../platforms/rival.rkt")
 (define-runtime-module-path growlibm-platform "../platforms/grow-libm.rkt")
+(define-runtime-module-path growlibm-platform "../../growlibm/platforms/growlibm.rkt")
+(define-runtime-module-path vanilla-platform "../../growlibm/platforms/vanilla.rkt")
+(define-runtime-module-path herbie20plus-platform "../../growlibm/platforms/herbie20plus.rkt")
+(define-runtime-module-path growlibmbest-platform "../../growlibm/platforms/growlibmbest.rkt")
+(define-runtime-module-path proj-platform "../../growlibm/platforms/proj.rkt")
+(define-runtime-module-path basilisk-platform "../../growlibm/platforms/basilisk.rkt")
+(define-runtime-module-path coolprop-platform "../../growlibm/platforms/coolprop.rkt")
 
 (define default-platforms
   (hash "herbie10"
@@ -37,6 +44,20 @@
         grow-platform
         "growlibm"
         growlibm-platform))
+        "growlibm"
+        growlibm-platform
+        "vanilla"
+        vanilla-platform
+        "herbie20plus"
+        herbie20plus-platform
+        "growlibmbest"
+        growlibmbest-platform
+        "proj"
+        proj-platform
+        "basilisk"
+        basilisk-platform
+        "coolprop"
+        coolprop-platform))
 
 (define platforms (make-hash))
 

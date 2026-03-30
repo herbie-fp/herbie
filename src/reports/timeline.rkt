@@ -433,16 +433,7 @@
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
 (define (render-about info)
-  (match-define (report-info date
-                             commit
-                             branch
-                             seed
-                             flags
-                             points
-                             iterations
-                             tests
-                             merged-cost-accuracy)
-    info)
+  (match-define (report-info date commit branch seed flags points iterations tests) info)
 
   `(table ((id "about"))
           (tr (th "Date:") (td ,(date->string date)))

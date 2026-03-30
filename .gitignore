@@ -33,13 +33,12 @@ herbie-compiled/
 .env/
 
 .vscode/
-.worktrees
-PROJ_source/
 
+benchmark
 tmp
 out
-benchmark
 tball.fpcore
-
 reports2/
 reports3/
+reports4/
+out.html

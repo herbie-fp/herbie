@@ -1,4 +1,13 @@
-.PHONY: help install egg-herbie nightly index start-server deploy
+UNAME_S := $(shell uname -s)
+LIB_EXT := so
+LIB_FLAGS := -shared -fPIC
+
+ifeq ($(UNAME_S), Darwin)
+    LIB_EXT := dylib
+    LIB_FLAGS := -dynamiclib
+endif
+
+.PHONY: help install egg-herbie nightly index start-server deploy compile-accelerators time-ops evaluate-proj evaluate-basilisk evaluate-coolprop evaluate
 
 help:
 	@echo "Type 'make install' to install Herbie"
@@ -45,8 +54,49 @@ minimal-distribution:
 	[ ! -f herbie.app ] || (raco distribute herbie-compiled herbie.app && rm herbie.app)
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
-nightly: 
-	bash growlibm/generate.sh
+nightly:
+	make evaluate
+
+time-ops:
+	mkdir -p growlibm/timing/drivers
+	make compile-accelerators
+	python3 growlibm/timing/time_ops.py
+
+evaluate:
+	make evaluate-proj
+	make evaluate-basilisk
+	make evaluate-coolprop
+
+evaluate-proj:
+	bash growlibm/evaluate.sh bench/proj/ reports proj 
+
+evaluate-basilisk:
+	bash growlibm/evaluate.sh bench/orbital-motion.fpcore reports basilisk 
+
+evaluate-coolprop:
+	bash growlibm/evaluate.sh bench/helmholtz.fpcore reports coolprop 
+
+compile-accelerators:
+	clang $(LIB_FLAGS) -O3 -o growlibm/accelerators/libaccelerators.$(LIB_EXT) \
+		growlibm/accelerators/accelerators.c \
+		growlibm/accelerators/cosquot.c \
+		growlibm/accelerators/e_rem_pio2.c \
+		growlibm/accelerators/powcos.c \
+		growlibm/accelerators/invgud.c \
+		-lm
+
+generate-table:
+	make compile-accelerators
+	racket growlibm/eval/generate-table.rkt
+	pandoc growlibm/eval/accelerator-table.tex -o out.html
+
+make-graphs:
+	python3 growlibm/eval/evaluate-frontier.py reports/proj PROJ --accelerators-only --max-relative-speedup 1.5
+	python3 growlibm/eval/evaluate-frontier.py reports/basilisk Basilisk --accelerators-only --max-relative-speedup 2.5
+	python3 growlibm/eval/evaluate-frontier.py reports/coolprop CoolProp --accelerators-only --max-relative-speedup 2
+	python3 growlibm/eval/evaluate-best-alt-bars.py reports/proj PROJ
+	python3 growlibm/eval/evaluate-best-alt-bars.py reports/basilisk Basilisk
+	python3 growlibm/eval/evaluate-best-alt-bars.py reports/coolprop CoolProp 
 
 upgrade:
 	git pull

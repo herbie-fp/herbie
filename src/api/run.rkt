@@ -80,10 +80,40 @@
 
   (get-table-data-from-hash result report-path))
 
+(define final-alts-dump-name "final-alts.txt")
+
+(define (at-least-two-ops? expr)
+  (match expr
+    [(list _ args ...) (ormap list? args)]
+    [_ #f]))
+
+(define (render-final-alt-expr expr ctx)
+  (define out-prog
+    (parameterize ([*expr-cse-able?* at-least-two-ops?])
+      (core-cse (program->fpcore expr ctx))))
+  (pretty-format (last out-prog) 70 #:mode 'write))
+
+(define (append-final-alts! result test dump-path)
+  (when (equal? (hash-ref result 'status) "success")
+    (define start-expr
+      (read (open-input-string (hash-ref (hash-ref (hash-ref result 'backend) 'start) 'expr))))
+    (define end (hash-ref (hash-ref result 'backend) 'end))
+    (unless (null? end)
+      (call-with-output-file
+       dump-path
+       #:exists 'append
+       (lambda (out)
+         (for ([end-analysis (in-list end)])
+           (define expr (read (open-input-string (hash-ref end-analysis 'expr))))
+           (unless (equal? expr start-expr)
+             (fprintf out "~a\n\n" (render-final-alt-expr expr (test-context test))))))))))
+
 (define (run-tests tests #:dir dir #:threads threads)
   (define seed (get-seed))
   (unless (directory-exists? dir)
     (make-directory dir))
+  (define final-alts-path (build-path dir final-alts-dump-name))
+  (call-with-output-file final-alts-path #:exists 'truncate (lambda (out) (void)))
 
   (server-start threads)
   (define job-ids
@@ -97,6 +127,7 @@
                [test-number (in-naturals)])
       (define result (job-wait job-id))
       (print-test-result (+ test-number 1) total-tests test result)
+      (append-final-alts! result test final-alts-path)
       (begin0 (generate-bench-report result (test-name test) test-number dir total-tests)
         (job-forget job-id))))
 

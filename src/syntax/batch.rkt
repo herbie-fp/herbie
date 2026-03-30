@@ -24,7 +24,6 @@
          jsexpr->batch-exprs
 
          (struct-out batchref)
-         batchref<?
          deref) ; Batchref -> Expr
 
 ;; Batches store these recursive structures, flattened
@@ -42,9 +41,6 @@
 
 (define (batch-get-nodes b)
   (dvector->vector (batch-nodes b)))
-
-(define (batchref<? brf1 brf2)
-  (< (batchref-idx brf1) (batchref-idx brf2)))
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
@@ -69,8 +65,7 @@
   (define (munge prog)
     (match prog
       [(batchref b* idx*)
-       (unless (equal? b b*)
-         (error 'batch-add! "Batchref belongs to a different batch"))
+       (assert-batch-brf! b prog)
        idx*]
       [_ (batchref-idx (batch-push! b (expr-recurse prog munge)))]))
   (batchref b (munge expr)))
@@ -94,10 +89,8 @@
   (define out (make-dvector (batch-length batch)))
   (define visited (make-dvector (batch-length batch) #f))
   (λ (brf)
-    (match-define (batchref b idx) brf)
-    (unless (eq? b batch)
-      (error 'batch-recurse "Batchref belongs to a different batch"))
-    (let loop ([brf (batchref batch idx)])
+    (assert-batch-brf! batch brf)
+    (let loop ([brf brf])
       (define idx (batchref-idx brf))
       (cond
         [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx)) (dvector-ref out idx)]
@@ -107,15 +100,15 @@
          (dvector-set! visited idx #t)
          res]))))
 
-(define (brfs-belong-to-batch? batch brfs)
+(define (assert-batch-brf! batch . brfs)
   (unless (andmap (compose (curry equal? batch) batchref-batch) brfs)
-    (error 'brfs-belong-to-batch? "One of batchrefs does not belong to the provided batch")))
+    (error 'assert-batch-brf! "One of batchrefs does not belong to the provided batch")))
 
 ;; Function returns indices of children nodes within a batch for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
 (define (batch-reachable batch brfs #:condition [condition (const #t)])
   ; Little check
-  (brfs-belong-to-batch? batch brfs)
+  (apply assert-batch-brf! batch brfs)
   (define len (batch-length batch))
   (define child-mask (make-vector len #f))
   (for ([brf (in-list brfs)])
