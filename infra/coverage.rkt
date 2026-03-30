@@ -384,6 +384,7 @@
      (if (null? herbie-args)
          (build-default-herbie-args benchmark output-root seed)
          herbie-args))
+   (make-directory* output-root)
    (define source-files (collect-source-files))
    (define default-test-files (collect-rackunit-files source-files))
    (define test-files
