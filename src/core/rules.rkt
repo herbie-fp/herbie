@@ -620,3 +620,92 @@
   (list (rule 'remove-sound-/ '(sound-/ a b fallback) '(/ a b) '(sound-removal))
         (rule 'remove-sound-pow '(sound-pow a b fallback) '(pow a b) '(sound-removal))
         (rule 'remove-sound-log '(sound-log a fallback) '(log a) '(sound-removal))))
+
+(define-rules exponents
+  [woxi-log-1 (log 1) 0]
+  [woxi-log-pow-E (log (pow (E) x)) x])
+
+  
+
+(define-rules arithmetic
+  [woxi-erf-0 (erf 0) 0]
+  [woxi-erf-neg (erf (neg x)) (neg (erf x))]
+  [woxi-erf-neg-rev (neg (erf x)) (erf (neg x))]
+  [woxi-erfc-0 (erfc 0) 1])
+
+  
+
+(define-rules trigonometry
+  [woxi-asin-0 (asin 0) 0]
+
+  [woxi-asin-1 (asin 1) (/ (PI) 2)]
+
+  [woxi-asin--1 (asin -1) (neg (/ (PI) 2))]
+
+  [woxi-asin-1/2 (asin 1/2) (/ (PI) 6)]
+
+  [woxi-asin--1/2 (asin -1/2) (neg (/ (PI) 6))]
+
+  [woxi-asin-sqrt2/2 (asin (/ (sqrt 2) 2)) (/ (PI) 4)]
+
+  [woxi-asin--sqrt2/2 (asin (/ (neg (sqrt 2)) 2)) (neg (/ (PI) 4))]
+
+  [woxi-asin-sqrt3/2 (asin (/ (sqrt 3) 2)) (/ (PI) 3)]
+
+  [woxi-asin--sqrt3/2 (asin (/ (neg (sqrt 3)) 2)) (neg (/ (PI) 3))]
+
+  [woxi-acos-1 (acos 1) 0]
+
+  [woxi-acos-0 (acos 0) (/ (PI) 2)]
+
+  [woxi-acos--1 (acos -1) (PI)]
+
+  [woxi-acos-1/2 (acos 1/2) (/ (PI) 3)]
+
+  [woxi-acos--1/2 (acos -1/2) (/ (* 2 (PI)) 3)]
+
+  [woxi-acos-sqrt2/2 (acos (/ (sqrt 2) 2)) (/ (PI) 4)]
+
+  [woxi-acos--sqrt2/2 (acos (/ (neg (sqrt 2)) 2)) (/ (* 3 (PI)) 4)]
+
+  [woxi-acos-sqrt3/2 (acos (/ (sqrt 3) 2)) (/ (PI) 6)]
+  
+  [woxi-acos--sqrt3/2 (acos (/ (neg (sqrt 3)) 2)) (/ (* 5 (PI)) 6)]
+  
+  [woxi-atan-0 (atan 0) 0]
+
+  [woxi-atan-1 (atan 1) (/ (PI) 4)]
+
+  [woxi-atan--1 (atan -1) (neg (/ (PI) 4))]
+
+  [woxi-sec-PI/6 (sec (/ (PI) 6)) (/ 2 (sqrt 3))]
+
+  [woxi-sec-PI/4 (sec (/ (PI) 4)) (sqrt 2)]
+
+  [woxi-sec-PI/3 (sec (/ (PI) 3)) 2]
+
+  [woxi-csc-PI/2 (csc (/ (PI) 2)) 1]
+
+  [woxi-csc-PI/6 (csc (/ (PI) 6)) 2]
+
+  [woxi-csc-PI/4 (csc (/ (PI) 4)) (sqrt 2)]
+
+  [woxi-csc-PI/3 (csc (/ (PI) 3)) (/ 2 (sqrt 3))]
+
+  [woxi-cot-PI/2 (cot (/ (PI) 2)) 0]
+
+  [woxi-cot-PI/6 (cot (/ (PI) 6)) (sqrt 3)]
+
+  [woxi-cot-PI/4 (cot (/ (PI) 4)) 1]
+
+  [woxi-cot-PI/3 (cot (/ (PI) 3)) (/ 1 (sqrt 3))])
+
+  
+
+(define-rules hyperbolic
+
+  [woxi-asinh-0 (asinh 0) 0]
+
+  [woxi-acosh-1 (acosh 1) 0]
+
+  [woxi-atanh-0 (atanh 0) 0])
