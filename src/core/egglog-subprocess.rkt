@@ -5,6 +5,7 @@
 (provide (struct-out egglog-subprocess)
          create-new-egglog-subprocess
          egglog-send
+         egglog-total-size
          egglog-extract
          egglog-multi-extract
          egglog-subprocess-close)
@@ -66,6 +67,10 @@
       (if (equal? next "(done)")
           (reverse out)
           (loop (cons next out))))))
+
+(define (egglog-total-size subproc)
+  (match (first (egglog-send subproc '(extract (get-size!))))
+    [(list size) (string->number size)]))
 
 ;; Send extract commands and read results
 (define (egglog-extract subproc extract-command)
