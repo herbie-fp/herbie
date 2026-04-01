@@ -24,7 +24,7 @@
         [rules . (numerics special bools branches)]))
 
 (define debug-flags
-  #hash([generate . (egglog)] [dump . (egg rival egglog trace intermediates)] [setup . (rival3)]))
+  #hash([generate . (egglog)] [dump . (egg rival egglog trace intermediates)] [setup . (rival2)]))
 
 (define all-flags (hash-union default-flags deprecated-flags debug-flags #:combine set-union))
 
