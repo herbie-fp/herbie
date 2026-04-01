@@ -1088,6 +1088,13 @@
   (define egg-graph (egraph_copy egg-graph0))
   (define iteration-data (egraph-run egg-graph egg-rules node-limit iter-limit scheduler))
 
+  (unless iter-limit
+    (for ([rule (in-list (*rules*))]
+          [ffi-rule (in-list egg-rules)])
+      (printf "~a: ~a\n"
+              (rule-name rule)
+              (egraph_get_times_applied egg-graph (FFIRule-name ffi-rule)))))
+
   (when (egraph_is_unsound_detected egg-graph)
     (warn 'unsound-egraph #:url "faq.html#unsound-egraph" "unsoundness detected in the egraph"))
   (timeline-push! 'stop (~a (egraph_get_stop_reason egg-graph)) 1)
