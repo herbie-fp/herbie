@@ -272,3 +272,7 @@
 (define-operation (fma.f64 [x <binary64>] [y <binary64>] [z <binary64>]) <binary64>
   #:spec (+ (* x y) z) #:impl (from-libm 'fma)
   #:fpcore (! :precision binary64 (fma x y z)) #:cost 0.375)
+  
+(define-operation (rem2pi.f64 [x <binary64>]) <binary64>
+  #:spec (remainder x (* 2 (PI))) #:impl (from-accelerators 'rem2pi)
+  #:fpcore (! :precision binary64 (rem2pi x)) #:cost 1.000)

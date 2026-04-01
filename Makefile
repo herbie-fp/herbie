@@ -1,4 +1,13 @@
-.PHONY: help install egg-herbie nightly index start-server deploy
+UNAME_S := $(shell uname -s)
+LIB_EXT := so
+LIB_FLAGS := -shared -fPIC
+
+ifeq ($(UNAME_S), Darwin)
+    LIB_EXT := dylib
+    LIB_FLAGS := -dynamiclib
+endif
+
+.PHONY: help install egg-herbie nightly index start-server deploy compile-accelerators
 
 help:
 	@echo "Type 'make install' to install Herbie"
@@ -46,6 +55,7 @@ minimal-distribution:
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 nightly:
+	make compile-accelerators
 	bash infra/nightly.sh bench reports --threads 2
 
 upgrade:
@@ -70,3 +80,10 @@ random-file:
 		    -o -path 'infra/survey/*' -prune \
 		    -o -type f -print | \
 	sort -R | head -n1
+
+compile-accelerators:
+	clang $(LIB_FLAGS) -O3 -o rempio2/rem2pi.$(LIB_EXT) \
+		rempio2/rem2pi.c \
+		rempio2/e_rem_pio2.c \
+		rempio2/k_rem_pio2.c \
+		-lm
