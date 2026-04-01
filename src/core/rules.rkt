@@ -521,6 +521,14 @@
   [sin-atan-rev (/ x (sqrt (+ 1 (* x x)))) (sin (atan x))]
   [sin-acos-rev (sqrt (- 1 (* x x))) (sin (acos x))])
 
+(define-rules trigonometry
+  [sin-rem2pi (sin x) (sin (remainder x (* 2 (PI))))]
+  [cos-rem2pi (cos x) (cos (remainder x (* 2 (PI))))]
+  [tan-rempi (tan x) (tan (remainder x (PI)))]
+  [csc-rem2pi (csc x) (csc (remainder x (* 2 (PI))))]
+  [sec-rem2pi (sec x) (sec (remainder x (* 2 (PI))))]
+  [cot-rempi (cot x) (cot (remainder x (PI)))])
+
 ; Hyperbolic trigonometric functions
 (define-rules hyperbolic
   [sinh-def (sinh x) (/ (- (exp x) (exp (neg x))) 2)]
