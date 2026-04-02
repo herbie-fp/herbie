@@ -56,7 +56,7 @@
             (define genexpr0 (batch-add! global-batch 0))
             (define gen0 (approx spec-brf (hole (representation-name repr) genexpr0)))
             (define brf0 (batch-add! global-batch gen0))
-            (sow (alt brf0 `(taylor zero undef-var) (list altn))))
+            (sow (alt brf0 `(taylor zero undef-var -1) (list altn))))
 
           ;; Taylor expansions
           ;; List<List<(cons offset coeffs)>>
