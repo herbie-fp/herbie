@@ -134,6 +134,15 @@
     [(approx _ impl) (f impl)]
     [_ (expr-recurse expr f)]))
 
+(define (taylor-record altn)
+  (match altn
+    [(alt _ `(taylor ,start-expr ,transform ,var ,order) prevs) (list (~a transform) order)]
+    [(alt _
+          `(rr ,start-expr ,end-expr ,input ,proof)
+          (list (alt _ `(taylor ,prev-start-expr ,transform ,var ,order) prevs)))
+     (list (~a transform) order)]
+    [_ #f]))
+
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! starting-alts new-alts)
   (timeline-event! 'reconstruct)
@@ -182,7 +191,7 @@
          (define event*
            (match event
              [(list 'evaluate) (list 'evaluate start-expr)]
-             [(list 'taylor name var) (list 'taylor start-expr name var)]
+             [(list 'taylor name var order) (list 'taylor start-expr name var order)]
              [(list 'rr input proof) (list 'rr (alt-expr prev) cur-expr input proof)]))
          (define expr* (batch-replace-subexpr batch (alt-expr orig) start-expr cur-expr can-refer))
          (values (alt expr* event* (list prev-altn)) start-expr)]))
@@ -244,6 +253,11 @@
           'picked
           (list (length picked-alts) (set-intersect-size picked-alts final-done-set))))
   (timeline-push! 'kept data)
+  (for ([altn (in-list patched)])
+    (match (taylor-record altn)
+      [(list transform order)
+       (timeline-push! 'taylor-count transform order 1 (if (set-member? final-active-set altn) 1 0))]
+      [#f (void)]))
 
   (define repr (context-repr (*context*)))
   (timeline-push! 'min-error
