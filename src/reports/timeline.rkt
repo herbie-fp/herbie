@@ -63,6 +63,7 @@
             ,@(dict-call curr render-phase-algorithm 'method)
             ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline)
             ,@(dict-call curr render-phase-pruning 'kept)
+            ,@(dict-call curr render-phase-taylor-counts 'taylor-count)
             ,@(dict-call curr render-phase-error 'min-error)
             ,@(dict-call curr render-phase-egraph 'egraph)
             ,@(dict-call curr render-phase-stop 'stop)
@@ -292,6 +293,18 @@
               (td ,(~r (apply + (map (curryr altnum 0) '(new fresh picked done))) #:group-sep " "))
               (td ,(~r (apply + (map (curryr altnum 1) '(new fresh picked done))) #:group-sep " "))
               (td ,(~r (apply + (map altnum '(new fresh picked done))) #:group-sep " "))))))))
+
+(define (render-phase-taylor-counts records)
+  (define sorted-records
+    (sort (sort (sort records < #:key second) string<? #:key first) > #:key fourth))
+  `((dt "Taylor") (dd (table ((class "states"))
+                             (thead (tr (th "Transform") (th "Order") (th "Generated") (th "Kept")))
+                             (tbody ,@(for/list ([rec (in-list sorted-records)])
+                                        (match-define (list transform order generated kept) rec)
+                                        `(tr (td (code ,transform))
+                                             (td ,(~a order))
+                                             (td ,(~r generated #:group-sep " "))
+                                             (td ,(~r kept #:group-sep " ")))))))))
 
 (define (render-phase-memory mem gc-time)
   (match-define (list live alloc) (car mem))
