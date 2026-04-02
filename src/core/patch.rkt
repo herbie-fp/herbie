@@ -78,7 +78,7 @@
                 ;; adding a new expansion to the global batch
                 (define gen (approx spec-brf (hole (representation-name repr) (copier (genexpr)))))
                 (define brf (batch-add! global-batch gen))
-                (sow (alt brf `(taylor ,name ,var) (list altn)))))
+                (sow (alt brf `(taylor ,name ,var ,i) (list altn)))))
             (set! idx (add1 idx))
             (timeline-stop!)))))
 
