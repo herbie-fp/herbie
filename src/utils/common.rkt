@@ -4,7 +4,6 @@
          "../config.rkt")
 
 (provide reap
-         flip-lists
          drop-at
          find-duplicates
          partial-sums
@@ -16,7 +15,6 @@
          format-bits
          prop-dict/c
          props->dict
-         dict->props
          fpcore->string
          (all-from-out "../config.rkt"))
 
@@ -39,13 +37,6 @@
 (define (drop-at ls index)
   (define-values (front back) (split-at ls index))
   (append front (rest back)))
-
-(define (flip-lists list-list)
-  "Flip a list of rows into a list of columns"
-  (apply map list list-list))
-
-(module+ test
-  (check-equal? (flip-lists '((1 2 3) (4 5 6) (7 8 9))) '((1 4 7) (2 5 8) (3 6 9))))
 
 (define (partial-sums vec)
   (define res (make-vector (vector-length vec)))
@@ -86,40 +77,26 @@
 
 ;; String formatting operations
 
-(define (format-time ms #:min [min-unit 'millisecond] #:max [max-unit 'hour])
-  (define min-unit*
-    (match min-unit
-      ['millisecond 0]
-      ['second 1000]
-      ['minute 60000]
-      ['hour 3600000]))
+(define (format-time ms)
   (cond
-    [(or (eq? max-unit 'millisecond) (< (max ms min-unit*) 1000)) (format "~ams" (round ms))]
-    [(or (eq? max-unit 'second) (< (max ms min-unit*) 60000))
-     (format "~as" (/ (round (/ ms 100.0)) 10))]
-    [(or (eq? max-unit 'minute) (< (max ms min-unit*) 3600000))
-     (format "~amin" (/ (round (/ ms 6000.0)) 10))]
+    [(< ms 1000) (format "~ams" (round ms))]
+    [(< ms 60000) (format "~as" (/ (round (/ ms 100.0)) 10))]
+    [(< ms 3600000) (format "~amin" (/ (round (/ ms 6000.0)) 10))]
     [else (format "~ahr" (/ (round (/ ms 360000.0)) 10))]))
 
 (module+ test
   (check-equal? (format-time 60000) "1.0min")
   (check-equal? (format-time 3600000) "1.0hr")
-  (check-equal? (format-time 60000 #:min 'second) "1.0min")
-  (check-equal? (format-time 60000 #:max 'millisecond) "60000ms")
-  (check-equal? (format-time 500 #:min 'second #:max 'minute) "0.5s")
-  (check-equal? (format-time 2000 #:min 'second #:max 'minute) "2.0s")
-  (check-equal? (format-time 60000 #:min 'second #:max 'minute) "1.0min")
-  (check-equal? (format-time 3600000 #:min 'second #:max 'minute) "60.0min")
-  (check-equal? (format-time 7200000 #:min 'second #:max 'minute) "120.0min")
-  (check-equal? (format-time 0 #:min 'hour) "0hr")
-  (check-equal? (format-time 1800000 #:min 'hour) "0.5hr")
-  (check-equal? (format-time 7200000 #:max 'millisecond) "7200000ms"))
+  (check-equal? (format-time 500) "500ms")
+  (check-equal? (format-time 2000) "2.0s")
+  (check-equal? (format-time 0) "0ms")
+  (check-equal? (format-time 1800000) "30.0min")
+  (check-equal? (format-time 7200000) "2.0hr"))
 
-(define (format-bits r #:sign [sign #f] #:unit [unit? #f])
+(define (format-bits r #:unit [unit? #f])
   (define unit (if unit? "b" ""))
   (cond
     [(not r) ""]
-    [(and (positive? r) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
     [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
 
 ;; Symbol generation
@@ -139,11 +116,6 @@
       [(list key val rest ...) (loop rest (dict-set dict key val))]
       [(list key) (error 'props->dict "unmatched key" key)]
       [(list) dict])))
-
-(define (dict->props prop-dict)
-  (apply append
-         (for/list ([(k v) (in-dict prop-dict)])
-           (list k v))))
 
 (define (fpcore->string core)
   (define-values (ident args props expr)

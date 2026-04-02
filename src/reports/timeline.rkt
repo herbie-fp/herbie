@@ -61,7 +61,7 @@
             (span ((class "time")) ,(format-time time) " (" ,(format-percent time total-time) ")"))
         (dl ,@(dict-call curr render-phase-memory 'memory 'gc-time)
             ,@(dict-call curr render-phase-algorithm 'method)
-            ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline 'name 'link 'repr)
+            ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline)
             ,@(dict-call curr render-phase-pruning 'kept)
             ,@(dict-call curr render-phase-error 'min-error)
             ,@(dict-call curr render-phase-egraph 'egraph)
@@ -229,7 +229,7 @@
       `((dt ,name) (dd ,@(map (lambda (s) `(p ,(~a s))) (first info))))
       empty))
 
-(define (render-phase-accuracy accuracy oracle baseline repr-name)
+(define (render-phase-accuracy accuracy oracle baseline)
   (define rows
     (sort (for/list ([acc accuracy]
                      [ora oracle]
@@ -240,7 +240,6 @@
 
   (define bits (map first rows))
   (define total-remaining (apply + accuracy))
-  (define repr (get-representation (read (open-input-string (car repr-name)))))
 
   `((dt "Accuracy") (dd (p "Total "
                            ,(format-bits (apply + bits) #:unit #t)
@@ -249,7 +248,7 @@
                            ,(format-percent (apply + bits) total-remaining)
                            ")"
                            (p "Threshold costs "
-                              ,(format-bits (apply + (filter (curry > 1) bits)) repr)
+                              ,(format-bits (apply + (filter (curry > 1) bits)))
                               "b"
                               " ("
                               ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining)
@@ -434,16 +433,7 @@
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
 (define (render-about info)
-  (match-define (report-info date
-                             commit
-                             branch
-                             seed
-                             flags
-                             points
-                             iterations
-                             tests
-                             merged-cost-accuracy)
-    info)
+  (match-define (report-info date commit branch seed flags points iterations tests) info)
 
   `(table ((id "about"))
           (tr (th "Date:") (td ,(date->string date)))
