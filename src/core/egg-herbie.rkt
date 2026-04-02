@@ -26,6 +26,7 @@
          egraph-prove
          egraph-best
          egraph-variations
+         deduplicate-exprs
          egraph-analyze-rewrite-impact)
 
 (module+ test
@@ -308,7 +309,13 @@
   (let ([egg-graph (egraph_create)])
     (for ([expr extended-expr-list])
       (define egg-expr (expr->egg-expr expr ctx))
-      (check-equal? (egg-expr->expr egg-expr ctx) expr))))
+      (check-equal? (egg-expr->expr egg-expr ctx) expr)))
+
+  (define dedup-ctx1 (context '(x y) <binary64> (list <binary64> <binary64>)))
+  (define dedup-ctx2 (context '(y x) <binary64> (list <binary64> <binary64>)))
+  (define deduped (deduplicate-exprs (list '(+.f64 x y) '(+.f64 y x)) (list dedup-ctx1 dedup-ctx2)))
+  (check-equal? (length deduped) 2)
+  (check-equal? (first deduped) (second deduped)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Proofs
@@ -1275,3 +1282,17 @@
      (for/list ([id (in-list root-ids)]
                 [repr (in-list reprs)])
        (regraph-extract-variants regraph extract-id id repr))]))
+
+(define (deduplicate-exprs exprs ctxs)
+  (define ctx (contexts-union ctxs))
+  (*context* ctx)
+  (define schedule '(lift rewrite lower))
+  (define-values (batch brfs) (progs->batch exprs))
+  (define runner (make-egraph batch brfs (map context-repr ctxs) schedule ctx))
+  (define batchrefss (egraph-best runner batch))
+  (define batch-pull (batch-exprs batch))
+  (for/list ([orig-expr (in-list exprs)]
+             [refs (in-list batchrefss)])
+    (if (empty? refs)
+        orig-expr
+        (batch-pull (first refs)))))

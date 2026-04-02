@@ -19,6 +19,7 @@
          *context*
          context-extend
          context-lookup
+         contexts-union
          make-representation
          make-array-representation)
 
@@ -144,5 +145,27 @@
                [vars (cons var (context-vars ctx))]
                [var-reprs (cons repr (context-var-reprs ctx))]))
 
+(define (contexts-union ctxs)
+  (define vars '())
+  (define var-reprs '())
+  (for ([ctx (in-list ctxs)])
+    (for ([var (in-list (context-vars ctx))]
+          [repr (in-list (context-var-reprs ctx))])
+      (unless (member var vars)
+        (set! vars (append vars (list var)))
+        (set! var-reprs (append var-reprs (list repr))))))
+  (context vars (context-repr (first ctxs)) var-reprs))
+
 (define (context-lookup ctx var)
   (dict-ref (map cons (context-vars ctx) (context-var-reprs ctx)) var))
+
+(module+ test
+  (require rackunit)
+
+  (define ctx1 (context '(x y) <binary64> (list <binary64> <binary64>)))
+  (define ctx2 (context '(y z) <binary64> (list <binary64> <binary64>)))
+  (define ctx* (contexts-union (list ctx1 ctx2)))
+
+  (check-equal? (context-vars ctx*) '(x y z))
+  (check-equal? (context-var-reprs ctx*) (list <binary64> <binary64> <binary64>))
+  (check-equal? (context-repr ctx*) <binary64>))
