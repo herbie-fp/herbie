@@ -230,10 +230,10 @@
           :ruleset
           const-fold)
     ;; New rule according to Rust : x^y where y is not a whole number
-    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (!= y (round y)))
-          ((union e (Num (pow x (round y)))))
-          :ruleset
-          const-fold)
+    ; (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (!= y (round y)))
+    ;       ((union e (Num (pow x (round y)))))
+    ;       :ruleset
+    ;       const-fold)
     ;; Sqrt rules -> Non-total but egglog implementation handles it
     (rule ((= e (Sqrt (Num n))) (sqrt n)) ((union e (Num (sqrt n)))) :ruleset const-fold)
     (rewrite (Log (Num $1)) (Num $0) :ruleset const-fold)
