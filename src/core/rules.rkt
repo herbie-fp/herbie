@@ -642,18 +642,7 @@
   [acos--sqrt3/2 (acos (/ (neg (sqrt 3)) 2)) (/ (* 5 (PI)) 6)]
   [atan-0 (atan 0) 0]
   [atan-1 (atan 1) (/ (PI) 4)]
-  [atan--1 (atan -1) (neg (/ (PI) 4))]
-  [sec-PI/6 (sec (/ (PI) 6)) (/ 2 (sqrt 3))]
-  [sec-PI/4 (sec (/ (PI) 4)) (sqrt 2)]
-  [sec-PI/3 (sec (/ (PI) 3)) 2]
-  [csc-PI/2 (csc (/ (PI) 2)) 1]
-  [csc-PI/6 (csc (/ (PI) 6)) 2]
-  [csc-PI/4 (csc (/ (PI) 4)) (sqrt 2)]
-  [csc-PI/3 (csc (/ (PI) 3)) (/ 2 (sqrt 3))]
-  [cot-PI/2 (cot (/ (PI) 2)) 0]
-  [cot-PI/6 (cot (/ (PI) 6)) (sqrt 3)]
-  [cot-PI/4 (cot (/ (PI) 4)) 1]
-  [cot-PI/3 (cot (/ (PI) 3)) (/ 1 (sqrt 3))])
+  [atan--1 (atan -1) (neg (/ (PI) 4))])
 
 (define-rules hyperbolic
   [asinh-0 (asinh 0) 0]
