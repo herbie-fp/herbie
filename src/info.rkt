@@ -19,9 +19,10 @@
   '(("base" #:version "8.0") "math-lib"
                              "typed-racket-lib"
                              "profile-lib"
+                             "cover"
                              "rackunit-lib"
                              "web-server-lib"
-                             "rival3"
+                             ("rival3" #:version "1.0")
                              ("egg-herbie" #:version "2.2")
                              ("rival" #:version "2.3")
                              ("fpbench" #:version "2.0.3")

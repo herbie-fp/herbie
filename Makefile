@@ -1,4 +1,4 @@
-.PHONY: help install egg-herbie nightly index start-server deploy
+.PHONY: help install egg-herbie nightly index start-server deploy coverage
 
 help:
 	@echo "Type 'make install' to install Herbie"
@@ -59,6 +59,9 @@ start-server:
 
 fmt:
 	@raco fmt -i $(shell find egg-herbie/ src/ infra/ -name '*.rkt' -not -path 'src/platforms/*.rkt' -not -path "infra/softposit.rkt")
+
+coverage:
+	@racket infra/coverage.rkt --benchmark $(or $(BENCH),bench/hamming) $(ARGS)
 
 herbie.zip herbie.zip.CHECKSUM:
 	raco pkg create src/
