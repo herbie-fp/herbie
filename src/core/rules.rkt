@@ -615,10 +615,6 @@
   [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh (fabs x)))]
   [acosh-2-rev (* 2 (acosh x)) (acosh (- (* 2 (* x x)) 1))])
 
-(define-rules exponents
-  [log-1 (log 1) 0]
-  [log-pow-E (log (pow (E) x)) x])
-
 (define-rules arithmetic
   [erf-0 (erf 0) 0]
   [erf-neg (erf (neg x)) (neg (erf x))]
