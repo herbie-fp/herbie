@@ -13,6 +13,7 @@
          "../utils/common.rkt"
          "../utils/pareto.rkt"
          "../syntax/float.rkt"
+         "../syntax/syntax.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
          "../syntax/batch.rkt"
@@ -23,6 +24,8 @@
          (struct-out option)
          (struct-out si)
          critical-subexpression?)
+
+(define *critical-subexpressions-cache* (make-hash))
 
 (module+ test
   (require rackunit
@@ -92,19 +95,80 @@
 (define (exprs-to-branch-on batch start-prog ctx)
   (define exprs (batch-exprs batch))
   (define start-expr (exprs start-prog))
+  (define reprs (batch-reprs batch ctx))
   ;; We can only binary search if the branch expression is critical
   ;; for the start program and is real-typed.
-  (for/list ([subexpr (set-union (context-vars ctx) (all-subexpressions start-expr))]
-             #:when (critical-subexpression? start-expr subexpr)
-             #:when (equal? (representation-type (repr-of subexpr ctx)) 'real))
-    (batch-add! batch subexpr)))
+  (for/list ([subexpr (in-list (critical-subexpressions start-expr))]
+             #:do [(define sub-brf (batch-add! batch subexpr))]
+             #:when (equal? (representation-type (reprs sub-brf)) 'real))
+    sub-brf))
 
 ;; Requires that expr is not a λ expression
 (define (critical-subexpression? expr subexpr)
-  (define crit-vars (free-variables subexpr))
-  (define replaced-expr (replace-expression expr subexpr 1))
-  (define non-crit-vars (free-variables replaced-expr))
-  (and (not (null? crit-vars)) (null? (set-intersect crit-vars non-crit-vars))))
+  (and (member subexpr (critical-subexpressions expr) equal?) #t))
+
+(define (critical-subexpressions expr)
+  (hash-ref!
+   *critical-subexpressions-cache*
+   expr
+   (lambda ()
+     (define-values (batch brfs) (progs->batch (list expr)))
+     (define root-brf (first brfs))
+     (define root-idx (batchref-idx root-brf))
+     (define dom-parents (build-dominator-tree batch root-brf))
+     (define free-vars (batch-free-vars batch))
+     (define exprs (batch-exprs batch))
+
+     (for/list ([subexpr (in-list (all-subexpressions expr))]
+                #:do [(define sub-brf (batch-add! batch subexpr))
+                      (define sub-idx (batchref-idx sub-brf))
+                      (define subexpr* (exprs sub-brf))
+                      (define vars* (set->list (free-vars sub-brf)))]
+                #:when (equal? subexpr subexpr*)
+                #:when (not (= sub-idx root-idx))
+                #:when (pair? vars*)
+                #:do [(define lca-idx
+                        (for/fold ([lca-idx (batchref-idx (batch-add! batch (first vars*)))])
+                                  ([var (in-list (rest vars*))])
+                          (dominator-lca lca-idx (batchref-idx (batch-add! batch var)) dom-parents)))]
+                #:when (dominates? sub-idx lca-idx dom-parents))
+       subexpr))))
+
+(define (build-dominator-tree batch root-brf)
+  (define root-idx (batchref-idx root-brf))
+  (define dom-parents (make-vector (batch-length batch) #f))
+  (vector-set! dom-parents root-idx root-idx)
+  (for ([idx (in-range root-idx -1 -1)]
+        [node (in-batch batch root-idx -1 -1)]
+        #:when (vector-ref dom-parents idx))
+    (for ([child-idx (in-list (batch-node-children node))])
+      (define old-parent (vector-ref dom-parents child-idx))
+      (define new-parent
+        (if old-parent
+            (dominator-lca idx old-parent dom-parents)
+            idx))
+      (vector-set! dom-parents child-idx new-parent)))
+  dom-parents)
+
+(define (batch-node-children node)
+  (match node
+    [(? number?) '()]
+    [(? literal?) '()]
+    [(? symbol?) '()]
+    [(approx _ impl) (list impl)]
+    [(hole _ spec) (list spec)]
+    [(list _ args ...) args]))
+
+(define (dominator-lca idx1 idx2 dom-parents)
+  (let loop ([idx1 idx1]
+             [idx2 idx2])
+    (cond
+      [(= idx1 idx2) idx1]
+      [(< idx1 idx2) (loop (vector-ref dom-parents idx1) idx2)]
+      [else (loop idx1 (vector-ref dom-parents idx2))])))
+
+(define (dominates? ancestor-idx idx dom-parents)
+  (= ancestor-idx (dominator-lca ancestor-idx idx dom-parents)))
 
 (define (baseline-errors-score err-cols count)
   (for/fold ([best +inf.0]) ([err-col (in-list (take err-cols count))])
@@ -200,7 +264,13 @@
   (test-regimes `(if.f64 (==.f64 x ,(literal 0.5 'binary64)) ,(literal 1 'binary64) (NAN.f64)) '(1 0))
 
   (check-equal? (baseline-errors-score err-cols 2) 26.5)
-  (check-equal? (oracle-errors-score err-cols 2) 0.0))
+  (check-equal? (oracle-errors-score err-cols 2) 0.0)
+
+  (check-true (critical-subexpression? '(+.f64 (sin.f64 x) y) '(sin.f64 x)))
+  (check-false (critical-subexpression? '(+.f64 (sin.f64 x) x) '(sin.f64 x)))
+  (check-true (critical-subexpression? '(+.f64 x x) 'x))
+  (check-false (critical-subexpression? '(+.f64 x x) '(+.f64 x x)))
+  (check-false (critical-subexpression? '(sin.f64 x) '(sin.f64 x))))
 
 (define (valid-splitindices? can-split? split-indices)
   (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
