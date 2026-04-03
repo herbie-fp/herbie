@@ -13,6 +13,7 @@
          "../core/localize.rkt"
          "../core/alternative.rkt"
          "../core/compiler.rkt"
+         "../core/egg-herbie.rkt"
          "../utils/common.rkt"
          "datafile.rkt"
          "../utils/errors.rkt"
@@ -34,7 +35,7 @@
          (struct-out improve-result)
          (struct-out alt-analysis))
 
-(struct job-result (command test status time timeline profile warnings backend))
+(struct job-result (command test status time timeline profile warnings rules backend))
 (struct improve-result (pcontext start target end))
 (struct alt-analysis (alt errors) #:prefab)
 
@@ -159,7 +160,16 @@
       (timeline-event! 'end)
       (define time (- (current-inexact-milliseconds) start-time))
       (match command
-        ['improve (job-result command test 'failure time (timeline-extract) #f (warning-log) e)]
+        ['improve
+         (job-result command
+                     test
+                     'failure
+                     time
+                     (timeline-extract)
+                     #f
+                     (warning-log)
+                     (egraph-rule-counts)
+                     e)]
         [_ (raise e)])))
 
   (define (on-timeout)
@@ -168,7 +178,15 @@
       (timeline-event! 'end)
       (match command
         ['improve
-         (job-result command test 'timeout (*timeout*) (timeline-extract) #f (warning-log) #f)]
+         (job-result command
+                     test
+                     'timeout
+                     (*timeout*)
+                     (timeline-extract)
+                     #f
+                     (warning-log)
+                     (egraph-rule-counts)
+                     #f)]
         [_ (raise-arguments-error 'run-herbie "command timed out" "command" command)])))
 
   (define (compute-result)
@@ -194,7 +212,15 @@
             [_ (raise-arguments-error 'compute-result "unknown command" "command" command)]))
         (timeline-event! 'end)
         (define time (- (current-inexact-milliseconds) start-time))
-        (job-result command test 'success time (timeline-extract) #f (warning-log) result))))
+        (job-result command
+                    test
+                    'success
+                    time
+                    (timeline-extract)
+                    #f
+                    (warning-log)
+                    (egraph-rule-counts)
+                    result))))
 
   (define (in-engine _)
     (cond
