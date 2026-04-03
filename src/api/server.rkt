@@ -516,7 +516,6 @@
   (define backend (job-result-backend herbie-result))
   (define timeline (job-result-timeline herbie-result))
   (define profile (job-result-profile herbie-result))
-  (define rules (job-result-rules herbie-result))
 
   (define ctx (test-context test))
   (define-values (altns pcontext)
@@ -566,8 +565,6 @@
           timeline
           'profile
           profile
-          'rules
-          rules
           'alternatives ; FIXME: currently used by Odyssey but should maybe be in 'backend?
           fpcores
           'derivations

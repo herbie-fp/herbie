@@ -65,13 +65,6 @@
 (define (merge-profile-jsons ps)
   (profile->json (apply profile-merge (map json->profile ps))))
 
-(define (merge-rule-jsons rs)
-  (define counts (make-hash))
-  (for* ([r (in-list rs)]
-         [(name count) (in-dict r)])
-    (hash-update! counts name (curryr + count) 0))
-  counts)
-
 (define (generate-bench-report result bench-name test-number dir total-tests)
   (define report-path (bench-folder-path bench-name test-number))
   (define report-directory (build-path dir report-path))
@@ -98,13 +91,11 @@
       (job-start 'improve test #:seed seed #:pcontext #f #:profile? #t #:timeline? #t)))
 
   (define total-tests (length tests))
-  (define rule-jsons '())
   (define results
     (for/list ([job-id (in-list job-ids)]
                [test (in-list tests)]
                [test-number (in-naturals)])
       (define result (job-wait job-id))
-      (set! rule-jsons (cons (hash-ref result 'rules) rule-jsons))
       (print-test-result (+ test-number 1) total-tests test result)
       (begin0 (generate-bench-report result (test-name test) test-number dir total-tests)
         (job-forget job-id))))
@@ -116,8 +107,6 @@
   (copy-file (web-resource "report.css") (build-path dir "report.css") #t)
   (copy-file (web-resource "logo-car.png") (build-path dir "logo-car.png") #t)
   (copy-file (web-resource "report.html") (build-path dir "index.html") #t)
-  (define rules (merge-rule-jsons (reverse rule-jsons)))
-  (call-with-output-file (build-path dir "rules.json") (curry write-json rules) #:exists 'replace)
   (define timeline (apply timeline-merge (read-json-files info dir "timeline.json")))
   (call-with-output-file (build-path dir "timeline.json")
                          (curry write-json timeline)
