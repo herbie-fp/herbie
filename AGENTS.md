@@ -1,4 +1,19 @@
 
+# Structure
+
+- `src/core` has key algorithms and `src/syntax` key concepts; these
+  are the most critical and highest value parts of the project. Should
+  be fast and effective, complex algorithms could well be worth it.
+- `src/core/explain.rkt` and `src/core/localize.rkt` are sorta-kinda
+  deprecated. Keep them working, but can get slower or worse.
+- The rest of `src` is, conceptually, glue code. Simple is best,
+  optimize for maintainability. All of `src` goes through human code
+  review and should match surrounding style.
+- `infra/` is for development only. Some code in there is abandon-ware
+  of AI-written and unreviewed. Don't reference for code style and not
+  all features in there are actually used. Changing users often easier
+  than code heroics.
+
 # Formatting
 
 - Use `map` over `for/list` only if it avoids a `lambda`.
