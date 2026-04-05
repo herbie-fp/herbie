@@ -37,6 +37,7 @@ for bench in "$BENCHDIR"/*; do
 
   racket -y "src/main.rkt" report \
          --seed "$SEED" \
+         --platform "rr" \
          "$@" \
          "$bench" "$REPORTDIR"/"$name"
   
