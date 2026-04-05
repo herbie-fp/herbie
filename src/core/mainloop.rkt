@@ -54,7 +54,8 @@
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
 
-  (parameterize ([*global-batch* (batch-empty)])
+  (parameterize ([*global-batch* (batch-empty)]
+                 [*midpoint-transforms* (hash)])
     (define global-spec-batch (batch-empty))
     (define spec-reducer (batch-reduce global-spec-batch))
 
@@ -66,7 +67,8 @@
 
     (for ([_ (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
-      (run-iteration! global-spec-batch spec-reducer))
+      (run-iteration! global-spec-batch spec-reducer)
+      (*midpoint-transforms* (regime-midpoints)))
     (define alternatives (extract!))
     (timeline-event! 'preprocess)
     (for/list ([altn alternatives])
@@ -83,6 +85,45 @@
 
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   (map car (sort-alts unbatched-alts)))
+
+(define (regime-midpoints)
+  (define ctx (*context*))
+  (define repr (context-repr ctx))
+  (define batch (*global-batch*))
+  (define alts (atab-active-alts (^table^)))
+  (cond
+    [(and (flag-set? 'reduce 'regimes)
+          (> (length alts) 1)
+          (equal? (representation-type repr) 'real)
+          (not (null? (context-vars ctx))))
+     (parameterize ([*timeline-disabled* #t])
+       (define alt-costs (alt-batch-costs batch ctx))
+       (define sorted (sort alts < #:key (compose alt-costs alt-expr)))
+       (define opts (pareto-regimes batch sorted (*start-brf*) ctx (*pcontext*)))
+       (define vars (context-vars ctx))
+       (define result (make-hash))
+       (for ([opt (in-list opts)])
+         (define pts-vec (list->vector (option-pts opt)))
+         (define splits (option-split-indices opt))
+         (define prev-pidx 0)
+         (for ([s (in-list splits)])
+           (define pidx (si-pidx s))
+           (when (> pidx prev-pidx)
+             (for ([var (in-list vars)]
+                   [var-idx (in-naturals)])
+               ;; Median
+               (define vals
+                 (sort (for/list ([i (in-range prev-pidx pidx)])
+                         (real->double-flonum (vector-ref (vector-ref pts-vec i) var-idx)))
+                       <))
+               (define mid (list-ref vals (quotient (length vals) 2)))
+               (when (and (rational? mid) (< (abs mid) 1e12) (> (abs mid) 1e-2))
+                 (hash-update! result var (λ (lst) (cons mid lst)) '()))))
+           (set! prev-pidx pidx)))
+       (for/hash ([(var mids) (in-hash result)])
+         (define unique (remove-duplicates mids))
+         (values var (take unique (min 3 (length unique))))))]
+    [else (hash)]))
 
 ;; The rest of the file is various helper / glue functions used by
 ;; Herbie. These often wrap other Herbie components, but add logging

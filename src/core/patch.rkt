@@ -16,9 +16,12 @@
          "taylor.rkt")
 
 (provide generate-candidates
-         get-starting-expr)
+         get-starting-expr
+         *midpoint-transforms*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define *midpoint-transforms* (make-parameter (hash)))
 
 (define transforms-to-try
   (let ([invert-x (λ (x) `(/ 1 ,x))]
@@ -45,42 +48,66 @@
          spec-brfs)) ;; copy from global-batch to spec-batch
   (define copier (batch-copy-only! global-batch spec-batch)) ;; copy from spec-batch to global-batch
 
-  (reap [sow]
-        (parameterize ([reduce reducer] ;; reduces over spec-batch
-                       [add (λ (x) (batch-add! spec-batch x))]) ;; adds to spec-batch
-          ;; Zero expansion
-          (for ([spec-brf (in-list spec-brfs)]
-                [repr (in-list reprs)]
-                [altn (in-list altns)]
-                #:unless (array-representation? repr))
-            (define genexpr0 (batch-add! global-batch 0))
-            (define gen0 (approx spec-brf (hole (representation-name repr) genexpr0)))
-            (define brf0 (batch-add! global-batch gen0))
-            (sow (alt brf0 `(taylor zero undef-var) (list altn))))
+  (reap
+   [sow]
+   (parameterize ([reduce reducer] ;; reduces over spec-batch
+                  [add (λ (x) (batch-add! spec-batch x))]) ;; adds to spec-batch
+     ;; Zero expansion
+     (for ([spec-brf (in-list spec-brfs)]
+           [repr (in-list reprs)]
+           [altn (in-list altns)]
+           #:unless (array-representation? repr))
+       (define genexpr0 (batch-add! global-batch 0))
+       (define gen0 (approx spec-brf (hole (representation-name repr) genexpr0)))
+       (define brf0 (batch-add! global-batch gen0))
+       (sow (alt brf0 `(taylor zero undef-var) (list altn))))
 
-          ;; Taylor expansions
-          ;; List<List<(cons offset coeffs)>>
-          (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs* vars transforms-to-try))
-          (define idx 0)
-          (for* ([var (in-list vars)]
-                 [transform-type transforms-to-try])
-            (match-define (list name f finv) transform-type)
-            (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
-            (define taylor-coeffs* (list-ref taylor-coeffs idx))
-            (define genexprs (approximate taylor-coeffs* spec-batch var #:transform (cons f finv)))
-            (for ([genexpr (in-list genexprs)]
-                  [spec-brf (in-list spec-brfs)]
-                  [repr (in-list reprs)]
-                  [altn (in-list altns)]
-                  [fv (in-list free-vars)]
-                  #:when (set-member? fv var)) ;; check whether var exists in expr at all
-              (for ([i (in-range (*taylor-order-limit*))])
-                ;; adding a new expansion to the global batch
-                (define gen (approx spec-brf (hole (representation-name repr) (copier (genexpr)))))
-                (define brf (batch-add! global-batch gen))
-                (sow (alt brf `(taylor ,name ,var) (list altn)))))
-            (set! idx (add1 idx))
-            (timeline-stop!)))))
+     ;; Taylor expansions
+     ;; List<List<(cons offset coeffs)>>
+     (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs* vars transforms-to-try))
+     (define idx 0)
+     (for* ([var (in-list vars)]
+            [transform-type transforms-to-try])
+       (match-define (list name f finv) transform-type)
+       (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
+       (define taylor-coeffs* (list-ref taylor-coeffs idx))
+       (define genexprs (approximate taylor-coeffs* spec-batch var #:transform (cons f finv)))
+       (for ([genexpr (in-list genexprs)]
+             [spec-brf (in-list spec-brfs)]
+             [repr (in-list reprs)]
+             [altn (in-list altns)]
+             [fv (in-list free-vars)]
+             #:when (set-member? fv var)) ;; check whether var exists in expr at all
+         (for ([i (in-range (*taylor-order-limit*))])
+           ;; adding a new expansion to the global batch
+           (define gen (approx spec-brf (hole (representation-name repr) (copier (genexpr)))))
+           (define brf (batch-add! global-batch gen))
+           (sow (alt brf `(taylor ,name ,var) (list altn)))))
+       (set! idx (add1 idx))
+       (timeline-stop!))
+
+     ;; Midpoint Taylor expansions
+     (for* ([var (in-list vars)]
+            [c (in-list (hash-ref (*midpoint-transforms*) var '()))])
+       (define timeline-stop! (timeline-start! 'series (~a var) (~a c)))
+       (with-handlers ([exn:fail? (λ (e)
+                                    (eprintf "midpoint taylor error at ~a: ~a\n" c (exn-message e)))])
+         (define f (λ (x) `(+ ,x ,c)))
+         (define finv (λ (x) `(- ,x ,c)))
+         (define mid-coeffs
+           (taylor-coefficients spec-batch spec-brfs* (list var) (list (list c f finv))))
+         (define genexprs (approximate (car mid-coeffs) spec-batch var #:transform (cons f finv)))
+         (for ([genexpr (in-list genexprs)]
+               [spec-brf (in-list spec-brfs)]
+               [repr (in-list reprs)]
+               [altn (in-list altns)]
+               [fv (in-list free-vars)]
+               #:when (set-member? fv var))
+           (for ([i (in-range (*taylor-order-limit*))])
+             (define gen (approx spec-brf (hole (representation-name repr) (copier (genexpr)))))
+             (define brf (batch-add! global-batch gen))
+             (sow (alt brf `(taylor ,c ,var) (list altn))))))
+       (timeline-stop!)))))
 
 (define (run-taylor altns global-batch spec-batch reducer)
   (timeline-event! 'series)
