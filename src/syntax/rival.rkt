@@ -20,7 +20,7 @@
          "../syntax/batch.rkt")
 
 (define (use-rival3?)
-  (flag-set? 'setup 'rival3))
+  (not (flag-set? 'setup 'rival2)))
 
 (define-syntax-rule (define/rival (name args ...) r2-impl r3-impl)
   (define (name args ...)
@@ -37,9 +37,15 @@
 
 (define (repr->disc-type repr)
   (cond
+    [(eq? repr <bool>) 'bool]
     [(eq? repr <binary32>) 'f32]
     [(eq? repr <binary64>) 'f64]
     [else (error 'repr->disc-type "unsupported repr ~a" (representation-name repr))]))
+
+(define (repr->disc-convert repr)
+  (if (eq? repr <bool>)
+      (r3:discretization-convert r3:boolean-discretization)
+      (representation-bf->repr repr)))
 
 (define (make-discretizations reprs)
   (if (use-rival3?)
@@ -47,7 +53,7 @@
       (let ([target (apply max (map representation-total-bits reprs))])
         (cons (struct-copy r3:discretization r3:boolean-discretization [target target])
               (for/list ([repr (in-list reprs)])
-                (r3:discretization (repr->disc-type repr) target (representation-bf->repr repr)))))
+                (r3:discretization (repr->disc-type repr) target (repr->disc-convert repr)))))
       (cons r2:boolean-discretization
             (for/list ([repr (in-list reprs)])
               (define ulps (repr-ulps repr))

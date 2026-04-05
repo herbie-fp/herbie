@@ -22,8 +22,8 @@ if [[ "$BRANCH" == egglog-* ]]; then
   set -- "$@" --enable generate:egglog
 fi
 
-if [[ "$BRANCH" == rival3-* || "$BRANCH" == "rival3" ]]; then
-    set -- "$@" --enable setup:rival3
+if [[ "$BRANCH" == rival2-* || "$BRANCH" == "rival2" ]]; then
+  set -- "$@" --enable setup:rival2
 fi
 
 mkdir -p "$REPORTDIR"

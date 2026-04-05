@@ -329,7 +329,9 @@
            (cons k v)))
        (if (null? new-prop-dict)
            body*
-           `(! ,@(dict->props new-prop-dict) ,body*))]
+           `(! ,@(append* (for/list ([(k v) (in-list new-prop-dict)])
+                            (list k v)))
+               ,body*))]
       [(list op args ...) ; operator application
        (define args* (map (lambda (e) (loop e prop-dict)) args))
        `(,op ,@args*)])))

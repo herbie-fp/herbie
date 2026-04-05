@@ -26,7 +26,8 @@
          egraph-prove
          egraph-best
          egraph-variations
-         egraph-analyze-rewrite-impact)
+         egraph-analyze-rewrite-impact
+         egraph-rule-counts)
 
 (module+ test
   (require rackunit))
@@ -392,6 +393,12 @@
 
 ;; egg rule cache: rule -> FFI-rule
 (define/reset *egg-rule-cache* (make-hasheq))
+(define/reset *egraph-rule-counts* (make-hasheq))
+
+(define (egraph-rule-counts)
+  (for/hash ([rule (in-list (*rules*))])
+    (define name (rule-name rule))
+    (values name (hash-ref (*egraph-rule-counts*) name 0))))
 
 ;; Expand and convert the rules for egg.
 ;; Uses a cache to only expand each rule once.
@@ -1087,6 +1094,14 @@
   ;; run the rules
   (define egg-graph (egraph_copy egg-graph0))
   (define iteration-data (egraph-run egg-graph egg-rules node-limit iter-limit scheduler))
+
+  (unless iter-limit
+    (for ([rule (in-list (*rules*))]
+          [ffi-rule (in-list egg-rules)])
+      (hash-update! (*egraph-rule-counts*)
+                    (rule-name rule)
+                    (curryr + (egraph_get_times_applied egg-graph (FFIRule-name ffi-rule)))
+                    0)))
 
   (when (egraph_is_unsound_detected egg-graph)
     (warn 'unsound-egraph #:url "faq.html#unsound-egraph" "unsoundness detected in the egraph"))

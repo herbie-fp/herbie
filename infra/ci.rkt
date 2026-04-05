@@ -102,6 +102,7 @@
                 (when given-seed
                   (set-seed! given-seed))]
    [("--egglog") "Switch to the egglog backend" (enable-flag! 'generate 'egglog)]
+   [("--rival2") "Switch to the Rival 2 backend" (enable-flag! 'setup 'rival2)]
    [("--platform") platform "Which platform to use for tests" (*platform-name* platform)]
    [("--precision") prec "Which precision to use for tests" (*precision* (string->symbol prec))]
    [("--num-iters")

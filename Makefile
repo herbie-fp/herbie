@@ -7,7 +7,7 @@ ifeq ($(UNAME_S), Darwin)
     LIB_FLAGS := -dynamiclib
 endif
 
-.PHONY: help install egg-herbie nightly index start-server deploy compile-accelerators
+.PHONY: help install egg-herbie nightly index start-server deploy coverage compile-accelerators
 
 help:
 	@echo "Type 'make install' to install Herbie"
@@ -69,6 +69,9 @@ start-server:
 
 fmt:
 	@raco fmt -i $(shell find egg-herbie/ src/ infra/ -name '*.rkt' -not -path 'src/platforms/*.rkt' -not -path "infra/softposit.rkt")
+
+coverage:
+	@racket infra/coverage.rkt --benchmark $(or $(BENCH),bench/hamming) $(ARGS)
 
 herbie.zip herbie.zip.CHECKSUM:
 	raco pkg create src/
