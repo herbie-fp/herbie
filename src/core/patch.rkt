@@ -86,12 +86,10 @@
        (set! idx (add1 idx))
        (timeline-stop!))
 
-     ;; Midpoint Taylor expansions
      (for* ([var (in-list vars)]
             [c (in-list (hash-ref (*midpoint-transforms*) var '()))])
        (define timeline-stop! (timeline-start! 'series (~a var) (~a c)))
-       (with-handlers ([exn:fail? (λ (e)
-                                    (eprintf "midpoint taylor error at ~a: ~a\n" c (exn-message e)))])
+       (with-handlers ([exn:fail? (λ (e) (void))])
          (define f (λ (x) `(+ ,x ,c)))
          (define finv (λ (x) `(- ,x ,c)))
          (define mid-coeffs
