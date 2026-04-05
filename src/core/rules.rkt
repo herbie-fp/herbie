@@ -623,6 +623,26 @@
   [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh (fabs x)))]
   [acosh-2-rev (* 2 (acosh x)) (acosh (- (* 2 (* x x)) 1))])
 
+(define-rules arithmetic
+  [rem-self (remainder x x) 0]
+  [rem-zero (remainder 0 x) 0]
+  [rem-idempotent (remainder (remainder x y) y) (remainder x y)]
+  
+  [rem-add-rgt (remainder (+ x y) y) (remainder x y)]
+  [rem-add-lft (remainder (+ y x) y) (remainder x y)]
+  [rem-sub-rgt (remainder (- x y) y) (remainder x y)]
+  [rem-mul-rgt (remainder (* x y) y) 0]
+  [rem-mul-lft (remainder (* y x) y) 0]
+  
+  [rem-dist-add-lft (remainder (+ (remainder x z) y) z) (remainder (+ x y) z)]
+  [rem-dist-add-rgt (remainder (+ x (remainder y z)) z) (remainder (+ x y) z)]
+  
+  [rem-dist-mul-lft (remainder (* (remainder x z) y) z) (remainder (* x y) z)]
+  [rem-dist-mul-rgt (remainder (* x (remainder y z)) z) (remainder (* x y) z)]
+  
+  [rem-neg (remainder (neg x) y) (neg (remainder x y))]
+  [rem-neg-rev (neg (remainder x y)) (remainder (neg x) y)])
+
 ; Sound-X removal rules: run these before lowering
 (define (*sound-removal-rules*)
   (list (rule 'remove-sound-/ '(sound-/ a b fallback) '(/ a b) '(sound-removal))
