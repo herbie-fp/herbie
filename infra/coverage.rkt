@@ -403,7 +403,7 @@
        (path->coverage-key (file-summary-path summary))))
    (when effective-html-dir
      (cond
-       [run-rackunit? (printf "Skipping HTML output for merged benchmark+RackUnit coverage.\n")]
+       [run-rackunit? (displayln "Skipping HTML output for merged benchmark+RackUnit coverage.")]
        [else
         (make-directory* effective-html-dir)
         (generate-html-coverage benchmark-coverage relevant-files effective-html-dir)]))
