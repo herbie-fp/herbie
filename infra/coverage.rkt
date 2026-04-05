@@ -402,11 +402,11 @@
                 #:when (positive? (file-summary-relevant-chars summary)))
        (path->coverage-key (file-summary-path summary))))
    (when effective-html-dir
-     (if run-rackunit?
-         (printf "Skipping HTML output for merged benchmark+RackUnit coverage.\n")
-         (begin
-           (make-directory* effective-html-dir)
-           (generate-html-coverage benchmark-coverage relevant-files effective-html-dir))))
+     (cond
+       [run-rackunit? (printf "Skipping HTML output for merged benchmark+RackUnit coverage.\n")]
+       [else
+        (make-directory* effective-html-dir)
+        (generate-html-coverage benchmark-coverage relevant-files effective-html-dir)]))
    (define report-path
      (write-detailed-report effective-run-label output-root run-rackunit? summaries coverages))
    (printf "Detailed report: ~a\n" report-path)
