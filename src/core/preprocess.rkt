@@ -30,6 +30,17 @@
   (and (get-fpcore-impl '* (repr->prop repr) (list repr repr))
        (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr))))
 
+(define (has-periodic-impl? repr)
+  (and (get-fpcore-impl 'remainder (repr->prop repr) (list repr repr))
+       (get-fpcore-impl '* (repr->prop repr) (list repr repr))
+       (get-fpcore-impl 'PI (repr->prop repr) '())))
+
+(define (make-periodic-identities spec ctx)
+  (for/list ([var (in-list (context-vars ctx))]
+             [repr (in-list (context-var-reprs ctx))]
+             #:when (has-periodic-impl? repr))
+    (cons `(periodic ,var) (replace-expression spec var `(remainder ,var (* 2 (PI)))))))
+
 ;; The even identities: f(x) = f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
 (define (make-even-identities spec ctx)
@@ -64,8 +75,8 @@
   (define identities
     (append (make-even-identities spec ctx)
             (make-odd-identities spec ctx)
-            (make-sort-identities spec ctx)))
-
+            (make-sort-identities spec ctx)
+            (make-periodic-identities spec ctx)))
   ;; make egg runner
   (define-values (batch brfs) (progs->batch (cons spec (map cdr identities))))
   (define runner (make-egraph batch brfs (make-list (length brfs) (context-repr ctx)) '(rewrite) ctx))
@@ -101,6 +112,13 @@
   (define variables (context-vars context))
   (define sort* (curryr sort (curryr </total (context-repr context))))
   (match instruction
+    [(list 'periodic variable)
+     (define index (index-of variables variable))
+     (define var-repr (context-lookup context variable))
+     (define remainder
+       (impl-info (get-fpcore-impl 'remainder (repr->prop var-repr) (list var-repr var-repr)) 'fl))
+     (define twopi ((representation-bf->repr var-repr) (bf* 2.bf pi.bf)))
+     (lambda (x y) (values (vector-update x index (lambda (val) (remainder val twopi))) y))]
     [(list 'sort a b)
      (define indices (indexes-where variables (curry set-member? (list a b))))
      (define repr (context-lookup context a))
@@ -155,6 +173,14 @@
 (define (compile-preprocessing expression context preprocessing)
   (match preprocessing
     ; Not handled yet
+    [(list 'periodic var)
+     (define repr (context-lookup context var))
+     (define remainder (get-fpcore-impl 'remainder (repr->prop repr) (list repr repr)))
+     (define mul (get-fpcore-impl '* (repr->prop repr) (list repr repr)))
+     (define pi* (get-fpcore-impl 'PI (repr->prop repr) '()))
+     (define twopi (list mul (literal 2 (representation-name repr)) (list pi*)))
+     (define replacement (list remainder var twopi))
+     (replace-expression expression var replacement)]
     [(list 'sort a b)
      (define repr (context-lookup context a))
      (define fmin (get-fpcore-impl 'fmin (repr->prop repr) (list repr repr)))
