@@ -113,10 +113,10 @@
     [(list 'periodic variable)
      (define index (index-of variables variable))
      (define var-repr (context-lookup context variable))
-     (define remainder
-       (impl-info (get-fpcore-impl 'remainder (repr->prop var-repr) (list var-repr var-repr)) 'fl))
+     (define remainder (impl-info (get-fpcore-impl 'remainder (repr->prop var-repr) (list var-repr var-repr)) 'fl))
+     (define rem2pi (impl-info (get-fpcore-impl 'rem2pi (repr->prop var-repr) (list var-repr)) 'fl))
      (define twopi ((representation-bf->repr var-repr) (bf* 2.bf pi.bf)))
-     (lambda (x y) (values (vector-update x index (lambda (val) (remainder val twopi))) y))]
+     (lambda (x y) (values (vector-update x index (lambda (val) (rem2pi val))) y))]
     [(list 'sort a b)
      (define indices (indexes-where variables (curry set-member? (list a b))))
      (define repr (context-lookup context a))
@@ -177,7 +177,8 @@
      (define mul (get-fpcore-impl '* (repr->prop repr) (list repr repr)))
      (define pi* (get-fpcore-impl 'PI (repr->prop repr) '()))
      (define twopi (list mul (literal 2 (representation-name repr)) (list pi*)))
-     (define replacement (list remainder var twopi))
+     (define rem2pi (get-fpcore-impl 'rem2pi (repr->prop repr) (list repr)))
+     (define replacement (list rem2pi var))
      (replace-expression expression var replacement)]
     [(list 'sort a b)
      (define repr (context-lookup context a))
