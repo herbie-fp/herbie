@@ -635,14 +635,9 @@
   [rem-add-rgt (remainder (+ x y) y) (remainder x y)]
   [rem-add-lft (remainder (+ y x) y) (remainder x y)]
   [rem-sub-rgt (remainder (- x y) y) (remainder x y)]
-  [rem-mul-rgt (remainder (* x y) y) 0]
-  [rem-mul-lft (remainder (* y x) y) 0]
 
   [rem-dist-add-lft (remainder (+ (remainder x z) y) z) (remainder (+ x y) z)]
   [rem-dist-add-rgt (remainder (+ x (remainder y z)) z) (remainder (+ x y) z)]
-
-  [rem-dist-mul-lft (remainder (* (remainder x z) y) z) (remainder (* x y) z)]
-  [rem-dist-mul-rgt (remainder (* x (remainder y z)) z) (remainder (* x y) z)]
 
   [rem-neg (remainder (neg x) y) (neg (remainder x y))]
   [rem-neg-rev (neg (remainder x y)) (remainder (neg x) y)])
