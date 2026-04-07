@@ -10,8 +10,7 @@
          "../syntax/batch.rkt"
          "egg-herbie.rkt"
          "points.rkt"
-         "programs.rkt"
-         "rules.rkt")
+         "programs.rkt")
 
 (provide find-preprocessing
          preprocess-pcontext
@@ -31,7 +30,7 @@
        (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr))))
 
 (define (has-periodic-impl? repr)
-  (and (get-fpcore-impl 'remainder (repr->prop repr) (list repr repr))
+  (and (get-fpcore-impl '+ (repr->prop repr) (list repr repr))
        (get-fpcore-impl '* (repr->prop repr) (list repr repr))
        (get-fpcore-impl 'PI (repr->prop repr) '())))
 
@@ -39,7 +38,7 @@
   (for/list ([var (in-list (context-vars ctx))]
              [repr (in-list (context-var-reprs ctx))]
              #:when (has-periodic-impl? repr))
-    (cons `(periodic ,var) (replace-expression spec var `(remainder ,var (* 2 (PI)))))))
+    (cons `(periodic ,var) (replace-expression spec var `(+ ,var (* 2 (PI)))))))
 
 ;; The even identities: f(x) = f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
@@ -80,7 +79,6 @@
   ;; make egg runner
   (define-values (batch brfs) (progs->batch (cons spec (map cdr identities))))
   (define runner (make-egraph batch brfs (make-list (length brfs) (context-repr ctx)) '(rewrite) ctx))
-
   ;; collect equalities
   (for/list ([(ident spec*) (in-dict identities)]
              #:when (egraph-equal? runner spec spec*))

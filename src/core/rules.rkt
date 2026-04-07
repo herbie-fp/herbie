@@ -525,6 +525,10 @@
   [sin-rem2pi (sin x) (sin (remainder x (* 2 (PI))))]
   [cos-rem2pi (cos x) (cos (remainder x (* 2 (PI))))]
   [tan-rempi (tan x) (tan (remainder x (PI)))]
+  [rev-sin-rem2pi (sin (remainder x (* 2 (PI)))) (sin x)]
+  [rev-cos-rem2pi (cos (remainder x (* 2 (PI)))) (cos x)]
+  [rev-tan-rempi (tan (remainder x (PI))) (tan x)]    
+  [tan-rem2pi (tan x) (tan (remainder x (* 2 (PI))))]
   [csc-rem2pi (csc x) (csc (remainder x (* 2 (PI))))]
   [sec-rem2pi (sec x) (sec (remainder x (* 2 (PI))))]
   [cot-rempi (cot x) (cot (remainder x (PI)))])
