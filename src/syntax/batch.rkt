@@ -7,6 +7,7 @@
 (provide progs->batch ; List<Expr> -> (Batch, List<Batchref>)
 
          expr-recurse
+         expr-recurse-impl
          (struct-out batch)
          batch-empty ; Batch
          batch-push!
@@ -53,6 +54,11 @@
     [(list op arg1 arg2 arg3) (list op (f arg1) (f arg2) (f arg3))]
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
+
+(define (expr-recurse-impl expr f)
+  (match expr
+    [(approx _ impl) (f impl)]
+    [_ (expr-recurse expr f)]))
 
 (define (batch-length b)
   (dvector-length (batch-nodes b)))

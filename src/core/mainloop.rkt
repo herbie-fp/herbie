@@ -129,11 +129,6 @@
 (define (set-intersect-size keys set)
   (for/sum ([key (in-list keys)] #:when (set-member? set key)) 1))
 
-(define (expr-recurse-impl expr f)
-  (match expr
-    [(approx _ impl) (f impl)]
-    [_ (expr-recurse expr f)]))
-
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! starting-alts new-alts)
   (timeline-event! 'reconstruct)
@@ -285,14 +280,12 @@
      (for/list ([opt (in-list opts)])
        (match-define (option splitindices opt-alts _ brf) opt)
        (timeline-event! 'bsearch)
-       (define exprs (batch-exprs batch))
-       (define branch-expr (exprs brf))
        (define use-binary?
          (and (flag-set? 'reduce 'binary-search)
               (> (length splitindices) 1)
-              (critical-subexpression? (exprs start-prog) branch-expr)
+              (critical-subexpression? batch start-prog brf (context-vars ctx))
               (for/and ([alt (in-list opt-alts)])
-                (critical-subexpression? (exprs (alt-expr alt)) branch-expr))))
+                (critical-subexpression? batch (alt-expr alt) brf (context-vars ctx)))))
        (cond
          [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
          [use-binary? (combine-alts/binary batch opt start-prog ctx (*pcontext*))]
