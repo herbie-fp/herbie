@@ -33,7 +33,7 @@
   (and (get-fpcore-impl '+ (repr->prop repr) (list repr repr))
        (get-fpcore-impl '* (repr->prop repr) (list repr repr))
        (get-fpcore-impl 'PI (repr->prop repr) '())
-       (get-fpcore-impl 'remp2i (repr->prop repr) (list repr))))
+       (get-fpcore-impl 'rem2pi (repr->prop repr) (list repr))))
 
 (define (make-periodic-identities spec ctx)
   (for/list ([var (in-list (context-vars ctx))]
@@ -114,9 +114,7 @@
     [(list 'periodic variable)
      (define index (index-of variables variable))
      (define var-repr (context-lookup context variable))
-     (define remainder (impl-info (get-fpcore-impl 'remainder (repr->prop var-repr) (list var-repr var-repr)) 'fl))
      (define rem2pi (impl-info (get-fpcore-impl 'rem2pi (repr->prop var-repr) (list var-repr)) 'fl))
-     (define twopi ((representation-bf->repr var-repr) (bf* 2.bf pi.bf)))
      (lambda (x y) (values (vector-update x index (lambda (val) (rem2pi val))) y))]
     [(list 'sort a b)
      (define indices (indexes-where variables (curry set-member? (list a b))))
