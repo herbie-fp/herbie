@@ -32,7 +32,8 @@
 (define (has-periodic-impl? repr)
   (and (get-fpcore-impl '+ (repr->prop repr) (list repr repr))
        (get-fpcore-impl '* (repr->prop repr) (list repr repr))
-       (get-fpcore-impl 'PI (repr->prop repr) '())))
+       (get-fpcore-impl 'PI (repr->prop repr) '())
+       (get-fpcore-impl 'remp2i (repr->prop repr) (list repr))))
 
 (define (make-periodic-identities spec ctx)
   (for/list ([var (in-list (context-vars ctx))]
