@@ -27,8 +27,8 @@
         [ninvert-x (λ (x) `(/ 1 (neg ,x)))])
     `((0 ,identity ,identity) (inf ,invert-x ,invert-x)
                               (-inf ,ninvert-x ,ninvert-x)
-                              #; (exp ,exp-x ,log-x)
-                              #; (log ,log-x ,exp-x))))
+                              #;(exp ,exp-x ,log-x)
+                              #;(log ,log-x ,exp-x))))
 
 (define (taylor-alts altns global-batch spec-batch reducer)
   (define vars

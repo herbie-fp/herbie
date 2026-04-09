@@ -184,8 +184,11 @@
                 (if identifier
                     (symbol->string identifier)
                     "code"))
-              (define out (converter out-prog* name))
-              (sow (cons lang out))))))
+              (define out
+                (with-handlers ([exn:fail? (const #f)])
+                  (converter out-prog* name)))
+              (when out
+                (sow (cons lang out)))))))
 
   (define math-out (dict-ref versions "TeX" ""))
 
