@@ -110,7 +110,7 @@
   (get-test-coverage env))
 
 (define (run-rackunit-coverages source-files test-files)
-  (printf "Running RackUnit tests...\n")
+  (displayln "Running RackUnit tests...")
   (flush-output)
   (for/fold ([coverages '()]
              #:result (reverse coverages))
@@ -280,7 +280,7 @@
           covered-chars
           relevant-chars
           (~r (percent covered-chars relevant-chars) #:precision '(= 2)))
-  (printf "  most uncovered files:\n")
+  (displayln "  most uncovered files:")
   (for ([summary (in-list (take (sort relevant-summaries
                                       >
                                       #:key (lambda (s)
