@@ -37,8 +37,6 @@
 (define (real->bigrat val)
   `(bigrat (from-string ,(~s (numerator val))) (from-string ,(~s (denominator val)))))
 
-(define i64-max (sub1 (arithmetic-shift 1 63)))
-
 ; Types handled
 ; - rationals
 ; - string
@@ -215,8 +213,6 @@
       )
     (let $1 ,(real->bigrat 1)
       )
-    (let $i64-max ,(real->bigrat i64-max)
-      )
     (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
     (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
     (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
@@ -229,7 +225,7 @@
     ;; x^0 where x != 0
     (rule ((= e (Pow (Num x) (Num y))) (= $0 y) (!= $0 x)) ((union e (Num $1))) :ruleset const-fold)
     ;; x^y when y is a whole number and y > 0 and x != 0
-    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (= y (round y)) (<= y $i64-max))
+    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (= y (round y)) (<= y 16))
           ((union e (Num (pow x y))))
           :ruleset
           const-fold)
