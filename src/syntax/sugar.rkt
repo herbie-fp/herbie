@@ -64,7 +64,8 @@
          "syntax.rkt"
          "types.rkt")
 
-(provide fpcore->prog
+(provide fpcore->spec
+         fpcore->prog
          prog->fpcore)
 
 ;; Local copies to avoid depending on core/programs.rkt.
@@ -160,6 +161,22 @@
       [(? symbol?) (dict-ref env expr expr)]
       ; other
       [_ expr])))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; FPCore -> LSpec
+
+(define (fpcore->spec prog)
+  (let loop ([expr (expand-expr prog)])
+    (match expr
+      [(? number?)
+       (match expr
+         [(or +inf.0 -inf.0 +nan.0) expr]
+         [(? exact?) expr]
+         [_ (inexact->exact expr)])]
+      [(? symbol?) expr]
+      [(list '! _ ... body) (loop body)]
+      [(list 'cast arg) (loop arg)]
+      [(list op args ...) `(,op ,@(map loop args))])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FPCore -> LImpl
