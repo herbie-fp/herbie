@@ -246,7 +246,12 @@
   (match x
     [(literal -inf.0 _) '(- INFINITY)]
     [(literal +inf.0 _) 'INFINITY]
-    [(literal v (or 'binary64 'binary32)) (exact->inexact v)]
+    [(literal v (or 'binary64 'binary32))
+     (define v* (exact->inexact v))
+     (cond
+       [(equal? v* +inf.0) 'INFINITY]
+       [(equal? v* -inf.0) '(- INFINITY)]
+       [else v*])]
     [(literal v _) v]))
 
 ;; Step 1.

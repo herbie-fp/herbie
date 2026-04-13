@@ -179,21 +179,21 @@
   (egglog-send subproc `(datatype M ,@(platform-spec-nodes)))
 
   (egglog-send
-    subproc
-    `(datatype MTy
-               ,@(num-typed-nodes pform)
-               ,@(var-typed-nodes pform)
-               (Approx M MTy)
-               ,@(platform-impl-nodes pform))
-    `(constructor do-lower (M String) MTy :unextractable)
-    `(constructor do-lift (MTy) M :unextractable)
-    `(ruleset lower)
-    `(ruleset lift)
-    `(ruleset unsound)
-    `(function bad-merge? () bool :merge (or old new))
-    `(ruleset bad-merge-rule)
-    `(set (bad-merge?) false)
-    `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule))
+   subproc
+   `(datatype MTy
+              ,@(num-typed-nodes pform)
+              ,@(var-typed-nodes pform)
+              (Approx M MTy)
+              ,@(platform-impl-nodes pform))
+   `(constructor do-lower (M String) MTy :unextractable)
+   `(constructor do-lift (MTy) M :unextractable)
+   `(ruleset lower)
+   `(ruleset lift)
+   `(ruleset unsound)
+   `(function bad-merge? () bool :merge (or old new))
+   `(ruleset bad-merge-rule)
+   `(set (bad-merge?) false)
+   `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule))
 
   (void))
 
@@ -316,8 +316,8 @@
                     (do-lower ,v ,(symbol->string (representation-name vt))))))
            ((union (do-lower e ,(symbol->string (representation-name (impl-info impl 'otype))))
                    (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
-                     ,@(for/list ([v (in-list (impl-info impl 'vars))])
-                         (string->symbol (string-append "t" (symbol->string v)))))))
+                    ,@(for/list ([v (in-list (impl-info impl 'vars))])
+                        (string->symbol (string-append "t" (symbol->string v)))))))
            :ruleset
            lower)))
 
@@ -326,7 +326,7 @@
     (define spec-expr (impl-info impl 'spec))
     `(rule ((= e
                (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
-                 ,@(impl-info impl 'vars)))
+                ,@(impl-info impl 'vars)))
             ,@(for/list ([v (in-list (impl-info impl 'vars))]
                          [vt (in-list (impl-info impl 'itype))])
                 `(= ,(string->symbol (string-append "s" (symbol->string v))) (do-lift ,v))))
@@ -349,7 +349,7 @@
        `(,(if (hash-has-key? (id->e1) op)
               (serialize-spec-op op (length args))
               (hash-ref (id->e2) op))
-          ,@(map loop args))])))
+         ,@(map loop args))])))
 
 (define (serialize-op op)
   (if (hash-has-key? op-string-names op)
@@ -409,22 +409,22 @@
   ;; Batchref -> Boolean
   (define spec?
     (batch-recurse
-      batch
-      (lambda (brf recurse)
-        (define node (deref brf))
-        (match node
-          [(? literal?) #f] ;; If literal, not a spec
-          [(? number?) #t] ;; If number, it's a spec
-          [(? symbol?)
-           #f] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
-          [(hole _ _) #f] ;; If hole, not a spec
-          [(approx _ _) #f] ;; If approx, not a spec
-          [`(if ,cond ,ift ,iff)
-           (recurse cond)] ;; If the condition or any branch is a spec, then this is a spec
-          [(list appl args ...)
-           (if (hash-has-key? (id->e1) appl)
-               #t ;; appl with op -> Is a spec
-               #f)])))) ;; appl impl -> Not a spec
+     batch
+     (lambda (brf recurse)
+       (define node (deref brf))
+       (match node
+         [(? literal?) #f] ;; If literal, not a spec
+         [(? number?) #t] ;; If number, it's a spec
+         [(? symbol?)
+          #f] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
+         [(hole _ _) #f] ;; If hole, not a spec
+         [(approx _ _) #f] ;; If approx, not a spec
+         [`(if ,cond ,ift ,iff)
+          (recurse cond)] ;; If the condition or any branch is a spec, then this is a spec
+         [(list appl args ...)
+          (if (hash-has-key? (id->e1) appl)
+              #t ;; appl with op -> Is a spec
+              #f)])))) ;; appl impl -> Not a spec
 
   (for ([brf (in-list brfs)])
     (vector-set! root-mask (batchref-idx brf) #t))
@@ -442,8 +442,8 @@
                           (id->e1)
                           (id->e2))
                       impl)
-            ,@(for/list ([arg (in-list args)])
-                (remap arg (spec? (batchref batch n)))))]
+           ,@(for/list ([arg (in-list args)])
+               (remap arg (spec? (batchref batch n)))))]
 
         [(hole ty spec) `(do-lower ,(remap spec #t) ,(symbol->string ty))]))
 
@@ -577,11 +577,11 @@
 
   (egglog-send subproc
                `(run-schedule
-                  (let-scheduler bo (back-off))
-                  (repeat ,iter-limit
-                          (seq (run-with bo ,tag :until (<= ,node-limit (get-size!)))
-                               (run-with bo const-fold :until (<= ,node-limit (get-size!)))
-                               (run bad-merge-rule :until (bad-merge?))))))
+                 (let-scheduler bo (back-off))
+                 (repeat ,iter-limit
+                         (seq (run-with bo ,tag :until (<= ,node-limit (get-size!)))
+                              (run-with bo const-fold :until (<= ,node-limit (get-size!)))
+                              (run bad-merge-rule :until (bad-merge?))))))
   (void))
 
 (define (egglog-num? id)
