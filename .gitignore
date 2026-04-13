@@ -34,3 +34,7 @@ herbie-compiled/
 .worktrees
 
 .vscode
+
+optest/
+optesteml/
+sintest/
