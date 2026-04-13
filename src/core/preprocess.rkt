@@ -68,9 +68,7 @@
     (cons `(sort ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
-(define (find-preprocessing expr ctx)
-  (define spec (prog->spec expr))
-
+(define (find-preprocessing spec ctx)
   ;; identities
   (define identities
     (append (make-even-identities spec ctx)
