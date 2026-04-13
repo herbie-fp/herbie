@@ -12,7 +12,8 @@
          "../syntax/rival.rkt")
 
 (provide batch-prepare-points
-         sample-points)
+         sample-points
+         precondition->domain-bounds)
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
 
@@ -194,3 +195,21 @@
           (~r (/ (- total (hash-ref table2 'infinite)) total 0.01) #:precision '(= 1))))
   (timeline-push! 'bogosity (combine-tables table table2))
   results)
+
+;; Extract finite domain bounds for each real variable from the precondition
+(define (precondition->domain-bounds pre vars var-reprs)
+  (with-handlers ([exn:fail? (const (hash))])
+    (define hyperrects (precondition->hyperrects pre vars var-reprs))
+    (for/hash ([var (in-vector vars)]
+               [idx (in-naturals)]
+               [repr (in-vector var-reprs)]
+               #:when (equal? (representation-type repr) 'real))
+      (define lo
+        (for/fold ([lo +inf.0]) ([rect (in-list hyperrects)])
+          (min lo (real->double-flonum
+                   ((representation-bf->repr repr) (ival-lo (list-ref rect idx)))))))
+      (define hi
+        (for/fold ([hi -inf.0]) ([rect (in-list hyperrects)])
+          (max hi (real->double-flonum
+                   ((representation-bf->repr repr) (ival-hi (list-ref rect idx)))))))
+      (values var (cons lo hi)))))

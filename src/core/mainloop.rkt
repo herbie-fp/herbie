@@ -20,7 +20,8 @@
          "batch-reduce.rkt")
 
 (provide run-improve!
-         sort-alts)
+         sort-alts
+         *regime-intervals*)
 
 ;; The Herbie main loop goes through a simple iterative process:
 ;;
@@ -36,15 +37,20 @@
 (define *start-brf* (make-parameter #f))
 (define *pcontext* (make-parameter #f))
 (define *preprocessing* (make-parameter '()))
+(define *domain-bounds* (make-parameter (hash)))
+(define *regime-intervals* (make-parameter (hash)))
 
 (define *global-batch* (make-parameter #f))
+
+(define (finite-real? x)
+  (and (real? x) (not (nan? x)) (not (infinite? x))))
 
 ;; These high-level functions give the high-level workflow of Herbie:
 ;; - Initial steps: explain, preprocessing, initialize the alt table
 ;; - the loop: choose some alts, localize, run the patch table, and finalize
 ;; - Final steps: regimes, derivations, and remove preprocessing
 
-(define (run-improve! initial specification context pcontext)
+(define (run-improve! initial specification context pcontext [domain-bounds (hash)])
   (timeline-event! 'preprocess)
   (define preprocessing
     (if (flag-set? 'setup 'preprocess)
@@ -53,8 +59,10 @@
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
+  (*domain-bounds* domain-bounds)
 
-  (parameterize ([*global-batch* (batch-empty)])
+  (parameterize ([*global-batch* (batch-empty)]
+                 [*regime-intervals* (hash)])
     (define global-spec-batch (batch-empty))
     (define spec-reducer (batch-reduce global-spec-batch))
 
@@ -66,7 +74,9 @@
 
     (for ([_ (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
-      (run-iteration! global-spec-batch spec-reducer))
+      (run-iteration! global-spec-batch spec-reducer)
+      (*regime-intervals* (compute-regime-intervals))
+      (eprintf "[regimes] ~a\n" (*regime-intervals*)))
     (define alternatives (extract!))
     (timeline-event! 'preprocess)
     (for/list ([altn alternatives])
@@ -83,6 +93,90 @@
 
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   (map car (sort-alts unbatched-alts)))
+
+(define (compute-regime-intervals)
+  (define ctx (*context*))
+  (define repr (context-repr ctx))
+  (define batch (*global-batch*))
+  (define alts (atab-active-alts (^table^)))
+  (cond
+    [(and (flag-set? 'reduce 'regimes)
+          (> (length alts) 1)
+          (equal? (representation-type repr) 'real)
+          (not (null? (context-vars ctx))))
+     (parameterize ([*timeline-disabled* #t])
+       (define alt-costs (alt-batch-costs batch ctx))
+       (define opts
+         (pareto-regimes batch
+                         (sort alts < #:key (compose alt-costs alt-expr))
+                         (*start-brf*)
+                         ctx
+                         (*pcontext*)))
+
+       (define result (make-hash))
+       (define exprs (batch-exprs batch))
+       (define start-expr (exprs (*start-brf*)))
+
+       (for ([opt (in-list opts)])
+         (match-define (option splitindices opt-alts pts brf) opt)
+         (define fv ((batch-free-vars batch) brf))
+         (when (= (set-count fv) 1) ; Univariate
+           (define var (set-first fv))
+           (define branch-expr (exprs brf))
+           (define use-binary?
+             (and (flag-set? 'reduce 'binary-search)
+                  (> (length splitindices) 1)
+                  (critical-subexpression? start-expr branch-expr)
+                  (for/and ([alt (in-list opt-alts)])
+                    (critical-subexpression? (exprs (alt-expr alt)) branch-expr))))
+           (define spoints
+             (if use-binary?
+                 (sindices->spoints/binary batch
+                                           pts
+                                           brf
+                                           opt-alts
+                                           splitindices
+                                           (*start-brf*)
+                                           ctx
+                                           (*pcontext*))
+                 (sindices->spoints/left batch pts brf splitindices ctx)))
+
+           (define precond-bounds (hash-ref (*domain-bounds*) var #f))
+           (define eval-bexpr (compose (curryr vector-ref 0) (compile-batch batch (list brf) ctx)))
+           (define-values (outer-lo outer-hi)
+             (if precond-bounds
+                 (for/fold ([lo (car precond-bounds)]
+                            [hi (cdr precond-bounds)])
+                           ([instr (in-list (*preprocessing*))])
+                   (match instr
+                     [(list (or 'abs 'negabs) (== var))
+                      (values (if (<= lo 0.0 hi)
+                                  0.0
+                                  (min (abs lo) (abs hi)))
+                              (max (abs lo) (abs hi)))]
+                     [_ (values lo hi)]))
+                 (values (real->double-flonum (eval-bexpr (first pts)))
+                         (real->double-flonum (eval-bexpr (last pts))))))
+
+           (define boundaries
+             (append (if (finite-real? outer-lo)
+                         (list outer-lo)
+                         '())
+                     (map sp-point spoints)
+                     (if (finite-real? outer-hi)
+                         (list outer-hi)
+                         '())))
+           (define intervals
+             (for/list ([lo (in-list boundaries)]
+                        [hi (in-list (cdr boundaries))]
+                        #:when (< lo hi))
+               (cons lo hi)))
+           (unless (null? intervals)
+             (hash-update! result var (λ (old) (remove-duplicates (append intervals old))) '()))))
+
+       (for/hash ([(var ivals) (in-hash result)])
+         (values var (remove-duplicates ivals))))]
+    [else (hash)]))
 
 ;; The rest of the file is various helper / glue functions used by
 ;; Herbie. These often wrap other Herbie components, but add logging
@@ -259,7 +353,8 @@
   (define brfs (map alt-expr pending-alts))
   (define brfs* (batch-reachable (*global-batch*) brfs #:condition node-is-impl?))
 
-  (define results (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer))
+  (define results
+    (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer (*regime-intervals*)))
   (define patched (reconstruct! pending-alts results))
   (finalize-iter! pending-alts patched)
   (void))

@@ -22,7 +22,9 @@
 
 (provide combine-alts
          combine-alts/binary
-         regimes-pcontext-masks)
+         regimes-pcontext-masks
+         sindices->spoints/left
+         sindices->spoints/binary)
 
 (module+ test
   (require rackunit))

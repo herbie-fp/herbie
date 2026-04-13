@@ -13,7 +13,8 @@
          "programs.rkt"
          "rules.rkt"
          "../syntax/rival.rkt"
-         "taylor.rkt")
+         "taylor.rkt"
+         "sollya.rkt")
 
 (provide generate-candidates
          get-starting-expr)
@@ -82,7 +83,7 @@
             (set! idx (add1 idx))
             (timeline-stop!)))))
 
-(define (run-taylor altns global-batch spec-batch reducer)
+(define (run-taylor altns global-batch spec-batch reducer [regime-intervals (hash)])
   (timeline-event! 'series)
   (define (key x)
     (define expr (deref (alt-expr x)))
@@ -90,7 +91,9 @@
         (approx-impl expr)
         expr))
 
-  (define approxs (remove-duplicates (taylor-alts altns global-batch spec-batch reducer) #:key key))
+  (define taylor-approxs (taylor-alts altns global-batch spec-batch reducer))
+  (define minimax-approxs (sollya-minimax-alts altns global-batch regime-intervals))
+  (define approxs (remove-duplicates (append taylor-approxs minimax-approxs) #:key key))
   (define approxs* (remove-duplicates (run-lowering approxs global-batch) #:key key))
 
   (timeline-push! 'inputs (batch->jsexpr global-batch (map alt-expr altns)))
@@ -219,7 +222,7 @@
     [(list) (alt-expr altn)]
     [(list prev) (get-starting-expr prev)]))
 
-(define (generate-candidates batch brfs spec-batch reducer)
+(define (generate-candidates batch brfs spec-batch reducer [regime-intervals (hash)])
   ; Starting alternatives
   (define start-altns
     (for/list ([brf brfs])
@@ -233,7 +236,7 @@
   ; Series expand
   (define approximations
     (if (flag-set? 'generate 'taylor)
-        (run-taylor start-altns batch spec-batch reducer)
+        (run-taylor start-altns batch spec-batch reducer regime-intervals)
         '()))
 
   ; Recursive rewrite
