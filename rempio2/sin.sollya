@@ -1,0 +1,12 @@
+  prec = 200!;
+  I = [-pi; pi];
+  f = sin(x);
+
+  // Odd degree-21 minimax-style polynomial on [-pi, pi].
+  p = remez(f, [|1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21|], I);
+
+  print("Polynomial approximation:");
+  print(p);
+  print("Absolute supnorm error on [-pi, pi]:");
+  print(dirtyinfnorm(f - p, I));
+  quit;

@@ -87,6 +87,8 @@ random-file:
 compile-accelerators:
 	clang $(LIB_FLAGS) -O3 -o rempio2/rem2pi.$(LIB_EXT) \
 		rempio2/rem2pi.c \
+		rempio2/sin_minuspi_pi.c \
+		rempio2/eml.c \
 		rempio2/e_rem_pio2.c \
 		rempio2/k_rem_pio2.c \
 		-lm
