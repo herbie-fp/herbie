@@ -246,7 +246,12 @@
   (match x
     [(literal -inf.0 _) '(- INFINITY)]
     [(literal +inf.0 _) 'INFINITY]
-    [(literal v (or 'binary64 'binary32)) (exact->inexact v)]
+    [(literal v (or 'binary64 'binary32))
+     (define v* (exact->inexact v))
+     (cond
+       [(equal? v* +inf.0) 'INFINITY]
+       [(equal? v* -inf.0) '(- INFINITY)]
+       [else v*])]
     [(literal v _) v]))
 
 ;; Step 1.
@@ -323,15 +328,13 @@
       [(list '! props ... body) ; explicit rounding context
        (define prop-dict* (props->dict props))
        (define body* (loop body prop-dict*))
-       (define new-prop-dict
+       (define new-props
          (for/list ([(k v) (in-dict prop-dict*)]
                     #:unless (and (dict-has-key? prop-dict k) (equal? (dict-ref prop-dict k) v)))
-           (cons k v)))
-       (if (null? new-prop-dict)
+           (list k v)))
+       (if (null? new-props)
            body*
-           `(! ,@(append* (for/list ([(k v) (in-list new-prop-dict)])
-                            (list k v)))
-               ,body*))]
+           `(! ,@(append* new-props) ,body*))]
       [(list op args ...) ; operator application
        (define args* (map (lambda (e) (loop e prop-dict)) args))
        `(,op ,@args*)])))
