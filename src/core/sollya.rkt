@@ -14,6 +14,7 @@
          run-sollya-fpminimax)
 
 (define sollya-path (find-executable-path "sollya"))
+(define/reset sollya-fpminimax-cache (make-hash) (λ () (sollya-fpminimax-cache (make-hash))))
 
 (define (expr->sollya expr var)
   (define (recur e)
@@ -62,9 +63,9 @@
       [(list 'cbrt a)
        (define sa (recur a))
        (and sa (format "(~a)^(1/3)" sa))]
-    ;;;   [(list 'fabs a)
-    ;;;    (define sa (recur a))
-    ;;;    (and sa (format "abs(~a)" sa))]
+      ;;;   [(list 'fabs a)
+      ;;;    (define sa (recur a))
+      ;;;    (and sa (format "abs(~a)" sa))]
       [(list 'log2 a)
        (define sa (recur a))
        (and sa (format "(log(~a)/log(2))" sa))]
@@ -122,7 +123,7 @@
 (define (run-sollya-fpminimax sollya-expr degree lo hi var)
   (define script
     (format
-     "verbosity=0!;\ndisplay=decimal!;\np = fpminimax(~a, ~a, [|DD...|], [~a + 1e-50, ~a + 1e-50]);\nprint(p);\nquit;\n"
+     "verbosity=0!;\ndisplay=decimal!;\np = fpminimax(~a, ~a, [|D...|], [~a - 1e-5, ~a + 1e-5]);\nprint(p);\nquit;\n"
      sollya-expr
      degree
      (number->string (exact->inexact lo))
@@ -158,7 +159,7 @@
     [(list 'pow base (? exact-integer?)) (polynomial-expr? base var)]
     [_ #f]))
 
-(define (sollya-minimax-alts altns global-batch regime-intervals)
+(define (sollya-minimax-alts altns global-batch spec-batch reducer regime-intervals)
   (cond
     [(or (not sollya-path) (hash-empty? regime-intervals)) '()]
     [else
@@ -170,15 +171,15 @@
      (define brfs (map alt-expr altns))
      (define reprs (map (batch-reprs global-batch ctx) brfs))
      (define spec-brfs (batch-to-spec! global-batch brfs))
-     (define exprs-fn (batch-exprs global-batch))
      (define free-vars-fn (batch-free-vars global-batch))
-     (define sollya-cache (make-hash))
+     (define copier (batch-copy-only! spec-batch global-batch))
+     (define exprs-fn (batch-exprs spec-batch))
+    (define sollya-cache (sollya-fpminimax-cache))
 
      (reap [sow]
-           (define max-width 128)
+           (define max-width 128) ;; TODO: figure out how to make this better
            (for ([var (in-list vars)])
              (define intervals (hash-ref regime-intervals var '()))
-             (define seen-sollya (make-hash))
              (for ([interval (in-list intervals)])
                (match-define (cons lo hi) interval)
                (when (and (< lo hi) (<= (- hi lo) max-width))
@@ -187,21 +188,22 @@
                        [altn (in-list altns)]
                        #:when (not (array-representation? repr))
                        #:do [(define fv (free-vars-fn spec-brf))]
-                       #:when (and (= (set-count fv) 1) (set-member? fv var)) ; Univariate
-                       #:do [(define spec-expr (exprs-fn spec-brf))]
+                       #:when (and (= (set-count fv) 1) (set-member? fv var))
+                       #:do [(define spec-expr (exprs-fn (reducer (copier spec-brf))))]
                        #:when (pair? spec-expr)
-                       #:when (not (polynomial-expr? spec-expr var)) ; Filter out polynomials
+                       #:when (not (polynomial-expr? spec-expr var))
                        #:do [(define sollya-str (expr->sollya spec-expr var))]
-                       #:when sollya-str ; Check if the expression can be lowered to Sollya
-                       #:unless (hash-has-key? seen-sollya (cons sollya-str interval)))
-                   (hash-set! seen-sollya (cons sollya-str interval) #t)
-                   (eprintf "[minimax] expr=~a interval=[~a,~a]\n" spec-expr lo hi)
-                   (for ([degree (in-range 1 (add1 (* 2 (*taylor-order-limit*))))])
-                     (define key (list sollya-str degree lo hi))
+                       #:when sollya-str)
+                   ;; TODO: hacky workaround for even functions
+                   (for ([degree (in-range (*taylor-order-limit*))])
+                     (define key (list var sollya-str degree lo hi))
                      (define poly-expr
                        (hash-ref! sollya-cache
                                   key
-                                  (λ () (run-sollya-fpminimax sollya-str degree lo hi var))))
+                                  (λ ()
+                                    (when (= degree 1)
+                                      (eprintf "[minimax] expr=~a interval=[~a,~a]\n" spec-expr lo hi))
+                                    (run-sollya-fpminimax sollya-str degree lo hi var))))
                      (when poly-expr
                        (define poly-brf (batch-add! global-batch poly-expr))
                        (define gen (approx spec-brf (hole (representation-name repr) poly-brf)))
