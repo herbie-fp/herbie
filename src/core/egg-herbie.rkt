@@ -26,10 +26,14 @@
          egraph-prove
          egraph-best
          egraph-variations
+         egraph-unary
          egraph-analyze-rewrite-impact)
 
 (module+ test
-  (require rackunit))
+  (require rackunit
+           "../syntax/float.rkt"
+           "../syntax/load-platform.rkt")
+  (activate-platform! (*platform-name*)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FFI utils
@@ -259,9 +263,6 @@
   (egg-parsed->expr (flatten-let egg-expr) ctx (context-repr ctx)))
 
 (module+ test
-  (require "../syntax/float.rkt"
-           "../syntax/load-platform.rkt")
-  (activate-platform! (*platform-name*))
   (define ctx (context '(x y z) <binary64> (make-list 3 <binary64>)))
 
   (define test-exprs
@@ -309,6 +310,80 @@
     (for ([expr extended-expr-list])
       (define egg-expr (expr->egg-expr expr ctx))
       (check-equal? (egg-expr->expr egg-expr ctx) expr))))
+
+(module+ test
+  (define (check-domain-expr domain id expr)
+    (check-equal? (hash-ref domain id) expr))
+
+  (define (compute-domain-exprs expr vars queries)
+    (define ctx (context vars <binary64> (make-list (length vars) <binary64>)))
+    (define-values (batch brfs) (progs->batch (list expr)))
+    (define runner (make-egraph batch brfs (list <binary64>) '() ctx))
+    (define egg-graph (egg-runner-egg-graph runner))
+    (define regraph (make-regraph egg-graph ctx))
+    (define canon (regraph-canon regraph))
+    (define domain-exprs (analyze-eclass-domain-exprs regraph))
+    (define (query-type expr)
+      (if (spec-prog? expr) 'real <binary64>))
+
+    (define-values (sub-batch sub-brfs) (progs->batch (map cdr queries)))
+    (define egg-ids
+      (for/list ([brf (in-list sub-brfs)])
+        (egraph_find egg-graph (first (egraph-add-exprs egg-graph sub-batch (list brf) ctx)))))
+
+    (define typed-ids
+      (for/hash ([name+expr (in-list queries)]
+                 [egg-id (in-list egg-ids)])
+        (values (car name+expr) (hash-ref canon (cons egg-id (query-type (cdr name+expr)))))))
+
+    (values typed-ids domain-exprs))
+
+  (let-values ([(typed-ids domain-exprs)
+                (compute-domain-exprs '(log (+ (exp a) (exp b)))
+                                      '(a b)
+                                      (list (cons 'root '(log (+ (exp a) (exp b))))
+                                            (cons 'a 'a)
+                                            (cons 'b 'b)
+                                            (cons 'exp-a '(exp a))
+                                            (cons 'exp-b '(exp b))
+                                            (cons 'plus-ab '(+ (exp a) (exp b)))))])
+    (define root-id (hash-ref typed-ids 'root))
+    (define plus-id (hash-ref typed-ids 'plus-ab))
+    (define exp-a-id (hash-ref typed-ids 'exp-a))
+    (define exp-b-id (hash-ref typed-ids 'exp-b))
+    (define a-id (hash-ref typed-ids 'a))
+    (define b-id (hash-ref typed-ids 'b))
+
+    (check-equal? (vector-ref domain-exprs a-id) (hash a-id 'x))
+    (check-equal? (vector-ref domain-exprs b-id) (hash b-id 'x))
+    (check-domain-expr (vector-ref domain-exprs exp-a-id) exp-a-id 'x)
+    (check-domain-expr (vector-ref domain-exprs exp-a-id) a-id '(exp x))
+    (check-domain-expr (vector-ref domain-exprs exp-b-id) exp-b-id 'x)
+    (check-domain-expr (vector-ref domain-exprs exp-b-id) b-id '(exp x))
+    (check-domain-expr (vector-ref domain-exprs plus-id) plus-id 'x)
+    (check-false (hash-has-key? (vector-ref domain-exprs plus-id) a-id))
+    (check-false (hash-has-key? (vector-ref domain-exprs plus-id) b-id))
+    (check-domain-expr (vector-ref domain-exprs root-id) root-id 'x)
+    (check-domain-expr (vector-ref domain-exprs root-id) plus-id '(log x)))
+
+  (let-values ([(typed-ids domain-exprs)
+                (compute-domain-exprs
+                 '(+ (exp a) (exp a))
+                 '(a)
+                 (list (cons 'a 'a) (cons 'exp-a '(exp a)) (cons 'plus-aa '(+ (exp a) (exp a)))))])
+    (define plus-id (hash-ref typed-ids 'plus-aa))
+    (define exp-a-id (hash-ref typed-ids 'exp-a))
+    (define a-id (hash-ref typed-ids 'a))
+    (check-domain-expr (vector-ref domain-exprs plus-id) plus-id 'x)
+    (check-domain-expr (vector-ref domain-exprs plus-id) exp-a-id '(+ x x))
+    (check-domain-expr (vector-ref domain-exprs plus-id) a-id '(+ (exp x) (exp x))))
+
+  (let-values
+      ([(typed-ids domain-exprs)
+        (compute-domain-exprs '(+ (exp a) (exp a)) '(a) (list (cons 'plus-aa '(+ (exp a) (exp a)))))])
+    (define plus-id (hash-ref typed-ids 'plus-aa))
+    (check-equal? (domain-exprs->maximal-exprs domain-exprs (vector-ref domain-exprs plus-id))
+                  (list '(+ (exp x) (exp x))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Proofs
@@ -740,6 +815,69 @@
 
   (values parents leaf? constants))
 
+;; Domain-expression analysis:
+;;  dom(enode n = f(e1, e2, ...)) intersects child domains on common keys
+;;  and wraps f around the corresponding child expressions.
+;;  dom(eclass e = {n1, n2, ...}) = {e -> x} union union_i dom(ni)
+(define (analyze-eclass-domain-exprs regraph)
+  (define (hash-add-new out key value)
+    (if (hash-has-key? out key)
+        out
+        (hash-set out key value)))
+
+  (define (wrap-enode op exprs)
+    (cons op exprs))
+
+  (define (enode-domain-exprs domain-exprs enode)
+    (match enode
+      [(list op ids ...)
+       (match ids
+         [(list) (hash)]
+         [(list id)
+          (define child-domain-exprs (vector-ref domain-exprs id))
+          (and child-domain-exprs
+               (for/hash ([(key expr) (in-hash child-domain-exprs)])
+                 (values key (wrap-enode op (list expr)))))]
+         [(list id ids ...)
+          (define child-domain-exprs0 (vector-ref domain-exprs id))
+          (and child-domain-exprs0
+               (for/fold ([out (hash)]) ([(key expr0) (in-hash child-domain-exprs0)])
+                 (define other-exprs
+                   (for/list ([child-id (in-list ids)])
+                     (define child-domain-exprs (vector-ref domain-exprs child-id))
+                     (and child-domain-exprs (hash-ref child-domain-exprs key #f))))
+                 (if (member #f other-exprs)
+                     out
+                     (hash-set out key (wrap-enode op (cons expr0 other-exprs))))))])]
+      [_ (hash)]))
+
+  (define domain-exprs (make-vector (vector-length (regraph-eclasses regraph)) #f))
+  (define (eclass-set-domain-exprs! domain-exprs _changed?-vec _iter eclass id)
+    (define domain-expr
+      (for/fold ([out (hash id 'x)]) ([enode (in-vector eclass)])
+        (define enode-domain-expr (enode-domain-exprs domain-exprs enode))
+        (if enode-domain-expr
+            (for/fold ([out out]) ([(key expr) (in-hash enode-domain-expr)])
+              (hash-add-new out key expr))
+            out)))
+    (define prev-domain-expr (vector-ref domain-exprs id))
+    (unless (equal? prev-domain-expr domain-expr)
+      (vector-set! domain-exprs id domain-expr))
+    (not (equal? prev-domain-expr domain-expr)))
+
+  (regraph-analyze regraph eclass-set-domain-exprs! #:analysis domain-exprs))
+
+(define (domain-exprs->maximal-exprs domain-exprs domain-expr)
+  (define keys (sort (hash-keys domain-expr) <))
+  (define maximal-keys
+    (filter (lambda (key)
+              (not (for/or ([other-key (in-list keys)]
+                            #:unless (= key other-key))
+                     (hash-has-key? (vector-ref domain-exprs key) other-key))))
+            keys))
+  (remove-duplicates (for/list ([key (in-list maximal-keys)])
+                       (hash-ref domain-expr key))))
+
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
 (define (make-regraph ptr ctx)
@@ -1165,6 +1303,7 @@
 ;;  - `egraph-prove`: return a proof that two expressions are equal
 ;;  - `egraph-best`: return a batch with the best versions of another batch
 ;;  - `egraph-variations`: return a batch with all versions of another batch
+;;  - `egraph-unary`: return maximal unary contexts for another batch
 
 ;; Herbie's version of an egg runner.
 ;; Defines parameters for running rewrite rules with egg
@@ -1275,3 +1414,22 @@
      (for/list ([id (in-list root-ids)]
                 [repr (in-list reprs)])
        (regraph-extract-variants regraph extract-id id repr))]))
+
+(define (egraph-unary runner _batch)
+  (define ctx (egg-runner-ctx runner))
+  (define root-ids (egg-runner-new-roots runner))
+  (define egg-graph (egg-runner-egg-graph runner))
+
+  (cond
+    [(egraph_is_unsound_detected egg-graph) (map (const empty) root-ids)]
+    [else
+     (define regraph (make-regraph egg-graph ctx))
+     (define domain-exprs (analyze-eclass-domain-exprs regraph))
+     (define canon (regraph-canon regraph))
+     (define reprs (egg-runner-reprs runner))
+     (for/list ([id (in-list root-ids)]
+                [repr (in-list reprs)])
+       (define id* (hash-ref canon (cons id repr) #f))
+       (if id*
+           (domain-exprs->maximal-exprs domain-exprs (vector-ref domain-exprs id*))
+           empty))]))
