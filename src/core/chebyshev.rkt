@@ -90,7 +90,8 @@
      (define free-vars-fn (batch-free-vars global-batch))
      (define copier (batch-copy-only! spec-batch global-batch))
      (define exprs-fn (batch-exprs spec-batch))
-     (define N (* 2 (*taylor-order-limit*)))
+     ;; TODO: hacky to account for 0 coefficients
+     (define N (* 2 (*chebyshev-order-limit*)))
 
      (reap [sow]
            (for ([var (in-list vars)])
@@ -180,7 +181,7 @@
                        ;; Truncate polynomial to desired degree (ignoring 0 coefficients)
                        (define order 0)
                        (for ([k (in-range (add1 N))]
-                             #:break (>= order (*taylor-order-limit*)))
+                             #:break (>= order (*chebyshev-order-limit*)))
                          (when (not (zero? (vector-ref coeffs k)))
                            (define mono (chebyshev->monomial coeffs k))
                            (define poly-expr (build-horner-poly mono k var m r))
