@@ -206,10 +206,10 @@
                #:when (equal? (representation-type repr) 'real))
       (define lo
         (for/fold ([lo +inf.0]) ([rect (in-list hyperrects)])
-          (min lo (real->double-flonum
-                   ((representation-bf->repr repr) (ival-lo (list-ref rect idx)))))))
+          (min lo
+               (real->double-flonum ((representation-bf->repr repr) (ival-lo (list-ref rect idx)))))))
       (define hi
         (for/fold ([hi -inf.0]) ([rect (in-list hyperrects)])
-          (max hi (real->double-flonum
-                   ((representation-bf->repr repr) (ival-hi (list-ref rect idx)))))))
+          (max hi
+               (real->double-flonum ((representation-bf->repr repr) (ival-hi (list-ref rect idx)))))))
       (values var (cons lo hi)))))

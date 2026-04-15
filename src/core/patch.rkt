@@ -14,7 +14,7 @@
          "rules.rkt"
          "../syntax/rival.rkt"
          "taylor.rkt"
-         "sollya.rkt")
+         "chebyshev.rkt")
 
 (provide generate-candidates
          get-starting-expr)
@@ -91,10 +91,8 @@
         (approx-impl expr)
         expr))
 
-  (printf "~a\n" (length altns))
-
   (define taylor-approxs (taylor-alts altns global-batch spec-batch reducer))
-  (define minimax-approxs (sollya-minimax-alts altns global-batch spec-batch reducer regime-intervals))
+  (define minimax-approxs (chebyshev-alts altns global-batch spec-batch reducer regime-intervals))
   (define approxs (remove-duplicates (append taylor-approxs minimax-approxs) #:key key))
   (define approxs* (remove-duplicates (run-lowering approxs global-batch) #:key key))
 
