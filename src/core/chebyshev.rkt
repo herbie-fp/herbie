@@ -125,8 +125,8 @@
 
                (for ([interval (in-list intervals)])
                  (match-define (cons lo hi) interval)
-                 ;; Constrain the max interval "width" ratio
-                 (when (and (< lo hi) (< 1e-6 (abs (/ hi lo)) 1e6))
+                 ;; Constrain the max interval width
+                 (when (and (< lo hi) (< (- hi lo) 1e6))
                    (define flo (exact->inexact lo))
                    (define fhi (exact->inexact hi))
                    ;; m = (lo + hi) / 2
