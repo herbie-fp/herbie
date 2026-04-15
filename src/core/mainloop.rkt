@@ -75,8 +75,7 @@
     (for ([_ (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
       (run-iteration! global-spec-batch spec-reducer)
-      (*regime-intervals* (compute-regime-intervals))
-      (eprintf "[regimes] ~a\n" (*regime-intervals*)))
+      (*regime-intervals* (compute-regime-intervals)))
     (define alternatives (extract!))
     (timeline-event! 'preprocess)
     (for/list ([altn alternatives])
@@ -167,10 +166,14 @@
                          (list outer-hi)
                          '())))
            (define intervals
-             (for/list ([lo (in-list boundaries)]
-                        [hi (in-list (cdr boundaries))]
-                        #:when (< lo hi))
-               (cons lo hi)))
+             (match boundaries
+               [(list) '()]
+               [(list _) '()]
+               [(list _ _ _ ...)
+                (for/list ([lo (in-list boundaries)]
+                           [hi (in-list (cdr boundaries))]
+                           #:when (< lo hi))
+                  (cons lo hi))]))
            (unless (null? intervals)
              (hash-update! result var (λ (old) (remove-duplicates (append intervals old))) '()))))
 

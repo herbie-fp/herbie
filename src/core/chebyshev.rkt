@@ -113,15 +113,20 @@
 
              (when (pair? qualifying)
                (define qualifying-impl-brfs (map first qualifying))
-               (define qualifying-reprs (map third qualifying))
+               (define qualifying-reprs (list->vector (map third qualifying)))
+               (define n-exprs (length qualifying))
                (define eval-ctx (context (list var) var-repr (list var-repr)))
-               (define evaluator
+               (define evaluator!
                  (parameterize ([*timeline-disabled* #t])
-                   (compile-batch global-batch qualifying-impl-brfs eval-ctx)))
+                   (compile-batch! global-batch qualifying-impl-brfs eval-ctx)))
+
+               (define pt (vector #f))
+               (define outs (make-vector n-exprs))
 
                (for ([interval (in-list intervals)])
                  (match-define (cons lo hi) interval)
-                 (when (< lo hi)
+                 ;; Constrain the max interval "width" ratio
+                 (when (and (< lo hi) (< 1e-6 (abs (/ hi lo)) 1e6))
                    (define flo (exact->inexact lo))
                    (define fhi (exact->inexact hi))
                    ;; m = (lo + hi) / 2
@@ -138,20 +143,21 @@
                        (+ m (* r (cos theta)))))
 
                    ;; Evaluate expressions at all nodes
-                   (define n-exprs (length qualifying))
                    (define vals-matrix
                      (for/vector #:length n-exprs
                                  ([_ (in-range n-exprs)])
                        (make-vector denom +nan.0)))
 
                    (for ([j (in-range denom)])
-                     (define pt (vector (real->repr (vector-ref nodes j) var-repr)))
-                     (define outs (evaluator pt))
-                     (for ([out (in-vector outs)]
-                           [i (in-range n-exprs)])
+                     (vector-set! pt 0 (real->repr (vector-ref nodes j) var-repr))
+                     (evaluator! pt outs)
+                     (for ([i (in-range n-exprs)])
+                       (define val (repr->real (vector-ref outs i) (vector-ref qualifying-reprs i)))
                        (vector-set! (vector-ref vals-matrix i)
                                     j
-                                    (exact->inexact (repr->real out (list-ref qualifying-reprs i))))))
+                                    (if (real? val)
+                                        (exact->inexact val)
+                                        +nan.0))))
 
                    ;; Generate polynomial alts per expression
                    (for ([q (in-list qualifying)]
@@ -171,13 +177,6 @@
                                      ([c (in-vector coeffs0)])
                            (if (> (abs c) (* 1e-12 max-coeff)) c 0.0)))
 
-                       (eprintf "[chebyshev] expr=~a var=~a interval=[~a,~a] N=~a\n"
-                                spec-expr
-                                var
-                                flo
-                                fhi
-                                N)
-
                        ;; Truncate polynomial to desired degree (ignoring 0 coefficients)
                        (define order 0)
                        (for ([k (in-range (add1 N))]
@@ -185,9 +184,8 @@
                          (when (not (zero? (vector-ref coeffs k)))
                            (define mono (chebyshev->monomial coeffs k))
                            (define poly-expr (build-horner-poly mono k var m r))
-                           (eprintf "[chebyshev]   degree=~a poly=~a\n" k poly-expr)
                            (define poly-brf (batch-add! global-batch poly-expr))
                            (define gen (approx spec-brf (hole (representation-name repr) poly-brf)))
                            (define brf (batch-add! global-batch gen))
-                           (sow (alt brf `(taylor chebyshev ,var) (list altn)))
+                           (sow (alt brf `(taylor chebyshev ,var ,order) (list altn)))
                            (set! order (add1 order)))))))))))]))
