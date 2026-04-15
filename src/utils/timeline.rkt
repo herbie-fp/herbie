@@ -26,7 +26,7 @@
 
 (define *timeline-disabled* (make-parameter true))
 
-(define always-compact '(mixsample outcomes))
+(define always-compact '(mixsample outcomes taylor-count))
 
 (define (timeline-event! type)
   (when (and *timeline-active-key* (pair? (unbox (*timeline*))))
@@ -210,6 +210,7 @@
 (define-timeline symmetry #:unmergable)
 (define-timeline bstep #:unmergable)
 (define-timeline kept #:unmergable)
+(define-timeline taylor-count [transform false] [order false] [generated +] [kept +])
 (define-timeline min-error #:unmergable)
 (define-timeline egraph #:unmergable)
 (define-timeline stop [reason false] [count +])
