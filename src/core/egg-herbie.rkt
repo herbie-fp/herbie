@@ -13,6 +13,7 @@
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
          "../utils/timeline.rkt"
+         "../syntax/matcher.rkt"
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -84,22 +85,30 @@
       [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
-  (define reprs (batch-reprs batch ctx))
-  (define add-to-egraph
+  (define add-spec-to-egraph
+    (batch-recurse batch
+                   (lambda (brf recurse)
+                     (define node (deref brf))
+                     (match node
+                       [(? number?) (insert-node! node)]
+                       [(? symbol?) (insert-node! (var->egg-var node ctx))]
+                       [(list op args ...) (insert-node! (cons op (map recurse args)))]))))
+
+  (define add-impl-to-egraph
     (batch-recurse
      batch
-     (λ (brf recurse)
+     (lambda (brf recurse)
        (define node (deref brf))
        (match node
          [(literal v _) (insert-node! v)]
          [(? number?) (insert-node! node)]
          [(? symbol?) (insert-node! (var->egg-var node ctx))]
-         [(hole prec spec) (recurse spec)] ; "hole" terms currently disappear
-         [(approx spec impl) (insert-node! (list '$approx (recurse spec) (recurse impl)))]
-         [(list op (app recurse args) ...) (insert-node! (cons op args))]))))
+         [(hole _ spec) (add-spec-to-egraph spec)] ; "hole" terms currently disappear
+         [(approx spec impl) (insert-node! (list '$approx (add-spec-to-egraph spec) (recurse impl)))]
+         [(list op args ...) (insert-node! (cons op (map recurse args)))]))))
 
   (for/list ([brf (in-list brfs)])
-    (define brf-id (add-to-egraph brf)) ; remapping of brf
+    (define brf-id (add-impl-to-egraph brf)) ; remapping of brf
     (egraph_add_root ptr brf-id)
     brf-id))
 
