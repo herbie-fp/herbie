@@ -98,13 +98,9 @@
   (define reprs (batch-reprs batch ctx))
   ;; We can only binary search if the branch expression is critical
   ;; for the start program and is real-typed.
-  (define real-branch-brfs
-    (for/list ([sub-brf (in-set (critical-subexpressions batch start-prog (context-vars ctx)))]
-               #:when (equal? (representation-type (reprs sub-brf)) 'real))
-      sub-brf))
-  (if (null? real-branch-brfs)
-      (list start-prog)
-      real-branch-brfs))
+  (for/list ([sub-brf (in-set (critical-subexpressions batch start-prog (context-vars ctx)))]
+             #:when (equal? (representation-type (reprs sub-brf)) 'real))
+    sub-brf))
 
 (define (critical-subexpression? batch root-brf sub-brf vars)
   (set-member? (critical-subexpressions batch root-brf vars) sub-brf))

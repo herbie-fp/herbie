@@ -261,7 +261,7 @@
 
 (define (make-regime! batch alts start-prog)
   (define ctx (*context*))
-  (define repr (context-repr ctx))
+  (define repr ((batch-reprs batch ctx) start-prog))
   (define alt-costs (alt-batch-costs batch ctx))
 
   (cond
