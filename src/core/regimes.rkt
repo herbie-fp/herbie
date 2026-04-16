@@ -99,9 +99,7 @@
   ;; We can only binary search if the branch expression is critical
   ;; for the start program and is real-typed.
   (define real-branch-brfs
-    (for/list ([sub-brf
-                (in-list (cons start-prog
-                               (critical-subexpressions batch start-prog (context-vars ctx))))]
+    (for/list ([sub-brf (in-set (critical-subexpressions batch start-prog (context-vars ctx)))]
                #:when (equal? (representation-type (reprs sub-brf)) 'real))
       sub-brf))
   (if (null? real-branch-brfs)
@@ -109,22 +107,21 @@
       real-branch-brfs))
 
 (define (critical-subexpression? batch root-brf sub-brf vars)
-  (or (equal? root-brf sub-brf)
-      (and (member sub-brf (critical-subexpressions batch root-brf vars) equal?) #t)))
+  (set-member? (critical-subexpressions batch root-brf vars) sub-brf))
 
 (define (critical-subexpressions batch root-brf vars)
   (define dom-parent (build-dominator-tree batch root-brf))
-  (define critical-brfs (mutable-set))
+  (define critical-brfs (mutable-set root-brf))
 
   (for ([var (in-list vars)])
     (define brf (batch-add! batch var))
     (when (dom-parent brf)
       (let loop ([brf brf])
-        (unless (or (equal? brf root-brf) (set-member? critical-brfs brf))
+        (unless (set-member? critical-brfs brf)
           (set-add! critical-brfs brf)
           (loop (dom-parent brf))))))
 
-  (set->list critical-brfs))
+  critical-brfs)
 
 (define (build-dominator-tree batch root-brf)
   (define root-idx (batchref-idx root-brf))
