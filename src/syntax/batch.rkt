@@ -18,6 +18,7 @@
          batch-free-vars ; Batch -> (Batchref -> Set<Var>)
          in-batch ; Batch -> Sequence<Node>
          batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
+         batch-reachable/impl ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-exprs
          batch-recurse
          batch-get-nodes
@@ -112,7 +113,7 @@
 
 ;; Function returns indices of children nodes within a batch for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
-(define (batch-reachable batch brfs #:condition [condition (const #t)])
+(define (batch-reachable* batch brfs recurse #:condition [condition (const #t)])
   ; Little check
   (apply assert-batch-brf! batch brfs)
   (define len (batch-length batch))
@@ -124,13 +125,19 @@
         [child (in-vector child-mask (sub1 len) -1 -1)]
         #:when child)
     (cond
-      [(condition node) (expr-recurse node (λ (n) (vector-set! child-mask n #t)))]
+      [(condition node) (recurse node (λ (n) (vector-set! child-mask n #t)))]
       [else (vector-set! child-mask i #f)]))
   ; Return batchrefs of children nodes in ascending order
   (for/list ([child (in-vector child-mask)]
              [i (in-naturals)]
              #:when child)
     (batchref batch i)))
+
+(define (batch-reachable batch brfs #:condition [condition (const #t)])
+  (batch-reachable* batch brfs expr-recurse #:condition condition))
+
+(define (batch-reachable/impl batch brfs #:condition [condition (const #t)])
+  (batch-reachable* batch brfs expr-recurse-impl #:condition condition))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-exprs batch)
