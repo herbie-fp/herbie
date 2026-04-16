@@ -113,30 +113,36 @@
       (and (member sub-brf (critical-subexpressions batch root-brf vars) equal?) #t)))
 
 (define (critical-subexpressions batch root-brf vars)
-  (define dom-parents (build-dominator-tree batch root-brf))
+  (define dom-parent (build-dominator-tree batch root-brf))
   (define critical-brfs (mutable-set))
-  (define root-idx (batchref-idx root-brf))
 
   (for ([var (in-list vars)])
     (define brf (batch-add! batch var))
-    (define idx (batchref-idx brf))
-    (when (vector-ref dom-parents idx)
+    (when (dom-parent brf)
       (let loop ([brf brf])
-        (define idx (batchref-idx brf))
-        (unless (or (= idx root-idx) (set-member? critical-brfs brf))
+        (unless (or (equal? brf root-brf) (set-member? critical-brfs brf))
           (set-add! critical-brfs brf)
-          (loop (batchref batch (vector-ref dom-parents idx)))))))
+          (loop (dom-parent brf))))))
 
   (set->list critical-brfs))
 
 (define (build-dominator-tree batch root-brf)
   (define root-idx (batchref-idx root-brf))
   (define dom-parents (make-vector (batch-length batch) #f))
+  (define (dom-parent brf)
+    (define idx (batchref-idx brf))
+    (match (vector-ref dom-parents idx)
+      [#f #f]
+      [parent-idx (batchref batch parent-idx)]))
   (define (update-child! idx child-idx)
-    (define old-parent (vector-ref dom-parents child-idx))
+    (define old-parent-idx
+      (match (dom-parent (batchref batch child-idx))
+        [#f #f]
+        [parent-brf (batchref-idx parent-brf)]))
     (define new-parent
-      (if old-parent
-          (dominator-lca idx old-parent dom-parents)
+      (if old-parent-idx
+          (batchref-idx
+           (dominator-lca (batchref batch idx) (batchref batch old-parent-idx) dom-parent))
           idx))
     (vector-set! dom-parents child-idx new-parent))
   (vector-set! dom-parents root-idx root-idx)
@@ -149,15 +155,17 @@
                          (recurse child)))
     (void))
   ((batch-recurse batch walk-body) root-brf)
-  dom-parents)
+  dom-parent)
 
-(define (dominator-lca idx1 idx2 dom-parents)
-  (let loop ([idx1 idx1]
-             [idx2 idx2])
+(define (dominator-lca brf1 brf2 dom-parent)
+  (let loop ([brf1 brf1]
+             [brf2 brf2])
+    (define idx1 (batchref-idx brf1))
+    (define idx2 (batchref-idx brf2))
     (cond
-      [(= idx1 idx2) idx1]
-      [(< idx1 idx2) (loop (vector-ref dom-parents idx1) idx2)]
-      [else (loop idx1 (vector-ref dom-parents idx2))])))
+      [(= idx1 idx2) brf1]
+      [(< idx1 idx2) (loop (dom-parent brf1) brf2)]
+      [else (loop brf1 (dom-parent brf2))])))
 
 (define (baseline-errors-score err-cols count)
   (for/fold ([best +inf.0]) ([err-col (in-list (take err-cols count))])
