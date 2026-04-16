@@ -5,7 +5,7 @@
 ;;   It is a giant dynamic programming algorithm.
 ;;   It is extremely performance-sensitive.
 ;; - Therefore almost everything is vector-based with few copies.
-;;   Except exprs-to-branch-on. Converting it to vectors makes it slow.
+;;   Except critical-subexpressions. Converting it to vectors makes it slow.
 ;; - Everything else is overhead and should be minimized.
 
 (require math/flonum
@@ -13,6 +13,7 @@
          "../utils/common.rkt"
          "../utils/pareto.rkt"
          "../syntax/float.rkt"
+         "../syntax/syntax.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
          "../syntax/batch.rkt"
@@ -27,7 +28,11 @@
 (module+ test
   (require rackunit
            "../syntax/syntax.rkt"
-           "../syntax/sugar.rkt"))
+           "../syntax/sugar.rkt")
+
+  (define (check-critical expr subexpr)
+    (define-values (batch brfs) (progs->batch (list expr)))
+    (critical-subexpression? batch (first brfs) (batch-add! batch subexpr) (free-variables expr))))
 
 (struct option (split-indices alts pts expr)
   #:transparent
@@ -41,13 +46,16 @@
   (define alts-vec (list->vector sorted))
   (define alt-count (vector-length alts-vec))
   (define err-cols (batch-errors batch (map alt-expr sorted) pcontext ctx))
+  (define reprs (batch-reprs batch ctx))
+  (define (real-brf? brf)
+    (equal? (representation-type (reprs brf)) 'real))
   (define branch-brfs
-    (if (flag-set? 'reduce 'branch-expressions)
-        (exprs-to-branch-on batch start-prog ctx)
-        (map (curry batch-add! batch) (context-vars ctx))))
+    (filter real-brf?
+            (if (flag-set? 'reduce 'branch-expressions)
+                (critical-subexpressions batch start-prog (context-vars ctx))
+                (map (curry batch-add! batch) (context-vars ctx)))))
 
   (define brf-vals (brf-values* batch branch-brfs ctx pcontext))
-  (define reprs (batch-reprs batch ctx))
   (define pts-vec (pcontext-points pcontext))
 
   ;; For timeline
@@ -89,22 +97,49 @@
     (timeline-push! 'oracle (oracle-errors-score err-cols (pareto-point-cost ppt)))
     opt))
 
-(define (exprs-to-branch-on batch start-prog ctx)
-  (define exprs (batch-exprs batch))
-  (define start-expr (exprs start-prog))
-  ;; We can only binary search if the branch expression is critical
-  ;; for the start program and is real-typed.
-  (for/list ([subexpr (set-union (context-vars ctx) (all-subexpressions start-expr))]
-             #:when (critical-subexpression? start-expr subexpr)
-             #:when (equal? (representation-type (repr-of subexpr ctx)) 'real))
-    (batch-add! batch subexpr)))
+(define (critical-subexpression? batch root-brf sub-brf vars)
+  (set-member? (critical-subexpressions batch root-brf vars) sub-brf))
 
-;; Requires that expr is not a λ expression
-(define (critical-subexpression? expr subexpr)
-  (define crit-vars (free-variables subexpr))
-  (define replaced-expr (replace-expression expr subexpr 1))
-  (define non-crit-vars (free-variables replaced-expr))
-  (and (not (null? crit-vars)) (null? (set-intersect crit-vars non-crit-vars))))
+(define (critical-subexpressions batch root-brf vars)
+  (define var-brfs (map (curry batch-add! batch) vars))
+  (define dom-parent (build-dominator-tree batch root-brf))
+  (reap [sow]
+        (define seen-brfs (mutable-set root-brf))
+        (sow root-brf)
+        (for ([brf (in-list var-brfs)])
+          (when (dom-parent brf)
+            (let loop ([brf brf])
+              (unless (set-member? seen-brfs brf)
+                (set-add! seen-brfs brf)
+                (sow brf)
+                (loop (dom-parent brf))))))))
+
+(define (build-dominator-tree batch root-brf)
+  (define reachable-brfs (reverse (batch-reachable/impl batch (list root-brf))))
+  (define dom-parents (make-vector (batch-length batch) #f))
+  (define (dom-parent brf)
+    (vector-ref dom-parents (batchref-idx brf)))
+  (define (update-child! brf child-brf)
+    (define old-parent (dom-parent child-brf))
+    (define new-parent
+      (if old-parent
+          (dominator-lca brf old-parent dom-parent)
+          brf))
+    (vector-set! dom-parents (batchref-idx child-brf) new-parent))
+  (vector-set! dom-parents (batchref-idx root-brf) root-brf)
+  (for ([brf (in-list reachable-brfs)])
+    (expr-recurse-impl (deref brf) (lambda (child) (update-child! brf child))))
+  dom-parent)
+
+(define (dominator-lca brf1 brf2 dom-parent)
+  (let loop ([brf1 brf1]
+             [brf2 brf2])
+    (define idx1 (batchref-idx brf1))
+    (define idx2 (batchref-idx brf2))
+    (cond
+      [(= idx1 idx2) brf1]
+      [(< idx1 idx2) (loop (dom-parent brf1) brf2)]
+      [else (loop brf1 (dom-parent brf2))])))
 
 (define (baseline-errors-score err-cols count)
   (for/fold ([best +inf.0]) ([err-col (in-list (take err-cols count))])
@@ -200,7 +235,34 @@
   (test-regimes `(if.f64 (==.f64 x ,(literal 0.5 'binary64)) ,(literal 1 'binary64) (NAN.f64)) '(1 0))
 
   (check-equal? (baseline-errors-score err-cols 2) 26.5)
-  (check-equal? (oracle-errors-score err-cols 2) 0.0))
+  (check-equal? (oracle-errors-score err-cols 2) 0.0)
+
+  (check-true (check-critical '(+.f64 (sin.f64 x) y) '(sin.f64 x)))
+  (check-false (check-critical '(+.f64 (sin.f64 x) x) '(sin.f64 x)))
+  (check-true (check-critical '(+.f64 x x) 'x))
+  (check-true (check-critical '(+.f64 x x) '(+.f64 x x)))
+  (check-true (check-critical '(sin.f64 x) '(sin.f64 x)))
+
+  (let ()
+    (define xy-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
+    (define-values (batch brfs) (progs->batch (list 'x)))
+    (check-true
+     (critical-subexpression? batch (first brfs) (batch-add! batch 'x) (context-vars xy-ctx)))
+    (check-false
+     (critical-subexpression? batch (first brfs) (batch-add! batch 'y) (context-vars xy-ctx))))
+
+  (let ()
+    (define vec2-ctx
+      (context '(a b)
+               <binary64>
+               (list (make-array-representation #:elem <binary64> #:len 2)
+                     (make-array-representation #:elem <binary64> #:len 2))))
+    (define dot-product
+      '(+.f64 (*.f64 (ref.f64 a #s(literal 0 binary64)) (ref.f64 b #s(literal 0 binary64)))
+              (*.f64 (ref.f64 a #s(literal 1 binary64)) (ref.f64 b #s(literal 1 binary64)))))
+    (define-values (batch brfs) (progs->batch (list dot-product)))
+    (check-true (set-member? (critical-subexpressions batch (first brfs) (context-vars vec2-ctx))
+                             (first brfs)))))
 
 (define (valid-splitindices? can-split? split-indices)
   (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
