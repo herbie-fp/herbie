@@ -51,7 +51,7 @@
     (equal? (representation-type (reprs brf)) 'real))
   (define branch-brfs
     (if (flag-set? 'reduce 'branch-expressions)
-        (filter real-brf? (set->list (critical-subexpressions batch start-prog (context-vars ctx))))
+        (filter real-brf? (critical-subexpressions batch start-prog (context-vars ctx)))
         (map (curry batch-add! batch) (context-vars ctx))))
 
   (define brf-vals (brf-values* batch branch-brfs ctx pcontext))
@@ -101,17 +101,17 @@
 
 (define (critical-subexpressions batch root-brf vars)
   (define dom-parent (build-dominator-tree batch root-brf))
-  (define critical-brfs (mutable-set root-brf))
-
-  (for ([var (in-list vars)])
-    (define brf (batch-add! batch var))
-    (when (dom-parent brf)
-      (let loop ([brf brf])
-        (unless (set-member? critical-brfs brf)
-          (set-add! critical-brfs brf)
-          (loop (dom-parent brf))))))
-
-  critical-brfs)
+  (reap [sow]
+        (define seen-brfs (mutable-set root-brf))
+        (sow root-brf)
+        (for ([var (in-list vars)])
+          (define brf (batch-add! batch var))
+          (when (dom-parent brf)
+            (let loop ([brf brf])
+              (unless (set-member? seen-brfs brf)
+                (set-add! seen-brfs brf)
+                (sow brf)
+                (loop (dom-parent brf))))))))
 
 (define (build-dominator-tree batch root-brf)
   (define root-idx (batchref-idx root-brf))
