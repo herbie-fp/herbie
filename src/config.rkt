@@ -12,7 +12,7 @@
         [localize . ()]
         [generate . (rr taylor proofs evaluate)]
         [reduce . (regimes binary-search branch-expressions)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic)]
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic special)]
         [dump . ()]))
 
 (define deprecated-flags

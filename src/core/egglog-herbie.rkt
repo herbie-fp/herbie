@@ -225,15 +225,15 @@
     ;; x^0 where x != 0
     (rule ((= e (Pow (Num x) (Num y))) (= $0 y) (!= $0 x)) ((union e (Num $1))) :ruleset const-fold)
     ;; x^y when y is a whole number and y > 0 and x != 0
-    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (= y (round y)))
+    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (= y (round y)) (<= y ,(real->bigrat 16)))
           ((union e (Num (pow x y))))
           :ruleset
           const-fold)
     ;; New rule according to Rust : x^y where y is not a whole number
-    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (!= y (round y)))
-          ((union e (Num (pow x (round y)))))
-          :ruleset
-          const-fold)
+    ; (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (!= y (round y)))
+    ;       ((union e (Num (pow x (round y)))))
+    ;       :ruleset
+    ;       const-fold)
     ;; Sqrt rules -> Non-total but egglog implementation handles it
     (rule ((= e (Sqrt (Num n))) (sqrt n)) ((union e (Num (sqrt n)))) :ruleset const-fold)
     (rewrite (Log (Num $1)) (Num $0) :ruleset const-fold)
@@ -576,10 +576,12 @@
   ;;   4. Unsoundness is detected (bad-merge? becomes true)
 
   (egglog-send subproc
-               `(run-schedule (repeat ,iter-limit
-                                      (seq (run ,tag :until (<= ,node-limit (get-size!)))
-                                           (run const-fold :until (<= ,node-limit (get-size!)))
-                                           (run bad-merge-rule :until (bad-merge?))))))
+               `(run-schedule
+                 (let-scheduler bo (back-off))
+                 (repeat ,iter-limit
+                         (seq (run-with bo ,tag :until (<= ,node-limit (get-size!)))
+                              (run-with bo const-fold :until (<= ,node-limit (get-size!)))
+                              (run bad-merge-rule :until (bad-merge?))))))
   (void))
 
 (define (egglog-num? id)
