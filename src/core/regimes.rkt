@@ -118,31 +118,17 @@
   (define reachable-brfs (reverse (batch-reachable/impl batch (list root-brf))))
   (define dom-parents (make-vector (batch-length batch) #f))
   (define (dom-parent brf)
-    (define idx (batchref-idx brf))
-    (match (vector-ref dom-parents idx)
-      [#f #f]
-      [parent-idx (batchref batch parent-idx)]))
-  (define (update-child! idx child-idx)
-    (define old-parent-idx
-      (match (dom-parent (batchref batch child-idx))
-        [#f #f]
-        [parent-brf (batchref-idx parent-brf)]))
+    (vector-ref dom-parents (batchref-idx brf)))
+  (define (update-child! brf child-brf)
+    (define old-parent (dom-parent child-brf))
     (define new-parent
-      (if old-parent-idx
-          (batchref-idx
-           (dominator-lca (batchref batch idx) (batchref batch old-parent-idx) dom-parent))
-          idx))
-    (vector-set! dom-parents child-idx new-parent))
-  (vector-set! dom-parents root-idx root-idx)
-  (define (walk-body brf)
-    (define idx (batchref-idx brf))
-    (expr-recurse-impl (deref brf)
-                       (lambda (child)
-                         (define child-idx (batchref-idx child))
-                         (update-child! idx child-idx)))
-    (void))
+      (if old-parent
+          (dominator-lca brf old-parent dom-parent)
+          brf))
+    (vector-set! dom-parents (batchref-idx child-brf) new-parent))
+  (vector-set! dom-parents root-idx root-brf)
   (for ([brf (in-list reachable-brfs)])
-    (walk-body brf))
+    (expr-recurse-impl (deref brf) (lambda (child) (update-child! brf child))))
   dom-parent)
 
 (define (dominator-lca brf1 brf2 dom-parent)
