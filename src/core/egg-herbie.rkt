@@ -1285,10 +1285,8 @@
 
 (define (deduplicate-exprs exprs ctxs)
   (define ctx (contexts-union ctxs))
-  (*context* ctx)
-  (define schedule '(lift rewrite lower))
   (define-values (batch brfs) (progs->batch exprs))
-  (define runner (make-egraph batch brfs (map context-repr ctxs) schedule ctx))
+  (define runner (make-egraph batch brfs (map context-repr ctxs) '(lift rewrite lower) ctx))
   (define batchrefss (egraph-best runner batch))
   (define batch-pull (batch-exprs batch))
   (for/list ([orig-expr (in-list exprs)]
