@@ -88,24 +88,25 @@
      (define env (map cons vars (map prog->spec args)))
      (pattern-substitute spec env)]))
 
-(define (batch-to-spec! batch brfs)
+(define (batch-to-spec! in-batch brfs [out-batch in-batch])
   (define lower
-    (batch-recurse batch
+    (batch-recurse in-batch
                    (lambda (brf recurse)
                      (define node (deref brf))
                      (match node
-                       [(? literal?) (batch-push! batch (literal-value node))]
-                       [(? number?) brf]
-                       [(? symbol?) brf]
+                       [(? literal?) (batch-push! out-batch (literal-value node))]
+                       [(? number?) (batch-push! out-batch node)]
+                       [(? symbol?) (batch-push! out-batch node)]
                        [(hole _ spec) (recurse spec)]
                        [(approx spec _) (recurse spec)]
                        [(list (? impl-exists? impl) args ...)
                         (define vars (impl-info impl 'vars))
                         (define spec (impl-info impl 'spec))
                         (define env (map cons vars (map recurse args)))
-                        (batch-add! batch (pattern-substitute spec env))]
+                        (batch-add! out-batch (pattern-substitute spec env))]
                        [(list op args ...)
-                        (batch-push! batch (cons op (map (compose batchref-idx recurse) args)))]))))
+                        (batch-push! out-batch
+                                     (cons op (map (compose batchref-idx recurse) args)))]))))
   (map lower brfs))
 
 ;; Expression predicates ;;

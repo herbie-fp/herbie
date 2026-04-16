@@ -38,11 +38,9 @@
   (define brfs (map alt-expr altns))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
   ;; Specs
-  (define spec-brfs (batch-to-spec! global-batch brfs)) ;; These specs will go into (approx spec impl)
-  (define free-vars (map (batch-free-vars global-batch) spec-brfs))
-  (define spec-brfs*
-    (map (batch-copy-only! spec-batch global-batch)
-         spec-brfs)) ;; copy from global-batch to spec-batch
+  (define spec-brfs
+    (batch-to-spec! global-batch brfs spec-batch)) ;; These specs will go into (approx spec impl)
+  (define free-vars (map (batch-free-vars spec-batch) spec-brfs))
   (define copier (batch-copy-only! global-batch spec-batch)) ;; copy from spec-batch to global-batch
 
   (reap [sow]
@@ -54,13 +52,13 @@
                 [altn (in-list altns)]
                 #:when (equal? (representation-type repr) 'real))
             (define genexpr0 (batch-add! global-batch 0))
-            (define gen0 (approx spec-brf (hole (representation-name repr) genexpr0)))
+            (define gen0 (approx (copier spec-brf) (hole (representation-name repr) genexpr0)))
             (define brf0 (batch-add! global-batch gen0))
             (sow (alt brf0 `(taylor zero undef-var -1) (list altn))))
 
           ;; Taylor expansions
           ;; List<List<(cons offset coeffs)>>
-          (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs* vars transforms-to-try))
+          (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs vars transforms-to-try))
           (define idx 0)
           (for* ([var (in-list vars)]
                  [transform-type transforms-to-try])
@@ -76,7 +74,8 @@
                   #:when (set-member? fv var)) ;; check whether var exists in expr at all
               (for ([i (in-range (*taylor-order-limit*))])
                 ;; adding a new expansion to the global batch
-                (define gen (approx spec-brf (hole (representation-name repr) (copier (genexpr)))))
+                (define gen
+                  (approx (copier spec-brf) (hole (representation-name repr) (copier (genexpr)))))
                 (define brf (batch-add! global-batch gen))
                 (sow (alt brf `(taylor ,name ,var ,i) (list altn)))))
             (set! idx (add1 idx))
