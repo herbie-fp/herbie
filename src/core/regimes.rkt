@@ -100,12 +100,12 @@
   (set-member? (critical-subexpressions batch root-brf vars) sub-brf))
 
 (define (critical-subexpressions batch root-brf vars)
+  (define var-brfs (map (curry batch-add! batch) vars))
   (define dom-parent (build-dominator-tree batch root-brf))
   (reap [sow]
         (define seen-brfs (mutable-set root-brf))
         (sow root-brf)
-        (for ([var (in-list vars)])
-          (define brf (batch-add! batch var))
+        (for ([brf (in-list var-brfs)])
           (when (dom-parent brf)
             (let loop ([brf brf])
               (unless (set-member? seen-brfs brf)
@@ -242,6 +242,12 @@
   (check-true (check-critical '(+.f64 x x) 'x))
   (check-true (check-critical '(+.f64 x x) '(+.f64 x x)))
   (check-true (check-critical '(sin.f64 x) '(sin.f64 x)))
+
+  (let ()
+    (define xy-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
+    (define-values (batch brfs) (progs->batch (list 'x)))
+    (check-true (critical-subexpression? batch (first brfs) (batch-add! batch 'x) (context-vars xy-ctx)))
+    (check-false (critical-subexpression? batch (first brfs) (batch-add! batch 'y) (context-vars xy-ctx))))
 
   (let ()
     (define vec2-ctx
