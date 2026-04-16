@@ -5,7 +5,7 @@
 ;;   It is a giant dynamic programming algorithm.
 ;;   It is extremely performance-sensitive.
 ;; - Therefore almost everything is vector-based with few copies.
-;;   Except exprs-to-branch-on. Converting it to vectors makes it slow.
+;;   Except critical-subexpressions. Converting it to vectors makes it slow.
 ;; - Everything else is overhead and should be minimized.
 
 (require math/flonum
@@ -46,13 +46,15 @@
   (define alts-vec (list->vector sorted))
   (define alt-count (vector-length alts-vec))
   (define err-cols (batch-errors batch (map alt-expr sorted) pcontext ctx))
+  (define reprs (batch-reprs batch ctx))
+  (define (real-brf? brf)
+    (equal? (representation-type (reprs brf)) 'real))
   (define branch-brfs
     (if (flag-set? 'reduce 'branch-expressions)
-        (exprs-to-branch-on batch start-prog ctx)
+        (filter real-brf? (set->list (critical-subexpressions batch start-prog (context-vars ctx))))
         (map (curry batch-add! batch) (context-vars ctx))))
 
   (define brf-vals (brf-values* batch branch-brfs ctx pcontext))
-  (define reprs (batch-reprs batch ctx))
   (define pts-vec (pcontext-points pcontext))
 
   ;; For timeline
@@ -93,14 +95,6 @@
     (timeline-push! 'accuracy (- (pareto-point-error ppt) (length (option-split-indices opt))))
     (timeline-push! 'oracle (oracle-errors-score err-cols (pareto-point-cost ppt)))
     opt))
-
-(define (exprs-to-branch-on batch start-prog ctx)
-  (define reprs (batch-reprs batch ctx))
-  ;; We can only binary search if the branch expression is critical
-  ;; for the start program and is real-typed.
-  (for/list ([sub-brf (in-set (critical-subexpressions batch start-prog (context-vars ctx)))]
-             #:when (equal? (representation-type (reprs sub-brf)) 'real))
-    sub-brf))
 
 (define (critical-subexpression? batch root-brf sub-brf vars)
   (set-member? (critical-subexpressions batch root-brf vars) sub-brf))
@@ -272,7 +266,8 @@
       '(+.f64 (*.f64 (ref.f64 a #s(literal 0 binary64)) (ref.f64 b #s(literal 0 binary64)))
               (*.f64 (ref.f64 a #s(literal 1 binary64)) (ref.f64 b #s(literal 1 binary64)))))
     (define-values (batch brfs) (progs->batch (list dot-product)))
-    (check-equal? (first (exprs-to-branch-on batch (first brfs) vec2-ctx)) (first brfs))))
+    (check-true (set-member? (critical-subexpressions batch (first brfs) (context-vars vec2-ctx))
+                             (first brfs)))))
 
 (define (valid-splitindices? can-split? split-indices)
   (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
