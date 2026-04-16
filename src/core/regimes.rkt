@@ -246,8 +246,10 @@
   (let ()
     (define xy-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
     (define-values (batch brfs) (progs->batch (list 'x)))
-    (check-true (critical-subexpression? batch (first brfs) (batch-add! batch 'x) (context-vars xy-ctx)))
-    (check-false (critical-subexpression? batch (first brfs) (batch-add! batch 'y) (context-vars xy-ctx))))
+    (check-true
+     (critical-subexpression? batch (first brfs) (batch-add! batch 'x) (context-vars xy-ctx)))
+    (check-false
+     (critical-subexpression? batch (first brfs) (batch-add! batch 'y) (context-vars xy-ctx))))
 
   (let ()
     (define vec2-ctx
