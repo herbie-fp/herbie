@@ -50,9 +50,10 @@
   (define (real-brf? brf)
     (equal? (representation-type (reprs brf)) 'real))
   (define branch-brfs
-    (if (flag-set? 'reduce 'branch-expressions)
-        (filter real-brf? (critical-subexpressions batch start-prog (context-vars ctx)))
-        (map (curry batch-add! batch) (context-vars ctx))))
+    (filter real-brf?
+            (if (flag-set? 'reduce 'branch-expressions)
+                (critical-subexpressions batch start-prog (context-vars ctx))
+                (map (curry batch-add! batch) (context-vars ctx)))))
 
   (define brf-vals (brf-values* batch branch-brfs ctx pcontext))
   (define pts-vec (pcontext-points pcontext))
@@ -114,7 +115,6 @@
                 (loop (dom-parent brf))))))))
 
 (define (build-dominator-tree batch root-brf)
-  (define root-idx (batchref-idx root-brf))
   (define reachable-brfs (reverse (batch-reachable/impl batch (list root-brf))))
   (define dom-parents (make-vector (batch-length batch) #f))
   (define (dom-parent brf)
@@ -126,7 +126,7 @@
           (dominator-lca brf old-parent dom-parent)
           brf))
     (vector-set! dom-parents (batchref-idx child-brf) new-parent))
-  (vector-set! dom-parents root-idx root-brf)
+  (vector-set! dom-parents (batchref-idx root-brf) root-brf)
   (for ([brf (in-list reachable-brfs)])
     (expr-recurse-impl (deref brf) (lambda (child) (update-child! brf child))))
   dom-parent)
