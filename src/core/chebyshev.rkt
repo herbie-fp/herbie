@@ -99,7 +99,7 @@
              (define var-repr (context-lookup ctx var))
 
              ;; Must be univariate, non-polynomial, non-array
-             (define qualifying
+             (define filtered
                (for/list ([impl-brf (in-list brfs)]
                           [spec-brf (in-list spec-brfs)]
                           [repr (in-list reprs)]
@@ -111,6 +111,14 @@
                           #:when (pair? spec-expr)
                           #:when (not (polynomial-expr? spec-expr var)))
                  (list impl-brf spec-brf repr altn spec-expr)))
+
+             (define seen-specs (make-hash))
+             (define qualifying
+               (for/list ([q (in-list filtered)]
+                          #:do [(define spec-brf (second q))]
+                          #:unless (hash-has-key? seen-specs spec-brf))
+                 (hash-set! seen-specs spec-brf q)
+                 q))
 
              (when (pair? qualifying)
                (define qualifying-impl-brfs (map first qualifying))
