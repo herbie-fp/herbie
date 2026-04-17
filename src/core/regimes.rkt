@@ -92,9 +92,10 @@
     (timeline-push! 'inputs (batch->jsexpr batch (map alt-expr (option-alts opt))))
     (timeline-push! 'count (length (option-alts opt)) (length (option-split-indices opt)))
     (timeline-push! 'outputs (batch->jsexpr batch output-brfs))
-    (timeline-push! 'baseline (baseline-errors-score err-cols (pareto-point-cost ppt)))
-    (timeline-push! 'accuracy (- (pareto-point-error ppt) (length (option-split-indices opt))))
-    (timeline-push! 'oracle (oracle-errors-score err-cols (pareto-point-cost ppt)))
+    (timeline-push! 'accuracy
+                    (- (pareto-point-error ppt) (length (option-split-indices opt)))
+                    (oracle-errors-score err-cols (pareto-point-cost ppt))
+                    (baseline-errors-score err-cols (pareto-point-cost ppt)))
     opt))
 
 (define (critical-subexpression? batch root-brf sub-brf vars)
