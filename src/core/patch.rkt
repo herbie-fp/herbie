@@ -108,9 +108,10 @@
     (cond
       [(flag-set? 'generate 'egglog)
        (define batch* (batch-empty))
+       (define spec-batch* (batch-empty))
        (define copy-f (batch-copy-only! batch* global-batch))
        (define brfs* (map copy-f brfs))
-       (make-egglog-runner batch* brfs* reprs schedule (*context*))]
+       (make-egglog-runner batch* brfs* reprs schedule (*context*) #:spec-batch spec-batch*)]
       [else (make-egraph global-batch brfs reprs schedule (*context*))]))
 
   (define batchrefss
@@ -187,9 +188,10 @@
     (cond
       [(flag-set? 'generate 'egglog)
        (define batch* (batch-empty))
+       (define spec-batch* (batch-empty))
        (define copy-f (batch-copy-only! batch* global-batch))
        (define brfs* (map copy-f brfs))
-       (make-egglog-runner batch* brfs* reprs schedule (*context*))]
+       (make-egglog-runner batch* brfs* reprs schedule (*context*) #:spec-batch spec-batch*)]
       [else (make-egraph global-batch brfs reprs schedule (*context*))]))
 
   (define batchrefss

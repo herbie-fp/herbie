@@ -49,7 +49,7 @@
 
 ;; Herbie's version of an egglog runner.
 ;; Defines parameters for running rewrite rules with egglog
-(struct egglog-runner (batch brfs reprs schedule ctx)
+(struct egglog-runner (batch spec-batch brfs reprs schedule ctx)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -62,7 +62,7 @@
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
 ;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
 ;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
-(define (make-egglog-runner batch brfs reprs schedule ctx)
+(define (make-egglog-runner batch brfs reprs schedule ctx #:spec-batch [spec-batch batch])
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -71,11 +71,12 @@
       (oops! "unknown schedule step `~a`" step)))
 
   ; make the runner
-  (egglog-runner batch brfs reprs schedule ctx))
+  (egglog-runner batch spec-batch brfs reprs schedule ctx))
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
 (define (run-egglog runner output-batch [label #f] #:extract extract) ; multi expression extraction
   (define insert-batch (egglog-runner-batch runner))
+  (define insert-spec-batch (egglog-runner-spec-batch runner))
   (define insert-brfs (egglog-runner-brfs runner))
   (define schedule (egglog-runner-schedule runner))
   (define pform (*active-platform*))
@@ -131,7 +132,7 @@
   ;; keep track of the mapping between each binding and its corresponding constructor.
 
   (define-values (all-bindings extract-bindings)
-    (egglog-add-exprs insert-batch insert-brfs (egglog-runner-ctx runner) subproc))
+    (egglog-add-exprs insert-batch insert-spec-batch insert-brfs (egglog-runner-ctx runner) subproc))
 
   (egglog-send subproc
                `(ruleset run-extract-commands)
@@ -380,16 +381,33 @@
               :ruleset
               ,tag)))
 
-(define (egglog-add-exprs batch brfs ctx subproc)
+(define (egglog-add-exprs batch spec-batch brfs ctx subproc)
   (define mappings (build-vector (batch-length batch) values))
   (define bindings (make-hash))
   (define vars (make-hash))
+  (define all-brfs
+    (for/list ([n (in-range (batch-length batch))])
+      (batchref batch n)))
+  (define all-spec-brfs (batch-to-spec! batch all-brfs spec-batch))
+  (define spec-idxs
+    (for/vector #:length (batch-length batch)
+                ([spec-brf (in-list all-spec-brfs)])
+      (batchref-idx spec-brf)))
+  (define spec-mappings (build-vector (batch-length spec-batch) values))
+  (define spec-vars (make-hash))
+  (define (spec-binding-name n)
+    (string->symbol (format "?s~a" n)))
+  (define (remap-spec x)
+    (cond
+      [(hash-has-key? spec-vars x) (string->symbol (format "?s~a" (hash-ref spec-vars x)))]
+      [else (vector-ref spec-mappings x)]))
   (define (remap x spec?)
     (cond
       [(hash-has-key? vars x)
        (if spec?
            (string->symbol (format "?s~a" (hash-ref vars x)))
            (string->symbol (format "?t~a" (hash-ref vars x))))]
+      [spec? (remap-spec (vector-ref spec-idxs x))]
       [else (vector-ref mappings x)]))
 
   ; node -> egglog node binding
@@ -399,6 +417,11 @@
       (if root?
           (string->symbol (format "?r~a" n))
           (string->symbol (format "?b~a" n))))
+    (hash-set! bindings binding node)
+    binding)
+
+  (define (insert-spec-node! node n)
+    (define binding (spec-binding-name n))
     (hash-set! bindings binding node)
     binding)
 
@@ -428,6 +451,19 @@
 
   (for ([brf (in-list brfs)])
     (vector-set! root-mask (batchref-idx brf) #t))
+  (for ([node (in-batch spec-batch)]
+        [n (in-naturals)])
+    (define node*
+      (match node
+        [(? number?) `(Num ,(real->bigrat node))]
+        [(? symbol?) #f]
+        [(list op args ...)
+         `(,(serialize-spec-op op (length args)) ,@(for/list ([arg (in-list args)])
+                                                     (remap-spec arg)))]))
+
+    (if node*
+        (vector-set! spec-mappings n (insert-spec-node! node* n))
+        (hash-set! spec-vars n node)))
   (for ([node (in-batch batch)]
         [root? (in-vector root-mask)]
         [n (in-naturals)])
@@ -513,6 +549,23 @@
 
     ; Add the binding and constructor union to all-bindings for the future rule
     (set! all-bindings (cons curr-var-typed-binding all-bindings))
+    (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
+
+    (set! constructor-num (add1 constructor-num)))
+
+  ; Spec bindings for every non-variable impl node
+  (for ([node (in-batch spec-batch)]
+        [n (in-naturals)]
+        #:unless (hash-has-key? spec-vars n))
+    (define binding-name (spec-binding-name n))
+    (define constructor-name (string->symbol (format "const~a" constructor-num)))
+    (hash-set! binding->constructor binding-name constructor-name)
+
+    (define curr-spec-binding `(let ,binding-name ,(hash-ref bindings binding-name)))
+
+    (egglog-send subproc `(constructor ,constructor-name () M :unextractable))
+
+    (set! all-bindings (cons curr-spec-binding all-bindings))
     (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
 
     (set! constructor-num (add1 constructor-num)))
