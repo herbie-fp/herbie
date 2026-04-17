@@ -90,14 +90,14 @@
         expr))
 
   (define approxs (remove-duplicates (taylor-alts altns global-batch spec-batch reducer) #:key key))
-  (define approxs* (remove-duplicates (run-lowering approxs global-batch) #:key key))
+  (define approxs* (remove-duplicates (run-lowering approxs global-batch spec-batch) #:key key))
 
   (timeline-push! 'inputs (batch->jsexpr global-batch (map alt-expr altns)))
   (timeline-push! 'outputs (batch->jsexpr global-batch (map alt-expr approxs*)))
   (timeline-push! 'count (length altns) (length approxs*))
   approxs*)
 
-(define (run-lowering altns global-batch)
+(define (run-lowering altns global-batch spec-batch)
   (define schedule '(lower))
 
   ; run egg
@@ -108,10 +108,9 @@
     (cond
       [(flag-set? 'generate 'egglog)
        (define batch* (batch-empty))
-       (define spec-batch* (batch-empty))
        (define copy-f (batch-copy-only! batch* global-batch))
        (define brfs* (map copy-f brfs))
-       (make-egglog-runner batch* brfs* reprs schedule (*context*) #:spec-batch spec-batch*)]
+       (make-egglog-runner batch* brfs* reprs schedule (*context*) #:spec-batch spec-batch)]
       [else (make-egraph global-batch brfs reprs schedule (*context*))]))
 
   (define batchrefss
@@ -175,7 +174,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (run-rr altns global-batch)
+(define (run-rr altns global-batch spec-batch)
   (timeline-event! 'rewrite)
 
   ; egg schedule (4-phases for mathematical rewrites, sound-X removal, and implementation selection)
@@ -188,10 +187,9 @@
     (cond
       [(flag-set? 'generate 'egglog)
        (define batch* (batch-empty))
-       (define spec-batch* (batch-empty))
        (define copy-f (batch-copy-only! batch* global-batch))
        (define brfs* (map copy-f brfs))
-       (make-egglog-runner batch* brfs* reprs schedule (*context*) #:spec-batch spec-batch*)]
+       (make-egglog-runner batch* brfs* reprs schedule (*context*) #:spec-batch spec-batch)]
       [else (make-egraph global-batch brfs reprs schedule (*context*))]))
 
   (define batchrefss
@@ -240,7 +238,7 @@
   ; Recursive rewrite
   (define rewritten
     (if (flag-set? 'generate 'rr)
-        (run-rr start-altns batch)
+        (run-rr start-altns batch spec-batch)
         '()))
 
   (remove-duplicates (append evaluations rewritten approximations)
