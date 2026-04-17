@@ -5,11 +5,11 @@
          "../syntax/batch.rkt"
          "../syntax/platform.rkt"
          "../core/alternative.rkt"
-         "../core/compiler.rkt"
          "../core/programs.rkt"
          "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../syntax/float.rkt"
+         "../syntax/rival.rkt"
          "../config.rkt")
 
 (provide chebyshev-alts)
@@ -37,43 +37,23 @@
                 (define theta (* pi (/ (+ j 0.5) denom)))
                 (* (vector-ref values j) (cos (* k theta)))))))
 
-(define (chebyshev->monomial coeffs d)
-  ;; p(t) = c[0] / 2 + sum(c[k]*T_k(t)) = sum(a[i]*t^i)
-  ;; T[0](t) = 1
-  ;; T[1](t) = t
-  ;; T[k](t) = 2 * t * T[k - 1](t) - T[k - 2](t)
-  (define sz (add1 d))
-  (define result (make-vector sz 0.0))
-  (define prev (make-vector sz 0.0)) ; T[k - 2]
-  (define curr (make-vector sz 0.0)) ; T[k - 1]
-  (vector-set! prev 0 1.0)
-  (vector-set! result 0 (* 0.5 (vector-ref coeffs 0)))
-  (when (>= d 1)
-    ;; T[1](t) = t
-    (vector-set! curr 1 1.0)
-    (vector-set! result 1 (+ (vector-ref result 1) (vector-ref coeffs 1)))
-    (for ([k (in-range 2 sz)])
-      (define next (make-vector sz 0.0))
-      ;; T[k](t) = 2 * t * T[k - 1](t) - T[k - 2](t)
-      (for ([i (in-range d)])
-        (vector-set! next (add1 i) (+ (vector-ref next (add1 i)) (* 2.0 (vector-ref curr i)))))
-      (for ([i (in-range sz)])
-        (vector-set! next i (- (vector-ref next i) (vector-ref prev i))))
-      (for ([i (in-range sz)])
-        (vector-set! result
-                     i
-                     (+ (vector-ref result i) (* (vector-ref coeffs k) (vector-ref next i)))))
-      (vector-copy! prev 0 curr)
-      (vector-copy! curr 0 next)))
-  result)
-
-(define (build-horner-poly mono d var m r)
-  (define t `(/ (- ,var ,(real->double-flonum m)) ,(real->double-flonum r)))
-  (let loop ([k 0])
-    (define ak (real->double-flonum (vector-ref mono k)))
-    (if (= k d)
-        ak
-        `(+ ,ak (* ,t ,(loop (add1 k)))))))
+(define (build-clenshaw-poly! batch coeffs d var m r)
+  (define t-brf (batch-add! batch `(/ (- ,var ,(real->double-flonum m)) ,(real->double-flonum r))))
+  (define c0-half (real->double-flonum (* 0.5 (vector-ref coeffs 0))))
+  (if (zero? d)
+      (batch-add! batch c0-half)
+      (let ([two-t-brf (batch-add! batch `(* 2.0 ,t-brf))])
+        (let loop ([k d]
+                   [b-k+1 (batch-add! batch 0.0)] ; b_{k+1}
+                   [b-k+2 (batch-add! batch 0.0)]) ; b_{k+2}
+          (if (zero? k)
+              (let* ([tb1-brf (batch-add! batch `(* ,t-brf ,b-k+1))]
+                     [tail-brf (batch-add! batch `(- ,tb1-brf ,b-k+2))])
+                (batch-add! batch `(+ ,c0-half ,tail-brf)))
+              (let* ([ck (real->double-flonum (vector-ref coeffs k))]
+                     [sum-brf (batch-add! batch `(+ ,ck (* ,two-t-brf ,b-k+1)))]
+                     [b-k (batch-add! batch `(- ,sum-brf ,b-k+2))])
+                (loop (sub1 k) b-k b-k+1)))))))
 
 (define (chebyshev-alts altns global-batch spec-batch reducer regime-intervals)
   (cond
@@ -107,10 +87,11 @@
                           #:when (not (array-representation? repr))
                           #:do [(define fv (free-vars-fn spec-brf))]
                           #:when (and (= (set-count fv) 1) (set-member? fv var))
-                          #:do [(define spec-expr (exprs-fn (reducer (copier spec-brf))))]
+                          #:do [(define reduced-spec-brf (reducer (copier spec-brf)))]
+                          #:do [(define spec-expr (exprs-fn reduced-spec-brf))]
                           #:when (pair? spec-expr)
                           #:when (not (polynomial-expr? spec-expr var)))
-                 (list impl-brf spec-brf repr altn spec-expr)))
+                 (list impl-brf spec-brf reduced-spec-brf repr altn spec-expr)))
 
              (define seen-specs (make-hash))
              (define qualifying
@@ -121,16 +102,20 @@
                  q))
 
              (when (pair? qualifying)
-               (define qualifying-impl-brfs (map first qualifying))
-               (define qualifying-reprs (list->vector (map third qualifying)))
+               (define qualifying-spec-brfs (map third qualifying))
+               (define qualifying-reprs (list->vector (map fourth qualifying)))
                (define n-exprs (length qualifying))
-               (define eval-ctx (context (list var) var-repr (list var-repr)))
-               (define evaluator!
-                 (parameterize ([*timeline-disabled* #t])
-                   (compile-batch! global-batch qualifying-impl-brfs eval-ctx)))
+               (define evaluators
+                 (for/vector #:length n-exprs
+                             ([spec-brf (in-list qualifying-spec-brfs)]
+                              [repr (in-vector qualifying-reprs)])
+                   (parameterize ([*timeline-disabled* #t])
+                     ;; Avoid invalid expressions invalidating the whole batch
+                     (make-real-compiler spec-batch
+                                         (list spec-brf)
+                                         (list (context (list var) repr (list var-repr)))))))
 
                (define pt (vector #f))
-               (define outs (make-vector n-exprs))
 
                (for ([interval (in-list intervals)])
                  (match-define (cons lo hi) interval)
@@ -159,19 +144,24 @@
 
                    (for ([j (in-range denom)])
                      (vector-set! pt 0 (real->repr (vector-ref nodes j) var-repr))
-                     (evaluator! pt outs)
                      (for ([i (in-range n-exprs)])
-                       (define val (repr->real (vector-ref outs i) (vector-ref qualifying-reprs i)))
+                       (define-values (status vals)
+                         (parameterize ([*timeline-disabled* #t])
+                           (real-apply (vector-ref evaluators i) pt)))
+                       (define out
+                         (if (and (equal? status 'valid) (pair? vals))
+                             (repr->real (first vals) (vector-ref qualifying-reprs i))
+                             +nan.0))
                        (vector-set! (vector-ref vals-matrix i)
                                     j
-                                    (if (real? val)
-                                        (exact->inexact val)
+                                    (if (real? out)
+                                        (exact->inexact out)
                                         +nan.0))))
 
                    ;; Generate polynomial alts per expression
                    (for ([q (in-list qualifying)]
                          [vals (in-vector vals-matrix)])
-                     (match-define (list _ spec-brf repr altn spec-expr) q)
+                     (match-define (list _ spec-brf _ repr altn spec-expr) q)
                      (define valid?
                        (for/and ([v (in-vector vals)])
                          (and (real? v) (rational? v))))
@@ -191,9 +181,7 @@
                        (for ([k (in-range (add1 N))]
                              #:break (>= order (*chebyshev-order-limit*)))
                          (when (not (zero? (vector-ref coeffs k)))
-                           (define mono (chebyshev->monomial coeffs k))
-                           (define poly-expr (build-horner-poly mono k var m r))
-                           (define poly-brf (batch-add! global-batch poly-expr))
+                           (define poly-brf (build-clenshaw-poly! global-batch coeffs k var m r))
                            (define gen (approx spec-brf (hole (representation-name repr) poly-brf)))
                            (define brf (batch-add! global-batch gen))
                            (sow (alt brf `(taylor chebyshev ,var ,order) (list altn)))
