@@ -61,7 +61,7 @@
             (span ((class "time")) ,(format-time time) " (" ,(format-percent time total-time) ")"))
         (dl ,@(dict-call curr render-phase-memory 'memory 'gc-time)
             ,@(dict-call curr render-phase-algorithm 'method)
-            ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline)
+            ,@(dict-call curr render-phase-accuracy 'accuracy)
             ,@(dict-call curr render-phase-pruning 'kept)
             ,@(dict-call curr render-phase-taylor-counts 'taylor-count)
             ,@(dict-call curr render-phase-error 'min-error)
@@ -230,17 +230,16 @@
       `((dt ,name) (dd ,@(map (lambda (s) `(p ,(~a s))) (first info))))
       empty))
 
-(define (render-phase-accuracy accuracy oracle baseline)
+(define (render-phase-accuracy accuracy)
   (define rows
-    (sort (for/list ([acc accuracy]
-                     [ora oracle]
-                     [bas baseline])
+    (sort (for/list ([row (in-list accuracy)])
+            (match-define (list acc ora bas) row)
             (list (- acc ora) (- bas acc)))
           >
           #:key first))
 
   (define bits (map first rows))
-  (define total-remaining (apply + accuracy))
+  (define total-remaining (apply + (map first accuracy)))
 
   `((dt "Accuracy") (dd (p "Total "
                            ,(format-bits (apply + bits) #:unit #t)
