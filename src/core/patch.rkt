@@ -81,7 +81,7 @@
             (set! idx (add1 idx))
             (timeline-stop!)))))
 
-(define (run-taylor altns global-batch spec-batch reducer)
+(define (run-taylor altns global-batch shared-spec-batch taylor-spec-batch reducer)
   (timeline-event! 'series)
   (define (key x)
     (define expr (deref (alt-expr x)))
@@ -89,8 +89,10 @@
         (approx-impl expr)
         expr))
 
-  (define approxs (remove-duplicates (taylor-alts altns global-batch spec-batch reducer) #:key key))
-  (define approxs* (remove-duplicates (run-lowering approxs global-batch spec-batch) #:key key))
+  (define approxs
+    (remove-duplicates (taylor-alts altns global-batch taylor-spec-batch reducer) #:key key))
+  (define approxs*
+    (remove-duplicates (run-lowering approxs global-batch shared-spec-batch) #:key key))
 
   (timeline-push! 'inputs (batch->jsexpr global-batch (map alt-expr altns)))
   (timeline-push! 'outputs (batch->jsexpr global-batch (map alt-expr approxs*)))
@@ -218,7 +220,7 @@
     [(list) (alt-expr altn)]
     [(list prev) (get-starting-expr prev)]))
 
-(define (generate-candidates batch brfs spec-batch reducer)
+(define (generate-candidates batch brfs shared-spec-batch taylor-spec-batch reducer)
   ; Starting alternatives
   (define start-altns
     (for/list ([brf brfs])
@@ -232,13 +234,13 @@
   ; Series expand
   (define approximations
     (if (flag-set? 'generate 'taylor)
-        (run-taylor start-altns batch spec-batch reducer)
+        (run-taylor start-altns batch shared-spec-batch taylor-spec-batch reducer)
         '()))
 
   ; Recursive rewrite
   (define rewritten
     (if (flag-set? 'generate 'rr)
-        (run-rr start-altns batch spec-batch)
+        (run-rr start-altns batch shared-spec-batch)
         '()))
 
   (remove-duplicates (append evaluations rewritten approximations)

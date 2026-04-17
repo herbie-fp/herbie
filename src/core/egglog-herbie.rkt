@@ -389,18 +389,24 @@
     (for/list ([n (in-range (batch-length batch))])
       (batchref batch n)))
   (define all-spec-brfs (batch-to-spec! batch all-brfs spec-batch))
+  (define reachable-spec-brfs (batch-reachable spec-batch all-spec-brfs))
   (define spec-idxs
     (for/vector #:length (batch-length batch)
                 ([spec-brf (in-list all-spec-brfs)])
       (batchref-idx spec-brf)))
   (define spec-mappings (build-vector (batch-length spec-batch) values))
   (define spec-vars (make-hash))
+  (define (spec-idx x)
+    (if (batchref? x)
+        (batchref-idx x)
+        x))
   (define (spec-binding-name n)
     (string->symbol (format "?s~a" n)))
   (define (remap-spec x)
+    (define n (spec-idx x))
     (cond
-      [(hash-has-key? spec-vars x) (string->symbol (format "?s~a" (hash-ref spec-vars x)))]
-      [else (vector-ref spec-mappings x)]))
+      [(hash-has-key? spec-vars n) (string->symbol (format "?s~a" (hash-ref spec-vars n)))]
+      [else (vector-ref spec-mappings n)]))
   (define (remap x spec?)
     (cond
       [(hash-has-key? vars x)
@@ -451,8 +457,9 @@
 
   (for ([brf (in-list brfs)])
     (vector-set! root-mask (batchref-idx brf) #t))
-  (for ([node (in-batch spec-batch)]
-        [n (in-naturals)])
+  (for ([spec-brf (in-list reachable-spec-brfs)])
+    (define n (batchref-idx spec-brf))
+    (define node (deref spec-brf))
     (define node*
       (match node
         [(? number?) `(Num ,(real->bigrat node))]
@@ -554,8 +561,8 @@
     (set! constructor-num (add1 constructor-num)))
 
   ; Spec bindings for every non-variable impl node
-  (for ([node (in-batch spec-batch)]
-        [n (in-naturals)]
+  (for ([spec-brf (in-list reachable-spec-brfs)]
+        #:do [(define n (batchref-idx spec-brf))]
         #:unless (hash-has-key? spec-vars n))
     (define binding-name (spec-binding-name n))
     (define constructor-name (string->symbol (format "const~a" constructor-num)))

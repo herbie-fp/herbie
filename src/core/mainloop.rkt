@@ -56,7 +56,8 @@
 
   (parameterize ([*global-batch* (batch-empty)])
     (define global-spec-batch (batch-empty))
-    (define spec-reducer (batch-reduce global-spec-batch))
+    (define taylor-spec-batch (batch-empty))
+    (define spec-reducer (batch-reduce taylor-spec-batch))
 
     (*preprocessing* preprocessing)
     (define initial-brf (batch-add! (*global-batch*) initial))
@@ -66,7 +67,7 @@
 
     (for ([_ (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
-      (run-iteration! global-spec-batch spec-reducer))
+      (run-iteration! global-spec-batch taylor-spec-batch spec-reducer))
     (define alternatives (extract!))
     (timeline-event! 'preprocess)
     (for/list ([altn alternatives])
@@ -259,7 +260,7 @@
                   (format "~a" (representation-name repr)))
   (void))
 
-(define (run-iteration! global-spec-batch spec-reducer)
+(define (run-iteration! global-spec-batch taylor-spec-batch spec-reducer)
   (define pending-alts (atab-not-done-alts (^table^)))
   (timeline-push-alts! pending-alts)
   (^table^ (atab-set-picked (^table^) pending-alts))
@@ -267,7 +268,8 @@
   (define brfs (map alt-expr pending-alts))
   (define brfs* (batch-reachable (*global-batch*) brfs #:condition node-is-impl?))
 
-  (define results (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer))
+  (define results
+    (generate-candidates (*global-batch*) brfs* global-spec-batch taylor-spec-batch spec-reducer))
   (define patched (reconstruct! pending-alts results))
   (finalize-iter! pending-alts patched)
   (void))
