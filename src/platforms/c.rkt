@@ -28,6 +28,7 @@
 
 (define-representation <binary32> #:cost 32bit-move-cost)
 (define <array32> (make-array-representation #:elem <binary32> #:len 2))
+(define <array32r3> (make-array-representation #:elem <binary32> #:len 3))
 
 (define-operation (if.f32 [c <bool>] [t <binary32>] [f <binary32>]) <binary32>
   #:spec (if c t f) #:impl if-impl
@@ -89,6 +90,7 @@
   [trunc.f32  #:spec (trunc x)  #:impl (from-libm 'truncf)  #:cost 0.275])
 
 (define-representation <array32> #:cost (* 2 32bit-move-cost))
+(define-representation <array32r3> #:cost (* 3 32bit-move-cost))
 
 (define-operation (array.f32 [x <binary32>] [y <binary32>]) <array32>
   #:spec (array x y)
@@ -96,7 +98,20 @@
   #:fpcore (! :precision binary32 (array x y))
   #:cost 0.25)
 
+(define-operation (array3.f32 [x <binary32>] [y <binary32>] [z <binary32>]) <array32r3>
+  #:spec (array x y z)
+  #:impl (lambda (a b c) (vector a b c))
+  #:fpcore (! :precision binary32 (array x y z))
+  #:cost 0.375)
+
 (define-operation (ref.f32 [arr <array32>] [idx <binary32>]) <binary32>
+  #:spec (ref arr idx)
+  #:impl (lambda (arr idx)
+           (vector-ref arr (inexact->exact (round idx))))
+  #:fpcore (! :precision binary32 (ref arr idx))
+  #:cost 0.2)
+
+(define-operation (ref.r3.f32 [arr <array32r3>] [idx <binary32>]) <binary32>
   #:spec (ref arr idx)
   #:impl (lambda (arr idx)
            (vector-ref arr (inexact->exact (round idx))))
@@ -130,6 +145,7 @@
 
 (define-representation <binary64> #:cost 64bit-move-cost)
 (define <array64> (make-array-representation #:elem <binary64> #:len 2))
+(define <array64r3> (make-array-representation #:elem <binary64> #:len 3))
 (define <array64r2> (make-array-representation #:elem <array64> #:len 2))
 
 (define-operation (if.f64 [c <bool>] [t <binary64>] [f <binary64>]) <binary64>
@@ -191,6 +207,7 @@
   [trunc.f64  #:spec (trunc x)  #:impl (from-libm 'trunc)     #:cost 0.250])
 
 (define-representation <array64> #:cost (* 2 64bit-move-cost))
+(define-representation <array64r3> #:cost (* 3 64bit-move-cost))
 (define-representation <array64r2> #:cost (* 2 64bit-move-cost))
 
 (define-operation (array.f64 [x <binary64>] [y <binary64>]) <array64>
@@ -199,6 +216,12 @@
   #:fpcore (! :precision binary64 (array x y))
   #:cost 0.25)
 
+(define-operation (array3.f64 [x <binary64>] [y <binary64>] [z <binary64>]) <array64r3>
+  #:spec (array x y z)
+  #:impl (lambda (a b c) (vector a b c))
+  #:fpcore (! :precision binary64 (array x y z))
+  #:cost 0.375)
+
 (define-operation (array2.f64 [x <array64>] [y <array64>]) <array64r2>
   #:spec (array x y)
   #:impl (lambda (a b) (vector a b))
@@ -206,6 +229,13 @@
   #:cost 0.25)
 
 (define-operation (ref.f64 [arr <array64>] [idx <binary64>]) <binary64>
+  #:spec (ref arr idx)
+  #:impl (lambda (arr idx)
+           (vector-ref arr (inexact->exact (round idx))))
+  #:fpcore (! :precision binary64 (ref arr idx))
+  #:cost 0.2)
+
+(define-operation (ref.r3.f64 [arr <array64r3>] [idx <binary64>]) <binary64>
   #:spec (ref arr idx)
   #:impl (lambda (arr idx)
            (vector-ref arr (inexact->exact (round idx))))

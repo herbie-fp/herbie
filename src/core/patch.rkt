@@ -52,11 +52,11 @@
           (for ([spec-brf (in-list spec-brfs)]
                 [repr (in-list reprs)]
                 [altn (in-list altns)]
-                #:unless (array-representation? repr))
+                #:when (equal? (representation-type repr) 'real))
             (define genexpr0 (batch-add! global-batch 0))
             (define gen0 (approx spec-brf (hole (representation-name repr) genexpr0)))
             (define brf0 (batch-add! global-batch gen0))
-            (sow (alt brf0 `(taylor zero undef-var) (list altn))))
+            (sow (alt brf0 `(taylor zero undef-var -1) (list altn))))
 
           ;; Taylor expansions
           ;; List<List<(cons offset coeffs)>>
@@ -78,7 +78,7 @@
                 ;; adding a new expansion to the global batch
                 (define gen (approx spec-brf (hole (representation-name repr) (copier (genexpr)))))
                 (define brf (batch-add! global-batch gen))
-                (sow (alt brf `(taylor ,name ,var) (list altn)))))
+                (sow (alt brf `(taylor ,name ,var ,i) (list altn)))))
             (set! idx (add1 idx))
             (timeline-stop!)))))
 

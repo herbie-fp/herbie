@@ -12,7 +12,7 @@
         [localize . ()]
         [generate . (rr taylor proofs evaluate)]
         [reduce . (regimes binary-search branch-expressions)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic)]
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic special)]
         [dump . ()]))
 
 (define deprecated-flags
@@ -24,7 +24,7 @@
         [rules . (numerics special bools branches)]))
 
 (define debug-flags
-  #hash([generate . (egglog)] [dump . (egg rival egglog trace intermediates)] [setup . (rival3)]))
+  #hash([generate . (egglog)] [dump . (egg rival egglog trace intermediates)] [setup . (rival2)]))
 
 (define all-flags (hash-union default-flags deprecated-flags debug-flags #:combine set-union))
 
@@ -173,7 +173,7 @@
   (parameterize ([current-error-port (open-output-nowhere)])
     (string-trim (with-output-to-string (λ () (system cmd))))))
 
-(define (git-command #:default [default ""] gitcmd . args)
+(define (git-command #:default default gitcmd . args)
   (cond
     [(or (directory-exists? ".git") (file-exists? ".git")) ; gitlinks like for worktrees
      (define cmd (format "git ~a ~a" gitcmd (string-join args " ")))

@@ -7,6 +7,7 @@
 (provide progs->batch ; List<Expr> -> (Batch, List<Batchref>)
 
          expr-recurse
+         expr-recurse-impl
          (struct-out batch)
          batch-empty ; Batch
          batch-push!
@@ -17,6 +18,7 @@
          batch-free-vars ; Batch -> (Batchref -> Set<Var>)
          in-batch ; Batch -> Sequence<Node>
          batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
+         batch-reachable/impl ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-exprs
          batch-recurse
          batch-get-nodes
@@ -24,7 +26,6 @@
          jsexpr->batch-exprs
 
          (struct-out batchref)
-         batchref<?
          deref) ; Batchref -> Expr
 
 ;; Batches store these recursive structures, flattened
@@ -43,9 +44,6 @@
 (define (batch-get-nodes b)
   (dvector->vector (batch-nodes b)))
 
-(define (batchref<? brf1 brf2)
-  (< (batchref-idx brf1) (batchref-idx brf2)))
-
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
   (match expr
@@ -58,6 +56,11 @@
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
 
+(define (expr-recurse-impl expr f)
+  (match expr
+    [(approx _ impl) (f impl)]
+    [_ (expr-recurse expr f)]))
+
 (define (batch-length b)
   (dvector-length (batch-nodes b)))
 
@@ -69,8 +72,7 @@
   (define (munge prog)
     (match prog
       [(batchref b* idx*)
-       (unless (equal? b b*)
-         (error 'batch-add! "Batchref belongs to a different batch"))
+       (assert-batch-brf! b prog)
        idx*]
       [_ (batchref-idx (batch-push! b (expr-recurse prog munge)))]))
   (batchref b (munge expr)))
@@ -94,10 +96,8 @@
   (define out (make-dvector (batch-length batch)))
   (define visited (make-dvector (batch-length batch) #f))
   (λ (brf)
-    (match-define (batchref b idx) brf)
-    (unless (eq? b batch)
-      (error 'batch-recurse "Batchref belongs to a different batch"))
-    (let loop ([brf (batchref batch idx)])
+    (assert-batch-brf! batch brf)
+    (let loop ([brf brf])
       (define idx (batchref-idx brf))
       (cond
         [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx)) (dvector-ref out idx)]
@@ -107,15 +107,15 @@
          (dvector-set! visited idx #t)
          res]))))
 
-(define (brfs-belong-to-batch? batch brfs)
+(define (assert-batch-brf! batch . brfs)
   (unless (andmap (compose (curry equal? batch) batchref-batch) brfs)
-    (error 'brfs-belong-to-batch? "One of batchrefs does not belong to the provided batch")))
+    (error 'assert-batch-brf! "One of batchrefs does not belong to the provided batch")))
 
 ;; Function returns indices of children nodes within a batch for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
-(define (batch-reachable batch brfs #:condition [condition (const #t)])
+(define (batch-reachable* batch brfs recurse #:condition [condition (const #t)])
   ; Little check
-  (brfs-belong-to-batch? batch brfs)
+  (apply assert-batch-brf! batch brfs)
   (define len (batch-length batch))
   (define child-mask (make-vector len #f))
   (for ([brf (in-list brfs)])
@@ -125,13 +125,19 @@
         [child (in-vector child-mask (sub1 len) -1 -1)]
         #:when child)
     (cond
-      [(condition node) (expr-recurse node (λ (n) (vector-set! child-mask n #t)))]
+      [(condition node) (recurse node (λ (n) (vector-set! child-mask n #t)))]
       [else (vector-set! child-mask i #f)]))
   ; Return batchrefs of children nodes in ascending order
   (for/list ([child (in-vector child-mask)]
              [i (in-naturals)]
              #:when child)
     (batchref batch i)))
+
+(define (batch-reachable batch brfs #:condition [condition (const #t)])
+  (batch-reachable* batch brfs expr-recurse #:condition condition))
+
+(define (batch-reachable/impl batch brfs #:condition [condition (const #t)])
+  (batch-reachable* batch brfs expr-recurse-impl #:condition condition))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-exprs batch)
