@@ -84,14 +84,17 @@
       (pareto-union curve branch-curve #:combine (lambda (old _new) old))))
 
   ;; Timeline
+  (timeline-push! 'inputs (batch->jsexpr batch (map alt-expr sorted)))
+  (timeline-push!
+   'outputs
+   (batch->jsexpr batch
+                  (remove-duplicates
+                   (for*/list ([ppt (in-list combined-option-curve)]
+                               [sidx (in-list (option-split-indices (pareto-point-data ppt)))])
+                     (alt-expr (list-ref (option-alts (pareto-point-data ppt)) (si-cidx sidx)))))))
   (for/list ([ppt (in-list combined-option-curve)])
     (define opt (pareto-point-data ppt))
-    (define output-brfs
-      (for/list ([sidx (in-list (option-split-indices opt))])
-        (alt-expr (list-ref (option-alts opt) (si-cidx sidx)))))
-    (timeline-push! 'inputs (batch->jsexpr batch (map alt-expr (option-alts opt))))
     (timeline-push! 'count (length (option-alts opt)) (length (option-split-indices opt)))
-    (timeline-push! 'outputs (batch->jsexpr batch output-brfs))
     (timeline-push! 'accuracy
                     (- (pareto-point-error ppt) (length (option-split-indices opt)))
                     (oracle-errors-score err-cols (pareto-point-cost ppt))
