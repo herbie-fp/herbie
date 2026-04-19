@@ -41,7 +41,6 @@
 
 (define (make-report bench-dirs #:dir dir #:threads threads)
   (activate-platform! (*platform-name*))
-  (*added-fpcore-operators* '())
   (define tests (sort (append-map load-tests bench-dirs) string-ci<? #:key test-name))
   (run-tests tests #:dir dir #:threads threads))
 

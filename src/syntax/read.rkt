@@ -16,7 +16,7 @@
          test-var-reprs
          *added-fpcore-operators*
          platform-serialize
-         replay-added-fpcore-operators!
+         register-fpcore-operator-records!
          register-fpcore-operator!
          load-test
          load-tests

@@ -28,61 +28,34 @@
   (define env (map cons vars (map representation-type var-reprs)))
   (define otype (representation-type repr))
 
-  (define (infer spec [env* env])
+  (define (scalar-type? ty)
+    (member ty '(bool real)))
+
+  (define (infer-operator op arg-types)
+    (and (andmap scalar-type? arg-types)
+         (let ([vars (for/list ([_ (in-list arg-types)])
+                       (gensym 'arg))])
+           (rival-type (cons op vars) (map cons vars arg-types)))))
+
+  (define (infer spec)
     (match spec
       [(? number?) 'real]
-      [(? symbol? x)
-       (cond
-         [(dict-has-key? env* x) (dict-ref env* x)]
-         [(operator-exists? x) (operator-info x 'otype)]
-         [else #f])]
-      [(list '! _props ... body) (infer body env*)]
-      [(list 'let bindings body)
-       (define env**
-         (for/fold ([env** env*]) ([binding (in-list bindings)])
-           (match binding
-             [(list var val)
-              (define ty (infer val env*))
-              (if ty
-                  (cons (cons var ty) env**)
-                  env**)])))
-       (infer body env**)]
-      [(list 'let* bindings body)
-       (let loop-bindings ([env** env*]
-                           [bindings bindings])
-         (match bindings
-           ['() (infer body env**)]
-           [(list (list var val) rest ...)
-            (define ty (infer val env**))
-            (loop-bindings (if ty
-                               (cons (cons var ty) env**)
-                               env**)
-                           rest)]))]
-      [(list 'if cond ift iff)
-       (define cond-ty (infer cond env*))
-       (define ift-ty (infer ift env*))
-       (define iff-ty (infer iff env*))
-       (and (equal? cond-ty 'bool) ift-ty iff-ty (equal? ift-ty iff-ty) ift-ty)]
+      [(? symbol? x) (dict-ref env x #f)]
       [(list 'array elems ...)
        (if (null? elems)
            #f
-           (let ([elem-ty (infer (first elems) env*)])
+           (let ([elem-ty (infer (first elems))])
              (and elem-ty
                   (for/and ([elem (in-list (rest elems))])
-                    (equal? elem-ty (infer elem env*)))
+                    (equal? elem-ty (infer elem)))
                   `(array ,elem-ty ,(length elems)))))]
       [(list 'ref arr idx)
-       (match (infer arr env*)
+       (match (infer arr)
          [`(array ,elem-ty ,_) elem-ty]
          [_ #f])]
       [(list op args ...)
-       (and (operator-exists? op)
-            (let ([arg-types (map (curryr infer env*) args)]
-                  [expected-types (operator-info op 'itype)])
-              (and (= (length arg-types) (length expected-types))
-                   (andmap values arg-types)
-                   (andmap equal? arg-types expected-types)
-                   (operator-info op 'otype))))]
+       (define arg-types (map infer args))
+       (and (andmap values arg-types) (infer-operator op arg-types))]
       [_ #f]))
   (define spec-type (infer spec))
 

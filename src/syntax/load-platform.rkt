@@ -43,16 +43,12 @@
                         (string-join (map ~a (hash-keys platforms)) ", ")))
 
   (*platform-name* name)
+  (*added-fpcore-operators* '())
   (*active-platform* platform))
 
 (define (activate-platform! state-or-name)
   (match state-or-name
-    [(platform-state name _)
+    [(platform-state name added-fpcore-operators)
      (activate-platform-name! name)
-     (platform-deserialize! state-or-name)]
-    [(? string? name) (activate-platform-name! name)]
-    [_
-     (raise-arguments-error 'activate-platform!
-                            "expected a platform name or serialized platform state"
-                            "value"
-                            state-or-name)]))
+     (register-fpcore-operator-records! added-fpcore-operators)]
+    [(? string? name) (activate-platform-name! name)]))
