@@ -10,8 +10,6 @@
 
 (define (repr-description t)
   (match t
-    [(? array-representation?)
-     `(array ,(repr-description (array-representation-elem t)) ,(array-representation-len t))]
     [(? representation?) (representation-name t)]
     [_ t]))
 

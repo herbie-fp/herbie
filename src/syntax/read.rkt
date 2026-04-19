@@ -31,7 +31,6 @@
     [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
 
 (define *register-named-fpcore-operators?* (make-parameter #t))
-(define *skip-existing-named-fpcore-operators?* (make-parameter #f))
 
 (struct test (name identifier vars input output expected spec pre output-repr-name var-repr-names)
   #:prefab)
@@ -196,9 +195,7 @@
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
 
   ;; Named fpcores become platform operators
-  (when (and func-name
-             (*register-named-fpcore-operators?*)
-             (not (and (*skip-existing-named-fpcore-operators?*) (impl-exists? func-name))))
+  (when (and func-name (*register-named-fpcore-operators?*))
     (register-fpcore-operator! func-name (struct-copy context ctx [repr output-repr]) body* spec))
   (check-unused-variables var-names body* pre*)
   (check-weird-variables var-names)
@@ -284,8 +281,7 @@
   out)
 
 (define (load-test path)
-  (parameterize ([*register-named-fpcore-operators?* #f]
-                 [*skip-existing-named-fpcore-operators?* #t])
+  (parameterize ([*register-named-fpcore-operators?* #f])
     (last (load-tests path))))
 
 (module+ test
