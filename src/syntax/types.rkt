@@ -8,7 +8,6 @@
 (provide (struct-out representation)
          (struct-out array-representation)
          repr->prop
-         repr->datum
          array-representation-base
          array-representation-shape
          shift
@@ -54,12 +53,6 @@
        ['bool '()]
        ['real (list (cons ':precision (representation-name repr)))])]))
 
-(define (repr->datum repr)
-  (match repr
-    [(? array-representation?)
-     `(array ,(repr->datum (array-representation-elem repr)) ,(array-representation-len repr))]
-    [(? representation?) (representation-name repr)]))
-
 (define (make-representation #:name name
                              #:bf->repr bf->repr
                              #:repr->bf repr->bf
@@ -73,7 +66,7 @@
   (unless (exact-positive-integer? len)
     (raise-herbie-error "Arrays require a positive length, got ~a" len))
   (define array-ty `(array ,(representation-type elem-repr) ,len))
-  (define name (string->symbol (format "array~a-~a" (representation-name elem-repr) len)))
+  (define name `(array ,(representation-name elem-repr) ,len))
   ;; TODO: Array representations currently inherit scalar conversion slots.
   ;; These should not be called for arrays; we'll clean up the hierarchy later.
   (define total-bits (* len (representation-total-bits elem-repr)))

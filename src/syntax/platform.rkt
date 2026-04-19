@@ -32,7 +32,6 @@
          platform-copy
          repr-exists?
          get-representation
-         datum->repr
          impl-exists?
          impl-info
          prog->spec
@@ -73,22 +72,23 @@
 (define (get-representation name)
   (define platform (*active-platform*))
   (define reprs (platform-representations platform))
-  (or (hash-ref reprs name #f)
-      (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
-                          name
-                          (string-join (map ~s (hash-keys reprs)) ", ")
-                          (*platform-name*))))
+  (match name
+    [(? representation?) name]
+    [`(array ,elem ,len) (make-array-representation #:elem (get-representation elem) #:len len)]
+    [_
+     (or (hash-ref reprs name #f)
+         (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
+                             name
+                             (string-join (map ~s (hash-keys reprs)) ", ")
+                             (*platform-name*)))]))
 
 (define (repr-exists? name)
   (define platform (*active-platform*))
   (define reprs (platform-representations platform))
-  (hash-has-key? reprs name))
-
-(define (datum->repr repr-data)
-  (match repr-data
-    [(? representation?) repr-data]
-    [`(array ,elem ,len) (make-array-representation #:elem (datum->repr elem) #:len len)]
-    [(? symbol? name) (get-representation name)]))
+  (match name
+    [(? representation?) #t]
+    [`(array ,elem ,len) (and (exact-positive-integer? len) (repr-exists? elem))]
+    [_ (hash-has-key? reprs name)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> LSpec

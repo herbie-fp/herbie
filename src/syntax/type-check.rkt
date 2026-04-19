@@ -197,6 +197,12 @@
     (check-equal? (representation-name dummy) 'dummy)
     (check-equal? (get-representation 'dummy) dummy)
 
+    (define array2 (make-array-representation #:elem dummy #:len 2))
+    (check-equal? (representation-name array2) '(array dummy 2))
+    (check-equal? (representation-name array2) '(array dummy 2))
+    (check-true (repr-exists? '(array dummy 2)))
+    (check-equal? (representation-name (get-representation '(array dummy 2))) '(array dummy 2))
+
     ;; Context operations
     (define <b64> (get-representation 'binary64))
     (define <bool> (get-representation 'bool))

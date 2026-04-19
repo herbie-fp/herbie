@@ -30,21 +30,24 @@
     [(approx _ impl) (free-variables impl)]
     [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
 
+(define *register-named-fpcore-operators?* (make-parameter #t))
+(define *skip-existing-named-fpcore-operators?* (make-parameter #f))
+
 (struct test (name identifier vars input output expected spec pre output-repr-name var-repr-names)
   #:prefab)
 
 (define (test-output-repr test)
-  (datum->repr (test-output-repr-name test)))
+  (get-representation (test-output-repr-name test)))
 
 (define (test-var-reprs test)
-  (map datum->repr (map cdr (test-var-repr-names test))))
+  (map get-representation (map cdr (test-var-repr-names test))))
 
 (define (test-context test)
-  (define output-repr (datum->repr (test-output-repr-name test)))
+  (define output-repr (get-representation (test-output-repr-name test)))
   (define vars (test-vars test))
   (define var-reprs
     (for/list ([var vars])
-      (datum->repr (dict-ref (test-var-repr-names test) var))))
+      (get-representation (dict-ref (test-var-repr-names test) var))))
   (context (test-vars test) output-repr var-reprs))
 
 ;; Unfortunately copied from `src/syntax/sugar.rkt`
@@ -193,7 +196,9 @@
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
 
   ;; Named fpcores become platform operators
-  (when func-name
+  (when (and func-name
+             (*register-named-fpcore-operators?*)
+             (not (and (*skip-existing-named-fpcore-operators?*) (impl-exists? func-name))))
     (register-fpcore-operator! func-name (struct-copy context ctx [repr output-repr]) body* spec))
   (check-unused-variables var-names body* pre*)
   (check-weird-variables var-names)
@@ -206,10 +211,10 @@
         (dict-ref prop-dict ':herbie-expected #t)
         spec
         pre*
-        (repr->datum output-repr)
+        (representation-name output-repr)
         (for/list ([var (in-list var-names)]
                    [repr (in-list var-reprs)])
-          (cons var (repr->datum repr)))))
+          (cons var (representation-name repr)))))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
@@ -279,7 +284,9 @@
   out)
 
 (define (load-test path)
-  (last (load-tests path)))
+  (parameterize ([*register-named-fpcore-operators?* #f]
+                 [*skip-existing-named-fpcore-operators?* #t])
+    (last (load-tests path))))
 
 (module+ test
   (require rackunit

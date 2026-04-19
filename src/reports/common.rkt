@@ -226,7 +226,7 @@
   (define output-precision (repr->precision-name output-repr))
   (define rendered-vars
     (for/list ([var (in-list (test-vars test))])
-      (define repr (datum->repr (dict-ref (test-var-repr-names test) var)))
+      (define repr (get-representation (dict-ref (test-var-repr-names test) var)))
       (cond
         [(array-representation? repr)
          (define dims (array-representation-shape repr))
