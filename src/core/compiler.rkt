@@ -91,6 +91,6 @@
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
   (define core (compile-progs (list expr) ctx))
-  (define (compiled-prog args*)
-    (vector-ref (core args*) 0))
+  (define (compiled-prog . xs)
+    (vector-ref (apply core xs) 0))
   compiled-prog)

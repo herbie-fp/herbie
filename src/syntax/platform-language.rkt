@@ -28,11 +28,6 @@
   (define env (map cons vars (map representation-type var-reprs)))
   (define otype (representation-type repr))
 
-  (define (type=? a b)
-    (match* (a b)
-      [(`(array ,a-elem ,a-len) `(array ,b-elem ,b-len)) (and (= a-len b-len) (type=? a-elem b-elem))]
-      [(_ _) (equal? a b)]))
-
   (define (infer spec [env* env])
     (match spec
       [(? number?) 'real]
@@ -67,7 +62,7 @@
        (define cond-ty (infer cond env*))
        (define ift-ty (infer ift env*))
        (define iff-ty (infer iff env*))
-       (and (type=? cond-ty 'bool) ift-ty iff-ty (type=? ift-ty iff-ty) ift-ty)]
+       (and (equal? cond-ty 'bool) ift-ty iff-ty (equal? ift-ty iff-ty) ift-ty)]
       [(list 'array elems ...)
        (if (null? elems)
            #f
@@ -86,7 +81,7 @@
                   [expected-types (operator-info op 'itype)])
               (and (= (length arg-types) (length expected-types))
                    (andmap values arg-types)
-                   (andmap type=? arg-types expected-types)
+                   (andmap equal? arg-types expected-types)
                    (operator-info op 'otype))))]
       [_ #f]))
   (define spec-type (infer spec))
