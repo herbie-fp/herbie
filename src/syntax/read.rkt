@@ -334,6 +334,14 @@
   (activate-platform! state)
   (check-equal? ((impl-info 'mkvec 'fl) 1.0 2.0) #(1.0 2.0))
 
+  ;; sequential reads can reference previously defined named FPCore operators
+  (define port
+    (open-input-string
+     (string-append
+      "(FPCore helper (x) (+ x 1))\n"
+      "(FPCore (x) (helper x))\n")))
+  (check-equal? (length (load-tests port)) 2)
+
   ;; casting edge cases
   (check-equal? (fpcore->prog `(cast x) ctx) 'x)
   (check-equal? (fpcore->prog `(cast (! :precision binary64 x)) ctx) 'x))
