@@ -97,10 +97,12 @@
 
 (module+ test
   (require rackunit
-           "../syntax/load-platform.rkt"
+           "../config.rkt"
+           "../platforms/math.rkt"
            "../syntax/sugar.rkt")
 
-  (activate-platform! "math")
+  (*platform-name* "math")
+  (*active-platform* (platform-copy platform))
 
   (define scalar-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
   (define scalar-expr (fpcore->prog '(+ x y) scalar-ctx))

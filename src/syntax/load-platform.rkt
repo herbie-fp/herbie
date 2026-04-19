@@ -2,7 +2,8 @@
 (require racket/runtime-path)
 (require "../config.rkt"
          "../utils/errors.rkt"
-         "platform.rkt")
+         "platform.rkt"
+         "platform-state.rkt")
 (provide activate-platform!)
 
 (define-runtime-module-path herbie10-platform "../platforms/herbie10.rkt")
@@ -31,7 +32,7 @@
 
 (define platforms (make-hash))
 
-(define (activate-platform! name)
+(define (activate-platform-name! name)
   (define path (hash-ref default-platforms name (string->path name)))
   (define base-platform (hash-ref! platforms name (lambda () (dynamic-require path 'platform))))
   (define platform (platform-copy base-platform))
@@ -43,3 +44,15 @@
 
   (*platform-name* name)
   (*active-platform* platform))
+
+(define (activate-platform! state-or-name)
+  (match state-or-name
+    [(platform-state name _)
+     (activate-platform-name! name)
+     (platform-deserialize! state-or-name)]
+    [(? string? name) (activate-platform-name! name)]
+    [_
+     (raise-arguments-error 'activate-platform!
+                            "expected a platform name or serialized platform state"
+                            "value"
+                            state-or-name)]))

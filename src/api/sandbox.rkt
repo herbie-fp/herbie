@@ -176,8 +176,7 @@
       (define start-time (current-inexact-milliseconds))
       (reset!)
       (*context* (test-context test))
-      (activate-platform! (*platform-name*))
-      (replay-added-fpcore-operators!)
+      (activate-platform! (platform-serialize))
       (set! timeline (*timeline*))
       (when seed
         (set-seed! seed))
