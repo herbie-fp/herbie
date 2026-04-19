@@ -44,6 +44,7 @@
 (define (run-improve input output #:threads [threads #f])
   (define seed (get-seed))
   (activate-platform! (*platform-name*))
+  (*added-fpcore-operators* '())
   (define tests (load-tests input))
   (server-start threads)
   (define ids

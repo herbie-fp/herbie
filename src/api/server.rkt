@@ -539,8 +539,6 @@
       [else #f]))
 
   (define test-fpcore (alt->fpcore test (make-alt (test-input test))))
-  (define helper-fpcores (dependent-fpcore-operators->fpcores (test-input test)))
-  (define serialized-helpers (string-join (map ~s helper-fpcores) "\n\n"))
 
   (define fpcores
     (if (equal? (job-result-status herbie-result) 'success)
@@ -563,8 +561,6 @@
 
   (hasheq 'test
           (~s test-fpcore)
-          'helpers
-          serialized-helpers
           'timeline
           timeline
           'profile

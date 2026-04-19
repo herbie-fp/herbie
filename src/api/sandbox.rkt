@@ -212,7 +212,7 @@
     (custodian-shutdown-all run-custodian)))
 
 (define (dummy-table-row-from-hash result-hash status link)
-  (define test (load-test+helpers (hash-ref result-hash 'test) (hash-ref result-hash 'helpers "")))
+  (define test (load-test (open-input-string (hash-ref result-hash 'test))))
   (define repr (test-output-repr test))
   (table-row (test-name test)
              (test-identifier test)
@@ -234,7 +234,7 @@
              '()))
 
 (define (get-table-data-from-hash result-hash link)
-  (define test (load-test+helpers (hash-ref result-hash 'test) (hash-ref result-hash 'helpers "")))
+  (define test (load-test (open-input-string (hash-ref result-hash 'test))))
   (define backend (hash-ref result-hash 'backend))
   (define status (hash-ref result-hash 'status))
   (match status

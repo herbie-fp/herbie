@@ -28,7 +28,7 @@
         '())))
 
 (define (make-points-json result-hash)
-  (define test (load-test+helpers (hash-ref result-hash 'test) (hash-ref result-hash 'helpers "")))
+  (define test (load-test (open-input-string (hash-ref result-hash 'test))))
   (define backend (hash-ref result-hash 'backend))
   (define test-points (map first (hash-ref backend 'pcontext)))
   (define repr (test-output-repr test))

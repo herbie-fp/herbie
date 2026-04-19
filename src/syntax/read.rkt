@@ -3,7 +3,6 @@
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
          "platform.rkt"
-         "load-platform.rkt"
          "platform-state.rkt"
          "sugar.rkt"
          "syntax-check.rkt"
@@ -16,11 +15,10 @@
          test-output-repr
          test-var-reprs
          *added-fpcore-operators*
-         dependent-fpcore-operators->fpcores
          platform-serialize
          replay-added-fpcore-operators!
          register-fpcore-operator!
-         load-test+helpers
+         load-test
          load-tests
          parse-test)
 
@@ -262,8 +260,6 @@
            (load-file fname))))
 
 (define (load-tests path)
-  (activate-platform! (*platform-name*))
-  (*added-fpcore-operators* '())
   (define path*
     (if (string? path)
         (string->path path)
@@ -282,11 +278,8 @@
           (string-join (map (curry format "\"~a\"") duplicates) ", ")))
   out)
 
-(define (load-test+helpers test-src [helpers-src ""])
-  (define chunks
-    (filter (lambda (chunk) (and (string? chunk) (not (string=? chunk ""))))
-            (list helpers-src test-src)))
-  (last (load-tests (open-input-string (string-join chunks "\n\n")))))
+(define (load-test path)
+  (last (load-tests path)))
 
 (module+ test
   (require rackunit
