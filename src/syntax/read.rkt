@@ -65,7 +65,9 @@
 (define (register-fpcore-operator! name ctx body* spec* #:remember? [remember? #t])
   (define output-repr (context-repr ctx))
   (define spec-expr (prog->spec spec*))
-  (define fl-proc (compile-prog body* ctx))
+  (define core-proc (compile-prog body* ctx))
+  (define fl-proc
+    (procedure-reduce-arity (λ args (core-proc (list->vector args))) (length (context-vars ctx))))
   (define cost ((platform-cost-proc (*active-platform*)) body* output-repr))
   (define fpcore-expr (cons name (context-vars ctx)))
   (define impl
@@ -425,12 +427,14 @@
   (register-fpcore-operator! 'sum2 sum2-ctx sum2-prog sum2-prog)
   (define vec-ctx (context '(a) <binary64> (list vec2)))
   (check-equal? (fpcore->prog '(sum2 a) vec-ctx) '(sum2 a))
+  (check-equal? ((impl-info 'sum2 'fl) #(1.0 2.0)) 3.0)
 
   ;; array return values
   (define vec-out-ctx (context '(x y) vec2 (list <binary64> <binary64>)))
   (define vec-out-prog (fpcore->prog '(array x y) vec-out-ctx))
   (register-fpcore-operator! 'mkvec vec-out-ctx vec-out-prog vec-out-prog)
   (check-equal? (prog->spec vec-out-prog) '(array x y))
+  (check-equal? ((impl-info 'mkvec 'fl) 1.0 2.0) #(1.0 2.0))
 
   ;; casting edge cases
   (check-equal? (fpcore->prog `(cast x) ctx) 'x)

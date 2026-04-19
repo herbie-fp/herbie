@@ -91,36 +91,24 @@
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
   (define core (compile-progs (list expr) ctx))
-  (define var-reprs (context-var-reprs ctx))
-  (define (leaf-count repr)
-    (if (array-representation? repr)
-        (* (array-representation-len repr) (leaf-count (array-representation-elem repr)))
-        1))
-  (define expected-leaves (for/sum ([repr (in-list var-reprs)]) (leaf-count repr)))
-  (define (assemble-inputs xs)
-    (define idx 0)
-    (define (next)
-      (begin0 (list-ref xs idx)
-        (set! idx (add1 idx))))
-    (define (build repr)
-      (if (array-representation? repr)
-          (for/vector #:length (array-representation-len repr)
-                      ([_ (in-range (array-representation-len repr))])
-            (build (array-representation-elem repr)))
-          (next)))
-    (for/vector #:length (length var-reprs)
-                ([repr (in-list var-reprs)])
-      (build repr)))
-  (define (compiled-prog . xs)
-    (define args*
-      (cond
-        [(= (length xs) (length var-reprs)) (list->vector xs)]
-        [(= (length xs) expected-leaves) (assemble-inputs xs)]
-        [else
-         (error 'compiled-prog
-                "arity mismatch, expected ~a vars or ~a flattened args, got ~a"
-                (length var-reprs)
-                expected-leaves
-                (length xs))]))
+  (define (compiled-prog args*)
     (vector-ref (core args*) 0))
   compiled-prog)
+
+(module+ test
+  (require rackunit
+           "../syntax/load-platform.rkt"
+           "../syntax/sugar.rkt")
+
+  (activate-platform! "math")
+
+  (define scalar-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
+  (define scalar-expr (fpcore->prog '(+ x y) scalar-ctx))
+  (define scalar-prog (compile-prog scalar-expr scalar-ctx))
+  (check-equal? (scalar-prog #(1.0 2.0)) 3.0)
+
+  (define vec2 (make-array-representation #:elem <binary64> #:len 2))
+  (define array-ctx (context '(v) vec2 (list vec2)))
+  (define array-expr (fpcore->prog 'v array-ctx))
+  (define array-prog (compile-prog array-expr array-ctx))
+  (check-equal? (array-prog #(#(1.0 2.0))) #(1.0 2.0)))
