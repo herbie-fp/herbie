@@ -252,8 +252,8 @@
     (match (taylor-record altn)
       [(alt _ `(taylor ,start-expr ,transform ,var ,order) prevs)
        (define kept? (set-member? final-active-set altn))
-       (define nfree (set-count (free-vars start-expr)))
-       (timeline-push! 'taylor-count (~a transform) order nfree 1 (if kept? 1 0))]
+       (define nvars (min (set-count (free-vars start-expr)) 2))
+       (timeline-push! 'taylor-count (~a transform) order nvars 1 (if kept? 1 0))]
       [#f (void)]))
 
   (define repr (context-repr (*context*)))
