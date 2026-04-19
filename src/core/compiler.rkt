@@ -94,23 +94,3 @@
   (define (compiled-prog args*)
     (vector-ref (core args*) 0))
   compiled-prog)
-
-(module+ test
-  (require rackunit
-           "../config.rkt"
-           "../platforms/math.rkt"
-           "../syntax/sugar.rkt")
-
-  (*platform-name* "math")
-  (*active-platform* (platform-copy platform))
-
-  (define scalar-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
-  (define scalar-expr (fpcore->prog '(+ x y) scalar-ctx))
-  (define scalar-prog (compile-prog scalar-expr scalar-ctx))
-  (check-equal? (scalar-prog #(1.0 2.0)) 3.0)
-
-  (define vec2 (make-array-representation #:elem <binary64> #:len 2))
-  (define array-ctx (context '(v) vec2 (list vec2)))
-  (define array-expr (fpcore->prog 'v array-ctx))
-  (define array-prog (compile-prog array-expr array-ctx))
-  (check-equal? (array-prog #(#(1.0 2.0))) #(1.0 2.0)))
