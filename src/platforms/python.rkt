@@ -13,10 +13,10 @@
   [false #:spec (FALSE) #:impl (const false) #:fpcore FALSE #:cost boolean-move-cost])
 
 (define-operations ([x <bool>] [y <bool>]) <bool>
-  [and #:spec (and x y) #:impl (lambda v (andmap values v)) #:cost boolean-move-cost]
-  [or  #:spec (or x y)  #:impl (lambda v (ormap values v))  #:cost boolean-move-cost])
+  [and.bool #:spec (and x y) #:impl (lambda v (andmap values v)) #:cost boolean-move-cost]
+  [or.bool  #:spec (or x y)  #:impl (lambda v (ormap values v))  #:cost boolean-move-cost])
 
-(define-operation (not [x <bool>]) <bool>
+(define-operation (not.bool [x <bool>]) <bool>
   #:spec (not x) #:impl not #:cost boolean-move-cost)
 
 (define-operation (if.py [c <bool>] [t <binary64>] [f <binary64>]) <binary64>

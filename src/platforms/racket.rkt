@@ -15,10 +15,10 @@
   [false #:spec (FALSE) #:impl (const false) #:fpcore FALSE #:cost 1])
 
 (define-operations ([x <bool>] [y <bool>]) <bool>
-  [and #:spec (and x y) #:impl (lambda v (andmap values v)) #:cost 1]
-  [or  #:spec (or x y)  #:impl (lambda v (ormap values v))  #:cost 1])
+  [and.bool #:spec (and x y) #:impl (lambda v (andmap values v)) #:cost 1]
+  [or.bool  #:spec (or x y)  #:impl (lambda v (ormap values v))  #:cost 1])
 
-(define-operation (not [x <bool>]) <bool>
+(define-operation (not.bool [x <bool>]) <bool>
   #:spec (not x) #:impl not #:cost 1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
