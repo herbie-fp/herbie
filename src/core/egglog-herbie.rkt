@@ -42,8 +42,7 @@
 
 (define (egglog-repr-name token)
   (cond
-    [(string-prefix? token "sym_")
-     (string->symbol (substring token 4))]
+    [(string-prefix? token "sym_") (string->symbol (substring token 4))]
     [(string-prefix? token "arr_")
      (define rest (substring token 4))
      (define split
@@ -52,9 +51,8 @@
          i))
      `(array ,(egglog-repr-name (substring rest (add1 split)))
              ,(string->number (substring rest 0 split)))]
-    [else
-     ;; Legacy scalar encoding used in older tests and dumps.
-     (string->symbol token)]))
+    ;; Legacy scalar encoding used in older tests and dumps.
+    [else (string->symbol token)]))
 
 (define (real->bigrat val)
   `(bigrat (from-string ,(~s (numerator val))) (from-string ,(~s (denominator val)))))
