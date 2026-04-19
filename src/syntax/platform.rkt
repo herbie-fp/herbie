@@ -89,7 +89,6 @@
     [(? representation?) #t]
     [`(array ,elem ,len) (and (exact-positive-integer? len) (repr-exists? elem))]
     [_ (hash-has-key? reprs name)]))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> LSpec
 
@@ -139,7 +138,7 @@
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl-name field)
-  (-> symbol? (or/c 'name 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost 'aggregate) any/c)
+  (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost 'aggregate) any/c)
   (define impls (platform-implementations (*active-platform*)))
   (define impl
     (hash-ref impls
@@ -147,7 +146,6 @@
               (lambda ()
                 (error 'impl-info "unknown impl '~a in platform ~a" impl-name (*platform-name*)))))
   (case field
-    [(name) (operator-impl-name impl)]
     [(vars) (context-vars (operator-impl-ctx impl))]
     [(itype) (context-var-reprs (operator-impl-ctx impl))]
     [(otype) (context-repr (operator-impl-ctx impl))]

@@ -14,32 +14,35 @@ function update() {
 }
 
 class DeferredCurveCache {
-    constructor(readJsonData) {
-        this.readJsonData = readJsonData;
-        this.jsonData = null;
+    constructor(readTests) {
+        this.readTests = readTests;
+        this.key = null;
         this.curve = null;
         this.pending = false;
     }
 
-    get(jsonData) {
-        this.ensure(jsonData);
-        return this.jsonData === jsonData ? this.curve : null;
+    currentKey() {
+        return getCurveCacheKey(this.readTests());
     }
 
-    ensure(jsonData) {
-        if (this.jsonData === jsonData || this.pending) return;
+    get() {
+        this.ensure();
+        const key = this.currentKey();
+        return this.key === key ? this.curve : null;
+    }
+
+    ensure() {
+        const key = this.currentKey();
+        if (this.key === key || this.pending) return;
         this.pending = true;
         setTimeout(() => {
-            this.jsonData = this.readJsonData();
-            this.curve = calculateMergedCostAccuracy(this.jsonData);
+            this.key = this.currentKey();
+            this.curve = calculateMergedCostAccuracy(this.readTests());
             this.pending = false;
             update();
         }, 0);
     }
 }
-
-const jointCostCache = new DeferredCurveCache(() => resultsJsonData);
-const otherJointCostCache = new DeferredCurveCache(() => otherJsonData);
 
 // Here is the UI state:
 
@@ -304,8 +307,7 @@ function paretoCombine(frontiers) {
     return level[0] || [];
 }
 
-function calculateMergedCostAccuracy(jsonData) {
-    const tests = jsonData.tests;
+function calculateMergedCostAccuracy(tests) {
     const testsLength = tests.length;
     const costAccuracies = tests.map((test) => test["cost-accuracy"]);
     const maximumAccuracy = tests.reduce((sum, test) => sum + test.bits, 0);
@@ -336,6 +338,21 @@ function calculateMergedCostAccuracy(jsonData) {
     });
     return [[1.0, initialAccuracy], frontier];
 }
+
+function getFilteredTests() {
+    return resultsJsonData.tests.filter(filterTest);
+}
+
+function getFilteredBaselineTests() {
+    return getFilteredTests().map(getBaselineTest);
+}
+
+function getCurveCacheKey(tests) {
+    return JSON.stringify(tests.map((test) => test.name));
+}
+
+const jointCostCache = new DeferredCurveCache(getFilteredTests);
+const otherJointCostCache = new DeferredCurveCache(getFilteredBaselineTests);
 
 //https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
 function toTitleCase(str) {
@@ -396,7 +413,7 @@ function on(mark, listeners = {}) {
 }
 
 function plotXY(testsData, otherJsonData) {
-    const filteredTests = testsData.tests.filter(filterTest);
+    const filteredTests = getFilteredTests();
     function onclick(e, d) {
         window.location = d.link + "/graph.html";
     }
@@ -432,7 +449,7 @@ function plotXY(testsData, otherJsonData) {
 }
 
 function plotPareto(jsonData, otherJsonData) {
-    const mergedCostAccuracy = jointCostCache.get(jsonData);
+    const mergedCostAccuracy = jointCostCache.get();
     if (mergedCostAccuracy === null) {
         return Element("div", {
             style: "max-width: 100%; aspect-ratio: 1;",
@@ -454,7 +471,7 @@ function plotPareto(jsonData, otherJsonData) {
     ];
 
     if (otherJsonData) {
-        const otherMergedCostAccuracy = otherJointCostCache.get(otherJsonData);
+        const otherMergedCostAccuracy = otherJointCostCache.get();
         if (otherMergedCostAccuracy === null) {
             return Element("div", {
                 style: "max-width: 100%; aspect-ratio: 1;",
@@ -623,7 +640,7 @@ function buildTableHeader(stringName, help) {
 }
 
 function buildBody(jsonData, otherJsonData) {
-    const mergedCostAccuracy = jointCostCache.get(jsonData);
+    const mergedCostAccuracy = jointCostCache.get();
     const stats = buildStats(jsonData, mergedCostAccuracy);
 
     const header = buildHeader("Herbie Results")

@@ -176,8 +176,14 @@
   (activate-platform! (*platform-name*))
 
   ;; Dummy representation registration
-  (check-false (repr-exists? 'dummy))
-  (define pf (platform-copy (*active-platform*)))
+  (check-false (hash-has-key? (platform-representations (*active-platform*)) 'dummy))
+  (define pf
+    (struct-copy $platform
+                 (*active-platform*)
+                 [representations (hash-copy (platform-representations (*active-platform*)))]
+                 [implementations (hash-copy (platform-implementations (*active-platform*)))]
+                 [representation-costs
+                  (hash-copy (platform-representation-costs (*active-platform*)))]))
   (parameterize ([*active-platform* pf])
     (define dummy-repr
       (make-representation #:name 'dummy
@@ -189,7 +195,7 @@
                            #:special-value? (const #f)))
     (hash-set! (platform-representations pf) 'dummy dummy-repr)
     (hash-set! (platform-representation-costs pf) 'dummy 1)
-    (check-true (repr-exists? 'dummy))
+    (check-true (hash-has-key? (platform-representations pf) 'dummy))
 
     (define dummy (get-representation 'dummy))
     (check-equal? (representation-name dummy) 'dummy)

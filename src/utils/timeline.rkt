@@ -26,7 +26,7 @@
 
 (define *timeline-disabled* (make-parameter true))
 
-(define always-compact '(mixsample outcomes))
+(define always-compact '(mixsample outcomes taylor-count))
 
 (define (timeline-event! type)
   (when (and *timeline-active-key* (pair? (unbox (*timeline*))))
@@ -197,9 +197,7 @@
 (define-timeline series [time +] [var false] [transform false])
 (define-timeline compiler [before +] [after +])
 (define-timeline outcomes [time +] [prec false] [category false] [count +])
-(define-timeline accuracy [accuracy])
-(define-timeline oracle [oracle])
-(define-timeline baseline [baseline])
+(define-timeline accuracy [accuracy] [oracle] [baseline])
 (define-timeline count [input +] [output +])
 (define-timeline alts #:unmergable)
 (define-timeline batch #:unmergable)
@@ -210,6 +208,7 @@
 (define-timeline symmetry #:unmergable)
 (define-timeline bstep #:unmergable)
 (define-timeline kept #:unmergable)
+(define-timeline taylor-count [transform false] [order false] [generated +] [kept +])
 (define-timeline min-error #:unmergable)
 (define-timeline egraph #:unmergable)
 (define-timeline stop [reason false] [count +])

@@ -225,15 +225,15 @@
     ;; x^0 where x != 0
     (rule ((= e (Pow (Num x) (Num y))) (= $0 y) (!= $0 x)) ((union e (Num $1))) :ruleset const-fold)
     ;; x^y when y is a whole number and y > 0 and x != 0
-    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (= y (round y)))
+    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (= y (round y)) (<= y ,(real->bigrat 16)))
           ((union e (Num (pow x y))))
           :ruleset
           const-fold)
     ;; New rule according to Rust : x^y where y is not a whole number
-    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (!= y (round y)))
-          ((union e (Num (pow x (round y)))))
-          :ruleset
-          const-fold)
+    ; (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (!= y (round y)))
+    ;       ((union e (Num (pow x (round y)))))
+    ;       :ruleset
+    ;       const-fold)
     ;; Sqrt rules -> Non-total but egglog implementation handles it
     (rule ((= e (Sqrt (Num n))) (sqrt n)) ((union e (Num (sqrt n)))) :ruleset const-fold)
     (rewrite (Log (Num $1)) (Num $0) :ruleset const-fold)
@@ -247,12 +247,18 @@
   (for ([op '(sound-/ sound-log sound-pow)])
     (hash-set! (id->e1) op (serialize-op op))
     (hash-set! (e1->id) (serialize-op op) op))
+  (hash-set! (id->e1) 'array 'Array)
+  (hash-set! (e1->id) 'Array 'array)
+  (hash-set! (e1->id) 'Array3 'array)
   (list* '(Num BigRat :cost 4294967295)
          '(Var String :cost 4294967295)
          '(Sound-/ M M M :cost 4294967295)
          '(Sound-Log M M :cost 4294967295)
          '(Sound-Pow M M M :cost 4294967295)
-         (for/list ([op (in-list (all-operators))])
+         '(Array M M :cost 4294967295)
+         '(Array3 M M M :cost 4294967295)
+         (for/list ([op (in-list (all-operators))]
+                    #:unless (eq? op 'array))
            (define arity (length (operator-info op 'itype)))
            (hash-set! (id->e1) op (serialize-op op))
            (hash-set! (e1->id) (serialize-op op) op)
@@ -328,16 +334,21 @@
            :ruleset
            lift)))
 
+(define (serialize-spec-op op arity)
+  (match* (op arity)
+    [('array 2) 'Array]
+    [('array 3) 'Array3]
+    [(_ _) (hash-ref (id->e1) op)]))
+
 (define (expr->egglog-spec-serialized expr s)
   (let loop ([expr expr])
     (match expr
       [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) (string->symbol (string-append s (symbol->string expr)))]
       [(list op args ...)
-       `(,(hash-ref (if (hash-has-key? (id->e1) op)
-                        (id->e1)
-                        (id->e2))
-                    op)
+       `(,(if (hash-has-key? (id->e1) op)
+              (serialize-spec-op op (length args))
+              (hash-ref (id->e2) op))
          ,@(map loop args))])))
 
 (define (serialize-op op)
@@ -349,9 +360,9 @@
   (define impl-split (string-split (symbol->string impl) "."))
   (define op (string->symbol (car impl-split)))
   (define type
-    (if (= 2 (length impl-split))
-        (cadr impl-split)
-        ""))
+    (if (null? (cdr impl-split))
+        ""
+        (string-join (cdr impl-split) "")))
   (string->symbol (string-append (symbol->string (serialize-op op)) type)))
 
 (define (expr->e1-pattern expr)
@@ -359,7 +370,7 @@
     (match expr
       [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) expr]
-      [(list op args ...) `(,(hash-ref (id->e1) op) ,@(map loop args))])))
+      [(list op args ...) `(,(serialize-spec-op op (length args)) ,@(map loop args))])))
 
 (define (egglog-rewrite-rules rules tag)
   (for/list ([rule (in-list rules)]
@@ -565,10 +576,12 @@
   ;;   4. Unsoundness is detected (bad-merge? becomes true)
 
   (egglog-send subproc
-               `(run-schedule (repeat ,iter-limit
-                                      (seq (run ,tag :until (<= ,node-limit (get-size!)))
-                                           (run const-fold :until (<= ,node-limit (get-size!)))
-                                           (run bad-merge-rule :until (bad-merge?))))))
+               `(run-schedule
+                 (let-scheduler bo (back-off))
+                 (repeat ,iter-limit
+                         (seq (run-with bo ,tag :until (<= ,node-limit (get-size!)))
+                              (run-with bo const-fold :until (<= ,node-limit (get-size!)))
+                              (run bad-merge-rule :until (bad-merge?))))))
   (void))
 
 (define (egglog-num? id)
