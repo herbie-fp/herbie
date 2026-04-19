@@ -185,6 +185,7 @@
          (define event*
            (match event
              [(list 'evaluate) (list 'evaluate start-expr)]
+             [(list 'drop) (list 'drop start-expr)]
              [(list 'taylor name var order) (list 'taylor start-expr name var order)]
              [(list 'rr input proof) (list 'rr (alt-expr prev) cur-expr input proof)]))
          (define expr* (batch-replace-subexpr batch (alt-expr orig) start-expr cur-expr can-refer))

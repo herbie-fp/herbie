@@ -109,6 +109,7 @@
             [(alt prog 'start (list)) (void)]
             [(alt prog 'add-preprocessing `(,prev)) (loop prev)]
             [(alt prog `(evaluate ,start-expr) `(,prev)) (loop prev)]
+            [(alt prog `(drop ,start-expr) `(,prev)) (loop prev)]
             [(alt _ `(regimes ,splitpoints) prevs) (for-each loop prevs)]
             [(alt prog `(taylor ,start-expr ,pt ,var ,order) `(,prev)) (loop prev)]
             [(alt prog `(rr ,start-expr ,end-expr ,input ,proof) `(,prev))
@@ -160,6 +161,12 @@
      (define prev (hash-ref json 'prev))
      `(,@(render-history prev ctx)
        (li (p "Evaluated real constant" (span ((class "error")) ,err))
+           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]
+
+    ["drop"
+     (define prev (hash-ref json 'prev))
+     `(,@(render-history prev ctx)
+       (li (p "Dropped to 0" (span ((class "error")) ,err))
            (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]
 
     ["rr"
@@ -250,6 +257,12 @@
     [(alt prog `(evaluate ,start-expr) `(,prev))
      `#hash((program . ,(program->json-string prog ctx fpcore-cache))
             (type . "evaluate")
+            (prev . ,(render-json prev pcontext ctx errcache mask fpcore-cache))
+            (error . ,err))]
+
+    [(alt prog `(drop ,start-expr) `(,prev))
+     `#hash((program . ,(program->json-string prog ctx fpcore-cache))
+            (type . "drop")
             (prev . ,(render-json prev pcontext ctx errcache mask fpcore-cache))
             (error . ,err))]
 

@@ -1,5 +1,7 @@
 .PHONY: help install egg-herbie nightly index start-server deploy coverage
 
+REPORT_FLAGS := --enable generate:drop --disable generate:taylor
+
 help:
 	@echo "Type 'make install' to install Herbie"
 	@echo "Then type 'racket -l herbie web' to run it."
@@ -46,7 +48,7 @@ minimal-distribution:
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 nightly:
-	bash infra/nightly.sh bench reports --threads 2
+	bash infra/nightly.sh bench reports --threads 2 $(REPORT_FLAGS)
 
 upgrade:
 	git pull

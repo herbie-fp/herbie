@@ -18,6 +18,29 @@
 (provide generate-candidates
          get-starting-expr)
 
+(define (approx-key altn)
+  (define expr (deref (alt-expr altn)))
+  (if (approx? expr)
+      (approx-impl expr)
+      expr))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Drop ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (run-drop altns global-batch)
+  (define brfs (map alt-expr altns))
+  (define spec-brfs (batch-to-spec! global-batch brfs))
+  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+
+  (remove-duplicates (for/list ([spec-brf (in-list spec-brfs)]
+                                [repr (in-list reprs)]
+                                [altn (in-list altns)])
+                       (define zero-brf
+                         (batch-add! global-batch (literal 0 (representation-name repr))))
+                       (define gen (approx spec-brf zero-brf))
+                       (define brf (batch-add! global-batch gen))
+                       (alt brf '(drop) (list altn)))
+                     #:key approx-key))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define transforms-to-try
@@ -84,14 +107,9 @@
 
 (define (run-taylor altns global-batch spec-batch reducer)
   (timeline-event! 'series)
-  (define (key x)
-    (define expr (deref (alt-expr x)))
-    (if (approx? expr)
-        (approx-impl expr)
-        expr))
-
-  (define approxs (remove-duplicates (taylor-alts altns global-batch spec-batch reducer) #:key key))
-  (define approxs* (remove-duplicates (run-lowering approxs global-batch) #:key key))
+  (define approxs
+    (remove-duplicates (taylor-alts altns global-batch spec-batch reducer) #:key approx-key))
+  (define approxs* (remove-duplicates (run-lowering approxs global-batch) #:key approx-key))
 
   (timeline-push! 'inputs (batch->jsexpr global-batch (map alt-expr altns)))
   (timeline-push! 'outputs (batch->jsexpr global-batch (map alt-expr approxs*)))
@@ -231,6 +249,12 @@
         '()))
 
   ; Series expand
+  (define dropped
+    (if (flag-set? 'generate 'drop)
+        (run-drop start-altns batch)
+        '()))
+
+  ; Series expand
   (define approximations
     (if (flag-set? 'generate 'taylor)
         (run-taylor start-altns batch spec-batch reducer)
@@ -242,5 +266,5 @@
         (run-rr start-altns batch)
         '()))
 
-  (remove-duplicates (append evaluations rewritten approximations)
+  (remove-duplicates (append evaluations rewritten dropped approximations)
                      #:key (λ (altn) (cons (alt-expr altn) (get-starting-expr altn)))))
