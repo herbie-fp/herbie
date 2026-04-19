@@ -320,10 +320,6 @@
   (match term
     [(cons 1 x) x]
     [(cons -1 x) (batch-add! (global-batch) `(/ 1 ,x))]
-    [(cons 1/2 x) (batch-add! (global-batch) `(sqrt ,x))]
-    [(cons -1/2 x) (batch-add! (global-batch) `(/ 1 (sqrt ,x)))]
-    [(cons 1/3 x) (batch-add! (global-batch) `(cbrt ,x))]
-    [(cons -1/3 x) (batch-add! (global-batch) `(/ 1 (cbrt ,x)))]
     [(cons (? rational? power) x)
      (match (denominator power)
        [2 (mterm->expr (cons (numerator power) (batch-add! (global-batch) `(sqrt ,x))))]
