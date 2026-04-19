@@ -43,12 +43,12 @@
                         (string-join (map ~a (hash-keys platforms)) ", ")))
 
   (*platform-name* name)
-  (*added-fpcore-operators* '())
+  (*platform-extensions* '())
   (*active-platform* platform))
 
 (define (activate-platform! state-or-name)
   (match state-or-name
-    [(platform-state name added-fpcore-operators)
+    [(platform-state name extensions)
      (activate-platform-name! name)
-     (register-fpcore-operator-records! added-fpcore-operators)]
+     (register-platform-extensions! extensions)]
     [(? string? name) (activate-platform-name! name)]))
