@@ -5,12 +5,14 @@
 (require "../reports/common.rkt"
          "../reports/pages.rkt"
          "../reports/timeline.rkt"
+         "../config.rkt"
          "../syntax/read.rkt"
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
          "../syntax/platform.rkt"
          "../syntax/load-platform.rkt"
          "../utils/common.rkt"
+         "../utils/errors.rkt"
          "../utils/profile.rkt"
          "../utils/timeline.rkt"
          "../core/points.rkt"
@@ -21,23 +23,53 @@
 (provide make-report
          rerun-report)
 
-(define (extract-test row)
+(define (row->context row)
   (define vars (table-row-vars row))
   (define repr (get-representation (table-row-precision row)))
   (define var-reprs (map (curryr cons repr) vars))
-  (define ctx (context vars repr (map (const repr) vars)))
+  (context vars repr (map (const repr) vars)))
+
+(define (extract-row-test row)
+  (define vars (table-row-vars row))
+  (define repr (get-representation (table-row-precision row)))
+  (define var-reprs (map (curryr cons repr) vars))
+  (define ctx (row->context row))
   (test (table-row-name row)
         (table-row-identifier row)
-        (table-row-vars row)
+        vars
         (fpcore->prog (table-row-input row) ctx)
-        (fpcore->prog (table-row-output row) ctx)
-        (table-row-target-prog row)
+        (or (table-row-target-prog row) '())
+        #t
         (fpcore->prog (table-row-spec row) ctx)
         (fpcore->prog (table-row-pre row) ctx)
         (representation-name repr)
         (for/list ([(k v) (in-dict var-reprs)])
-          (cons k (representation-name v)))
-        (table-row-conversions row)))
+          (cons k (representation-name v)))))
+
+(define (register-report-helpers! rows)
+  (let loop ([pending (filter table-row-identifier rows)])
+    (unless (null? pending)
+      (define progress? #f)
+      (define deferred '())
+      (for ([row (in-list pending)])
+        (define helper-name (table-row-identifier row))
+        (cond
+          [(impl-exists? helper-name) (void)]
+          [else
+           (with-handlers ([exn:fail:user:herbie:missing? (lambda (_)
+                                                            (set! deferred (cons row deferred)))])
+             (define ctx (row->context row))
+             (register-fpcore-operator! helper-name
+                                        ctx
+                                        (fpcore->prog (table-row-input row) ctx)
+                                        (fpcore->prog (table-row-spec row) ctx)
+                                        #:remember? #f)
+             (set! progress? #t))]))
+      (unless (or progress? (null? deferred))
+        (error 'rerun-report
+               "could not reconstruct helper definitions for ~a"
+               (string-join (map ~a (map table-row-identifier (reverse deferred))) ", ")))
+      (loop (reverse deferred)))))
 
 (define (make-report bench-dirs #:dir dir #:threads threads)
   (activate-platform! (*platform-name*))
@@ -46,9 +78,11 @@
 
 (define (rerun-report json-file #:dir dir #:threads threads)
   (define data (call-with-input-file json-file read-datafile))
-  (define tests (map extract-test (report-info-tests data)))
   (activate-platform! (*platform-name*))
-  (*flags* (report-info-flags data))
+  (register-report-helpers! (report-info-tests data))
+  (define tests (map extract-row-test (report-info-tests data)))
+  (*flags* (for/fold ([flags default-flags]) ([(category values) (in-dict (report-info-flags data))])
+             (hash-set flags category values)))
   (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))
   (*num-iterations* (report-info-iterations data))
