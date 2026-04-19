@@ -5,6 +5,7 @@
          json)
 
 (require "../syntax/read.rkt"
+         "../syntax/platform-state.rkt"
          "../syntax/syntax.rkt"
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"

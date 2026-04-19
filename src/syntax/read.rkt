@@ -14,10 +14,6 @@
          test-context
          test-output-repr
          test-var-reprs
-         *added-fpcore-operators*
-         platform-serialize
-         register-fpcore-operator-records!
-         register-fpcore-operator!
          load-test
          load-tests
          parse-test)

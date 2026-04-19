@@ -7,6 +7,7 @@
 (require math/flonum)
 
 (require "../syntax/read.rkt"
+         "../syntax/platform-state.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
