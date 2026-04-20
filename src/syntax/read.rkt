@@ -3,6 +3,7 @@
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
          "platform.rkt"
+         "platform-state.rkt"
          "sugar.rkt"
          "syntax-check.rkt"
          "syntax.rkt"
@@ -13,6 +14,7 @@
          test-context
          test-output-repr
          test-var-reprs
+         load-test
          load-tests
          parse-test)
 
@@ -23,6 +25,8 @@
     [(? symbol?) (list prog)]
     [(approx _ impl) (free-variables impl)]
     [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
+
+(define *register-named-fpcore-operators?* (make-parameter #t))
 
 (struct test (name identifier vars input output expected spec pre output-repr-name var-repr-names)
   #:prefab)
@@ -164,10 +168,6 @@
   (define var-names (context-vars ctx))
   (define var-reprs (context-var-reprs ctx))
 
-  ;; Named fpcores need to be added to function table
-  (when func-name
-    (register-function! func-name args default-prec body))
-
   ;; Try props first, then identifier, else the expression itself
   (define name (or (dict-ref prop-dict ':name #f) func-name body))
 
@@ -189,6 +189,10 @@
            (cons val #t))])))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
+
+  ;; Named fpcores become platform operators
+  (when (and func-name (*register-named-fpcore-operators?*))
+    (register-fpcore-operator! func-name (struct-copy context ctx [repr output-repr]) body* spec))
   (check-unused-variables var-names body* pre*)
   (check-weird-variables var-names)
 
@@ -272,6 +276,10 @@
           (string-join (map (curry format "\"~a\"") duplicates) ", ")))
   out)
 
+(define (load-test path)
+  (parameterize ([*register-named-fpcore-operators?* #f])
+    (last (load-tests path))))
+
 (module+ test
   (require rackunit
            "../syntax/float.rkt"
@@ -281,22 +289,55 @@
   (define precision 'binary64)
   (define ctx (context '(x y z a) <binary64> (make-list 4 <binary64>)))
 
-  ;; inlining
+  ;; named FPCore operators
 
   ;; Test classic quadp and quadm examples
-  (register-function! 'discr (list 'a 'b 'c) precision `(sqrt (- (* b b) (* a c))))
+  (define discr-ctx (context '(a b c) <binary64> (make-list 3 <binary64>)))
+  (define discr-body `(sqrt (- (* b b) (* a c))))
+  (define discr-prog (fpcore->prog discr-body discr-ctx))
+  (register-fpcore-operator! 'discr discr-ctx discr-prog discr-prog)
   (define quadp `(/ (+ (- y) (discr x y z)) x))
   (define quadm `(/ (- (- y) (discr x y z)) x))
-  (check-equal? (fpcore->prog quadp ctx)
-                '(/.f64 (+.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 x z)))) x))
-  (check-equal? (fpcore->prog quadm ctx)
-                '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 x z)))) x))
+  (check-equal? (fpcore->prog quadp ctx) '(/.f64 (+.f64 (neg.f64 y) (discr x y z)) x))
+  (check-equal? (fpcore->prog quadm ctx) '(/.f64 (-.f64 (neg.f64 y) (discr x y z)) x))
 
   ;; x^5 = x^3 * x^2
-  (register-function! 'sqr (list 'x) precision '(* x x))
-  (register-function! 'cube (list 'x) precision '(* x x x))
+  (define sqr-ctx (context '(x) <binary64> (list <binary64>)))
+  (define sqr-prog (fpcore->prog '(* x x) sqr-ctx))
+  (register-fpcore-operator! 'sqr sqr-ctx sqr-prog sqr-prog)
+  (define cube-ctx (context '(x) <binary64> (list <binary64>)))
+  (define cube-prog (fpcore->prog '(* x x x) cube-ctx))
+  (register-fpcore-operator! 'cube cube-ctx cube-prog cube-prog)
   (define fifth '(* (cube a) (sqr a)))
-  (check-equal? (fpcore->prog fifth ctx) '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))
+  (check-equal? (fpcore->prog fifth ctx) '(*.f64 (cube a) (sqr a)))
+
+  ;; array arguments
+  (define vec2 (make-array-representation #:elem <binary64> #:len 2))
+  (define sum2-ctx (context '(v) <binary64> (list vec2)))
+  (define sum2-prog (fpcore->prog '(+ (ref v 0) (ref v 1)) sum2-ctx))
+  (register-fpcore-operator! 'sum2 sum2-ctx sum2-prog sum2-prog)
+  (define vec-ctx (context '(a) <binary64> (list vec2)))
+  (check-equal? (fpcore->prog '(sum2 a) vec-ctx) '(sum2 a))
+  (check-equal? ((impl-info 'sum2 'fl) #(1.0 2.0)) 3.0)
+
+  ;; array return values
+  (define vec-out-ctx (context '(x y) vec2 (list <binary64> <binary64>)))
+  (define vec-out-prog (fpcore->prog '(array x y) vec-out-ctx))
+  (register-fpcore-operator! 'mkvec vec-out-ctx vec-out-prog vec-out-prog)
+  (check-equal? (prog->spec vec-out-prog) '(array x y))
+  (check-equal? ((impl-info 'mkvec 'fl) 1.0 2.0) #(1.0 2.0))
+
+  ;; serialized platform state can restore named operators on a fresh platform copy
+  (define state (platform-serialize))
+  (activate-platform! "math")
+  (check-false (impl-exists? 'mkvec))
+  (activate-platform! state)
+  (check-equal? ((impl-info 'mkvec 'fl) 1.0 2.0) #(1.0 2.0))
+
+  ;; sequential reads can reference previously defined named FPCore operators
+  (define port
+    (open-input-string (string-append "(FPCore helper (x) (+ x 1))\n" "(FPCore (x) (helper x))\n")))
+  (check-equal? (length (load-tests port)) 2)
 
   ;; casting edge cases
   (check-equal? (fpcore->prog `(cast x) ctx) 'x)

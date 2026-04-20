@@ -5,6 +5,7 @@
          json)
 
 (require "../syntax/read.rkt"
+         "../syntax/platform-state.rkt"
          "../syntax/syntax.rkt"
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
@@ -176,7 +177,7 @@
       (define start-time (current-inexact-milliseconds))
       (reset!)
       (*context* (test-context test))
-      (activate-platform! (*platform-name*))
+      (activate-platform! (platform-serialize))
       (set! timeline (*timeline*))
       (when seed
         (set-seed! seed))
@@ -212,7 +213,7 @@
     (custodian-shutdown-all run-custodian)))
 
 (define (dummy-table-row-from-hash result-hash status link)
-  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
+  (define test (load-test (open-input-string (hash-ref result-hash 'test))))
   (define repr (test-output-repr test))
   (table-row (test-name test)
              (test-identifier test)
@@ -234,7 +235,7 @@
              '()))
 
 (define (get-table-data-from-hash result-hash link)
-  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
+  (define test (load-test (open-input-string (hash-ref result-hash 'test))))
   (define backend (hash-ref result-hash 'backend))
   (define status (hash-ref result-hash 'status))
   (match status
