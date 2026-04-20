@@ -114,20 +114,18 @@
 
        (define result (make-hash))
        (define exprs (batch-exprs batch))
-       (define start-expr (exprs (*start-brf*)))
 
        (for ([opt (in-list opts)])
          (match-define (option splitindices opt-alts pts brf) opt)
          (define fv ((batch-free-vars batch) brf))
          (when (= (set-count fv) 1) ; Univariate
            (define var (set-first fv))
-           (define branch-expr (exprs brf))
            (define use-binary?
              (and (flag-set? 'reduce 'binary-search)
                   (> (length splitindices) 1)
-                  (critical-subexpression? start-expr branch-expr)
+                  (critical-subexpression? batch (*start-brf*) brf (context-vars ctx))
                   (for/and ([alt (in-list opt-alts)])
-                    (critical-subexpression? (exprs (alt-expr alt)) branch-expr))))
+                    (critical-subexpression? batch (alt-expr alt) brf (context-vars ctx)))))
            (define spoints
              (if use-binary?
                  (sindices->spoints/binary batch
