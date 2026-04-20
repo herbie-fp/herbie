@@ -130,7 +130,7 @@
 
 ;; How long of a Taylor series to generate; too long and we time out
 (define *taylor-order-limit* (make-parameter 4))
-(define *chebyshev-order-limit* (make-parameter 12))
+(define *chebyshev-order-limit* (make-parameter 10))
 
 ;; How accurate to make the binary search
 (define *binary-search-test-points* (make-parameter 16))
