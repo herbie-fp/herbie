@@ -336,10 +336,7 @@
 
   ;; sequential reads can reference previously defined named FPCore operators
   (define port
-    (open-input-string
-     (string-append
-      "(FPCore helper (x) (+ x 1))\n"
-      "(FPCore (x) (helper x))\n")))
+    (open-input-string (string-append "(FPCore helper (x) (+ x 1))\n" "(FPCore (x) (helper x))\n")))
   (check-equal? (length (load-tests port)) 2)
 
   ;; casting edge cases
