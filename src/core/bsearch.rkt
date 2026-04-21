@@ -188,8 +188,8 @@
      'sindices->spoints/binary
      "mainloop called binary splitpoint search without extractable critical subexpressions"))
   (define spec-batch (batch-empty))
-  (define spec-brfs (batch-to-spec! batch (list start-prog) spec-batch))
-  (define start-real-compiler (make-real-compiler spec-batch spec-brfs (list ctx*)))
+  (define start-spec-brf ((batch-to-spec batch spec-batch) start-prog))
+  (define start-real-compiler (make-real-compiler spec-batch (list start-spec-brf) (list ctx*)))
 
   (define (prepend-macro v)
     (prepend-argument start-real-compiler v pcontext))

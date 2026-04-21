@@ -388,7 +388,7 @@
   (define all-brfs
     (for/list ([n (in-range (batch-length batch))])
       (batchref batch n)))
-  (define all-spec-brfs (batch-to-spec! batch all-brfs spec-batch))
+  (define all-spec-brfs (map (batch-to-spec batch spec-batch) all-brfs))
   (define reachable-spec-brfs (batch-reachable spec-batch all-spec-brfs))
   (define spec-idxs
     (for/vector #:length (batch-length batch)
