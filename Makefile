@@ -1,10 +1,10 @@
-.PHONY: help install egg-herbie nightly index start-server deploy coverage
+.PHONY: help install egg-herbie egglog-herbie egglog-timed nightly index start-server deploy coverage
 
 help:
 	@echo "Type 'make install' to install Herbie"
 	@echo "Then type 'racket -l herbie web' to run it."
 
-install: clean egg-herbie egglog-herbie update
+install: clean egg-herbie egglog-herbie egglog-timed update
 
 clean:
 	raco pkg remove --force --no-docs herbie && echo "Uninstalled old herbie" || :
@@ -31,6 +31,9 @@ egg-herbie:
 
 egglog-herbie:
 	cargo install --git "https://github.com/egraphs-good/egglog-experimental" --branch main egglog-experimental
+
+egglog-timed:
+	cargo build --release --manifest-path=egglog-timed/Cargo.toml
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/
