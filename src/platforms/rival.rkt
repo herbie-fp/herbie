@@ -11,10 +11,10 @@
   [FALSE #:spec (FALSE) #:impl (from-rival) #:fpcore FALSE #:cost 1])
 
 (define-operations ([x <bool>] [y <bool>]) <bool>
-  [and.bool #:spec (and x y) #:impl (from-rival) #:cost 1]
-  [or.bool  #:spec (or x y)  #:impl (from-rival) #:cost 1])
+  [and #:spec (and x y) #:impl (from-rival) #:cost 1]
+  [or  #:spec (or x y)  #:impl (from-rival) #:cost 1])
 
-(define-operation (not.bool [x <bool>]) <bool>
+(define-operation (not [x <bool>]) <bool>
   #:spec (not x) #:impl not #:cost 1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
