@@ -73,7 +73,6 @@
   [remove-double-neg (neg (neg a)) a]
   [*-lft-identity (* 1 a) a]
   [*-rgt-identity (* a 1) a]
-  ;[1-split 1 (* 2 1/2)]
   [/-rgt-identity (/ a 1) a]
   [mul-1-neg (* -1 a) (neg a)])
 
@@ -651,8 +650,6 @@
   [atanh-0 (atanh 0) 0])
 
 ; Sound-X removal rules: run these before lowering
-(define/reset unsound-counter 0)
-
 (define (*sound-removal-rules*)
   (list (rule 'remove-sound-/ '(sound-/ a b fallback) '(/ a b) '(sound-removal))
         (rule 'remove-sound-pow '(sound-pow a b fallback) '(pow a b) '(sound-removal))

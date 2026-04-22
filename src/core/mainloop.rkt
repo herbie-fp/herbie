@@ -17,7 +17,6 @@
          "preprocess.rkt"
          "programs.rkt"
          "regimes.rkt"
-         "../config.rkt"
          "batch-reduce.rkt")
 
 (provide run-improve!
@@ -217,6 +216,7 @@
      (reconstruct-alt altn full-altn can-refer))
    #:key (compose batchref-idx alt-expr)))
 
+;; Finish iteration
 (define (finalize-iter! picked-alts patched)
   (when (flag-set? 'dump 'intermediates)
     (dump-intermediates! (*global-batch*) patched))
