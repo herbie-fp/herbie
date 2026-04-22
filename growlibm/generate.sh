@@ -9,38 +9,29 @@ export PATH="$HOME/.cargo/bin/:$PATH"
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
 REPORTDIR="reports"
-TIMELINE_FILE="$REPORTDIR/timeline.tsv"
-SCRIPT_START_EPOCH=$(date "+%s")
-SCRIPT_START_ISO=$(date "+%Y-%m-%dT%H:%M:%S%z")
+TIMELINE_FILE="$REPORTDIR/timeline.json"
 
 log_time() {
-    local phase="$1"
-    local iso_time epoch_time elapsed
-    iso_time=$(date "+%Y-%m-%dT%H:%M:%S%z")
-    epoch_time=$(date "+%s")
-    elapsed=$((epoch_time - SCRIPT_START_EPOCH))
-    printf '%s\t%s\t%s\n' "$phase" "$iso_time" "$elapsed" | tee -a "$TIMELINE_FILE"
+    python3 growlibm/timeline.py add "$TIMELINE_FILE" "$1"
 }
 
 # rustup update
 # make install
-BENCHDIR="bench/coolprop/"
-NUM_ITERS=2
-NUM_CANDIDATES=625
-NUM_ADD=25
+# BENCHDIR="bench/libraries/coolprop.fpcore"
+# NUM_ITERS=2
+# NUM_CANDIDATES=625
+# NUM_ADD=25
 
-# BENCHDIR="bench/numerics/kahan.fpcore"
-# NUM_ITERS=1
-# NUM_CANDIDATES=100
-# NUM_ADD=5
+BENCHDIR="bench/numerics/kahan.fpcore"
+NUM_ITERS=1
+NUM_CANDIDATES=100
+NUM_ADD=5
 
 cp growlibm/grow-template.rkt growlibm/grow.rkt
 
 mkdir -p "$REPORTDIR"
 rm -rf "reports"/* || echo "nothing to delete"
-
-printf 'phase\ttimestamp\telapsed_seconds\n' > "$TIMELINE_FILE"
-printf 'start\t%s\t0\n' "$SCRIPT_START_ISO" | tee -a "$TIMELINE_FILE"
+python3 growlibm/timeline.py init "$TIMELINE_FILE"
 
 # run initial herbie
 racket -y "src/main.rkt" report \
@@ -50,7 +41,7 @@ racket -y "src/main.rkt" report \
         --disable "generate:taylor" \
         --disable "generate:evaluate" \
         "$BENCHDIR" \
-        "$REPORTDIR/start" > "$REPORTDIR/expr_dump.txt"
+        "$REPORTDIR/start"
 log_time "after_initial_compilation"
 
 # generate accelerator candidates
@@ -67,6 +58,7 @@ for ((i = 0; i < $NUM_ITERS; i++)) do
             --platform "grow" \
             --threads 4 \
             --disable "generate:taylor" \
+            --disable "reduce:regimes" \
             --disable "generate:evaluate" \
             "$REPORTDIR/candidates.txt" \
             "$REPORTDIR/iter$i" 

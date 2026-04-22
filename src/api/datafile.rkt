@@ -38,10 +38,10 @@
                              output
                              spec
                              target-prog
-                             has-accelerator-alt
                              start-bits
                              end-bits
                              target-bits
+                             has-accelerator-alt
                              time
                              link
                              cost-accuracy)
@@ -134,10 +134,10 @@
                               (or (parse-string (hash-ref test 'spec "#f"))
                                   (parse-string (get 'input)))
                               (parse-string (hash-ref test 'target-prog "#f"))
-                              (hash-ref test 'has-accelerator-alt #f)
                               (get 'start)
                               (get 'end)
                               (get 'target)
+                              (hash-ref test 'has-accelerator-alt #f)
                               (get 'time)
                               (get 'link)
                               cost-accuracy)))))

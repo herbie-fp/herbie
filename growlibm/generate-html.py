@@ -80,7 +80,7 @@ html_content = f"""
 </head>
 <body>
     <h1>GrowLibm Report</h1>
-    <p><a href="expr_dump.txt">Herbie Dump</a></p>
+    <p><a href="dump-intermediates/">Herbie Dumps</a></p>
     <p><a href="full-candidates.txt">All Candidates</a></p>
     <p><a href="candidates.txt">Top 500 Candidates</a></p>
     <p><a href="counts.json">Candidate Counts</a></p>

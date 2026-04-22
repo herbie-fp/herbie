@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_TIMELINE_PATH = REPO_ROOT / "reports" / "timeline.json"
 DEFAULT_LOG_PATH = REPO_ROOT / "reports" / "log.txt"
 DEFAULT_OUTPUT_NAME = "timeline.png"
 
@@ -183,6 +184,17 @@ def parse_runs_from_xtrace(lines: list[str]) -> list[list[Checkpoint]]:
     return runs
 
 
+def checkpoint_from_json(payload: object) -> Checkpoint:
+    if not isinstance(payload, dict):
+        raise SystemExit("timeline JSON checkpoints must be objects")
+
+    return Checkpoint(
+        phase=str(payload["phase"]),
+        timestamp=str(payload["timestamp"]),
+        elapsed_seconds=float(payload["elapsed_seconds"]),
+    )
+
+
 def extract_run_labels(lines: list[str]) -> list[str]:
     labels = []
     for line in lines:
@@ -204,8 +216,36 @@ def normalize_run(run: list[Checkpoint]) -> list[Checkpoint]:
     return sorted(deduped, key=lambda checkpoint: checkpoint.elapsed_seconds)
 
 
-def load_runs(log_path: Path) -> tuple[list[list[Checkpoint]], list[str]]:
-    lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+def load_runs_from_json(timeline_path: Path) -> tuple[list[list[Checkpoint]], list[str]]:
+    payload = json.loads(timeline_path.read_text(encoding="utf-8"))
+
+    if isinstance(payload, dict):
+        if "runs" in payload:
+            run_payloads = payload["runs"]
+        else:
+            run_payloads = [payload["checkpoints"]]
+        labels = [str(label) for label in payload.get("run_labels", [])]
+    elif isinstance(payload, list):
+        if payload and isinstance(payload[0], list):
+            run_payloads = payload
+        else:
+            run_payloads = [payload]
+        labels = []
+    else:
+        raise SystemExit("timeline JSON must be a checkpoint list or a runs object")
+
+    runs = [
+        normalize_run([checkpoint_from_json(checkpoint) for checkpoint in run_payload])
+        for run_payload in run_payloads
+    ]
+    return [run for run in runs if run], labels
+
+
+def load_runs(input_path: Path) -> tuple[list[list[Checkpoint]], list[str]]:
+    if input_path.suffix.lower() == ".json":
+        return load_runs_from_json(input_path)
+
+    lines = input_path.read_text(encoding="utf-8", errors="replace").splitlines()
     labels = extract_run_labels(lines)
 
     runs = [normalize_run(run) for run in parse_runs_from_checkpoint_rows(lines)]
@@ -220,7 +260,7 @@ def load_runs(log_path: Path) -> tuple[list[list[Checkpoint]], list[str]]:
 
 def select_run(runs: list[list[Checkpoint]], run_index: int) -> list[Checkpoint]:
     if not runs:
-        raise SystemExit("no timeline checkpoints found in log")
+        raise SystemExit("no timeline checkpoints found in input")
 
     try:
         run = runs[run_index]
@@ -377,7 +417,7 @@ def render_svg(checkpoints: list[Checkpoint], stages: list[Stage]) -> str:
 
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">',
-        "<title id=\"title\">growlibm timeline from log</title>",
+        "<title id=\"title\">growlibm timeline</title>",
         f"<desc id=\"desc\">{html.escape(subtitle)}</desc>",
         """
 <style>
@@ -470,20 +510,19 @@ def write_output(svg_text: str, output_path: Path) -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate a stage timeline plot from a growlibm reports/log.txt file."
+        description="Generate a stage timeline plot from growlibm timeline JSON or a legacy log file."
     )
     parser.add_argument(
-        "log_path",
+        "input_path",
         nargs="?",
         type=Path,
-        default=DEFAULT_LOG_PATH,
-        help="Path to the growlibm log file (default: reports/log.txt)",
+        help="Path to timeline JSON or a growlibm log file (default: reports/timeline.json if present, otherwise reports/log.txt)",
     )
     parser.add_argument(
         "-o",
         "--output",
         type=Path,
-        help="Plot output path (default: alongside log as timeline-from-log.png)",
+        help="Plot output path (default: alongside the input as timeline.png)",
     )
     parser.add_argument(
         "--json-output",
@@ -498,18 +537,23 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    log_path = args.log_path
-    if not log_path.exists():
-        raise SystemExit(f"log file not found: {log_path}")
+    input_path = args.input_path
+    if input_path is None:
+        if DEFAULT_TIMELINE_PATH.exists():
+            input_path = DEFAULT_TIMELINE_PATH
+        else:
+            input_path = DEFAULT_LOG_PATH
+    if not input_path.exists():
+        raise SystemExit(f"timeline input not found: {input_path}")
 
-    output_path = args.output or log_path.with_name(DEFAULT_OUTPUT_NAME)
+    output_path = args.output or input_path.with_name(DEFAULT_OUTPUT_NAME)
 
-    runs, labels = load_runs(log_path)
+    runs, labels = load_runs(input_path)
     checkpoints = select_run(runs, args.run_index)
     stages = build_stages(checkpoints)
 
     if len(runs) > 1:
-        warn(f"found {len(runs)} runs in {log_path}; rendering run index {args.run_index}")
+        warn(f"found {len(runs)} runs in {input_path}; rendering run index {args.run_index}")
 
     selected_run_number = args.run_index
     if selected_run_number < 0:
@@ -525,7 +569,7 @@ def main() -> None:
     if args.json_output is not None:
         args.json_output.parent.mkdir(parents=True, exist_ok=True)
         payload = {
-            "log": str(log_path),
+            "input_path": str(input_path),
             "run_index": args.run_index,
             "run_count": len(runs),
             "run_label": run_label,

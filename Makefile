@@ -7,7 +7,7 @@ ifeq ($(UNAME_S), Darwin)
     LIB_FLAGS := -dynamiclib
 endif
 
-.PHONY: help install egg-herbie nightly index start-server deploy coverage compile-accelerators time-ops evaluate-proj evaluate-basilisk evaluate-coolprop evaluate
+.PHONY: help install egg-herbie nightly index start-server deploy coverage compile-accelerators time-ops evaluate-proj evaluate-basilisk evaluate-coolprop evaluate generate
 
 help:
 	@echo "Type 'make install' to install Herbie"
@@ -55,7 +55,10 @@ minimal-distribution:
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 nightly:
-	make evaluate
+	make generate
+
+generate:
+	bash growlibm/generate.sh
 
 time-ops:
 	mkdir -p growlibm/timing/drivers
