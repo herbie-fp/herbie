@@ -12,7 +12,9 @@
          timeline-extract
          timeline-merge
          timeline-reattribute-gc
-         *timeline-disabled*)
+         *timeline-disabled*
+         *timing-stage*
+         *egglog-phase*)
 (module+ debug
   (provide *timeline*))
 
@@ -25,6 +27,8 @@
 (define *timeline-active-value* #f)
 
 (define *timeline-disabled* (make-parameter true))
+(define *timing-stage* (make-parameter "other"))
+(define *egglog-phase* (make-parameter "unknown"))
 
 (define always-compact '(mixsample outcomes taylor-count))
 
@@ -129,13 +133,13 @@
             'memory
             (list (list (current-memory-use #f) (current-memory-use 'cumulative)))))
   (timeline-reattribute-gc
-   (reverse (for/list ([evt (in-list (unbox (*timeline*)))]
-                       [next (in-list (cons end (unbox (*timeline*))))])
-              (define evt* (hash-copy evt))
-              (hash-update! evt* 'time (λ (v) (- (hash-ref next 'time) v)))
-              (hash-update! evt* 'gc-time (λ (v) (- (hash-ref next 'gc-time) v)))
-              (hash-update! evt* 'memory (λ (v) (diff-memory-records (hash-ref next 'memory) v)))
-              evt*))))
+    (reverse (for/list ([evt (in-list (unbox (*timeline*)))]
+                        [next (in-list (cons end (unbox (*timeline*))))])
+               (define evt* (hash-copy evt))
+               (hash-update! evt* 'time (λ (v) (- (hash-ref next 'time) v)))
+               (hash-update! evt* 'gc-time (λ (v) (- (hash-ref next 'gc-time) v)))
+               (hash-update! evt* 'memory (λ (v) (diff-memory-records (hash-ref next 'memory) v)))
+               evt*))))
 
 (define timeline-types (make-hasheq))
 
@@ -213,6 +217,9 @@
 (define-timeline egraph #:unmergable)
 (define-timeline stop [reason false] [count +])
 (define-timeline branch #:unmergable)
+(define-timeline egg-phase [time +] [stage false] [phase false])
+(define-timeline egglog-phase [wall +] [stage false] [phase false])
+(define-timeline egglog-send [count +] [wall +] [engine +] [stage false] [phase false] [cmd false])
 
 (define (timeline-merge . timelines)
   ;; The timelines in this case are JSON objects, as above
@@ -235,9 +242,15 @@
       (hash-update! (car (unbox (*timeline*))) key (curryr fn '()) '()))))
 
 (define (timeline-reattribute-gc timeline)
-  (define total-gc-time (for/sum ([phase (in-list timeline)]) (hash-ref phase 'gc-time 0)))
+  (define (already-processed? phase)
+    (not (hash-has-key? phase 'memory)))
+  (define total-gc-time
+    (for/sum ([phase (in-list timeline)] #:unless (or (equal? (hash-ref phase 'type #f) "gc")
+                                                      (already-processed? phase)))
+      (hash-ref phase 'gc-time 0)))
   (define allocations-by-phase (make-hash))
-  (for ([phase (in-list timeline)])
+  (for ([phase (in-list timeline)]
+        #:unless (already-processed? phase))
     (define type (hash-ref phase 'type "unknown"))
     (define alloc (second (first (hash-ref phase 'memory '((0 0))))))
     (hash-update! allocations-by-phase type (curry + alloc) 0))
@@ -246,16 +259,22 @@
       (list type alloc)))
   (define adjusted-phases
     (for/list ([phase (in-list timeline)])
-      (define gc-time (hash-ref phase 'gc-time 0))
-      (define new-time (- (hash-ref phase 'time 0) gc-time))
-      (define phase* (hash-copy phase))
-      (hash-set! phase* 'time new-time)
-      (hash-remove! phase* 'gc-time)
-      (hash-remove! phase* 'memory)
-      phase*))
+      (cond
+        [(already-processed? phase) phase]
+        [else
+         (define gc-time (hash-ref phase 'gc-time 0))
+         (define new-time (- (hash-ref phase 'time 0) gc-time))
+         (define phase* (hash-copy phase))
+         (hash-set! phase* 'time new-time)
+         ;; Preserve gc-time so downstream tools can reconstruct raw wall
+         ;; time (live-clock measurements like the egglog surround include
+         ;; GC pauses; `time` has them stripped).
+         (hash-set! phase* 'gc-time gc-time)
+         (hash-remove! phase* 'memory)
+         phase*])))
   (define gc-phase
     (make-hasheq
-     (list (cons 'type "gc") (cons 'time total-gc-time) (cons 'allocations allocation-table))))
+      (list (cons 'type "gc") (cons 'time total-gc-time) (cons 'allocations allocation-table))))
   (if (zero? total-gc-time)
       adjusted-phases
       (append adjusted-phases (list gc-phase))))
