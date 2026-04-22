@@ -298,8 +298,7 @@
 
 (define (var-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))])
-    (define cost (normalize-cost (platform-repr-cost pform (get-representation repr))))
-    `(,(typed-var-id repr) String :cost ,cost)))
+    `(,(typed-var-id repr) String :cost 0)))
 
 (define (num-lowering-rules)
   (for/list ([repr (in-list (all-repr-names))]

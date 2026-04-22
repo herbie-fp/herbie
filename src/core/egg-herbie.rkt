@@ -789,7 +789,7 @@
       (if (representation? type)
           (match enode
             [(? number?) (platform-repr-cost (*active-platform*) type)]
-            [(? symbol?) (platform-repr-cost (*active-platform*) type)]
+            [(? symbol?) 0]
             [(list '$approx x y) 0]
             [(list op args ...) (impl-info op 'cost)])
           1))
@@ -1053,9 +1053,8 @@
      (match node
        ; numbers (repr is unused)
        [(? number? n) ((node-cost-proc (literal n type) type))]
-       [(? symbol?) ; variables
-        (define repr (context-lookup ctx (egg-var->var node ctx)))
-        ((node-cost-proc node repr))]
+       ; variables
+       [(? symbol?) 0]
        ; approx node
        [(list '$approx _ impl) (rec impl)]
        [(list (? impl-exists?) args ...) ; impls
