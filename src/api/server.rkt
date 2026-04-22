@@ -289,7 +289,6 @@
                          *node-limit*
                          *max-find-range-depth*
                          *platform-name*
-                         *dump-exprs*
                          *functions*)
    (activate-platform! (*platform-name*))
    ; not sure if the above code is actaully needed.
@@ -417,7 +416,6 @@
                          *node-limit*
                          *max-find-range-depth*
                          *platform-name*
-                         *dump-exprs*
                          *functions*)
    (activate-platform! (*platform-name*))
    (define worker-thread

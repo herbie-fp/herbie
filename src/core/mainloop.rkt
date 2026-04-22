@@ -40,12 +40,6 @@
 
 (define *global-batch* (make-parameter #f))
 
-(define (dump-altns! altns)
-  (when (*dump-exprs*)
-    (define exprs (batch-exprs (*global-batch*)))
-    (for ([altn (in-list altns)])
-      (displayln (exprs (alt-expr altn))))))
-
 ;; These high-level functions give the high-level workflow of Herbie:
 ;; - Initial steps: explain, preprocessing, initialize the alt table
 ;; - the loop: choose some alts, localize, run the patch table, and finalize

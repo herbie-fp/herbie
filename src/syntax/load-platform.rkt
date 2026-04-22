@@ -15,7 +15,6 @@
 (define-runtime-module-path math-platform "../platforms/math.rkt")
 (define-runtime-module-path rival-platform "../platforms/rival.rkt")
 (define-runtime-module-path growlibm-platform "../platforms/grow-libm.rkt")
-(define-runtime-module-path growlibm-platform "../../growlibm/platforms/growlibm.rkt")
 (define-runtime-module-path vanilla-platform "../../growlibm/platforms/vanilla.rkt")
 (define-runtime-module-path herbie20plus-platform "../../growlibm/platforms/herbie20plus.rkt")
 (define-runtime-module-path growlibmbest-platform "../../growlibm/platforms/growlibmbest.rkt")
@@ -42,8 +41,6 @@
         no-accelerators-platform
         "grow"
         grow-platform
-        "growlibm"
-        growlibm-platform))
         "growlibm"
         growlibm-platform
         "vanilla"

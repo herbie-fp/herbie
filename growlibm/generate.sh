@@ -22,8 +22,8 @@ log_time() {
     printf '%s\t%s\t%s\n' "$phase" "$iso_time" "$elapsed" | tee -a "$TIMELINE_FILE"
 }
 
-rustup update
-make install
+# rustup update
+# make install
 BENCHDIR="bench/coolprop/"
 NUM_ITERS=2
 NUM_CANDIDATES=625
@@ -45,8 +45,8 @@ printf 'start\t%s\t0\n' "$SCRIPT_START_ISO" | tee -a "$TIMELINE_FILE"
 # run initial herbie
 racket -y "src/main.rkt" report \
         --seed "$SEED" \
-        --dump-exprs \
         --platform "grow" \
+        --enable "dump:intermediates" \
         --disable "generate:taylor" \
         --disable "generate:evaluate" \
         "$BENCHDIR" \

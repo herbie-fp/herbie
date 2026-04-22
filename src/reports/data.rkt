@@ -20,7 +20,8 @@
               target
               time
               link
-              cost-accuracy)
+              cost-accuracy
+              has-accelerator-alt)
   #:prefab)
 
 (struct report-info (date commit branch seed flags points iterations tests) #:prefab)
