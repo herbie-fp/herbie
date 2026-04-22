@@ -29,8 +29,6 @@
      (fprintf port "#<platform>"))])
 
 (provide *active-platform*
-         platform-copy
-         repr-exists?
          get-representation
          impl-exists?
          impl-info
@@ -54,12 +52,6 @@
 ;; Active platform
 (define *active-platform* (make-parameter #f))
 
-(define (platform-copy platform)
-  (struct-copy $platform
-               platform
-               [representations (hash-copy (platform-representations platform))]
-               [implementations (hash-copy (platform-implementations platform))]))
-
 (define (make-empty-platform)
   (define reprs (make-hash))
   (define repr-costs (make-hash))
@@ -76,11 +68,6 @@
                           name
                           (string-join (map ~s (hash-keys reprs)) ", ")
                           (*platform-name*))))
-
-(define (repr-exists? name)
-  (define platform (*active-platform*))
-  (define reprs (platform-representations platform))
-  (hash-has-key? reprs name))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> LSpec
@@ -131,7 +118,7 @@
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl-name field)
-  (-> symbol? (or/c 'name 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost 'aggregate) any/c)
+  (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost 'aggregate) any/c)
   (define impls (platform-implementations (*active-platform*)))
   (define impl
     (hash-ref impls
@@ -139,7 +126,6 @@
               (lambda ()
                 (error 'impl-info "unknown impl '~a in platform ~a" impl-name (*platform-name*)))))
   (case field
-    [(name) (operator-impl-name impl)]
     [(vars) (context-vars (operator-impl-ctx impl))]
     [(itype) (context-var-reprs (operator-impl-ctx impl))]
     [(otype) (context-repr (operator-impl-ctx impl))]
@@ -165,7 +151,7 @@
 (define ((platform-node-cost-proc platform) expr repr)
   (match expr
     [(? literal?) (lambda () (platform-repr-cost platform repr))]
-    [(? symbol?) (lambda () (platform-repr-cost platform repr))]
+    [(? symbol?) (lambda () 0)]
     [(list impl args ...)
      (define impl-cost (impl-info impl 'cost))
      (define impl-agg (impl-info impl 'aggregate))

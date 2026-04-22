@@ -26,6 +26,7 @@
          egraph-prove
          egraph-best
          egraph-variations
+         deduplicate-exprs
          egraph-analyze-rewrite-impact)
 
 (module+ test
@@ -308,7 +309,13 @@
   (let ([egg-graph (egraph_create)])
     (for ([expr extended-expr-list])
       (define egg-expr (expr->egg-expr expr ctx))
-      (check-equal? (egg-expr->expr egg-expr ctx) expr))))
+      (check-equal? (egg-expr->expr egg-expr ctx) expr)))
+
+  (define dedup-ctx1 (context '(x y) <binary64> (list <binary64> <binary64>)))
+  (define dedup-ctx2 (context '(y x) <binary64> (list <binary64> <binary64>)))
+  (define deduped (deduplicate-exprs (list '(+.f64 x y) '(+.f64 y x)) (list dedup-ctx1 dedup-ctx2)))
+  (check-equal? (length deduped) 2)
+  (check-equal? (first deduped) (second deduped)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Proofs
@@ -764,7 +771,7 @@
       (if (representation? type)
           (match enode
             [(? number?) (platform-repr-cost (*active-platform*) type)]
-            [(? symbol?) (platform-repr-cost (*active-platform*) type)]
+            [(? symbol?) 0]
             [(list '$approx x y) 0]
             [(list op args ...) (impl-info op 'cost)])
           1))
@@ -1028,9 +1035,8 @@
      (match node
        ; numbers (repr is unused)
        [(? number? n) ((node-cost-proc (literal n type) type))]
-       [(? symbol?) ; variables
-        (define repr (context-lookup ctx (egg-var->var node ctx)))
-        ((node-cost-proc node repr))]
+       ; variables
+       [(? symbol?) 0]
        ; approx node
        [(list '$approx _ impl) (rec impl)]
        [(list (? impl-exists?) args ...) ; impls
@@ -1274,3 +1280,15 @@
      (for/list ([id (in-list root-ids)]
                 [repr (in-list reprs)])
        (regraph-extract-variants regraph extract-id id repr))]))
+
+(define (deduplicate-exprs exprs ctxs)
+  (define ctx (contexts-union ctxs))
+  (define-values (batch brfs) (progs->batch exprs))
+  (define runner (make-egraph batch brfs (map context-repr ctxs) '(lift rewrite lower) ctx))
+  (define batchrefss (egraph-best runner batch))
+  (define batch-pull (batch-exprs batch))
+  (for/list ([orig-expr (in-list exprs)]
+             [refs (in-list batchrefss)])
+    (if (empty? refs)
+        orig-expr
+        (batch-pull (first refs)))))
