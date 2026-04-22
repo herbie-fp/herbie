@@ -10,6 +10,7 @@
          "../syntax/batch.rkt"
          "egg-herbie.rkt"
          "egglog-herbie.rkt"
+         "egglog-subprocess.rkt"
          "programs.rkt"
          "rules.rkt"
          "../syntax/rival.rkt"
@@ -27,8 +28,8 @@
         [ninvert-x (λ (x) `(/ 1 (neg ,x)))])
     `((0 ,identity ,identity) (inf ,invert-x ,invert-x)
                               (-inf ,ninvert-x ,ninvert-x)
-                              #;(exp ,exp-x ,log-x)
-                              #;(log ,log-x ,exp-x))))
+                              #; (exp ,exp-x ,log-x)
+                              #; (log ,log-x ,exp-x))))
 
 (define (taylor-alts altns global-batch spec-batch reducer)
   (define vars
@@ -99,32 +100,36 @@
   approxs*)
 
 (define (run-lowering altns global-batch)
-  (define schedule '(lower))
+  (parameterize ([*timing-stage* "taylor"])
+    (define schedule '(lower))
 
-  ; run egg
-  (define brfs (map alt-expr altns))
-  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+    ; run egg
+    (define brfs (map alt-expr altns))
+    (define reprs (map (batch-reprs global-batch (*context*)) brfs))
 
-  (define runner
-    (cond
-      [(flag-set? 'generate 'egglog)
-       (define batch* (batch-empty))
-       (define copy-f (batch-copy-only! batch* global-batch))
-       (define brfs* (map copy-f brfs))
-       (make-egglog-runner batch* brfs* reprs schedule (*context*))]
-      [else (make-egraph global-batch brfs reprs schedule (*context*))]))
+    (define-syntax-rule (surround body ...)
+      (if (flag-set? 'generate 'egglog)
+          (time-egglog-surround body ...)
+          (time-egg-surround body ...)))
 
-  (define batchrefss
-    (if (flag-set? 'generate 'egglog)
-        (run-egglog runner global-batch 'taylor #:extract 1)
-        (egraph-best runner global-batch)))
-
-  ; apply changelists
-  (reap [sow]
-        (for ([batchrefs (in-list batchrefss)]
-              [altn (in-list altns)])
-          (for ([batchref* (in-list batchrefs)])
-            (sow (alt batchref* (list 'rr runner #f) (list altn)))))))
+    (surround (define runner
+                (cond
+                  [(flag-set? 'generate 'egglog)
+                   (define batch* (batch-empty))
+                   (define copy-f (batch-copy-only! batch* global-batch))
+                   (define brfs* (map copy-f brfs))
+                   (make-egglog-runner batch* brfs* reprs schedule (*context*))]
+                  [else (make-egraph global-batch brfs reprs schedule (*context*))]))
+              (define batchrefss
+                (if (flag-set? 'generate 'egglog)
+                    (run-egglog runner global-batch 'taylor #:extract 1)
+                    (egraph-best runner global-batch)))
+              ; apply changelists
+              (reap [sow]
+                    (for ([batchrefs (in-list batchrefss)]
+                          [altn (in-list altns)])
+                      (for ([batchref* (in-list batchrefs)])
+                        (sow (alt batchref* (list 'rr runner #f) (list altn)))))))))
 
 (define (run-evaluate altns global-batch)
   (timeline-event! 'sample)
@@ -177,40 +182,43 @@
 
 (define (run-rr altns global-batch)
   (timeline-event! 'rewrite)
+  (parameterize ([*timing-stage* "rewrite"])
+    ; egg schedule (4-phases for mathematical rewrites, sound-X removal, and implementation selection)
+    (define schedule '(lift rewrite unsound lower))
 
-  ; egg schedule (4-phases for mathematical rewrites, sound-X removal, and implementation selection)
-  (define schedule '(lift rewrite unsound lower))
+    (define brfs (map alt-expr altns))
+    (define reprs (map (batch-reprs global-batch (*context*)) brfs))
 
-  (define brfs (map alt-expr altns))
-  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+    (define-syntax-rule (surround body ...)
+      (if (flag-set? 'generate 'egglog)
+          (time-egglog-surround body ...)
+          (time-egg-surround body ...)))
 
-  (define runner
-    (cond
-      [(flag-set? 'generate 'egglog)
-       (define batch* (batch-empty))
-       (define copy-f (batch-copy-only! batch* global-batch))
-       (define brfs* (map copy-f brfs))
-       (make-egglog-runner batch* brfs* reprs schedule (*context*))]
-      [else (make-egraph global-batch brfs reprs schedule (*context*))]))
+    (define rewritten
+      (surround (define runner
+                  (cond
+                    [(flag-set? 'generate 'egglog)
+                     (define batch* (batch-empty))
+                     (define copy-f (batch-copy-only! batch* global-batch))
+                     (define brfs* (map copy-f brfs))
+                     (make-egglog-runner batch* brfs* reprs schedule (*context*))]
+                    [else (make-egraph global-batch brfs reprs schedule (*context*))]))
+                (define batchrefss
+                  (if (flag-set? 'generate 'egglog)
+                      (run-egglog runner global-batch 'rewrite #:extract 1000000) ; "infinity"
+                      (egraph-variations runner global-batch)))
+                ; apply changelists
+                (reap [sow]
+                      (for ([batchrefs (in-list batchrefss)]
+                            [altn (in-list altns)])
+                        (for ([batchref* (in-list batchrefs)])
+                          (sow (alt batchref* (list 'rr runner #f) (list altn))))))))
 
-  (define batchrefss
-    (if (flag-set? 'generate 'egglog)
-        (run-egglog runner global-batch 'rewrite #:extract 1000000) ; "infinity"
-        (egraph-variations runner global-batch)))
+    (timeline-push! 'inputs (batch->jsexpr global-batch (map alt-expr altns)))
+    (timeline-push! 'outputs (batch->jsexpr global-batch (map alt-expr rewritten)))
+    (timeline-push! 'count (length altns) (length rewritten))
 
-  ; apply changelists
-  (define rewritten
-    (reap [sow]
-          (for ([batchrefs (in-list batchrefss)]
-                [altn (in-list altns)])
-            (for ([batchref* (in-list batchrefs)])
-              (sow (alt batchref* (list 'rr runner #f) (list altn)))))))
-
-  (timeline-push! 'inputs (batch->jsexpr global-batch (map alt-expr altns)))
-  (timeline-push! 'outputs (batch->jsexpr global-batch (map alt-expr rewritten)))
-  (timeline-push! 'count (length altns) (length rewritten))
-
-  rewritten)
+    rewritten))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

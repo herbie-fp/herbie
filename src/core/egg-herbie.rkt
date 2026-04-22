@@ -27,7 +27,25 @@
          egraph-best
          egraph-variations
          deduplicate-exprs
-         egraph-analyze-rewrite-impact)
+         egraph-analyze-rewrite-impact
+         with-egg-phase
+         time-egg-surround)
+
+;; Wraps an egg phase: measures wall time and emits an egg-phase event
+;; tagged with the current *timing-stage* and the given phase name.
+(define-syntax-rule (with-egg-phase phase-name body ...)
+  (let ([stop! (timeline-start! 'egg-phase (*timing-stage*) phase-name)])
+    (begin0 (let ()
+              body ...)
+      (stop!))))
+
+;; Outer wrapper used from patch.rkt to label the entire Herbie-side egg call
+;; (runner construction + egraph-best / egraph-variations + post-processing).
+(define-syntax-rule (time-egg-surround body ...)
+  (let ([stop! (timeline-start! 'egg-phase (*timing-stage*) "surround")])
+    (begin0 (let ()
+              body ...)
+      (stop!))))
 
 (module+ test
   (require rackunit))
@@ -1129,32 +1147,35 @@
   (define egg-graph (egraph_create))
 
   ; insert expressions into the e-graph
-  (define root-ids (egraph-add-exprs egg-graph batch brfs ctx))
+  (define root-ids (with-egg-phase "build" (egraph-add-exprs egg-graph batch brfs ctx)))
 
   ; run the schedule
   (define egg-graph*
     (for/fold ([egg-graph egg-graph]) ([step (in-list schedule)])
+      (define rules
+        (with-egg-phase (format "rules-convert-~a" step)
+                        (match step
+                          ['lift (convert-rules (platform-lifting-rules))]
+                          ['lower (convert-rules (platform-lowering-rules))]
+                          ['unsound (convert-rules (*sound-removal-rules*))]
+                          ['rewrite (convert-rules (*rules*))])))
       (define-values (egg-graph* iteration-data)
-        (match step
-          ['lift
-           (define rules (convert-rules (platform-lifting-rules)))
-           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
-          ['lower
-           (define rules (convert-rules (platform-lowering-rules)))
-           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
-          ['unsound
-           (define rules (convert-rules (*sound-removal-rules*)))
-           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
-          ['rewrite
-           (define rules (convert-rules (*rules*)))
-           (egraph-run-rules egg-graph rules #:node-limit (*node-limit*))]))
+        (with-egg-phase
+         (format "schedule-~a" step)
+         (match step
+           ['lift (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
+           ['lower (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
+           ['unsound (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
+           ['rewrite (egraph-run-rules egg-graph rules #:node-limit (*node-limit*))])))
 
       ; get cost statistics
-      (for ([iter (in-list iteration-data)]
-            [i (in-naturals)])
-        (define cnt (iteration-data-num-nodes iter))
-        (define cost (for/sum ([id (in-list root-ids)]) (egraph_get_cost egg-graph* id i)))
-        (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
+      (with-egg-phase "cost-tabulate"
+                      (for ([iter (in-list iteration-data)]
+                            [i (in-naturals)])
+                        (define cnt (iteration-data-num-nodes iter))
+                        (define cost
+                          (for/sum ([id (in-list root-ids)]) (egraph_get_cost egg-graph* id i)))
+                        (timeline-push! 'egraph i cnt cost (iteration-data-time iter))))
 
       egg-graph*))
 
@@ -1250,17 +1271,18 @@
   (cond
     [(egraph_is_unsound_detected egg-graph) (map (const empty) root-ids)]
     [else
-     (define regraph (make-regraph egg-graph ctx))
+     (define regraph (with-egg-phase "regraph-build" (make-regraph egg-graph ctx)))
      (define reprs (egg-runner-reprs runner))
      (when (flag-set? 'dump 'egg)
        (regraph-dump regraph root-ids reprs))
 
-     (define extract-id ((typed-egg-batch-extractor batch) regraph))
+     (define extract-id (with-egg-phase "extractor-init" ((typed-egg-batch-extractor batch) regraph)))
 
      ; (Listof (Listof batchref))
-     (for/list ([id (in-list root-ids)]
-                [repr (in-list reprs)])
-       (regraph-extract-best regraph extract-id id repr))]))
+     (with-egg-phase "extract"
+                     (for/list ([id (in-list root-ids)]
+                                [repr (in-list reprs)])
+                       (regraph-extract-best regraph extract-id id repr)))]))
 
 (define (egraph-variations runner batch)
   (define ctx (egg-runner-ctx runner))
@@ -1271,17 +1293,18 @@
   (cond
     [(egraph_is_unsound_detected egg-graph) (map (const empty) root-ids)]
     [else
-     (define regraph (make-regraph egg-graph ctx))
+     (define regraph (with-egg-phase "regraph-build" (make-regraph egg-graph ctx)))
      (define reprs (egg-runner-reprs runner))
      (when (flag-set? 'dump 'egg)
        (regraph-dump regraph root-ids reprs))
 
-     (define extract-id ((typed-egg-batch-extractor batch) regraph))
+     (define extract-id (with-egg-phase "extractor-init" ((typed-egg-batch-extractor batch) regraph)))
 
      ; (Listof (Listof batchref))
-     (for/list ([id (in-list root-ids)]
-                [repr (in-list reprs)])
-       (regraph-extract-variants regraph extract-id id repr))]))
+     (with-egg-phase "extract"
+                     (for/list ([id (in-list root-ids)]
+                                [repr (in-list reprs)])
+                       (regraph-extract-variants regraph extract-id id repr)))]))
 
 (define (deduplicate-exprs exprs ctxs)
   (define ctx (contexts-union ctxs))
