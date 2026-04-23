@@ -15,17 +15,17 @@ log_time() {
     python3 growlibm/timeline.py add "$TIMELINE_FILE" "$1"
 }
 
-# rustup update
-# make install
-# BENCHDIR="bench/libraries/coolprop.fpcore"
-# NUM_ITERS=2
-# NUM_CANDIDATES=625
-# NUM_ADD=25
+rustup update
+make install
+BENCHDIR="bench/libraries/proj.fpcore"
+NUM_ITERS=2
+NUM_CANDIDATES=625
+NUM_ADD=25
 
-BENCHDIR="bench/numerics/kahan.fpcore"
-NUM_ITERS=1
-NUM_CANDIDATES=100
-NUM_ADD=5
+# BENCHDIR="bench/numerics/kahan.fpcore"
+# NUM_ITERS=1
+# NUM_CANDIDATES=100
+# NUM_ADD=5
 
 cp growlibm/grow-template.rkt growlibm/grow.rkt
 
