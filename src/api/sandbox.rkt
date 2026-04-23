@@ -149,6 +149,7 @@
                     test
                     #:seed [seed #f]
                     #:pcontext [pcontext #f]
+                    #:platform [platform #f]
                     #:profile? [profile? #f]
                     #:timeline? [timeline? #f])
   (define timeline #f)
@@ -176,7 +177,9 @@
       (define start-time (current-inexact-milliseconds))
       (reset!)
       (*context* (test-context test))
-      (activate-platform! (*platform-name*))
+      (if platform
+          (*active-platform* platform)
+          (activate-platform! (*platform-name*)))
       (set! timeline (*timeline*))
       (when seed
         (set-seed! seed))
