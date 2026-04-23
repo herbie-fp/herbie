@@ -9,10 +9,19 @@
 //! out before the `(done <nanos>)` terminator; `(error <nanos>)` on failure.
 
 use egglog_experimental::new_experimental_egraph;
+use rayon::ThreadPoolBuilder;
 use std::io::{self, BufRead, BufReader, Write};
 use std::time::Instant;
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn main() {
+    ThreadPoolBuilder::new()
+        .num_threads(1)
+        .build_global()
+        .unwrap();
+
     let mut egraph = new_experimental_egraph();
     let mut out = io::stdout().lock();
 

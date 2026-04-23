@@ -5,6 +5,8 @@ edition = "2024"
 
 [dependencies]
 egglog-experimental = { git = "https://github.com/egraphs-good/egglog-experimental.git", rev = "eae9570d78105c53497fccdf0ff7fb1937592036", default-features = false }
+mimalloc = "0.1"
+rayon = "1.12"
 
 [profile.release]
 lto = "thin"

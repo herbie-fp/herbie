@@ -42,7 +42,7 @@
 (define (stage-total timeline stage-type)
   (for/sum ([group (in-list timeline)] #:when (and (hash? group)
                                                    (equal? (hash-ref group 'type #f) stage-type)))
-           (+ (hash-ref group 'time 0) (hash-ref group 'gc-time 0))))
+    (+ (hash-ref group 'time 0) (hash-ref group 'gc-time 0))))
 
 (define (rows-for-stage timeline stage-type field)
   ;; egg/egglog-phase and egglog-send events carry `stage` in-row, so a single
@@ -95,7 +95,7 @@
 (define (total-wall timeline)
   (for/sum ([group (in-list timeline)] #:when (and (hash? group)
                                                    (not (equal? (hash-ref group 'type #f) "gc"))))
-           (+ (hash-ref group 'time 0) (hash-ref group 'gc-time 0))))
+    (+ (hash-ref group 'time 0) (hash-ref group 'gc-time 0))))
 
 ;; Nested rows: each row is (label, wall-ms, share-of-stage-%)
 (define (nest-rows/egg egg)
@@ -134,13 +134,13 @@
   (for ([r (in-list rows)])
     (define k (list (list-ref r 3) (list-ref r 4) (list-ref r 5))) ; stage phase cmd
     (hash-update!
-     h
-     k
-     (lambda (o)
-       (for/list ([a (in-list o)]
-                  [b (in-list (list (first r) (second r) (third r)))])
-         (+ a b)))
-     (lambda () (list 0 0 0))))
+      h
+      k
+      (lambda (o)
+        (for/list ([a (in-list o)]
+                   [b (in-list (list (first r) (second r) (third r)))])
+          (+ a b)))
+      (lambda () (list 0 0 0))))
   (define entries
     (for/list ([(k v) (in-hash h)])
       (append k v)))
@@ -148,44 +148,44 @@
 
 (define (write-csv path rows header)
   (call-with-output-file
-   path
-   #:exists 'replace
-   (lambda (out)
-     (displayln (string-join (map ~a header) ",") out)
-     (for ([r (in-list rows)])
-       (displayln (string-join (map (lambda (v)
-                                      (cond
-                                        [(and (real? v) (rational? v)) (real->decimal-string v 4)]
-                                        [else (~a v)]))
-                                    r)
-                               ",")
-                  out)))))
+    path
+    #:exists 'replace
+    (lambda (out)
+      (displayln (string-join (map ~a header) ",") out)
+      (for ([r (in-list rows)])
+        (displayln (string-join (map (lambda (v)
+                                       (cond
+                                         [(and (real? v) (rational? v)) (real->decimal-string v 4)]
+                                         [else (~a v)]))
+                                     r)
+                                ",")
+                   out)))))
 
 (define (write-nested-csv path egg-total egglog-total stages)
   (call-with-output-file path
-                         #:exists 'replace
-                         (lambda (out)
-                           (displayln "backend,stage,level,ms,share_of_stage_pct" out)
-                           (fprintf out "egg,TOTAL,total,~a,~a\n" (format-ms egg-total) "100.0")
-                           (fprintf out "egglog,TOTAL,total,~a,~a\n" (format-ms egglog-total) "100.0")
-                           (for ([pair (in-list stages)])
-                             (match-define (list stage-name egg eg) pair)
-                             (for ([r (in-list (nest-rows/egg egg))])
-                               (match-define (list label ms share) r)
-                               (fprintf out
-                                        "egg,~a,~a,~a,~a\n"
-                                        stage-name
-                                        (trim-indent label)
-                                        (format-ms ms)
-                                        (format-pct share)))
-                             (for ([r (in-list (nest-rows/egglog eg))])
-                               (match-define (list label ms share) r)
-                               (fprintf out
-                                        "egglog,~a,~a,~a,~a\n"
-                                        stage-name
-                                        (trim-indent label)
-                                        (format-ms ms)
-                                        (format-pct share)))))))
+    #:exists 'replace
+    (lambda (out)
+      (displayln "backend,stage,level,ms,share_of_stage_pct" out)
+      (fprintf out "egg,TOTAL,total,~a,~a\n" (format-ms egg-total) "100.0")
+      (fprintf out "egglog,TOTAL,total,~a,~a\n" (format-ms egglog-total) "100.0")
+      (for ([pair (in-list stages)])
+        (match-define (list stage-name egg eg) pair)
+        (for ([r (in-list (nest-rows/egg egg))])
+          (match-define (list label ms share) r)
+          (fprintf out
+                   "egg,~a,~a,~a,~a\n"
+                   stage-name
+                   (trim-indent label)
+                   (format-ms ms)
+                   (format-pct share)))
+        (for ([r (in-list (nest-rows/egglog eg))])
+          (match-define (list label ms share) r)
+          (fprintf out
+                   "egglog,~a,~a,~a,~a\n"
+                   stage-name
+                   (trim-indent label)
+                   (format-ms ms)
+                   (format-pct share)))))))
 
 (define (trim-indent s)
   ;; Replace leading spaces with nesting count for CSV friendliness.
@@ -241,10 +241,6 @@
                       "th:first-child,td:first-child{text-align:left;font-family:monospace;}"
                       "h2{margin-top:2em;}"))
          (body (h1 "Egg vs. Egglog Backend Comparison")
-               (p "Nested view: each level is a strict subset of the level above. "
-                  "`engine (rust wall)` is egglog subprocess CPU clamped per-send to the "
-                  "send wall, so parallel saturation doesn't let it exceed the send it "
-                  "lives inside.")
                (h2 "Totals")
                (table (tr (th "Backend") (th "Total wall"))
                       (tr (td "egg") (td ,(format-ms total-egg)))
@@ -253,9 +249,7 @@
                    (match-define (list name egg eg) p)
                    `(div (h2 ,(format "Stage: ~a" name))
                          ,(nested-table (format "~a stage breakdown" name) egg eg)))
-               (h2 "Egglog send histogram (diagnostic)")
-               (p "Per-command totals, sorted by wall time. Shows where the per-send "
-                  "cost is concentrated inside `egglog process calls`.")
+               (h2 "Egglog send histogram")
                (table (tr (th "Stage")
                           (th "Phase")
                           (th "Command")
@@ -274,28 +268,28 @@
 
 (define (write-html path report)
   (call-with-output-file path
-                         #:exists 'replace
-                         (lambda (out)
-                           (displayln "<!DOCTYPE html>" out)
-                           (write-xexpr report out))))
+    #:exists 'replace
+    (lambda (out)
+      (displayln "<!DOCTYPE html>" out)
+      (write-xexpr report out))))
 
 (module+ main
   (command-line
-   #:args (egg-dir egglog-dir out-dir)
-   (unless (directory-exists? out-dir)
-     (make-directory out-dir))
-   (define egg-tl (read-timeline (build-path egg-dir "timeline.json")))
-   (define egglog-tl (read-timeline (build-path egglog-dir "timeline.json")))
-   (define total-egg (total-wall egg-tl))
-   (define total-egglog (total-wall egglog-tl))
-   (define stages
-     (for/list ([s (in-list '(("rewrite" "rewrite") ("taylor" "series")))])
-       (match-define (list display-name group-type) s)
-       (list display-name (egg-summary egg-tl group-type) (egglog-summary egglog-tl group-type))))
-   (define hist (send-histogram egglog-tl))
-   (write-nested-csv (build-path out-dir "nested.csv") total-egg total-egglog stages)
-   (write-csv (build-path out-dir "egglog_sends.csv")
-              hist
-              '("stage" "phase" "cmd" "count" "wall_ms" "engine_ms"))
-   (write-html (build-path out-dir "summary.html") (html-report total-egg total-egglog stages hist))
-   (printf "wrote nested breakdown + ~a send rows to ~a\n" (length hist) out-dir)))
+    #:args (egg-dir egglog-dir out-dir)
+    (unless (directory-exists? out-dir)
+      (make-directory out-dir))
+    (define egg-tl (read-timeline (build-path egg-dir "timeline.json")))
+    (define egglog-tl (read-timeline (build-path egglog-dir "timeline.json")))
+    (define total-egg (total-wall egg-tl))
+    (define total-egglog (total-wall egglog-tl))
+    (define stages
+      (for/list ([s (in-list '(("rewrite" "rewrite") ("taylor" "series")))])
+        (match-define (list display-name group-type) s)
+        (list display-name (egg-summary egg-tl group-type) (egglog-summary egglog-tl group-type))))
+    (define hist (send-histogram egglog-tl))
+    (write-nested-csv (build-path out-dir "nested.csv") total-egg total-egglog stages)
+    (write-csv (build-path out-dir "egglog_sends.csv")
+               hist
+               '("stage" "phase" "cmd" "count" "wall_ms" "engine_ms"))
+    (write-html (build-path out-dir "summary.html") (html-report total-egg total-egglog stages hist))
+    (printf "wrote nested breakdown + ~a send rows to ~a\n" (length hist) out-dir)))
