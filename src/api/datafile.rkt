@@ -41,7 +41,6 @@
                              start-bits
                              end-bits
                              target-bits
-                             has-accelerator-alt
                              time
                              link
                              cost-accuracy)
@@ -64,7 +63,6 @@
                                              #f
                                              (~s spec)))
                                 (target-prog . ,(~s target-prog))
-                                (has-accelerator-alt . ,has-accelerator-alt)
                                 (time . ,time)
                                 (link . ,(~a link))
                                 (cost-accuracy . ,cost-accuracy))))
@@ -137,7 +135,6 @@
                               (get 'start)
                               (get 'end)
                               (get 'target)
-                              (hash-ref test 'has-accelerator-alt #f)
                               (get 'time)
                               (get 'link)
                               cost-accuracy)))))

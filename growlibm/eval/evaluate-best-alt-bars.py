@@ -6,6 +6,8 @@ import re
 import sys
 from pathlib import Path
 
+from accelerator_utils import accelerator_hits, load_accelerator_names
+
 def warn(message):
     print(f"warning: {message}", file=sys.stderr)
 
@@ -31,10 +33,6 @@ def parse_point(raw):
         return None
 
 
-def has_accelerator_alt(test):
-    return bool(test.get("has-accelerator-alt", False))
-
-
 def most_accurate_alt(test):
     raw = test.get("cost-accuracy")
     if not isinstance(raw, list) or len(raw) < 2:
@@ -52,15 +50,15 @@ def most_accurate_alt(test):
     }
 
 
-def collect_benchmarks(reports_path):
+def collect_benchmarks(reports_path, accelerator_names):
     grow_data = load_json(reports_path / "growlibm_base" / "results.json")
     vanilla_data = load_json(reports_path / "vanilla_base" / "results.json")
     vanilla_tests = {benchmark_key(test): test for test in vanilla_data.get("tests", [])}
 
     benchmarks = []
     for grow_test in grow_data.get("tests", []):
-        has_accelerator_alt_flag = has_accelerator_alt(grow_test)
-        if not has_accelerator_alt_flag:
+        accelerators = accelerator_hits(grow_test, accelerator_names)
+        if not accelerators:
             continue
 
         key = benchmark_key(grow_test)
@@ -77,7 +75,7 @@ def collect_benchmarks(reports_path):
         benchmarks.append(
             {
                 "name": str(grow_test.get("name") or key),
-                "accelerators": has_accelerator_alt_flag,
+                "accelerators": accelerators,
                 "grow_error": grow_alt["error"],
                 "vanilla_error": vanilla_alt["error"],
                 "grow_speedup": grow_alt["speedup"],
@@ -219,7 +217,8 @@ def main():
     args = parser.parse_args()
 
     reports_path = Path(args.reports_path)
-    benchmarks = collect_benchmarks(reports_path)
+    accelerator_names = load_accelerator_names(Path(args.platform_file))
+    benchmarks = collect_benchmarks(reports_path, accelerator_names)
     benchmarks.sort(key=lambda benchmark: benchmark["vanilla_error"], reverse=True)
 
     platform_key = args.platform.lower()

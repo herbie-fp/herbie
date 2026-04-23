@@ -39,13 +39,6 @@
 (struct improve-result (pcontext start target end))
 (struct alt-analysis (alt errors) #:prefab)
 
-(define accelerator-ops
-  '(sinprod cosprod log1pmd invgud hypot verdcos powcos powcos2 powcos4 powcos6 pow1ms))
-
-(define (has-accelerator-alt? expr ctx)
-  (for/or ([op (in-list (ops-in-expr (prog->fpcore expr ctx)))])
-    (and (memq op accelerator-ops) #t)))
-
 ;; API users can supply their own, weird set of points, in which case
 ;; the first 256 are training points and everything is test points.
 ;; For backwards compatibility, exactly 8256 points are split as
@@ -240,7 +233,6 @@
              #f
              #f
              #f
-             #f
              (hash-ref result-hash 'time)
              link
              '()))
@@ -279,10 +271,7 @@
      (define end-exprs
        (for/list ([end-analysis (in-list end)])
          (read (open-input-string (hash-ref end-analysis 'expr)))))
-     (define has-accelerator-alt
-       (for/or ([expr (in-list end-exprs)]
-                #:unless (equal? expr start-expr))
-         (has-accelerator-alt? expr (test-context test))))
+     (define end-expr-strings (map (curryr hash-ref 'expr) end))
      (define end-scores
        (for/list ([end-analysis (in-list end)])
          (errors-score (list->flvector (hash-ref end-analysis 'errors)))))
@@ -293,8 +282,11 @@
        (/ (round (* x 1000)) 1000.0))
      (define cost&accuracy
        (list (list (round3 start-cost) (round3 start-score))
-             (list (round3 (car end-costs)) (round3 (car end-scores)))
-             (map (λ (c s) (list (round3 c) (round3 s))) (cdr end-costs) (cdr end-scores))))
+             (list (round3 (car end-costs)) (round3 (car end-scores)) (car end-expr-strings))
+             (map (λ (c s expr) (list (round3 c) (round3 s) expr))
+                  (cdr end-costs)
+                  (cdr end-scores)
+                  (cdr end-expr-strings))))
 
      (define fuzz 0.1)
      (define end-score (car end-scores))
@@ -315,7 +307,6 @@
 
      (struct-copy table-row
                   (dummy-table-row-from-hash result-hash status link)
-                  [has-accelerator-alt has-accelerator-alt]
                   [start start-score]
                   [target target-cost-score]
                   [result end-score]

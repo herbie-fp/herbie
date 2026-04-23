@@ -8,6 +8,8 @@ import sys
 import textwrap
 from pathlib import Path
 
+from accelerator_utils import accelerator_hits, load_accelerator_names
+
 PAGE_START = "<!-- benchmark-frontiers-start -->"
 PAGE_END = "<!-- benchmark-frontiers-end -->"
 
@@ -19,18 +21,6 @@ def warn(message):
 def load_json(path):
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
-
-
-def load_accelerator_names(platform_path):
-    text = platform_path.read_text(encoding="utf-8")
-    matches = re.findall(r"from-accelerators\s+'([A-Za-z0-9_]+)", text)
-    seen = set()
-    names = []
-    for name in matches:
-        if name not in seen:
-            seen.add(name)
-            names.append(name)
-    return names
 
 
 def benchmark_key(test):
@@ -91,16 +81,6 @@ def pareto_frontier(points):
             frontier.append((cost, error))
             best_error = error
     return list(reversed(frontier))
-
-
-def accelerator_hits(test, accelerator_names):
-    text = " ".join(str(test.get(field, "")) for field in ("output", "target-prog"))
-    found = []
-    for name in accelerator_names:
-        pattern = rf"(?<![A-Za-z0-9_]){re.escape(name)}(?:\.f(?:32|64)\b|\b)"
-        if re.search(pattern, text):
-            found.append(name)
-    return found
 
 
 def sanitize_filename(name):

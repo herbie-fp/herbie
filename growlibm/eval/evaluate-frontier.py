@@ -5,6 +5,8 @@ import json
 import sys
 from pathlib import Path
 
+from accelerator_utils import accelerator_hits, default_platform_path, load_accelerator_names
+
 def warn(message):
     print(f"warning: {message}", file=sys.stderr)
 
@@ -30,9 +32,6 @@ def benchmark_key(test):
     if identifier not in (None, "", "#f"):
         return str(identifier)
     return str(test.get("name") or test.get("link"))
-
-def has_accelerator_alt(test):
-    return bool(test.get("has-accelerator-alt", False))
 
 def parse_cost_accuracy(test):
     raw = test.get("cost-accuracy")
@@ -333,6 +332,10 @@ def main():
         type=float,
         help="Cap plotted speedup-over-vanilla values on the vertical axis",
     )
+    parser.add_argument(
+        "--platform-file",
+        help="Platform file used to discover accelerator names",
+    )
     args = parser.parse_args()
 
     reports_path = Path(args.reports_path)
@@ -340,11 +343,13 @@ def main():
     benchmark_keys = None
 
     if args.accelerators_only:
+        platform_path = Path(args.platform_file) if args.platform_file else default_platform_path(args.platform)
+        accelerator_names = load_accelerator_names(platform_path)
         growlibm_results = load_json(reports_path / "growlibm_base" / "results.json")
         benchmark_keys = {
             benchmark_key(test)
             for test in growlibm_results.get("tests", [])
-            if has_accelerator_alt(test)
+            if accelerator_hits(test, accelerator_names)
         }
         if not benchmark_keys:
             warn("no benchmarks used accelerators; filtered frontier will be empty")

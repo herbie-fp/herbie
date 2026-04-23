@@ -18,7 +18,6 @@
               start
               result
               target
-              has-accelerator-alt
               time
               link
               cost-accuracy)
