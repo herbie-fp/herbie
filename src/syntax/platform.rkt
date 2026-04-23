@@ -151,7 +151,7 @@
 (define ((platform-node-cost-proc platform) expr repr)
   (match expr
     [(? literal?) (lambda () (platform-repr-cost platform repr))]
-    [(? symbol?) (lambda () (platform-repr-cost platform repr))]
+    [(? symbol?) (lambda () 0)]
     [(list impl args ...)
      (define impl-cost (impl-info impl 'cost))
      (define impl-agg (impl-info impl 'aggregate))

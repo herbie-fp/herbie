@@ -208,7 +208,7 @@
 (define-timeline symmetry #:unmergable)
 (define-timeline bstep #:unmergable)
 (define-timeline kept #:unmergable)
-(define-timeline taylor-count [transform false] [order false] [generated +] [kept +])
+(define-timeline taylor-count [transform false] [order false] [vars false] [generated +] [kept +])
 (define-timeline min-error #:unmergable)
 (define-timeline egraph #:unmergable)
 (define-timeline stop [reason false] [count +])
