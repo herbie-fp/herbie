@@ -6,8 +6,6 @@
          "../src/syntax/syntax.rkt"
          "growlibm-common.rkt"
          "../src/api/sandbox.rkt"
-         "../src/syntax/types.rkt"
-         "../src/syntax/batch.rkt"
          "../src/core/egg-herbie.rkt"
          "../src/syntax/platform.rkt"
          "../src/utils/common.rkt"
@@ -170,17 +168,7 @@
 
 (define (run-egg exprs)
   (define ctxs (map get-ctx exprs))
-  (*context* (ctx-union ctxs))
-  (define schedule '(lift rewrite lower))
-  (define-values (batch brfs) (progs->batch exprs))
-  (define runner (make-egraph batch brfs (map context-repr ctxs) schedule (ctx-union ctxs)))
-  (define batchrefss (egraph-best runner batch))
-  (define batch-pull (batch-exprs batch))
-  (for/list ([orig-expr (in-list exprs)]
-             [refs (in-list batchrefss)])
-    (if (empty? refs)
-        orig-expr
-        (batch-pull (first refs)))))
+  (deduplicate-exprs exprs ctxs))
 
 (define (run-egg-batched batch-size old-hash new-hash)
   (for ([batch (in-slice batch-size (in-hash-pairs old-hash))])
@@ -215,17 +203,6 @@
                  [z (in-list perm)])
         (values v z)))
     (replace-vars varDict impl)))
-
-(define (ctx-union ctxs)
-  (define vars '())
-  (define var-reprs '())
-  (for ([ctx ctxs])
-    (for ([var (context-vars ctx)]
-          [repr (context-var-reprs ctx)])
-      (unless (member var vars)
-        (set! vars (append vars (list var)))
-        (set! var-reprs (append var-reprs (list repr))))))
-  (context vars (get-representation 'binary64) var-reprs))
 
 (define (to-fpcore-str cand)
   (define expr (candidate-spec cand))
