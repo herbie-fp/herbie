@@ -173,7 +173,7 @@
 
   ;; inline and desugar
   (define body* (fpcore->prog body ctx))
-  (define pre* (fpcore->prog (dict-ref prop-dict ':pre 'TRUE) ctx))
+  (define pre* (fpcore->spec (dict-ref prop-dict ':pre 'TRUE)))
 
   (define targets
     (for/list ([(key val) (in-dict prop-dict)]
@@ -188,7 +188,7 @@
            (fpcore->prog val ctx)
            (cons val #t))])))
 
-  (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
+  (define spec (fpcore->spec (dict-ref prop-dict ':spec body)))
   (check-unused-variables var-names body* pre*)
   (check-weird-variables var-names)
 
