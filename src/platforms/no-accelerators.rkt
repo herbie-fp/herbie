@@ -108,27 +108,6 @@
   [fmod.f32 #:spec (fmod x y) #:impl (from-libm 'fmodf) #:cost 3200]
   [remainder.f32 #:spec (remainder x y) #:impl (from-libm 'remainderf) #:cost 3200])
 
-(define-operations ([x <binary32>])
-  <binary32>
-  #:fpcore (! :precision binary32 _)
-  [erfc.f32 #:spec (- 1 (erf x)) #:impl (from-libm 'erfcf) #:fpcore (erfc x) #:cost 3200]
-  [expm1.f32 #:spec (- (exp x) 1) #:impl (from-libm 'expm1f) #:fpcore (expm1 x) #:cost 3200]
-  [log1p.f32 #:spec (log (+ 1 x)) #:impl (from-libm 'log1pf) #:fpcore (log1p x) #:cost 3200])
-
-(define-operation (hypot.f32 [x <binary32>] [y <binary32>])
-                  <binary32>
-                  #:spec (sqrt (+ (* x x) (* y y)))
-                  #:impl (from-libm 'hypotf)
-                  #:fpcore (! :precision binary32 (hypot x y))
-                  #:cost 3200)
-
-(define-operation (fma.f32 [x <binary32>] [y <binary32>] [z <binary32>])
-                  <binary32>
-                  #:spec (+ (* x y) z)
-                  #:impl (from-libm 'fmaf)
-                  #:fpcore (! :precision binary32 (fma x y z))
-                  #:cost 128)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary64> #:cost 64)
@@ -215,26 +194,5 @@
   [fmin.f64 #:spec (fmin x y) #:impl (from-libm 'fmin) #:cost 6400]
   [fmod.f64 #:spec (fmod x y) #:impl (from-libm 'fmod) #:cost 6400]
   [remainder.f64 #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 6400])
-
-(define-operations ([x <binary64>])
-  <binary64>
-  #:fpcore (! :precision binary64 _)
-  [erfc.f64 #:spec (- 1 (erf x)) #:impl (from-libm 'erfc) #:fpcore (erfc x) #:cost 6400]
-  [expm1.f64 #:spec (- (exp x) 1) #:impl (from-libm 'expm1) #:fpcore (expm1 x) #:cost 6400]
-  [log1p.f64 #:spec (log (+ 1 x)) #:impl (from-libm 'log1p) #:fpcore (log1p x) #:cost 6400])
-
-(define-operation (hypot.f64 [x <binary64>] [y <binary64>])
-                  <binary64>
-                  #:spec (sqrt (+ (* x x) (* y y)))
-                  #:impl (from-libm 'hypot)
-                  #:fpcore (! :precision binary64 (hypot x y))
-                  #:cost 6400)
-
-(define-operation (fma.f64 [x <binary64>] [y <binary64>] [z <binary64>])
-                  <binary64>
-                  #:spec (+ (* x y) z)
-                  #:impl (from-libm 'fma)
-                  #:fpcore (! :precision binary64 (fma x y z))
-                  #:cost 256)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; CASTS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

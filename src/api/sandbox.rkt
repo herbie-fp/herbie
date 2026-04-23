@@ -32,7 +32,8 @@
          *reeval-pts*
          (struct-out job-result)
          (struct-out improve-result)
-         (struct-out alt-analysis))
+         (struct-out alt-analysis)
+         get-sample)
 
 (struct job-result (command test status time timeline profile warnings backend))
 (struct improve-result (pcontext start target end))
@@ -149,6 +150,7 @@
                     test
                     #:seed [seed #f]
                     #:pcontext [pcontext #f]
+                    #:platform [platform #f]
                     #:profile? [profile? #f]
                     #:timeline? [timeline? #f])
   (define timeline #f)
@@ -176,7 +178,9 @@
       (define start-time (current-inexact-milliseconds))
       (reset!)
       (*context* (test-context test))
-      (activate-platform! (*platform-name*))
+      (if platform
+          (*active-platform* platform)
+          (activate-platform! (*platform-name*)))
       (set! timeline (*timeline*))
       (when seed
         (set-seed! seed))
@@ -267,6 +271,7 @@
      (define end-exprs
        (for/list ([end-analysis (in-list end)])
          (read (open-input-string (hash-ref end-analysis 'expr)))))
+     (define end-expr-strings (map (curryr hash-ref 'expr) end))
      (define end-scores
        (for/list ([end-analysis (in-list end)])
          (errors-score (list->flvector (hash-ref end-analysis 'errors)))))
@@ -277,8 +282,11 @@
        (/ (round (* x 1000)) 1000.0))
      (define cost&accuracy
        (list (list (round3 start-cost) (round3 start-score))
-             (list (round3 (car end-costs)) (round3 (car end-scores)))
-             (map (λ (c s) (list (round3 c) (round3 s))) (cdr end-costs) (cdr end-scores))))
+             (list (round3 (car end-costs)) (round3 (car end-scores)) (car end-expr-strings))
+             (map (λ (c s expr) (list (round3 c) (round3 s) expr))
+                  (cdr end-costs)
+                  (cdr end-scores)
+                  (cdr end-expr-strings))))
 
      (define fuzz 0.1)
      (define end-score (car end-scores))

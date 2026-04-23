@@ -1,11 +1,8 @@
-#lang s-exp "../syntax/platform-language.rkt"
+#lang s-exp "../src/syntax/platform-language.rkt"
 
-;; Herbie 2.0 platform. Based on the C Windows platform, but with
-;; every operation having heuristic costs from Herbie 2.0.
+;; C/C++ platform with a full libm
 
 (require math/flonum)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <bool> #:cost 1)
 
@@ -215,26 +212,3 @@
   [fmin.f64 #:spec (fmin x y) #:impl (from-libm 'fmin) #:cost 6400]
   [fmod.f64 #:spec (fmod x y) #:impl (from-libm 'fmod) #:cost 6400]
   [remainder.f64 #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 6400])
-
-(define-operations ([x <binary64>])
-  <binary64>
-  #:fpcore (! :precision binary64 _)
-  [erfc.f64 #:spec (- 1 (erf x)) #:impl (from-libm 'erfc) #:fpcore (erfc x) #:cost 6400]
-  [expm1.f64 #:spec (- (exp x) 1) #:impl (from-libm 'expm1) #:fpcore (expm1 x) #:cost 6400]
-  [log1p.f64 #:spec (log (+ 1 x)) #:impl (from-libm 'log1p) #:fpcore (log1p x) #:cost 6400])
-
-(define-operation (hypot.f64 [x <binary64>] [y <binary64>])
-                  <binary64>
-                  #:spec (sqrt (+ (* x x) (* y y)))
-                  #:impl (from-libm 'hypot)
-                  #:fpcore (! :precision binary64 (hypot x y))
-                  #:cost 6400)
-
-(define-operation (fma.f64 [x <binary64>] [y <binary64>] [z <binary64>])
-                  <binary64>
-                  #:spec (+ (* x y) z)
-                  #:impl (from-libm 'fma)
-                  #:fpcore (! :precision binary64 (fma x y z))
-                  #:cost 256)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; CASTS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
