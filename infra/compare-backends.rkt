@@ -196,6 +196,135 @@
       i))
   (format "~a~a" (make-string (or n 0) #\space) (substring s (or n 0))))
 
+;; One stacked bar per backend, fully aligned slot-by-slot.
+;; Each slot within each stage column is padded to max(egg, egglog) for that slot,
+;; so every boundary — stage_oh|herbie_oh, herbie_oh|sends, sends|engine — is at
+;; the same x-position in both bars. Unused space is hatched (not real runtime).
+;; Slots per stage: [stage_oh][herbie_oh][sends/ffi][engine]
+;; Egg: engine = 0ms (all hatched); sends = ffi time.
+;; Egglog: all 4 slots filled.
+(define (combined-bar-chart total-egg total-egglog stage-summaries)
+  (define max-ms total-egglog)
+  (define bar-px 700.0)
+
+  (define slot-colors
+    '#("#bdbdbd"   ; other (outside stages)
+       "#fdd0a2"   ; rewrite: stage − herbie wrapper
+       "#fdae6b"   ; rewrite: herbie wrapper − sends
+       "#e6550d"   ; rewrite: ffi / process calls
+       "#7f2704"   ; rewrite: engine (rust)
+       "#c7e9c0"   ; taylor: stage − herbie wrapper
+       "#74c476"   ; taylor: herbie wrapper − sends
+       "#31a354"   ; taylor: ffi / process calls
+       "#006d2c")) ; taylor: engine (rust)
+
+  (define slot-labels
+    '#("other (outside stages)"
+       "rewrite: stage − herbie wrapper"
+       "rewrite: herbie wrapper − sends"
+       "rewrite: ffi / process calls"
+       "rewrite: engine (rust)"
+       "taylor: stage − herbie wrapper"
+       "taylor: herbie wrapper − sends"
+       "taylor: ffi / process calls"
+       "taylor: engine (rust)"))
+
+  (define (px ms)
+    (* bar-px (/ (max 0.0 (if (real? ms) ms 0.0)) max-ms)))
+  (define (px-str ms)
+    (real->decimal-string (px ms) 1))
+
+  (define (egg-stage-slots s)
+    (define e (second s))
+    (define sw (hash-ref e 'stage-wall))
+    (define hw (hash-ref e 'herbie-wrapper-wall))
+    (define fw (hash-ref e 'ffi-wall))
+    (list (- sw hw) (- hw fw) fw 0))
+
+  (define (egglog-stage-slots s)
+    (define x (third s))
+    (define sw (hash-ref x 'stage-wall))
+    (define hw (hash-ref x 'herbie-wrapper-wall))
+    (define pw (hash-ref x 'process-wall))
+    (define ew (hash-ref x 'engine-wall))
+    (list (- sw hw) (- hw pw) (- pw ew) ew))
+
+  (define egg-stage-lists    (map egg-stage-slots   stage-summaries))
+  (define egglog-stage-lists (map egglog-stage-slots stage-summaries))
+  (define egg-other
+    (- total-egg   (apply + (map (lambda (sl) (apply + sl)) egg-stage-lists))))
+  (define egglog-other
+    (- total-egglog (apply + (map (lambda (sl) (apply + sl)) egglog-stage-lists))))
+
+  ;; Per-slot max for each stage (4 values per stage)
+  (define stage-slot-maxes
+    (map (lambda (e-sl x-sl) (map max e-sl x-sl))
+         egg-stage-lists egglog-stage-lists))
+  (define max-other (max egg-other egglog-other))
+
+  ;; Render a colored segment followed by a hatched gap to fill up to max-ms-s.
+  (define (seg+gap ms max-ms-s color lbl)
+    (define gap (- max-ms-s ms))
+    (filter values
+            (list
+             (and (> (px ms) 0.5)
+                  `(div ([class "sbc-seg"]
+                         [style ,(format "width:~apx;background:~a" (px-str ms) color)]
+                         [title ,(format "~a: ~ams" lbl (format-ms ms))])
+                        ""))
+             (and (> (px gap) 0.5)
+                  `(div ([class "sbc-gap"]
+                         [style ,(format "width:~apx" (px-str gap))])
+                        "")))))
+
+  ;; Render one aligned stage column
+  (define (render-stage slots max-slots color-base)
+    (apply append
+           (for/list ([ms slots] [max-ms-s max-slots] [i (in-naturals)])
+             (seg+gap ms max-ms-s
+                      (vector-ref slot-colors (+ color-base i))
+                      (vector-ref slot-labels (+ color-base i))))))
+
+  (define (make-bar backend stage-slot-lists other-ms total-ms)
+    `(div ([class "sbc-row"])
+          (span ([class "sbc-lbl"]) ,backend)
+          (div ([class "sbc-track"])
+               ,@(filter values
+                          (append
+                           (apply append
+                                  (for/list ([slots     stage-slot-lists]
+                                             [max-slots stage-slot-maxes]
+                                             [si        (in-naturals)])
+                                    (render-stage slots max-slots (+ 1 (* si 4)))))
+                           (seg+gap other-ms max-other
+                                    (vector-ref slot-colors 0)
+                                    (vector-ref slot-labels 0))))
+               (span ([class "sbc-total"])
+                     ,(string-append (format-ms total-ms) "ms")))))
+
+  ;; Column-label header spanning each stage's total column width
+  (define stage-col-widths
+    (map (lambda (max-slots) (apply + max-slots)) stage-slot-maxes))
+
+  (define col-header
+    `(div ([class "sbc-col-header"])
+          ,@(for/list ([s stage-summaries] [w stage-col-widths])
+              `(span ([class "sbc-col-lbl"]
+                      [style ,(format "width:~apx" (px-str w))])
+                     ,(first s)))
+          (span ([class "sbc-col-other"]) "other")))
+
+  `(div ([class "sbc-section"])
+        ,col-header
+        ,(make-bar "egg"    egg-stage-lists    egg-other    total-egg)
+        ,(make-bar "egglog" egglog-stage-lists egglog-other total-egglog)
+        (div ([class "sbc-legend"])
+             ,@(for/list ([lbl   (in-vector slot-labels)]
+                           [color (in-vector slot-colors)])
+                 `(div ([class "sbc-item"])
+                       (div ([class "sbc-swatch"] [style ,(format "background:~a" color)]) "")
+                       (span ,lbl))))))
+
 ;; Renders a side-by-side table that respects the fact that egg and egglog
 ;; have different innermost layers (egg bottoms out at ffi calls, egglog has
 ;; an extra engine-wall level below process calls). Rows:
@@ -239,8 +368,26 @@
                       "table{border-collapse:collapse;margin-bottom:2em;}"
                       "th,td{border:1px solid #ccc;padding:4px 8px;text-align:right;}"
                       "th:first-child,td:first-child{text-align:left;font-family:monospace;}"
-                      "h2{margin-top:2em;}"))
+                      "h2{margin-top:2em;}"
+                      ".sbc-section{margin-bottom:2em;}"
+                      ".sbc-col-header{display:flex;margin-left:55px;font-size:0.72em;color:#666;"
+                      "  font-style:italic;margin-bottom:3px;}"
+                      ".sbc-col-lbl{flex-shrink:0;text-align:center;border-bottom:2px solid #ccc;"
+                      "  padding-bottom:2px;box-sizing:border-box;}"
+                      ".sbc-col-other{padding-left:6px;color:#aaa;align-self:flex-end;}"
+                      ".sbc-row{display:flex;align-items:center;margin:4px 0;}"
+                      ".sbc-lbl{width:55px;text-align:right;font-size:0.82em;font-weight:bold;"
+                      "  padding-right:8px;flex-shrink:0;color:#333;box-sizing:border-box;}"
+                      ".sbc-track{display:flex;align-items:stretch;height:28px;}"
+                      ".sbc-seg{height:100%;display:inline-block;box-sizing:border-box;}"
+                      ".sbc-gap{height:100%;display:inline-block;box-sizing:border-box;"
+                      "  background:repeating-linear-gradient(-45deg,#e8e8e8,#e8e8e8 2px,#fff 2px,#fff 5px);}"
+                      ".sbc-total{font-size:0.78em;color:#444;padding-left:8px;white-space:nowrap;align-self:center;}"
+                      ".sbc-legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;font-size:0.78em;}"
+                      ".sbc-item{display:flex;align-items:center;gap:5px;}"
+                      ".sbc-swatch{width:14px;height:14px;flex-shrink:0;}"))
          (body (h1 "Egg vs. Egglog Backend Comparison")
+               ,(combined-bar-chart total-egg total-egglog stage-summaries)
                (h2 "Totals")
                (table (tr (th "Backend") (th "Total wall"))
                       (tr (td "egg") (td ,(format-ms total-egg)))
