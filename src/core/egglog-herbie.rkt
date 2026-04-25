@@ -34,6 +34,26 @@
 (define (all-repr-names [pform (*active-platform*)])
   (map representation-name (platform-reprs pform)))
 
+(define (egglog-repr-token repr-name)
+  (match repr-name
+    [(? representation?) (egglog-repr-token (representation-name repr-name))]
+    [(? symbol?) (format "sym_~a" repr-name)]
+    [`(array ,elem ,len) (format "arr_~a_~a" len (egglog-repr-token elem))]))
+
+(define (egglog-repr-name token)
+  (cond
+    [(string-prefix? token "sym_") (string->symbol (substring token 4))]
+    [(string-prefix? token "arr_")
+     (define rest (substring token 4))
+     (define split
+       (for/first ([i (in-range (string-length rest))]
+                   #:when (char=? (string-ref rest i) #\_))
+         i))
+     `(array ,(egglog-repr-name (substring rest (add1 split)))
+             ,(string->number (substring rest 0 split)))]
+    ;; Legacy scalar encoding used in older tests and dumps.
+    [else (string->symbol token)]))
+
 (define (real->bigrat val)
   `(bigrat (from-string ,(~s (numerator val))) (from-string ,(~s (denominator val)))))
 
@@ -274,10 +294,10 @@
     `(,typed-name ,@(make-list arity 'MTy) :cost ,cost)))
 
 (define (typed-num-id repr-name)
-  (string->symbol (format "Num~a" repr-name)))
+  (string->symbol (format "Num_~a" (egglog-repr-token repr-name))))
 
 (define (typed-var-id repr-name)
-  (string->symbol (format "Var~a" repr-name)))
+  (string->symbol (format "Var_~a" (egglog-repr-token repr-name))))
 
 (define (num-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))]
@@ -293,7 +313,7 @@
   (for/list ([repr (in-list (all-repr-names))]
              #:when (not (eq? repr 'bool)))
     `(rule ((= e (Num n)))
-           ((union (do-lower e ,(symbol->string repr)) (,(typed-num-id repr) n)))
+           ((union (do-lower e ,(egglog-repr-token repr)) (,(typed-num-id repr) n)))
            :ruleset
            lower)))
 
@@ -312,8 +332,8 @@
             ,@(for/list ([v (in-list (impl-info impl 'vars))]
                          [vt (in-list (impl-info impl 'itype))])
                 `(= ,(string->symbol (string-append "t" (symbol->string v)))
-                    (do-lower ,v ,(symbol->string (representation-name vt))))))
-           ((union (do-lower e ,(symbol->string (representation-name (impl-info impl 'otype))))
+                    (do-lower ,v ,(egglog-repr-token vt)))))
+           ((union (do-lower e ,(egglog-repr-token (impl-info impl 'otype)))
                    (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
                     ,@(for/list ([v (in-list (impl-info impl 'vars))])
                         (string->symbol (string-append "t" (symbol->string v)))))))
@@ -444,7 +464,7 @@
            ,@(for/list ([arg (in-list args)])
                (remap arg (spec? (batchref batch n)))))]
 
-        [(hole ty spec) `(do-lower ,(remap spec #t) ,(symbol->string ty))]))
+        [(hole ty spec) `(do-lower ,(remap spec #t) ,(egglog-repr-token ty))]))
 
     (if node*
         (vector-set! mappings n (insert-node! node* n root?))
@@ -457,7 +477,7 @@
         [repr (in-list (context-var-reprs ctx))])
     (egglog-send subproc
                  `(rule ((= e (Var ,(symbol->string var))))
-                        ((union (do-lower e ,(symbol->string (representation-name repr)))
+                        ((union (do-lower e ,(egglog-repr-token repr))
                                 (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
                         :ruleset
                         lower)))
@@ -587,7 +607,10 @@
   (string-prefix? (symbol->string id) "Num"))
 
 (define (egglog-num-repr id)
-  (string->symbol (substring (symbol->string id) 3)))
+  (define id-str (symbol->string id))
+  (if (string-prefix? id-str "Num_")
+      (egglog-repr-name (substring id-str 4))
+      (string->symbol (substring id-str 3))))
 
 (define (egglog-var? id)
   (string-prefix? (symbol->string id) "Var"))
