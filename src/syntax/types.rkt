@@ -67,7 +67,7 @@
   (unless (exact-positive-integer? len)
     (raise-herbie-error "Arrays require a positive length, got ~a" len))
   (define array-ty `(array ,(representation-type elem-repr) ,len))
-  (define name (string->symbol (format "array~a-~a" (representation-name elem-repr) len)))
+  (define name `(array ,(representation-name elem-repr) ,len))
   ;; TODO: Array representations currently inherit scalar conversion slots.
   ;; These should not be called for arrays; we'll clean up the hierarchy later.
   (define total-bits (* len (representation-total-bits elem-repr)))
