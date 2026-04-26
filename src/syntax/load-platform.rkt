@@ -16,7 +16,6 @@
 (define-runtime-module-path arith-platform "../platforms/arith.rkt")
 (define-runtime-module-path eml-platform "../platforms/expminuslog.rkt")
 
-
 (define default-platforms
   (hash "herbie10"
         herbie10-platform

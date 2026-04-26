@@ -70,7 +70,10 @@
   <binary32>
   #:fpcore (! :precision binary32 _)
   [fabs.f32 #:spec (fabs x) #:impl (from-libm 'fabsf) #:cost 0.125]
-  [sqrt.f32 #:spec (sqrt x) #:impl (from-libm 'sqrtf) #:cost 0.250])
+  [sqrt.f32 #:spec (sqrt x) #:impl (from-libm 'sqrtf) #:cost 0.250]
+  [exp2.f32 #:spec (exp2 x) #:impl (from-libm 'exp2f) #:cost 1.175]
+  [log.f32 #:spec (log x) #:impl (from-libm 'logf) #:cost 0.250]
+  [rint.f32 #:spec (rint x) #:impl (from-libm 'rintf) #:cost 0.250])
 
 (define-operations ([x <binary32>] [y <binary32>])
   <binary32>
@@ -78,8 +81,6 @@
   [fmax.f32 #:spec (fmax x y) #:impl (from-libm 'fmaxf) #:cost 0.250]
   [fmin.f32 #:spec (fmin x y) #:impl (from-libm 'fminf) #:cost 0.250]
   [copysign.f32 #:spec (copysign x y) #:impl (from-libm 'copysignf) #:cost 0.200]
-
-  [pow.f32 #:spec (pow x y) #:impl (from-libm 'powf) #:cost 2.000]
   [remainder.f32 #:spec (remainder x y) #:impl (from-libm 'remainderf) #:cost 1.000])
 
 (define-operation (fma.f32 [x <binary32>] [y <binary32>] [z <binary32>])
@@ -135,14 +136,16 @@
   <binary64>
   #:fpcore (! :precision binary64 _)
   [fabs.f64 #:spec (fabs x) #:impl (from-libm 'fabs) #:cost 0.125]
-  [sqrt.f64 #:spec (sqrt x) #:impl (from-libm 'sqrt) #:cost 0.250])
+  [sqrt.f64 #:spec (sqrt x) #:impl (from-libm 'sqrt) #:cost 0.250]
+  [exp2.f64 #:spec (exp2 x) #:impl (from-libm 'exp2) #:cost 1.175]
+  [log.f64 #:spec (log x) #:impl (from-libm 'log) #:cost 0.250]
+  [rint.f64 #:spec (rint x) #:impl (from-libm 'rint) #:cost 0.250])
 (define-operations ([x <binary64>] [y <binary64>])
   <binary64>
   #:fpcore (! :precision binary64 _)
   [fmax.f64 #:spec (fmax x y) #:impl (from-libm 'fmax) #:cost 0.250]
   [fmin.f64 #:spec (fmin x y) #:impl (from-libm 'fmin) #:cost 0.250]
   [copysign.f64 #:spec (copysign x y) #:impl (from-libm 'copysign) #:cost 0.200]
-  [pow.f64 #:spec (pow x y) #:impl (from-libm 'pow) #:cost 2.000]
   [remainder.f64 #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 1.000])
 
 (define-operation (fma.f64 [x <binary64>] [y <binary64>] [z <binary64>])
@@ -179,3 +182,10 @@
                   #:impl (from-accelerators 'sinpoly21)
                   #:fpcore (! :precision binary64 (sinpoly21 x))
                   #:cost (* 0.375 10))
+
+(define-operation (exppoly7.f64 [x <binary64>])
+                  <binary64>
+                  #:spec (exp x)
+                  #:impl (from-accelerators 'exppoly7)
+                  #:fpcore (! :precision binary64 (exppoly7 x))
+                  #:cost (* 0.375 12))
