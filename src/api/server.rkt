@@ -602,10 +602,11 @@
 
   (define vars (test-vars test))
   (define splitpoints
-    (for/list ([var (in-list vars)])
+    (for/list ([var (in-list vars)]
+               [var-repr (in-list (test-var-reprs test))])
       (if (equal? var (regime-var alt))
           (for/list ([val (in-list (regime-splitpoints alt))])
-            (real->ordinal (repr->real val repr) repr))
+            (real->ordinal (repr->real val var-repr) var-repr))
           '())))
 
   (hasheq 'expr
