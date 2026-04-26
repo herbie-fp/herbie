@@ -91,6 +91,21 @@
 (define (spec->impl expr ctx)
   (fpcore->prog (prog->fpcore expr ctx) ctx))
 
+(define (taylor-zero-monomial var exponent)
+  (match exponent
+    [1 var]
+    [_ `(pow ,var ,exponent)]))
+
+(define (taylor-zero-term->spec coeff exponent var)
+  (match exponent
+    [0 coeff]
+    [_
+     (define monomial (taylor-zero-monomial var exponent))
+     (match coeff
+       [1 monomial]
+       [-1 `(neg ,monomial)]
+       [_ `(* ,coeff ,monomial)])]))
+
 (define (build-taylor-zero-cover spec ctx var var-repr out-repr epsilon cap)
   (define-values (batch brfs) (progs->batch (list spec)))
   (parameterize ([reduce (batch-reduce batch)]
@@ -121,7 +136,10 @@
             [(not radius-value) #f]
             [else
              (define radius (repr->real radius-value var-repr))
-             (define taylor-expr (spec->impl ((batch-exprs batch) (taylor-term-expr kept)) ctx))
+             (define taylor-expr
+               (spec->impl
+                (taylor-zero-term->spec kept-value (taylor-term-exponent kept) var)
+                ctx))
              (taylor-zero-cover var
                                 var-repr
                                 out-repr

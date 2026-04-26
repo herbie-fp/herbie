@@ -39,6 +39,7 @@
 (struct job-result (command test status time timeline profile warnings backend))
 (struct improve-result (pcontext cover start target end))
 (struct alt-analysis (alt errors) #:prefab)
+(struct prepared-test (spec pre batch brfs) #:transparent)
 
 ;; API users can supply their own, weird set of points, in which case
 ;; the first 256 are training points and everything is test points.
@@ -60,6 +61,12 @@
 
 ;; API Functions
 
+(define (prepare-test test)
+  (define specification (prog->spec (or (test-spec test) (test-input test))))
+  (define precondition (prog->spec (test-pre test)))
+  (define-values (batch brfs) (progs->batch (list specification)))
+  (prepared-test specification precondition batch brfs))
+
 ;; The main Herbie function
 (define (get-alternatives test search-joint-pcontext report-joint-pcontext cover)
   (unless search-joint-pcontext
@@ -67,10 +74,7 @@
 
   (define-values (train-pcontext search-test-pcontext) (partition-pcontext search-joint-pcontext))
   (define-values (_ report-test-pcontext) (partition-pcontext report-joint-pcontext))
-  (define alternatives
-    (wrap-taylor-zero-alts
-     (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext)
-     cover))
+  (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
 
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
@@ -91,7 +95,7 @@
   ;; and sort alternatives by accuracy + cost on the search testing subset
   (define search-errs (exprs-errors (map alt-expr alternatives) search-test-pcontext (*context*)))
   (define sorted-end-exprs (sort-alts alternatives search-errs))
-  (define sorted-alts (map car sorted-end-exprs))
+  (define sorted-alts (wrap-taylor-zero-alts (map car sorted-end-exprs) cover))
   (define report-errs (exprs-errors (map alt-expr sorted-alts) report-test-pcontext (*context*)))
   (define end-data
     (for/list ([altn (in-list sorted-alts)]
@@ -140,25 +144,25 @@
 
   (local-error-as-tree (test-input test) (*context*) pcontext))
 
-(define (sample-test-points test precondition)
-  (define specification (prog->spec (or (test-spec test) (test-input test))))
-  (define-values (batch brfs) (progs->batch (list specification)))
+(define (sample-test-points prepared precondition)
   (define sample
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-points precondition batch brfs (list (*context*)))))
+      (sample-points precondition
+                     (prepared-test-batch prepared)
+                     (prepared-test-brfs prepared)
+                     (list (*context*)))))
   (apply mk-pcontext sample))
 
-(define (get-taylor-zero-cover test)
-  (define specification (prog->spec (or (test-spec test) (test-input test))))
-  (define precondition (prog->spec (test-pre test)))
-  (compute-taylor-zero-cover specification precondition (*context*)))
+(define (get-taylor-zero-cover prepared)
+  (compute-taylor-zero-cover (prepared-test-spec prepared) (prepared-test-pre prepared) (*context*)))
 
-(define (get-search-sample test cover)
-  (sample-test-points test (taylor-zero-precondition (prog->spec (test-pre test)) cover)))
+(define (get-search-sample prepared cover)
+  (sample-test-points prepared (taylor-zero-precondition (prepared-test-pre prepared) cover)))
 
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility
-  (sample-test-points test (prog->spec (test-pre test))))
+  (define prepared (prepare-test test))
+  (sample-test-points prepared (prepared-test-pre prepared)))
 
 ;;
 ;;  Public interface
@@ -208,11 +212,13 @@
             ['errors (get-errors test pcontext)]
             ['explanations (get-explanations test pcontext)]
             ['improve
-             (define cover (get-taylor-zero-cover test))
-             (define report-pcontext (get-sample test))
+             (random) ;; Tick the random number generator, for backwards compatibility
+             (define prepared (prepare-test test))
+             (define cover (get-taylor-zero-cover prepared))
+             (define report-pcontext (sample-test-points prepared (prepared-test-pre prepared)))
              (define search-pcontext
                (if cover
-                   (get-search-sample test cover)
+                   (get-search-sample prepared cover)
                    report-pcontext))
              (get-alternatives test search-pcontext report-pcontext cover)]
             ['local-error (get-local-error test pcontext)]

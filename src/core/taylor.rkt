@@ -35,12 +35,7 @@
 
 (struct taylor-term (expr coeff exponent) #:transparent)
 
-(define (make-taylor-term-generator taylor-approx
-                                    batch
-                                    var
-                                    #:transform [tform (cons identity identity)]
-                                    #:iters [iters 5])
-  (define replacer (batch-replace-expression! batch var ((cdr tform) var)))
+(define (make-taylor-term-generator* taylor-approx batch var tform iters replacer)
   (define offset (series-offset taylor-approx))
   (define i 0)
   (define terms '())
@@ -63,13 +58,22 @@
        (taylor-term expr coeff exponent)]))
   next)
 
+(define (make-taylor-term-generator taylor-approx
+                                    batch
+                                    var
+                                    #:transform [tform (cons identity identity)]
+                                    #:iters [iters 5])
+  (define replacer (batch-replace-expression! batch var ((cdr tform) var)))
+  (make-taylor-term-generator* taylor-approx batch var tform iters replacer))
+
 (define (approximate taylor-approxs
                      batch
                      var
                      #:transform [tform (cons identity identity)]
                      #:iters [iters 5])
+  (define replacer (batch-replace-expression! batch var ((cdr tform) var)))
   (for/list ([ta (in-list taylor-approxs)])
-    (define next (make-taylor-term-generator ta batch var #:transform tform #:iters iters))
+    (define next (make-taylor-term-generator* ta batch var tform iters replacer))
     (lambda () (taylor-term-expr (next)))))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
