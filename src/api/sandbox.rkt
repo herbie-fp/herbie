@@ -92,15 +92,21 @@
       (alt-analysis (make-alt target-expr) target-errs)))
 
   ;; compute error/cost for output expression
-  ;; and sort alternatives by accuracy + cost on the search testing subset
-  (define search-errs (exprs-errors (map alt-expr alternatives) search-test-pcontext (*context*)))
-  (define sorted-end-exprs (sort-alts alternatives search-errs))
-  (define sorted-alts (wrap-taylor-zero-alts (map car sorted-end-exprs) cover))
-  (define report-errs (exprs-errors (map alt-expr sorted-alts) report-test-pcontext (*context*)))
   (define end-data
-    (for/list ([altn (in-list sorted-alts)]
-               [errs (in-list report-errs)])
-      (alt-analysis altn errs)))
+    (cond
+      [cover
+       (define search-errs (exprs-errors (map alt-expr alternatives) search-test-pcontext (*context*)))
+       (define sorted-end-exprs (sort-alts alternatives search-errs))
+       (define sorted-alts (wrap-taylor-zero-alts (map car sorted-end-exprs) cover))
+       (define report-errs (exprs-errors (map alt-expr sorted-alts) report-test-pcontext (*context*)))
+       (for/list ([altn (in-list sorted-alts)]
+                  [errs (in-list report-errs)])
+         (alt-analysis altn errs))]
+      [else
+       (define test-errs (exprs-errors (map alt-expr alternatives) report-test-pcontext (*context*)))
+       (define sorted-end-exprs (sort-alts alternatives test-errs))
+       (define end-errs (map cdr sorted-end-exprs))
+       (map alt-analysis alternatives end-errs)]))
 
   (improve-result report-test-pcontext cover start-alt-data target-alt-data end-data))
 
