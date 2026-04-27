@@ -12,39 +12,59 @@
          "points.rkt"
          "programs.rkt")
 
-(provide (contract-out (make-alt-table (batch? pcontext? alt? . -> . alt-table?))
+(provide (contract-out (make-alt-table (batch? pcontext? alt? any/c . -> . alt-table?))
                        (atab-active-alts (alt-table? . -> . (listof alt?)))
                        (atab-all-alts (alt-table? . -> . (listof alt?)))
                        (atab-not-done-alts (alt-table? . -> . (listof alt?)))
-                       (atab-eval-altns (alt-table? batch? (listof alt?) . -> . (values any/c any/c)))
-                       (atab-add-altns (alt-table? (listof alt?) any/c any/c . -> . alt-table?))
+                       (atab-eval-altns
+                        (alt-table? batch? (listof alt?) context? . -> . (values any/c any/c)))
+                       (atab-add-altns (alt-table? (listof alt?) any/c any/c context? . -> . alt-table?))
                        (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
                        (atab-completed? (alt-table? . -> . boolean?))
                        (atab-min-errors (alt-table? . -> . flvector?))
-                       (alt-batch-costs (batch? . -> . (batchref? . -> . real?)))))
+                       (alt-batch-costs (batch? context? . -> . (batchref? . -> . real?)))))
 
 ;; Public API
 
 (struct alt-table (point-idx->alts alt->point-idxs alt->done? alt->cost pcontext all) #:prefab)
 
-(define (alt-batch-costs batch)
+(define (alt-batch-costs batch ctx)
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
-  (batch-recurse batch
-                 (λ (brf recurse)
-                   (define node (deref brf))
-                   (match node
-                     [(? literal?) ((node-cost-proc node))]
-                     [(? symbol?) ((node-cost-proc node))]
-                     [(? number?) 0] ; specs
-                     [(approx _ impl) (recurse impl)]
-                     [(list (? (negate impl-exists?) impl) args ...) 0] ; specs
-                     [(list impl args ...)
-                      (define cost-proc (node-cost-proc node))
-                      (apply cost-proc (map recurse args))]))))
+  (define reprs (batch-reprs batch ctx))
+  (define node-costs
+    (batch-recurse batch
+                   (λ (brf _)
+                     (define node (deref brf))
+                     (define repr (reprs brf))
+                     (match node
+                       [(? literal?) ((node-cost-proc node repr))]
+                       [(? symbol?) ((node-cost-proc node repr))]
+                       [(? number?) 0] ; specs
+                       [(approx _ _) 0]
+                       [(list (? (negate impl-exists?) _) args ...) 0] ; specs
+                       [(list impl args ...)
+                        (define cost-proc (node-cost-proc node repr))
+                        (apply cost-proc (make-list (length args) 0))]))))
+  (define reachable
+    (batch-recurse batch
+                   (λ (brf recurse)
+                     (define node (deref brf))
+                     (define idx (batchref-idx brf))
+                     (match node
+                       [(? number?) (set)] ; specs
+                       [(approx _ impl) (recurse impl)]
+                       [(list (? (negate impl-exists?) _) args ...) (set)] ; specs
+                       [(list impl args ...)
+                        (for/fold ([reachable (set idx)]) ([arg (in-list args)])
+                          (set-union reachable (recurse arg)))]
+                       [_ (set idx)]))))
+  (λ (brf)
+    (for/sum ([idx (in-list (sort (set->list (reachable brf)) <))])
+             (node-costs (batchref batch idx)))))
 
-(define (make-alt-table batch pcontext initial-alt)
-  (define cost ((alt-batch-costs batch) (alt-expr initial-alt)))
-  (define errs (first (batch-errors batch (list (alt-expr initial-alt)) pcontext)))
+(define (make-alt-table batch pcontext initial-alt ctx)
+  (define cost ((alt-batch-costs batch ctx) (alt-expr initial-alt)))
+  (define errs (batchref-errors (alt-expr initial-alt) pcontext ctx))
   (alt-table (for/vector #:length (pcontext-length pcontext)
                          ([err (in-flvector errs)])
                (list (pareto-point cost err (list initial-alt))))
@@ -172,19 +192,19 @@
                [alt->done? (hash-remove* alt->done? altns)]
                [alt->cost (hash-remove* alt->cost altns)]))
 
-(define (atab-eval-altns atab batch altns)
+(define (atab-eval-altns atab batch altns ctx)
   (define brfs (map alt-expr altns))
-  (define errss (batch-errors batch brfs (alt-table-pcontext atab)))
-  (define costs (map (alt-batch-costs batch) brfs))
+  (define errss (batch-errors batch brfs (alt-table-pcontext atab) ctx))
+  (define costs (map (alt-batch-costs batch ctx) brfs))
   (values errss costs))
 
-(define (atab-add-altns atab altns errss costs)
+(define (atab-add-altns atab altns errss costs ctx)
   (define atab*
     (for/fold ([atab atab])
               ([altn (in-list altns)]
                [errs (in-list errss)]
                [cost (in-list costs)])
-      (atab-add-altn atab altn errs cost)))
+      (atab-add-altn atab altn errs cost ctx)))
   (define atab**
     (struct-copy alt-table atab* [alt->point-idxs (invert-index (alt-table-point-idx->alts atab*))]))
   (define atab*** (atab-prune atab**))
@@ -203,13 +223,12 @@
       (hash-update! alt->points* alt (λ (v) (cons idx v)) '())))
   (make-immutable-hasheq (hash->list alt->points*)))
 
-(define (atab-add-altn atab altn errs cost)
+(define (atab-add-altn atab altn errs cost ctx)
   (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
+  (define max-valid-bits (representation-total-bits (context-repr ctx)))
   ;; Check  whether altn is already inserted into atab
   (match (hash-has-key? alt->point-idxs altn)
     [#f
-     (define brf (alt-expr altn))
-     (define max-valid-bits (representation-total-bits (batch-repr-of brf)))
      (define point-idx->alts*
        (for/vector #:length (vector-length point-idx->alts)
                    ([pcurve (in-vector point-idx->alts)]
