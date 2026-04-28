@@ -328,14 +328,15 @@
 (define (impl-lowering-rules pform)
   (for/list ([impl (in-list (platform-impls pform))])
     (define spec-expr (impl-info impl 'spec))
+    (define vars (impl-info impl 'vars))
     `(rule ((= e ,(expr->egglog-spec-serialized spec-expr ""))
-            ,@(for/list ([v (in-list (impl-info impl 'vars))]
+            ,@(for/list ([v (in-list vars)]
                          [vt (in-list (impl-info impl 'itype))])
                 `(= ,(string->symbol (string-append "t" (symbol->string v)))
-                    (do-lower ,v ,(egglog-repr-token vt)))))
+                    (do-lower ,(egglog-rule-var "" v) ,(egglog-repr-token vt)))))
            ((union (do-lower e ,(egglog-repr-token (impl-info impl 'otype)))
                    (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
-                    ,@(for/list ([v (in-list (impl-info impl 'vars))])
+                    ,@(for/list ([v (in-list vars)])
                         (string->symbol (string-append "t" (symbol->string v)))))))
            :ruleset
            lower)))
@@ -343,12 +344,14 @@
 (define (impl-lifting-rules pform)
   (for/list ([impl (in-list (platform-impls pform))])
     (define spec-expr (impl-info impl 'spec))
+    (define vars (impl-info impl 'vars))
     `(rule ((= e
                (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
-                ,@(impl-info impl 'vars)))
-            ,@(for/list ([v (in-list (impl-info impl 'vars))]
+                ,@(for/list ([v (in-list vars)])
+                    (egglog-rule-var "t" v))))
+            ,@(for/list ([v (in-list vars)]
                          [vt (in-list (impl-info impl 'itype))])
-                `(= ,(string->symbol (string-append "s" (symbol->string v))) (do-lift ,v))))
+                `(= ,(egglog-rule-var "s" v) (do-lift ,(egglog-rule-var "t" v)))))
            ((union (do-lift e) ,(expr->egglog-spec-serialized spec-expr "s")))
            :ruleset
            lift)))
@@ -359,11 +362,14 @@
     [('array 3) 'Array3]
     [(_ _) (hash-ref (id->e1) op)]))
 
+(define (egglog-rule-var prefix var)
+  (string->symbol (format "?~a~a" prefix var)))
+
 (define (expr->egglog-spec-serialized expr s)
   (let loop ([expr expr])
     (match expr
       [(? number?) `(Num ,(real->bigrat expr))]
-      [(? symbol?) (string->symbol (string-append s (symbol->string expr)))]
+      [(? symbol?) (egglog-rule-var s expr)]
       [(list op args ...)
        `(,(if (hash-has-key? (id->e1) op)
               (serialize-spec-op op (length args))

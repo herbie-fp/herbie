@@ -104,6 +104,10 @@
       [#`(#,f-syntax #,args ...)
        (define f (syntax->datum f-syntax))
        (cond
+         [(hash-has-key? (*functions*) f)
+          (match-define (list vars _ _) (hash-ref (*functions*) f))
+          (unless (= (length vars) (length args))
+            (error! stx "Function ~a given ~a arguments (expects ~a)" f (length args) (length vars)))]
          [(known-op? f)
           (define arity (length (known-op-itype f)))
           (unless (= arity (length args))

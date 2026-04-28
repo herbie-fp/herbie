@@ -190,9 +190,9 @@
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
 
-  ;; Named fpcores become platform operators
+  ;; Named fpcores become inlineable helper functions for later tests.
   (when (and func-name (*register-named-fpcore-operators?*))
-    (register-fpcore-operator! func-name (struct-copy context ctx [repr output-repr]) body* spec))
+    (register-function! func-name args default-prec body))
   (check-unused-variables var-names body* pre*)
   (check-weird-variables var-names)
 
