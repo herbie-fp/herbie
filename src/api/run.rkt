@@ -6,9 +6,8 @@
          "../reports/pages.rkt"
          "../reports/timeline.rkt"
          "../syntax/read.rkt"
-         "../syntax/sugar.rkt"
-         "../syntax/types.rkt"
          "../syntax/platform.rkt"
+         "../syntax/types.rkt"
          "../syntax/load-platform.rkt"
          "../utils/common.rkt"
          "../utils/profile.rkt"
@@ -18,40 +17,11 @@
          "sandbox.rkt"
          "server.rkt")
 
-(provide make-report
-         rerun-report)
-
-(define (extract-test row)
-  (define vars (table-row-vars row))
-  (define repr (get-representation (table-row-precision row)))
-  (define var-reprs (map (curryr cons repr) vars))
-  (define ctx (context vars repr (map (const repr) vars)))
-  (test (table-row-name row)
-        (table-row-identifier row)
-        (table-row-vars row)
-        (fpcore->prog (table-row-input row) ctx)
-        (fpcore->prog (table-row-output row) ctx)
-        (table-row-target-prog row)
-        (fpcore->prog (table-row-spec row) ctx)
-        (fpcore->prog (table-row-pre row) ctx)
-        (representation-name repr)
-        (for/list ([(k v) (in-dict var-reprs)])
-          (cons k (representation-name v)))
-        (table-row-conversions row)))
+(provide make-report)
 
 (define (make-report bench-dirs #:dir dir #:threads threads)
   (activate-platform! (*platform-name*))
   (define tests (sort (append-map load-tests bench-dirs) string-ci<? #:key test-name))
-  (run-tests tests #:dir dir #:threads threads))
-
-(define (rerun-report json-file #:dir dir #:threads threads)
-  (define data (call-with-input-file json-file read-datafile))
-  (define tests (map extract-test (report-info-tests data)))
-  (activate-platform! (*platform-name*))
-  (*flags* (report-info-flags data))
-  (set-seed! (report-info-seed data))
-  (*num-points* (report-info-points data))
-  (*num-iterations* (report-info-iterations data))
   (run-tests tests #:dir dir #:threads threads))
 
 (define (read-json-files info dir name)
