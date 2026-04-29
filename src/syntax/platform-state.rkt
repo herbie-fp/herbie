@@ -11,6 +11,7 @@
          "types.rkt")
 
 (provide *platform-extensions*
+         platform-extension-names
          platform-serialize
          register-platform-extensions!
          register-fpcore-operator!
@@ -20,6 +21,11 @@
 (struct platform-state (name extensions) #:prefab)
 
 (define *platform-extensions* (make-parameter '()))
+
+(define (platform-extension-names [extensions (*platform-extensions*)])
+  (for/list ([extension (in-list extensions)])
+    (match extension
+      [(fpcore-extension name _ _ _ _ _) name])))
 
 (define (make-fpcore-extension name ctx body* spec*)
   (fpcore-extension name
