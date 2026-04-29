@@ -110,7 +110,7 @@
   (get-test-coverage env))
 
 (define (run-rackunit-coverages source-files test-files)
-  (printf "Running RackUnit tests...\n")
+  (displayln "Running RackUnit tests...")
   (flush-output)
   (for/fold ([coverages '()]
              #:result (reverse coverages))
@@ -280,7 +280,7 @@
           covered-chars
           relevant-chars
           (~r (percent covered-chars relevant-chars) #:precision '(= 2)))
-  (printf "  most uncovered files:\n")
+  (displayln "  most uncovered files:")
   (for ([summary (in-list (take (sort relevant-summaries
                                       >
                                       #:key (lambda (s)
@@ -402,11 +402,11 @@
                 #:when (positive? (file-summary-relevant-chars summary)))
        (path->coverage-key (file-summary-path summary))))
    (when effective-html-dir
-     (if run-rackunit?
-         (printf "Skipping HTML output for merged benchmark+RackUnit coverage.\n")
-         (begin
-           (make-directory* effective-html-dir)
-           (generate-html-coverage benchmark-coverage relevant-files effective-html-dir))))
+     (cond
+       [run-rackunit? (displayln "Skipping HTML output for merged benchmark+RackUnit coverage.")]
+       [else
+        (make-directory* effective-html-dir)
+        (generate-html-coverage benchmark-coverage relevant-files effective-html-dir)]))
    (define report-path
      (write-detailed-report effective-run-label output-root run-rackunit? summaries coverages))
    (printf "Detailed report: ~a\n" report-path)

@@ -19,6 +19,7 @@
          *context*
          context-extend
          context-lookup
+         contexts-union
          make-representation
          make-array-representation)
 
@@ -66,7 +67,7 @@
   (unless (exact-positive-integer? len)
     (raise-herbie-error "Arrays require a positive length, got ~a" len))
   (define array-ty `(array ,(representation-type elem-repr) ,len))
-  (define name (string->symbol (format "array~a-~a" (representation-name elem-repr) len)))
+  (define name `(array ,(representation-name elem-repr) ,len))
   ;; TODO: Array representations currently inherit scalar conversion slots.
   ;; These should not be called for arrays; we'll clean up the hierarchy later.
   (define total-bits (* len (representation-total-bits elem-repr)))
@@ -144,5 +145,44 @@
                [vars (cons var (context-vars ctx))]
                [var-reprs (cons repr (context-var-reprs ctx))]))
 
+(define (contexts-union ctxs)
+  (unless ((non-empty-listof context?) ctxs)
+    (raise-arguments-error 'contexts-union "expected a non-empty list of contexts" "ctxs" ctxs))
+  (define out-repr (context-repr (first ctxs)))
+  (define seen-reprs (make-hash))
+  (for ([ctx (in-list ctxs)])
+    (unless (equal? out-repr (context-repr ctx))
+      (raise-arguments-error 'contexts-union "contexts must agree on output repr" "ctxs" ctxs))
+    (for ([var (in-list (context-vars ctx))]
+          [repr (in-list (context-var-reprs ctx))])
+      (match (hash-ref seen-reprs var #f)
+        [#f (hash-set! seen-reprs var repr)]
+        [repr*
+         #:when (equal? repr* repr)
+         (void)]
+        [_
+         (raise-arguments-error 'contexts-union
+                                "contexts must agree on shared variable reprs"
+                                "ctxs"
+                                ctxs)])))
+  (context (hash-keys seen-reprs #t) out-repr (hash-values seen-reprs #t)))
+
 (define (context-lookup ctx var)
   (dict-ref (map cons (context-vars ctx) (context-var-reprs ctx)) var))
+
+(module+ test
+  (require rackunit)
+
+  (define ctx1 (context '(x y) <binary64> (list <binary64> <binary64>)))
+  (define ctx2 (context '(y z) <binary64> (list <binary64> <binary64>)))
+  (define ctx* (contexts-union (list ctx1 ctx2)))
+
+  (check-equal? (context-vars ctx*) '(x y z))
+  (check-equal? (context-var-reprs ctx*) (list <binary64> <binary64> <binary64>))
+  (check-equal? (context-repr ctx*) <binary64>)
+
+  (check-exn exn:fail?
+             (lambda () (contexts-union (list ctx1 (context '(y) <binary64> (list <binary32>))))))
+
+  (check-exn exn:fail?
+             (lambda () (contexts-union (list ctx1 (context '(z) <binary32> (list <binary64>)))))))

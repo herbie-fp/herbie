@@ -61,8 +61,9 @@
             (span ((class "time")) ,(format-time time) " (" ,(format-percent time total-time) ")"))
         (dl ,@(dict-call curr render-phase-memory 'memory 'gc-time)
             ,@(dict-call curr render-phase-algorithm 'method)
-            ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline)
+            ,@(dict-call curr render-phase-accuracy 'accuracy)
             ,@(dict-call curr render-phase-pruning 'kept)
+            ,@(dict-call curr render-phase-taylor-counts 'taylor-count)
             ,@(dict-call curr render-phase-error 'min-error)
             ,@(dict-call curr render-phase-egraph 'egraph)
             ,@(dict-call curr render-phase-stop 'stop)
@@ -229,17 +230,16 @@
       `((dt ,name) (dd ,@(map (lambda (s) `(p ,(~a s))) (first info))))
       empty))
 
-(define (render-phase-accuracy accuracy oracle baseline)
+(define (render-phase-accuracy accuracy)
   (define rows
-    (sort (for/list ([acc accuracy]
-                     [ora oracle]
-                     [bas baseline])
+    (sort (for/list ([row (in-list accuracy)])
+            (match-define (list acc ora bas) row)
             (list (- acc ora) (- bas acc)))
           >
           #:key first))
 
   (define bits (map first rows))
-  (define total-remaining (apply + accuracy))
+  (define total-remaining (apply + (map first accuracy)))
 
   `((dt "Accuracy") (dd (p "Total "
                            ,(format-bits (apply + bits) #:unit #t)
@@ -292,6 +292,22 @@
               (td ,(~r (apply + (map (curryr altnum 0) '(new fresh picked done))) #:group-sep " "))
               (td ,(~r (apply + (map (curryr altnum 1) '(new fresh picked done))) #:group-sep " "))
               (td ,(~r (apply + (map altnum '(new fresh picked done))) #:group-sep " "))))))))
+
+(define (render-phase-taylor-counts records)
+  (define sorted-records (sort records > #:key fifth))
+  `((dt "Taylor")
+    (dd (table
+         ((class "times"))
+         (thead
+          (tr (th "Generated") (th "Kept") (th "% Kept") (th "# Vars") (th "Transform") (th "Order")))
+         (tbody ,@(for/list ([rec (in-list sorted-records)])
+                    (match-define (list transform order vars generated kept) rec)
+                    `(tr (td ,(~r generated #:group-sep " ") "×")
+                         (td ,(~r kept #:group-sep " ") "×")
+                         (td ,(format-percent kept generated))
+                         (td ,(~a vars))
+                         (td (code ,transform))
+                         (td ,(~a order)))))))))
 
 (define (render-phase-memory mem gc-time)
   (match-define (list live alloc) (car mem))
