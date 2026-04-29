@@ -159,19 +159,6 @@
                      prop-dict)
              (get-representation (dict-ref prop-dict ':precision))]
             [impl (impl-info impl 'otype)])])]
-      [#`(,(? (curry hash-has-key? (*functions*)) fname) #,args ...)
-       ; TODO: inline functions expect uniform types, this is clearly wrong
-       (match-define (list vars prec _) (hash-ref (*functions*) fname))
-       (define repr (get-representation prec))
-       (define ireprs (map (lambda (arg) (loop arg prop-dict ctx)) args))
-       (define expected (map (const repr) vars))
-       (unless (andmap equal? ireprs expected)
-         (error! stx
-                 "Invalid arguments to ~a; expects ~a but got ~a"
-                 fname
-                 (application->string fname expected)
-                 (application->string fname ireprs)))
-       repr]
       [#`(,(? symbol? op) #,args ...)
        (define ireprs (map (lambda (arg) (loop arg prop-dict ctx)) args))
        (match (get-fpcore-impl op prop-dict ireprs)

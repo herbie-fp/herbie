@@ -15,8 +15,6 @@
          operator-exists?
          operator-info
          all-operators ; return a list of operators names
-         *functions*
-         register-function!
          (struct-out operator-impl)) ; required by platform.rkt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -81,9 +79,3 @@
 
 ;; An unknown floating-point expression that implements a given spec
 (struct hole (precision spec) #:prefab)
-
-;; name -> (vars repr body)
-(define *functions* (make-parameter (make-hasheq)))
-
-(define (register-function! name args repr body)
-  (hash-set! (*functions*) name (list args repr body)))
