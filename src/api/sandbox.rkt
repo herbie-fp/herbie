@@ -65,7 +65,11 @@
     (error 'get-alternatives "cannnot run without a pcontext"))
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
-  (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
+  (define initial-expr
+    (if (equal? (prog->spec (test-input test)) (test-spec test))
+        (test-input test)
+        (approx (test-spec test) (test-input test))))
+  (define alternatives (run-improve! initial-expr (test-spec test) (*context*) train-pcontext))
 
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
@@ -134,8 +138,8 @@
 
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility
-  (define specification (prog->spec (or (test-spec test) (test-input test))))
-  (define precondition (prog->spec (test-pre test)))
+  (define specification (test-spec test))
+  (define precondition (test-pre test))
   (define-values (batch brfs) (progs->batch (list specification)))
   (define sample
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])

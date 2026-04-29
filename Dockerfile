@@ -8,14 +8,14 @@ FROM rust:1.88.0 AS egg-herbie-builder
 WORKDIR /herbie
 COPY egg-herbie egg-herbie
 RUN cargo build --release --manifest-path=egg-herbie/Cargo.toml
-RUN cargo install egglog --version 1.0.0
+RUN cargo install --git "https://github.com/egraphs-good/egglog-experimental" --rev eae9570d78105c53497fccdf0ff7fb1937592036 egglog-experimental
 
 # Production image
 FROM racket/racket:8.17-full AS production
 LABEL maintainer="Pavel Panchekha <me@pavpanchekha.com>"
 COPY --from=egg-herbie-builder /herbie/egg-herbie /src/egg-herbie
 RUN raco pkg install --no-docs /src/egg-herbie
-COPY --from=egg-herbie-builder /usr/local/cargo/bin/egglog /usr/local/bin/egglog
+COPY --from=egg-herbie-builder /usr/local/cargo/bin/egglog-experimental /usr/local/bin/egglog-experimental
 COPY src /src/herbie
 RUN raco pkg install --no-docs --auto /src/herbie
 ENTRYPOINT ["racket", "/src/herbie/main.rkt"]

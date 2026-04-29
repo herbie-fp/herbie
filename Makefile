@@ -30,7 +30,7 @@ egg-herbie:
 	raco pkg install ./egg-herbie
 
 egglog-herbie:
-	cargo install --git "https://github.com/egraphs-good/egglog-experimental" --branch main egglog-experimental
+	cargo install --git "https://github.com/egraphs-good/egglog-experimental" --rev eae9570d78105c53497fccdf0ff7fb1937592036 egglog-experimental
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/
