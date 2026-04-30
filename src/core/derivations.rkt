@@ -2,6 +2,7 @@
 
 (require "../core/alternative.rkt"
          "../syntax/batch.rkt"
+         "../syntax/platform.rkt"
          "programs.rkt"
          "egg-herbie.rkt"
          "../config.rkt")
@@ -24,7 +25,10 @@
     ; start-brf and end-brf are batchrefs for the subexpressions that were transformed
     [(alt expr (list 'rr start-brf end-brf (? egg-runner? runner) #f) `(,prev))
      (define batch (egg-runner-batch runner))
-     (define proof (and (not (flag-set? 'generate 'egglog)) (egraph-prove runner start-brf end-brf)))
+     (define-values (proof-start proof-end)
+       (apply values (batch-to-spec! batch (list start-brf end-brf))))
+     (define proof
+       (and (not (flag-set? 'generate 'egglog)) (egraph-prove runner proof-start proof-end)))
      (define proof* (canonicalize-proof batch (alt-expr altn) proof start-brf))
      (alt expr `(rr ,start-brf ,end-brf ,runner ,proof*) (list prev))]
 
