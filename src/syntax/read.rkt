@@ -193,7 +193,7 @@
   ;; Named fpcores become platform operators
   (when (and func-name (*register-named-fpcore-operators?*))
     (register-fpcore-operator! func-name (struct-copy context ctx [repr output-repr]) body* spec))
-  (check-unused-variables var-names body* pre*)
+  (check-unused-variables var-names pre* body* func-name)
   (check-weird-variables var-names)
 
   (test (~a name)
@@ -209,7 +209,7 @@
                    [repr (in-list var-reprs)])
           (cons var (representation-name repr)))))
 
-(define (check-unused-variables vars precondition expr)
+(define (check-unused-variables vars precondition expr identifier)
   ;; Fun story: you might want variables in the precondition that
   ;; don't appear in the `expr`, because that can allow you to do
   ;; non-uniform sampling. For example, if you have the precondition
@@ -218,11 +218,15 @@
   (define used (set-union (free-variables expr) (free-variables precondition)))
   (unless (set=? vars used)
     (define unused (set-subtract vars used))
-    (warn 'unused-variable
-          #:url "faq.html#unused-variable"
-          "unused ~a ~a"
-          (if (equal? (set-count unused) 1) "variable" "variables")
-          (string-join (map ~a unused) ", "))))
+    (define noun (if (equal? (set-count unused) 1) "variable" "variables"))
+    (define names (string-join (map ~a unused) ", "))
+    (if identifier
+        (raise-herbie-error "unused ~a ~a in named FPCore ~a"
+                            #:url "faq.html#unused-variable"
+                            noun
+                            names
+                            identifier)
+        (warn 'unused-variable #:url "faq.html#unused-variable" "unused ~a ~a" noun names))))
 
 (define (check-weird-variables vars)
   (for ([var (in-list vars)])
@@ -338,6 +342,9 @@
   (define port
     (open-input-string (string-append "(FPCore helper (x) (+ x 1))\n" "(FPCore (x) (helper x))\n")))
   (check-equal? (length (load-tests port)) 2)
+  (check-exn exn:fail:user:herbie?
+             (lambda () (load-tests (open-input-string "(FPCore helper (x y) x)"))))
+  (check-not-exn (lambda () (load-tests (open-input-string "(FPCore (x y) x)"))))
 
   ;; casting edge cases
   (check-equal? (fpcore->prog `(cast x) ctx) 'x)
