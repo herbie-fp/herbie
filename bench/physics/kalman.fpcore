@@ -107,7 +107,7 @@
                       (array (- (ref K 2)) 0 1))])
     (axb_33 eyekh P)))
 
-(FPCore update_K ((K 3) (P 3 3) r)
+(FPCore update_K ((P 3 3) r)
   (array (/ (ref (ref P 0) 0) (+ (ref (ref P 0) 0) r))
          (/ (ref (ref P 1) 0) (+ (ref (ref P 0) 0) r))
          (/ (ref (ref P 2) 0) (+ (ref (ref P 0) 0) r))))
@@ -117,11 +117,28 @@
          (+ (ref x 1) (* (ref K 1) y))
          (+ (ref x 2) (* (ref K 2) y))))
 
-(FPCore main_body (m (x 3) (K 3) (P 3 3))
-  (let* ([x (predict_x x dt)]
+(FPCore (m dt (x 3) (P 3 3))
+  :name "Loop body, returning x"
+  (let* ([F (build_F dt)]
+         [Q (build_Q dt)]
+         [r 16]
+         [x (predict_x x dt)]
          [P (predict_P P F Q)]
          [y (- m (ref x 0))]
-         [K (update_K K P r)]
+         [K (update_K P r)]
          [x (update_x x K y)]
+         #;[P (update_P P K)])
+    x))
+
+(FPCore (#;m dt #;(x 3) (P 3 3))
+  :name "Loop body, returning P"
+  (let* ([F (build_F dt)]
+         [Q (build_Q dt)]
+         [r 16]
+         #;[x (predict_x x dt)]
+         [P (predict_P P F Q)]
+         #;[y (- m (ref x 0))]
+         [K (update_K P r)]
+         #;[x (update_x x K y)]
          [P (update_P P K)])
-    K))
+    P))
