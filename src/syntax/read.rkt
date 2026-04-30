@@ -202,7 +202,7 @@
         body*
         targets
         (dict-ref prop-dict ':herbie-expected #t)
-        spec
+        (prog->spec spec)
         pre*
         (representation-name output-repr)
         (for/list ([var (in-list var-names)]
