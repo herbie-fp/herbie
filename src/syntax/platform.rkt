@@ -29,12 +29,15 @@
      (fprintf port "#<platform>"))])
 
 (provide *active-platform*
+         platform-copy
+         repr-exists?
          get-representation
          impl-exists?
          impl-info
          prog->spec
          batch-to-spec!
          get-fpcore-impl
+         reset-fpcore-op-cache!
          (struct-out $platform)
          ;; Platform API
          ;; Operator sets
@@ -52,6 +55,12 @@
 ;; Active platform
 (define *active-platform* (make-parameter #f))
 
+(define (platform-copy platform)
+  (struct-copy $platform
+               platform
+               [representations (hash-copy (platform-representations platform))]
+               [implementations (hash-copy (platform-implementations platform))]))
+
 (define (make-empty-platform)
   (define reprs (make-hash))
   (define repr-costs (make-hash))
@@ -63,12 +72,23 @@
 (define (get-representation name)
   (define platform (*active-platform*))
   (define reprs (platform-representations platform))
-  (or (hash-ref reprs name #f)
-      (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
-                          name
-                          (string-join (map ~s (hash-keys reprs)) ", ")
-                          (*platform-name*))))
+  (match name
+    [(? representation?) name]
+    [`(array ,elem ,len) (make-array-representation #:elem (get-representation elem) #:len len)]
+    [_
+     (or (hash-ref reprs name #f)
+         (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
+                             name
+                             (string-join (map ~s (hash-keys reprs)) ", ")
+                             (*platform-name*)))]))
 
+(define (repr-exists? name)
+  (define platform (*active-platform*))
+  (define reprs (platform-representations platform))
+  (match name
+    [(? representation?) #t]
+    [`(array ,elem ,len) (and (exact-positive-integer? len) (repr-exists? elem))]
+    [_ (hash-has-key? reprs name)]))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> LSpec
 
@@ -183,6 +203,9 @@
     [body (values '() body)]))
 
 (define/reset op-hash #f)
+
+(define (reset-fpcore-op-cache!)
+  (op-hash #f))
 
 ;; For a given FPCore operator, rounding context, and input representations,
 ;; finds the best operator implementation. Panics if none can be found.
