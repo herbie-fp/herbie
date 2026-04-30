@@ -144,6 +144,10 @@
                (list 'and out (list '!= term term2))
                (list '!= term term2))))
        (or out '(TRUE))]
+      ; expand multi-index array references
+      [`(ref ,arr ,idx ,idxs ...)
+       (for/fold ([out (loop arr env)]) ([idx (in-list (cons idx idxs))])
+         `(ref ,out ,(loop idx env)))]
       ; applications
       [`(,op ,args ...) `(,op ,@(map (curryr loop env) args))]
       ; constants
