@@ -7,6 +7,7 @@
 (require math/flonum)
 
 (require "../syntax/read.rkt"
+         "../syntax/platform-state.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -189,6 +190,8 @@
               (get-seed))]
     [else (eprintf "Starting Herbie ~a with seed ~a...\n" *herbie-version* (get-seed))])
 
+  (*platform-state* (platform-serialize))
+
   (set! manager
         (if threads
             (make-manager threads)
@@ -288,9 +291,8 @@
                          *reeval-pts*
                          *node-limit*
                          *max-find-range-depth*
-                         *platform-name*
-                         *functions*)
-   (activate-platform! (*platform-name*))
+                         *platform-state*)
+   (activate-platform! (*platform-state*))
    ; not sure if the above code is actaully needed.
    (define busy-workers (make-hash))
    (define waiting-workers (make-hash))
@@ -415,9 +417,8 @@
                          *reeval-pts*
                          *node-limit*
                          *max-find-range-depth*
-                         *platform-name*
-                         *functions*)
-   (activate-platform! (*platform-name*))
+                         *platform-state*)
+   (activate-platform! (*platform-state*))
    (define worker-thread
      (thread (λ ()
                (let loop ()
