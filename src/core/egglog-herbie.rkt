@@ -3,6 +3,7 @@
 (require racket/file
          "rules.rkt"
          "../syntax/platform.rkt"
+         "../syntax/platform-state.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../config.rkt"
@@ -325,8 +326,15 @@
 (define (approx-lifting-rule)
   `(rule ((= e (Approx spec impl))) ((union (do-lift e) spec)) :ruleset lift))
 
+(define (helper-impl-names [extensions (*platform-extensions*)])
+  (for/list ([extension (in-list extensions)])
+    (match (struct->vector extension)
+      [(vector 'struct:fpcore-extension name _ _ _ _ _) name])))
+
 (define (impl-lowering-rules pform)
-  (for/list ([impl (in-list (platform-impls pform))])
+  (define helper-impls (helper-impl-names))
+  (for/list ([impl (in-list (platform-impls pform))]
+             #:unless (memq impl helper-impls))
     (define spec-expr (impl-info impl 'spec))
     `(rule ((= e ,(expr->egglog-spec-serialized spec-expr ""))
             ,@(for/list ([v (in-list (impl-info impl 'vars))]
