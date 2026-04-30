@@ -31,19 +31,36 @@
 (define (alt-batch-costs batch ctx)
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
   (define reprs (batch-reprs batch ctx))
-  (batch-recurse batch
-                 (λ (brf recurse)
-                   (define node (deref brf))
-                   (define repr (reprs brf))
-                   (match node
-                     [(? literal?) ((node-cost-proc node repr))]
-                     [(? symbol?) ((node-cost-proc node repr))]
-                     [(? number?) 0] ; specs
-                     [(approx _ impl) (recurse impl)]
-                     [(list (? (negate impl-exists?) impl) args ...) 0] ; specs
-                     [(list impl args ...)
-                      (define cost-proc (node-cost-proc node repr))
-                      (apply cost-proc (map recurse args))]))))
+  (define node-costs
+    (batch-recurse batch
+                   (λ (brf _)
+                     (define node (deref brf))
+                     (define repr (reprs brf))
+                     (match node
+                       [(? literal?) ((node-cost-proc node repr))]
+                       [(? symbol?) ((node-cost-proc node repr))]
+                       [(? number?) 0] ; specs
+                       [(approx _ _) 0]
+                       [(list (? (negate impl-exists?) _) args ...) 0] ; specs
+                       [(list impl args ...)
+                        (define cost-proc (node-cost-proc node repr))
+                        (apply cost-proc (make-list (length args) 0))]))))
+  (define reachable
+    (batch-recurse batch
+                   (λ (brf recurse)
+                     (define node (deref brf))
+                     (define idx (batchref-idx brf))
+                     (match node
+                       [(? number?) (set)] ; specs
+                       [(approx _ impl) (recurse impl)]
+                       [(list (? (negate impl-exists?) _) args ...) (set)] ; specs
+                       [(list impl args ...)
+                        (for/fold ([reachable (set idx)]) ([arg (in-list args)])
+                          (set-union reachable (recurse arg)))]
+                       [_ (set idx)]))))
+  (λ (brf)
+    (for/sum ([idx (in-list (sort (set->list (reachable brf)) <))])
+             (node-costs (batchref batch idx)))))
 
 (define (make-alt-table batch pcontext initial-alt ctx)
   (define cost ((alt-batch-costs batch ctx) (alt-expr initial-alt)))

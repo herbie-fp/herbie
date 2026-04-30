@@ -179,19 +179,24 @@
   (timeline-event! 'rewrite)
 
   ; egg schedule (4-phases for mathematical rewrites, sound-X removal, and implementation selection)
-  (define schedule '(lift rewrite unsound lower))
+  (define schedule '(rewrite unsound lower))
 
   (define brfs (map alt-expr altns))
+  (define spec-brfs (batch-to-spec! global-batch brfs))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+  (define rr-brfs
+    (for/list ([spec-brf (in-list spec-brfs)]
+               [repr (in-list reprs)])
+      (batch-add! global-batch (hole (representation-name repr) spec-brf))))
 
   (define runner
     (cond
       [(flag-set? 'generate 'egglog)
        (define batch* (batch-empty))
        (define copy-f (batch-copy-only! batch* global-batch))
-       (define brfs* (map copy-f brfs))
+       (define brfs* (map copy-f rr-brfs))
        (make-egglog-runner batch* brfs* reprs schedule (*context*))]
-      [else (make-egraph global-batch brfs reprs schedule (*context*))]))
+      [else (make-egraph global-batch rr-brfs reprs schedule (*context*))]))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
