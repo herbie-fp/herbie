@@ -173,7 +173,7 @@
 
   ;; inline and desugar
   (define body* (fpcore->prog body ctx))
-  (define pre* (fpcore->prog (dict-ref prop-dict ':pre 'TRUE) ctx))
+  (define pre* (fpcore->spec (dict-ref prop-dict ':pre 'TRUE)))
 
   (define targets
     (for/list ([(key val) (in-dict prop-dict)]
@@ -188,7 +188,7 @@
            (fpcore->prog val ctx)
            (cons val #t))])))
 
-  (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
+  (define spec (fpcore->spec (dict-ref prop-dict ':spec body)))
 
   ;; Named fpcores become platform operators
   (when (and func-name (*register-named-fpcore-operators?*))
@@ -295,7 +295,7 @@
   (define discr-ctx (context '(a b c) <binary64> (make-list 3 <binary64>)))
   (define discr-body `(sqrt (- (* b b) (* a c))))
   (define discr-prog (fpcore->prog discr-body discr-ctx))
-  (register-fpcore-operator! 'discr discr-ctx discr-prog discr-prog)
+  (register-fpcore-operator! 'discr discr-ctx discr-prog (fpcore->spec discr-body))
   (define quadp `(/ (+ (- y) (discr x y z)) x))
   (define quadm `(/ (- (- y) (discr x y z)) x))
   (check-equal? (fpcore->prog quadp ctx) '(/.f64 (+.f64 (neg.f64 y) (discr x y z)) x))
@@ -304,10 +304,10 @@
   ;; x^5 = x^3 * x^2
   (define sqr-ctx (context '(x) <binary64> (list <binary64>)))
   (define sqr-prog (fpcore->prog '(* x x) sqr-ctx))
-  (register-fpcore-operator! 'sqr sqr-ctx sqr-prog sqr-prog)
+  (register-fpcore-operator! 'sqr sqr-ctx sqr-prog (fpcore->spec '(* x x)))
   (define cube-ctx (context '(x) <binary64> (list <binary64>)))
   (define cube-prog (fpcore->prog '(* x x x) cube-ctx))
-  (register-fpcore-operator! 'cube cube-ctx cube-prog cube-prog)
+  (register-fpcore-operator! 'cube cube-ctx cube-prog (fpcore->spec '(* x x x)))
   (define fifth '(* (cube a) (sqr a)))
   (check-equal? (fpcore->prog fifth ctx) '(*.f64 (cube a) (sqr a)))
 
@@ -315,7 +315,7 @@
   (define vec2 (make-array-representation #:elem <binary64> #:len 2))
   (define sum2-ctx (context '(v) <binary64> (list vec2)))
   (define sum2-prog (fpcore->prog '(+ (ref v 0) (ref v 1)) sum2-ctx))
-  (register-fpcore-operator! 'sum2 sum2-ctx sum2-prog sum2-prog)
+  (register-fpcore-operator! 'sum2 sum2-ctx sum2-prog (fpcore->spec '(+ (ref v 0) (ref v 1))))
   (define vec-ctx (context '(a) <binary64> (list vec2)))
   (check-equal? (fpcore->prog '(sum2 a) vec-ctx) '(sum2 a))
   (check-equal? ((impl-info 'sum2 'fl) #(1.0 2.0)) 3.0)
@@ -323,7 +323,7 @@
   ;; array return values
   (define vec-out-ctx (context '(x y) vec2 (list <binary64> <binary64>)))
   (define vec-out-prog (fpcore->prog '(array x y) vec-out-ctx))
-  (register-fpcore-operator! 'mkvec vec-out-ctx vec-out-prog vec-out-prog)
+  (register-fpcore-operator! 'mkvec vec-out-ctx vec-out-prog (fpcore->spec '(array x y)))
   (check-equal? (prog->spec vec-out-prog) '(array x y))
   (check-equal? ((impl-info 'mkvec 'fl) 1.0 2.0) #(1.0 2.0))
 

@@ -31,13 +31,12 @@
 
 (define (register-fpcore-operator! name ctx body* spec*)
   (define output-repr (context-repr ctx))
-  (define spec-expr (prog->spec spec*))
   (cond
     [(impl-exists? name)
      (unless (and (equal? (impl-info name 'vars) (context-vars ctx))
                   (equal? (impl-info name 'itype) (context-var-reprs ctx))
                   (equal? (impl-info name 'otype) output-repr)
-                  (equal? (impl-info name 'spec) spec-expr))
+                  (equal? (impl-info name 'spec) spec*))
        (raise-herbie-error "Impl ~a is already registered in platform ~a with a different definition"
                            name
                            (*platform-name*)))]
@@ -49,12 +48,7 @@
      (define cost ((platform-cost-proc (*active-platform*)) body* output-repr))
      (define fpcore-expr (cons name (context-vars ctx)))
      (define impl
-       (create-operator-impl! name
-                              ctx
-                              #:spec spec-expr
-                              #:impl fl-proc
-                              #:fpcore fpcore-expr
-                              #:cost cost))
+       (create-operator-impl! name ctx #:spec spec* #:impl fl-proc #:fpcore fpcore-expr #:cost cost))
      (platform-register-implementation! (*active-platform*) impl)
      (*platform-extensions* (append (*platform-extensions*)
                                     (list (make-fpcore-extension name ctx body* spec*))))]))
