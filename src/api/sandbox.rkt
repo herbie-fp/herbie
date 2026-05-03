@@ -23,7 +23,6 @@
          "../syntax/platform.rkt"
          "../core/programs.rkt"
          "../core/points.rkt"
-         "../core/taylor-zero.rkt"
          "../core/explain.rkt"
          "../utils/profile.rkt"
          "../utils/timeline.rkt"
@@ -37,9 +36,8 @@
          (struct-out alt-analysis))
 
 (struct job-result (command test status time timeline profile warnings backend))
-(struct improve-result (pcontext cover start target end))
+(struct improve-result (pcontext start target end))
 (struct alt-analysis (alt errors) #:prefab)
-(struct prepared-test (spec pre batch brfs) #:transparent)
 
 ;; API users can supply their own, weird set of points, in which case
 ;; the first 256 are training points and everything is test points.
@@ -61,34 +59,23 @@
 
 ;; API Functions
 
-(define (prepare-test test)
-  (define specification (prog->spec (or (test-spec test) (test-input test))))
-  (define precondition (prog->spec (test-pre test)))
-  (define-values (batch brfs) (progs->batch (list specification)))
-  (prepared-test specification precondition batch brfs))
-
 ;; The main Herbie function
-(define (get-alternatives test search-joint-pcontext report-joint-pcontext cover)
-  (unless search-joint-pcontext
+(define (get-alternatives test joint-pcontext)
+  (unless joint-pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
-  (define search-precondition
-    (if cover
-        (taylor-zero-precondition (prog->spec (test-pre test)) cover)
-        (prog->spec (test-pre test))))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
   (define domain-bounds
-    (precondition->domain-bounds search-precondition
+    (precondition->domain-bounds (prog->spec (test-pre test))
                                  (list->vector (context-vars (*context*)))
                                  (list->vector (context-var-reprs (*context*)))))
-  (define-values (train-pcontext search-test-pcontext) (partition-pcontext search-joint-pcontext))
-  (define-values (_ report-test-pcontext) (partition-pcontext report-joint-pcontext))
   (define alternatives
     (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext domain-bounds))
 
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
   (define start-alt (make-alt start-expr))
-  (define start-errs (errors start-expr report-test-pcontext (*context*)))
+  (define start-errs (errors start-expr test-pcontext (*context*)))
   (define start-alt-data (alt-analysis start-alt start-errs))
 
   ;; optionally compute error/cost for input expression
@@ -97,27 +84,18 @@
     (for/list ([(expr is-valid?) (in-dict (test-output test))]
                #:when is-valid?)
       (define target-expr (fpcore->prog expr (*context*)))
-      (define target-errs (errors target-expr report-test-pcontext (*context*)))
+      (define target-errs (errors target-expr test-pcontext (*context*)))
       (alt-analysis (make-alt target-expr) target-errs)))
 
   ;; compute error/cost for output expression
-  (define end-data
-    (cond
-      [cover
-       (define search-errs (exprs-errors (map alt-expr alternatives) search-test-pcontext (*context*)))
-       (define sorted-end-exprs (sort-alts alternatives search-errs))
-       (define sorted-alts (wrap-taylor-zero-alts (map car sorted-end-exprs) cover))
-       (define report-errs (exprs-errors (map alt-expr sorted-alts) report-test-pcontext (*context*)))
-       (for/list ([altn (in-list sorted-alts)]
-                  [errs (in-list report-errs)])
-         (alt-analysis altn errs))]
-      [else
-       (define test-errs (exprs-errors (map alt-expr alternatives) report-test-pcontext (*context*)))
-       (define sorted-end-exprs (sort-alts alternatives test-errs))
-       (for/list ([sorted (in-list sorted-end-exprs)])
-         (alt-analysis (car sorted) (cdr sorted)))]))
+  ;; and sort alternatives by accuracy + cost on testing subset
+  (define test-errs (exprs-errors (map alt-expr alternatives) test-pcontext (*context*)))
+  (define sorted-end-exprs (sort-alts alternatives test-errs))
+  (define end-exprs (map (compose alt-expr car) sorted-end-exprs))
+  (define end-errs (map cdr sorted-end-exprs))
+  (define end-data (map alt-analysis alternatives end-errs))
 
-  (improve-result report-test-pcontext cover start-alt-data target-alt-data end-data))
+  (improve-result test-pcontext start-alt-data target-alt-data end-data))
 
 (define (get-cost test)
   (define cost-proc (platform-cost-proc (*active-platform*)))
@@ -159,25 +137,15 @@
 
   (local-error-as-tree (test-input test) (*context*) pcontext))
 
-(define (sample-test-points prepared precondition)
-  (define sample
-    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-points precondition
-                     (prepared-test-batch prepared)
-                     (prepared-test-brfs prepared)
-                     (list (*context*)))))
-  (apply mk-pcontext sample))
-
-(define (get-taylor-zero-cover prepared)
-  (compute-taylor-zero-cover (prepared-test-spec prepared) (prepared-test-pre prepared) (*context*)))
-
-(define (get-search-sample prepared cover)
-  (sample-test-points prepared (taylor-zero-precondition (prepared-test-pre prepared) cover)))
-
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility
-  (define prepared (prepare-test test))
-  (sample-test-points prepared (prepared-test-pre prepared)))
+  (define specification (prog->spec (or (test-spec test) (test-input test))))
+  (define precondition (prog->spec (test-pre test)))
+  (define-values (batch brfs) (progs->batch (list specification)))
+  (define sample
+    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+      (sample-points precondition batch brfs (list (*context*)))))
+  (apply mk-pcontext sample))
 
 ;;
 ;;  Public interface
@@ -222,20 +190,11 @@
         (timeline-event! 'start) ; Prevents the timeline from being empty.
         (define result
           (match command
-            ['alternatives (get-alternatives test pcontext pcontext #f)]
+            ['alternatives (get-alternatives test pcontext)]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['explanations (get-explanations test pcontext)]
-            ['improve
-             (random) ;; Tick the random number generator, for backwards compatibility
-             (define prepared (prepare-test test))
-             (define cover (get-taylor-zero-cover prepared))
-             (define report-pcontext (sample-test-points prepared (prepared-test-pre prepared)))
-             (define search-pcontext
-               (if cover
-                   (get-search-sample prepared cover)
-                   report-pcontext))
-             (get-alternatives test search-pcontext report-pcontext cover)]
+            ['improve (get-alternatives test (get-sample test))]
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (raise-arguments-error 'compute-result "unknown command" "command" command)]))

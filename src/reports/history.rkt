@@ -123,7 +123,7 @@
   (and a b))
 
 (define (make-mask pcontext)
-  (make-vector (pcontext-length pcontext) #t))
+  (make-vector (pcontext-length pcontext) #f))
 
 ;; HTML renderer for derivations
 (define (render-history json ctx)
@@ -177,9 +177,7 @@
     (for/flvector #:length mask-count
                   ([err (in-flvector errs)] [use? (in-vector mask)] #:when use?)
                   err))
-  (if (zero? mask-count)
-      "unsampled"
-      (errors-score masked-errs)))
+  (errors-score (if (zero? mask-count) errs masked-errs)))
 
 (define (render-proof proof-json ctx)
   `(div ((class "proof"))
@@ -207,7 +205,7 @@
                      pcontext
                      ctx
                      errcache
-                     [mask (make-mask pcontext)]
+                     [mask (make-vector (pcontext-length pcontext) #f)]
                      [fpcore-cache (make-hash)])
   (define repr (context-repr ctx))
   (define err
