@@ -321,10 +321,17 @@
     [(cons 1 x) x]
     [(cons -1 x) (batch-add! (global-batch) `(/ 1 ,x))]
     [(cons (? rational? power) x)
-     (match (denominator power)
-       [2 (mterm->expr (cons (numerator power) (batch-add! (global-batch) `(sqrt ,x))))]
-       [3 (mterm->expr (cons (numerator power) (batch-add! (global-batch) `(cbrt ,x))))]
-       [_ (batch-add! (global-batch) `(pow ,x ,power))])]
+     (if (and (> (numerator power) (denominator power))
+              (or (equal? 2 (denominator power)) (equal? 3 (denominator power))))
+         (let ([rem (remainder (numerator power) (denominator power))]
+               [div (floor (/ (numerator power) (denominator power)))])
+           (batch-add! (global-batch)
+                       `(* ,(mterm->expr (cons div x))
+                           ,(mterm->expr (cons (/ rem (denominator power)) x)))))
+         (match (denominator power)
+           [2 (mterm->expr (cons (numerator power) (batch-add! (global-batch) `(sqrt ,x))))]
+           [3 (mterm->expr (cons (numerator power) (batch-add! (global-batch) `(cbrt ,x))))]
+           [_ (batch-add! (global-batch) `(pow ,x ,power))]))]
     [(cons power x) (batch-add! (global-batch) `(pow ,x ,power))]))
 
 (module+ test
@@ -382,6 +389,8 @@
                 (reduce-results '(+ (* (/ 1 x) (/ 1 x)) (+ (/ 1 x) (/ 1 x)))))
   (check-equal? '(+ (* 2 (/ 1 x)) (/ 1 (pow x 2)))
                 (reduce-results '(+ (* (/ 1 x) (/ 1 x)) (+ (/ 1 x) (/ 1 x)))))
-  (check-equal? '(pow (cbrt x) 5) (reduce-results '(* x (cbrt x) (cbrt x))))
-  (check-equal? '(/ 1 (pow (cbrt x) 5)) (reduce-results '(/ 1 (* x (cbrt x) (cbrt x)))))
+  (check-equal? '(* (cbrt x) (* (* (cbrt x) (cbrt x)) (* (cbrt x) (cbrt x))))
+                (reduce-results '(* x (cbrt x) (cbrt x))))
+  (check-equal? '(/ 1 (* (cbrt x) (* (* (cbrt x) (cbrt x)) (* (cbrt x) (cbrt x)))))
+                (reduce-results '(/ 1 (* x (cbrt x) (cbrt x)))))
   (check-equal? '(/ 1 (* (cbrt 2) (cbrt a))) (reduce-results '(pow (+ a a) -1/3))))
