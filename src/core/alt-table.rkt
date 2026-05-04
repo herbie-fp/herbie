@@ -1,6 +1,7 @@
 #lang racket
 
 (require racket/hash)
+(require (for-syntax racket/string))
 (require math/flonum)
 (require "../core/alternative.rkt"
          "../utils/common.rkt"
@@ -23,6 +24,20 @@
           (atab-completed? (alt-table? . -> . boolean?))
           (atab-min-errors (alt-table? . -> . flvector?))
           (alt-batch-costs (batch? context? . -> . (batchref? . -> . real?)))))
+
+(define-for-syntax (racket-version>=? major minor)
+  (define parts (map string->number (string-split (version) ".")))
+  (define current-major (car parts))
+  (define current-minor (cadr parts))
+  (or (> current-major major) (and (= current-major major) (>= current-minor minor))))
+
+(define-syntax (define-bitwise-first-bit-set stx)
+  #`(define bitwise-first-bit-set
+      #,(if (racket-version>=? 8 16)
+            #'(dynamic-require 'racket/base 'bitwise-first-bit-set)
+            #'(λ (mask) (sub1 (integer-length (bitwise-and mask (- mask))))))))
+
+(define-bitwise-first-bit-set)
 
 ;; Public API
 
