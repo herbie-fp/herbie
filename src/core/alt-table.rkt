@@ -29,38 +29,51 @@
 (struct alt-table (point-idx->alts alt->point-idxs alt->done? alt->cost pcontext all) #:prefab)
 
 (define (alt-batch-costs batch ctx)
-  (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
   (define reprs (batch-reprs batch ctx))
-  (define node-costs
-    (batch-recurse batch
-                   (λ (brf _)
-                     (define node (deref brf))
-                     (define repr (reprs brf))
-                     (match node
-                       [(? literal?) ((node-cost-proc node repr))]
-                       [(? symbol?) ((node-cost-proc node repr))]
-                       [(? number?) 0] ; specs
-                       [(approx _ _) 0]
-                       [(list (? (negate impl-exists?) _) args ...) 0] ; specs
-                       [(list impl args ...)
-                        (define cost-proc (node-cost-proc node repr))
-                        (apply cost-proc (make-list (length args) 0))]))))
-  (define reachable
-    (batch-recurse batch
-                   (λ (brf recurse)
-                     (define node (deref brf))
-                     (define idx (batchref-idx brf))
-                     (match node
-                       [(? number?) (set)] ; specs
-                       [(approx _ impl) (recurse impl)]
-                       [(list (? (negate impl-exists?) _) args ...) (set)] ; specs
-                       [(list impl args ...)
-                        (for/fold ([reachable (set idx)]) ([arg (in-list args)])
-                          (set-union reachable (recurse arg)))]
-                       [_ (set idx)]))))
-  (λ (brf)
-    (for/sum ([idx (in-list (sort (set->list (reachable brf)) <))])
-             (node-costs (batchref batch idx)))))
+  (define active-platform (*active-platform*))
+  (define (node-cost brf)
+    (match (deref brf)
+      [(? literal?) (platform-repr-cost active-platform (reprs brf))]
+      [(? symbol?) 0]
+      [(? number?) 0] ; specs
+      [(approx _ _) 0]
+      [(list (? (negate impl-exists?) _) args ...) 0] ; specs
+      [(list impl args ...) (impl-info impl 'cost)]))
+  (define (sum-mask mask)
+    (let loop ([mask mask]
+               [cost 0])
+      (cond
+        [(zero? mask) cost]
+        [else
+         (define idx (bitwise-first-bit-set mask))
+         (loop (bitwise-and mask (sub1 mask)) (+ cost (node-cost (batchref batch idx))))])))
+  (define (node-reachable-mask brf recurse)
+    (define node (deref brf))
+    (define idx (batchref-idx brf))
+    (define self-mask (arithmetic-shift 1 idx))
+    (match node
+      [(? number?) 0] ; specs
+      [(approx _ impl) (recurse impl)]
+      [(list (? (negate impl-exists?) _) args ...) 0] ; specs
+      [(list impl args ...)
+       (for/fold ([mask self-mask]) ([arg (in-list args)])
+         (bitwise-ior mask (recurse arg)))]
+      [_ self-mask]))
+  (define reachable-mask (batch-recurse batch node-reachable-mask))
+  (define (dag-cost brf recurse)
+    (define node (deref brf))
+    (define idx (batchref-idx brf))
+    (match node
+      [(? number?) 0] ; specs
+      [(approx _ impl) (recurse impl)]
+      [(list (? (negate impl-exists?) _) args ...) 0] ; specs
+      [(list impl) (node-cost brf)]
+      [(list impl arg args ...)
+       (define base (argmax batchref-idx (cons arg args)))
+       (+ (recurse base)
+          (sum-mask (bitwise-and (reachable-mask brf) (bitwise-not (reachable-mask base)))))]
+      [_ (node-cost brf)]))
+  (batch-recurse batch dag-cost))
 
 (define (make-alt-table batch pcontext initial-alt ctx)
   (define cost ((alt-batch-costs batch ctx) (alt-expr initial-alt)))
