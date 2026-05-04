@@ -9,7 +9,6 @@
 
 (provide compile-progs
          compile-batch
-         compile-batch!
          compile-prog)
 
 ;; Interpreter taking a narrow IR
@@ -30,20 +29,6 @@
                 ([root (in-vector rootvec)])
       (vector-ref vregs root)))
   compiled-prog)
-
-(define (make-progs-interpreter! tvec rootvec args vregs)
-  (define rootlen (vector-length rootvec))
-  (define vregs-len (vector-length tvec))
-  (define (compiled-prog! args* out)
-    (vector-copy! args 0 args*)
-    (for ([thunk (in-vector tvec)]
-          [n (in-range vregs-len)])
-      (vector-set! vregs n (thunk)))
-    (for ([root (in-vector rootvec)]
-          [i (in-range rootlen)])
-      (vector-set! out i (vector-ref vregs root)))
-    out)
-  compiled-prog!)
 
 (define (make-thunk op argidxs regs)
   (match argidxs
@@ -102,18 +87,6 @@
   (timeline-push! 'compiler (batch-tree-size batch* brfs*) (batch-length batch*))
 
   (make-progs-interpreter thunks rootvec args vregs))
-
-(define (compile-batch! batch brfs ctx)
-  (define vars (context-vars ctx))
-  (define args (make-vector (length vars)))
-  (define vregs (make-vector (batch-length batch)))
-  (define-values (batch* brfs*) (batch-for-compiler batch brfs vars args vregs))
-  (define thunks (batch-get-nodes batch*))
-  (define rootvec (list->vector (map batchref-idx brfs*)))
-
-  (timeline-push! 'compiler (batch-tree-size batch* brfs*) (batch-length batch*))
-
-  (make-progs-interpreter! thunks rootvec args vregs))
 
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)

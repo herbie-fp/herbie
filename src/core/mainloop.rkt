@@ -44,7 +44,7 @@
 ;; - the loop: choose some alts, localize, run the patch table, and finalize
 ;; - Final steps: regimes, derivations, and remove preprocessing
 
-(define (run-improve! initial specification context pcontext [_domain-bounds (hash)])
+(define (run-improve! initial specification context pcontext)
   (timeline-event! 'preprocess)
   (define preprocessing
     (if (flag-set? 'setup 'preprocess)

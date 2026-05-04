@@ -65,12 +65,7 @@
     (error 'get-alternatives "cannnot run without a pcontext"))
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
-  (define domain-bounds
-    (precondition->domain-bounds (prog->spec (test-pre test))
-                                 (list->vector (context-vars (*context*)))
-                                 (list->vector (context-var-reprs (*context*)))))
-  (define alternatives
-    (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext domain-bounds))
+  (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
 
   ;; compute error/cost for input expression
   (define start-expr (test-input test))

@@ -17,22 +17,20 @@
 (provide chebyshev-alts)
 
 (struct error-cluster (start end selected) #:transparent)
-(struct chebyshev-interval (source lo hi) #:transparent)
+(struct chebyshev-interval (lo hi) #:transparent)
 
 (define (finite-real? x)
   (and (real? x) (not (nan? x)) (not (infinite? x))))
 
-(define (make-chebyshev-interval source lo hi)
+(define (make-chebyshev-interval lo hi)
   (and (finite-real? lo)
        (finite-real? hi)
        (< lo hi)
        (< (- hi lo) (*chebyshev-max-width*))
-       (chebyshev-interval source lo hi)))
+       (chebyshev-interval lo hi)))
 
 (define (chebyshev-interval-key interval)
-  (list (chebyshev-interval-source interval)
-        (chebyshev-interval-lo interval)
-        (chebyshev-interval-hi interval)))
+  (cons (chebyshev-interval-lo interval) (chebyshev-interval-hi interval)))
 
 (define (polynomial-expr? expr var)
   (match expr
@@ -123,7 +121,7 @@
                                  (+ start* (sub1 (floor (/ (* (add1 chunk) total-points) chunks)))))
                                (define lo (car (list-ref point-values lo-pos)))
                                (define hi (car (list-ref point-values hi-pos)))])
-                (and (< lo-pos hi-pos) (make-chebyshev-interval 'error lo hi))))
+                (and (< lo-pos hi-pos) (make-chebyshev-interval lo hi))))
       #:key chebyshev-interval-key)]))
 
 (define (chebyshev-intervals point-values errs)
@@ -179,7 +177,6 @@
      (define copier (batch-copy-only! spec-batch global-batch))
      (define exprs-fn (batch-exprs spec-batch))
      (define degree-limit (*chebyshev-order-limit*))
-     ;; TODO: hacky to account for 0 coefficients
      (define N (* 2 degree-limit))
      (define source-errors
        (parameterize ([*timeline-disabled* #t])
@@ -194,8 +191,7 @@
 
              ;; Must be univariate, non-polynomial, non-array
              (define filtered
-               (for/list ([impl-brf (in-list brfs)]
-                          [spec-brf (in-list spec-brfs)]
+               (for/list ([spec-brf (in-list spec-brfs)]
                           [repr (in-list reprs)]
                           [altn (in-list altns)]
                           #:when (not (array-representation? repr))
@@ -205,19 +201,19 @@
                           #:do [(define spec-expr (exprs-fn reduced-spec-brf))]
                           #:when (pair? spec-expr)
                           #:when (not (polynomial-expr? spec-expr var)))
-                 (list impl-brf spec-brf reduced-spec-brf repr altn spec-expr)))
+                 (list spec-brf reduced-spec-brf repr altn)))
 
              (define seen-specs (make-hash))
              (define qualifying
                (for/list ([q (in-list filtered)]
-                          #:do [(define spec-brf (second q))]
+                          #:do [(define spec-brf (first q))]
                           #:unless (hash-has-key? seen-specs spec-brf))
                  (hash-set! seen-specs spec-brf q)
                  q))
 
              (when (pair? qualifying)
-               (define qualifying-spec-brfs (map third qualifying))
-               (define qualifying-reprs (list->vector (map fourth qualifying)))
+               (define qualifying-spec-brfs (map second qualifying))
+               (define qualifying-reprs (list->vector (map third qualifying)))
                (define n-exprs (length qualifying))
                (define evaluators
                  (for/vector #:length n-exprs
@@ -275,7 +271,7 @@
                    ;; Generate polynomial alts per expression
                    (for ([q (in-list qualifying)]
                          [vals (in-vector vals-matrix)])
-                     (match-define (list _ spec-brf _ repr altn _) q)
+                     (match-define (list spec-brf _ repr altn) q)
                      (define valid?
                        (for/and ([v (in-vector vals)])
                          (and (real? v) (rational? v))))
