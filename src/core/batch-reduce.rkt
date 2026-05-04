@@ -318,8 +318,15 @@
 
 (define (mterm->expr term)
   (match term
-    [(cons 1 x) x]
-    [(cons -1 x) (batch-add! (global-batch) `(/ 1 ,x))]
+    [(cons (? exact-integer? power) x)
+     (cond
+       [(zero? power) (batch-push! (global-batch) 1)]
+       [(= power 1) x]
+       [(negative? power) (batch-add! (global-batch) `(/ 1 ,(mterm->expr (cons (- power) x))))]
+       [(even? power)
+        (define factor (mterm->expr (cons (/ power 2) x)))
+        (batch-add! (global-batch) `(* ,factor ,factor))]
+       [else (batch-add! (global-batch) `(* ,x ,(mterm->expr (cons (sub1 power) x))))])]
     [(cons (? rational? power) x)
      (if (and (> (numerator power) (denominator power))
               (or (equal? 2 (denominator power)) (equal? 3 (denominator power))))
@@ -380,14 +387,15 @@
   (define reduce (batch-reduce batch))
   (define (reduce-results expr)
     ((batch-exprs batch) (reduce (batch-add! batch expr))))
-  (check-equal? '(- (pow (+ 1 x) 2) 1) (reduce-results '(- (* (+ x 1) (+ x 1)) 1)))
+  (check-equal? '(- (* (+ 1 x) (+ 1 x)) 1) (reduce-results '(- (* (+ x 1) (+ x 1)) 1)))
   (check-equal? '(neg (* 2 (/ 1 x))) (reduce-results '(+ (/ 1 (neg x)) (/ 1 (neg x)))))
-  (check-equal? '(- (pow (- 1 (/ 1 x)) 2) 1)
+  (check-equal? '(- (* (- 1 (/ 1 x)) (- 1 (/ 1 x))) 1)
                 (reduce-results '(- (* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1)) 1)))
-  (check-equal? '(pow (- 1 (/ 1 x)) 2) (reduce-results '(* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1))))
-  (check-equal? '(+ (* 2 (/ 1 x)) (/ 1 (pow x 2)))
+  (check-equal? '(* (- 1 (/ 1 x)) (- 1 (/ 1 x)))
+                (reduce-results '(* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1))))
+  (check-equal? '(+ (* 2 (/ 1 x)) (/ 1 (* x x)))
                 (reduce-results '(+ (* (/ 1 x) (/ 1 x)) (+ (/ 1 x) (/ 1 x)))))
-  (check-equal? '(+ (* 2 (/ 1 x)) (/ 1 (pow x 2)))
+  (check-equal? '(+ (* 2 (/ 1 x)) (/ 1 (* x x)))
                 (reduce-results '(+ (* (/ 1 x) (/ 1 x)) (+ (/ 1 x) (/ 1 x)))))
   (check-equal? '(* (cbrt x) (* (* (cbrt x) (cbrt x)) (* (cbrt x) (cbrt x))))
                 (reduce-results '(* x (cbrt x) (cbrt x))))
