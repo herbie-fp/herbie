@@ -95,12 +95,7 @@
          (cond
            [(< gap max-gap) (values clusters #t start last-selected selected (add1 gap))]
            [else
-            (values (cons (error-cluster start last-selected selected) clusters)
-                    #f
-                    #f
-                    #f
-                    0
-                    0)])])))
+            (values (cons (error-cluster start last-selected selected) clusters) #f #f #f 0 0)])])))
   (define clusters*
     (if current
         (cons (error-cluster start last-selected selected) clusters)
