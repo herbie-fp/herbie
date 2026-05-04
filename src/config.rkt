@@ -130,7 +130,7 @@
 
 ;; How long of a Taylor series to generate; too long and we time out
 (define *taylor-order-limit* (make-parameter 2))
-(define *chebyshev-order-limit* (make-parameter 2))
+(define *chebyshev-order-limit* (make-parameter 6))
 (define *chebyshev-error-fraction* (make-parameter 0.25))
 (define *chebyshev-min-points* (make-parameter 4))
 (define *chebyshev-target-points* (make-parameter 16))
