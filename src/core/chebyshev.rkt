@@ -300,8 +300,5 @@
                            (define poly-brf (build-clenshaw-poly! global-batch coeffs k var m r))
                            (define gen (approx spec-brf (hole (representation-name repr) poly-brf)))
                            (define brf (batch-add! global-batch gen))
-                           (define transform
-                             (string->symbol (format "chebyshev-~a"
-                                                     (chebyshev-interval-source interval))))
-                           (sow (alt brf `(taylor ,transform ,var ,order) (list altn)))
+                           (sow (alt brf `(taylor cheb ,var ,order) (list altn)))
                            (set! order (add1 order)))))))))))]))
