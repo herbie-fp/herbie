@@ -1,6 +1,5 @@
 #lang racket
 
-(require racket/hash)
 (require math/flonum)
 (require "../core/alternative.rkt"
          "../utils/common.rkt"
@@ -28,22 +27,51 @@
 
 (struct alt-table (point-idx->alts alt->point-idxs alt->done? alt->cost pcontext all) #:prefab)
 
+(define (sorted-index-union xs ys)
+  (match* (xs ys)
+    [('() _) ys]
+    [(_ '()) xs]
+    [((cons x xs*) (cons y ys*))
+     (cond
+       [(> x y) (cons x (sorted-index-union xs* ys))]
+       [(< x y) (cons y (sorted-index-union xs ys*))]
+       [else (cons x (sorted-index-union xs* ys*))])]))
+
 (define (alt-batch-costs batch ctx)
-  (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
   (define reprs (batch-reprs batch ctx))
-  (batch-recurse batch
-                 (λ (brf recurse)
-                   (define node (deref brf))
-                   (define repr (reprs brf))
-                   (match node
-                     [(? literal?) ((node-cost-proc node repr))]
-                     [(? symbol?) ((node-cost-proc node repr))]
-                     [(? number?) 0] ; specs
-                     [(approx _ impl) (recurse impl)]
-                     [(list (? (negate impl-exists?) impl) args ...) 0] ; specs
-                     [(list impl args ...)
-                      (define cost-proc (node-cost-proc node repr))
-                      (apply cost-proc (map recurse args))]))))
+  (define active-platform (*active-platform*))
+  (define (node-cost brf)
+    (match (deref brf)
+      [(? literal?) (platform-repr-cost active-platform (reprs brf))]
+      [(? symbol?) 0]
+      [(? number?) 0] ; specs
+      [(approx _ _) 0]
+      [(list (? (negate impl-exists?) _) args ...) 0] ; specs
+      [(list impl args ...) (impl-info impl 'cost)]))
+  (define (sum-set nodes)
+    (for/sum ([idx (in-list nodes)]) (node-cost (batchref batch idx))))
+  (define (node-reachable-mask brf recurse)
+    (define node (deref brf))
+    (define idx (batchref-idx brf))
+    (define self-set (list idx))
+    (match node
+      [(? number?) '()] ; specs
+      [(approx _ impl) (recurse impl)]
+      [(list (? (negate impl-exists?) _) args ...) '()] ; specs
+      [(list impl args ...)
+       (for/fold ([nodes self-set]) ([arg (in-list args)])
+         (sorted-index-union nodes (recurse arg)))]
+      [_ self-set]))
+  (define reachable-mask (batch-recurse batch node-reachable-mask))
+  (define (dag-cost brf recurse)
+    (define node (deref brf))
+    (match node
+      [(? number?) 0] ; specs
+      [(approx _ impl) (recurse impl)]
+      [(list (? (negate impl-exists?) _) args ...) 0] ; specs
+      [(list impl args ...) (sum-set (reachable-mask brf))]
+      [_ (node-cost brf)]))
+  (batch-recurse batch dag-cost))
 
 (define (make-alt-table batch pcontext initial-alt ctx)
   (define cost ((alt-batch-costs batch ctx) (alt-expr initial-alt)))
