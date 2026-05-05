@@ -411,8 +411,6 @@
                  (define output (expr->egg-pattern (rule-output ru)))
                  (make-ffi-rule (rule-name ru) input output)))))
 
-(define noop-rule (rule 'noop-self 'x 'x '(noop)))
-
 ;; Rules from impl to spec (fixed for a particular platform)
 (define/reset *lifting-rules* (make-hash))
 
@@ -1118,27 +1116,26 @@
 (define (egraph-analyze-rewrite-impact batch brfs ctx iter)
   (define egg-graph (egraph_create))
   (egraph-add-exprs egg-graph batch brfs ctx)
+  (define-values (egg-graph0 _0) (egraph-run-rules egg-graph '()))
   (define lifting-rules (convert-rules (platform-lifting-rules)))
   (define-values (egg-graph1 _1)
-    (egraph-run-rules egg-graph lifting-rules #:iter-limit 1 #:scheduler 'simple))
+    (egraph-run-rules egg-graph0 lifting-rules #:iter-limit 1 #:scheduler 'simple))
   (define-values (egg-graph2 _2)
-    (egraph-run-rules egg-graph1 (convert-rules (list noop-rule)) #:iter-limit 1 #:scheduler 'simple))
-  (define-values (egg-graph3 _3)
     (if (> iter 0)
-        (egraph-run-rules egg-graph2 (convert-rules (*rules*)) #:iter-limit iter)
-        (values egg-graph2 _2)))
-  (define-values (egg-graph4 iter-data4) (egraph-run-rules egg-graph3 '()))
-  (define initial-size (iteration-data-num-nodes (last iter-data4)))
+        (egraph-run-rules egg-graph1 (convert-rules (*rules*)) #:iter-limit iter)
+        (values egg-graph1 _1)))
+  (define-values (egg-graph3 iter-data3) (egraph-run-rules egg-graph2 '()))
+  (define initial-size (iteration-data-num-nodes (last iter-data3)))
   (define results
     (for/list ([rule (in-list (*rules*))])
       (define-values (egg-graph5 iter-data5)
-        (egraph-run-rules egg-graph4 (convert-rules (list rule)) #:iter-limit 2))
-      (define size (iteration-data-num-nodes (last (if (empty? iter-data5) iter-data4 iter-data5))))
+        (egraph-run-rules egg-graph3 (convert-rules (list rule)) #:iter-limit 2))
+      (define size (iteration-data-num-nodes (last (if (empty? iter-data5) iter-data3 iter-data5))))
       (cons rule (- size initial-size))))
   (define final-size
     (let-values ([(egg-graph6 iter-data6)
-                  (egraph-run-rules egg-graph4 (convert-rules (*rules*)) #:iter-limit 2)])
-      (iteration-data-num-nodes (last (if (empty? iter-data6) iter-data4 iter-data6)))))
+                  (egraph-run-rules egg-graph3 (convert-rules (*rules*)) #:iter-limit 2)])
+      (iteration-data-num-nodes (last (if (empty? iter-data6) iter-data3 iter-data6)))))
   (values initial-size final-size results))
 
 (define (egraph-run-schedule batch brfs schedule ctx)
@@ -1147,6 +1144,7 @@
 
   ; insert expressions into the e-graph
   (define root-ids (egraph-add-exprs egg-graph batch brfs ctx))
+  (define-values (egg-graph0 rebuild-data) (egraph-run-rules egg-graph '()))
 
   (define (rewrite-node-limit initial-size)
     (if initial-size
@@ -1155,16 +1153,13 @@
 
   ; run the schedule
   (define-values (egg-graph* _rewrite-initial-size)
-    (for/fold ([egg-graph egg-graph]
-               [rewrite-initial-size #f])
+    (for/fold ([egg-graph egg-graph0]
+               [rewrite-initial-size (iteration-data-num-nodes (last rebuild-data))])
               ([step (in-list schedule)])
       (define-values (egg-graph* iteration-data)
         (match step
           ['lift
            (define rules (convert-rules (platform-lifting-rules)))
-           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
-          ['noop
-           (define rules (convert-rules (list noop-rule)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['lower
            (define rules (convert-rules (platform-lowering-rules)))
@@ -1218,7 +1213,6 @@
 ;;
 ;; The schedule is a list of step symbols:
 ;;  - `lift`: run lifting rules for 1 iteration with simple scheduler
-;;  - `noop`: run a single `x -> x` rule iteration with simple scheduler
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
 ;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
 ;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
@@ -1227,7 +1221,7 @@
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
   (for ([step (in-list schedule)])
-    (unless (memq step '(lift noop lower unsound rewrite))
+    (unless (memq step '(lift lower unsound rewrite))
       (oops! "unknown schedule step `~a`" step)))
 
   (define-values (root-ids egg-graph) (egraph-run-schedule batch brfs schedule ctx))
@@ -1237,12 +1231,12 @@
 
 (module+ test
   (require "../syntax/load-platform.rkt")
-  (test-case "noop canonicalizes exact division literals"
+  (test-case "initial rebuild canonicalizes exact division literals"
     (activate-platform! "c")
-    (define noop-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
+    (define rebuild-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
     (define expr '(+ (/ 1 2) (* x y)))
     (define-values (batch brfs) (progs->batch (list expr)))
-    (define runner (make-egraph batch brfs (list (context-repr noop-ctx)) '(noop) noop-ctx))
+    (define runner (make-egraph batch brfs (list (context-repr rebuild-ctx)) '() rebuild-ctx))
     (define egg-graph (egg-runner-egg-graph runner))
     (define eclasses (u32vector->list (egraph_get_eclasses egg-graph)))
 
@@ -1337,7 +1331,7 @@
 (define (deduplicate-exprs exprs ctxs)
   (define ctx (contexts-union ctxs))
   (define-values (batch brfs) (progs->batch exprs))
-  (define runner (make-egraph batch brfs (map context-repr ctxs) '(lift noop rewrite lower) ctx))
+  (define runner (make-egraph batch brfs (map context-repr ctxs) '(lift rewrite lower) ctx))
   (define batchrefss (egraph-best runner batch))
   (define batch-pull (batch-exprs batch))
   (for/list ([orig-expr (in-list exprs)]
