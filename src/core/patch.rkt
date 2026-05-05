@@ -179,7 +179,10 @@
   (timeline-event! 'rewrite)
 
   ; egg schedule (4-phases for mathematical rewrites, sound-X removal, and implementation selection)
-  (define schedule '(rewrite unsound lower))
+  (define schedule
+    (if (flag-set? 'generate 'egglog)
+        '(rewrite unsound lower)
+        '(noop rewrite unsound lower)))
 
   (define brfs (map alt-expr altns))
   (define spec-brfs (batch-to-spec! global-batch brfs))

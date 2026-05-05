@@ -1148,9 +1148,16 @@
   ; insert expressions into the e-graph
   (define root-ids (egraph-add-exprs egg-graph batch brfs ctx))
 
+  (define (rewrite-node-limit initial-size)
+    (if initial-size
+        (max 0 (- (*node-limit*) initial-size))
+        (*node-limit*)))
+
   ; run the schedule
-  (define egg-graph*
-    (for/fold ([egg-graph egg-graph]) ([step (in-list schedule)])
+  (define-values (egg-graph* _rewrite-initial-size)
+    (for/fold ([egg-graph egg-graph]
+               [rewrite-initial-size #f])
+              ([step (in-list schedule)])
       (define-values (egg-graph* iteration-data)
         (match step
           ['lift
@@ -1167,7 +1174,9 @@
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['rewrite
            (define rules (convert-rules (*rules*)))
-           (egraph-run-rules egg-graph rules #:node-limit (*node-limit*))]))
+           (egraph-run-rules egg-graph
+                             rules
+                             #:node-limit (rewrite-node-limit rewrite-initial-size))]))
 
       ; get cost statistics
       (for ([iter (in-list iteration-data)]
@@ -1176,7 +1185,11 @@
         (define cost (for/sum ([id (in-list root-ids)]) (egraph_get_cost egg-graph* id i)))
         (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
 
-      egg-graph*))
+      (define rewrite-initial-size*
+        (if (empty? iteration-data)
+            rewrite-initial-size
+            (iteration-data-num-nodes (last iteration-data))))
+      (values egg-graph* rewrite-initial-size*)))
 
   ; root eclasses may have changed
   (define root-ids* (map (lambda (id) (egraph_find egg-graph* id)) root-ids))
