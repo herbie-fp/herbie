@@ -20,7 +20,6 @@
          batch-reachable/impl ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-exprs
          batch-recurse
-         batch-get-nodes
          batch->jsexpr
          jsexpr->batch-exprs
 
@@ -39,9 +38,6 @@
 
 (define (in-batch batch [start 0] [end #f] [step 1])
   (in-dvector (batch-nodes batch) start end step))
-
-(define (batch-get-nodes b)
-  (dvector->vector (batch-nodes b)))
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
