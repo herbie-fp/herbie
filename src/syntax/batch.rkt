@@ -14,14 +14,12 @@
          batch-add! ; Batch -> (or Expr Batchref Expr<Batchref>) -> Batchref
          batch-copy-only!
          batch-length ; Batch -> Integer
-         batch-tree-size ; Batch -> List<Batchref> -> Integer
          batch-free-vars ; Batch -> (Batchref -> Set<Var>)
          in-batch ; Batch -> Sequence<Node>
          batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-reachable/impl ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-exprs
          batch-recurse
-         batch-get-nodes
          batch->jsexpr
          jsexpr->batch-exprs
 
@@ -40,9 +38,6 @@
 
 (define (in-batch batch [start 0] [end #f] [step 1])
   (in-dvector (batch-nodes batch) start end step))
-
-(define (batch-get-nodes b)
-  (dvector->vector (batch-nodes b)))
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
@@ -160,14 +155,6 @@
                       (define arg-free-vars (mutable-set))
                       (expr-recurse node (lambda (i) (set-union! arg-free-vars (recurse i))))
                       arg-free-vars]))))
-
-(define (batch-tree-size batch brfs)
-  (define counts
-    (batch-recurse batch
-                   (lambda (brf recurse)
-                     (define args (reap [sow] (expr-recurse (deref brf) sow)))
-                     (apply + 1 (map recurse args)))))
-  (apply + (map counts brfs)))
 
 ;; Converts a batch + roots to a JSON-compatible structure
 ;; Returns: (hash 'nodes [...] 'roots [idx1 idx2 ...])

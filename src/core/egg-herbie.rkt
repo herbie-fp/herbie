@@ -1116,10 +1116,11 @@
 (define (egraph-analyze-rewrite-impact batch brfs ctx iter)
   (define egg-graph (egraph_create))
   (egraph-add-exprs egg-graph batch brfs ctx)
+  (define-values (egg-graph0 _0) (egraph-run-rules egg-graph '()))
   (define lifting-rules (convert-rules (platform-lifting-rules)))
   (define-values (egg-graph1 _1)
-    (egraph-run-rules egg-graph lifting-rules #:iter-limit 1 #:scheduler 'simple))
-  (define-values (egg-graph2 iter-data2)
+    (egraph-run-rules egg-graph0 lifting-rules #:iter-limit 1 #:scheduler 'simple))
+  (define-values (egg-graph2 _2)
     (if (> iter 0)
         (egraph-run-rules egg-graph1 (convert-rules (*rules*)) #:iter-limit iter)
         (values egg-graph1 _1)))
@@ -1143,10 +1144,18 @@
 
   ; insert expressions into the e-graph
   (define root-ids (egraph-add-exprs egg-graph batch brfs ctx))
+  (define-values (egg-graph0 rebuild-data) (egraph-run-rules egg-graph '()))
+
+  (define (rewrite-node-limit initial-size)
+    (if initial-size
+        (max 0 (- (*node-limit*) initial-size))
+        (*node-limit*)))
 
   ; run the schedule
-  (define egg-graph*
-    (for/fold ([egg-graph egg-graph]) ([step (in-list schedule)])
+  (define-values (egg-graph* _rewrite-initial-size)
+    (for/fold ([egg-graph egg-graph0]
+               [rewrite-initial-size (iteration-data-num-nodes (last rebuild-data))])
+              ([step (in-list schedule)])
       (define-values (egg-graph* iteration-data)
         (match step
           ['lift
@@ -1160,7 +1169,9 @@
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['rewrite
            (define rules (convert-rules (*rules*)))
-           (egraph-run-rules egg-graph rules #:node-limit (*node-limit*))]))
+           (egraph-run-rules egg-graph
+                             rules
+                             #:node-limit (rewrite-node-limit rewrite-initial-size))]))
 
       ; get cost statistics
       (for ([iter (in-list iteration-data)]
@@ -1169,7 +1180,11 @@
         (define cost (for/sum ([id (in-list root-ids)]) (egraph_get_cost egg-graph* id i)))
         (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
 
-      egg-graph*))
+      (define rewrite-initial-size*
+        (if (empty? iteration-data)
+            rewrite-initial-size
+            (iteration-data-num-nodes (last iteration-data))))
+      (values egg-graph* rewrite-initial-size*)))
 
   ; root eclasses may have changed
   (define root-ids* (map (lambda (id) (egraph_find egg-graph* id)) root-ids))
@@ -1213,6 +1228,23 @@
 
   ; make the runner
   (egg-runner batch reprs schedule ctx root-ids egg-graph))
+
+(module+ test
+  (require "../syntax/load-platform.rkt")
+  (test-case "initial rebuild canonicalizes exact division literals"
+    (activate-platform! "c")
+    (define rebuild-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
+    (define expr '(+ (/ 1 2) (* x y)))
+    (define-values (batch brfs) (progs->batch (list expr)))
+    (define runner (make-egraph batch brfs (list (context-repr rebuild-ctx)) '() rebuild-ctx))
+    (define egg-graph (egg-runner-egg-graph runner))
+    (define eclasses (u32vector->list (egraph_get_eclasses egg-graph)))
+
+    (check-false (for/or ([id (in-list eclasses)])
+                   (for/or ([enode (in-vector (egraph-get-eclass egg-graph id))])
+                     (match enode
+                       [(list '/ _ ...) #t]
+                       [_ #f]))))))
 
 (define (regraph-dump regraph root-ids reprs)
   (define dump-dir "dump-egg")
