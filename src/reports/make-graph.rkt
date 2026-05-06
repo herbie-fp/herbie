@@ -1,15 +1,9 @@
 #lang racket
 
-(require (only-in xml write-xexpr xexpr?)
-         (only-in fpbench core->tex *expr-cse-able?* [core-common-subexpr-elim core-cse]))
 (require math/flonum)
 
-(require "../core/alternative.rkt"
-         "../utils/common.rkt"
-         "../syntax/float.rkt"
+(require "../utils/common.rkt"
          "../syntax/read.rkt"
-         "../syntax/types.rkt"
-         "../core/bsearch.rkt"
          "../core/points.rkt"
          "common.rkt"
          "history.rkt")
@@ -29,7 +23,7 @@
 
 (define (make-graph result-hash output? profile?)
   (define backend (hash-ref result-hash 'backend))
-  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
+  (define test (load-test (open-input-string (hash-ref result-hash 'test))))
   (define pre (test-pre test))
   (define time (hash-ref result-hash 'time))
   (define warnings (hash-ref result-hash 'warnings))

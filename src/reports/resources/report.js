@@ -294,7 +294,7 @@ const CostAccuracy = new Component('#cost-accuracy', {
             let target = "alternative" + (i + 1);
             if (!document.getElementById(target)) return;
             if (!last || pt[1] > last[1]) {
-                if (last) line.push([pt[0], last[1]]);
+                if (last) line.push([last[0], pt[1]]);
                 line.push([pt[0], pt[1]]);
                 last = pt;
             }

@@ -110,7 +110,7 @@
             [(alt prog 'add-preprocessing `(,prev)) (loop prev)]
             [(alt prog `(evaluate ,start-expr) `(,prev)) (loop prev)]
             [(alt _ `(regimes ,splitpoints) prevs) (for-each loop prevs)]
-            [(alt prog `(taylor ,start-expr ,pt ,var) `(,prev)) (loop prev)]
+            [(alt prog `(taylor ,start-expr ,pt ,var ,order) `(,prev)) (loop prev)]
             [(alt prog `(rr ,start-expr ,end-expr ,input ,proof) `(,prev))
              (loop prev)
              (when proof
@@ -150,9 +150,10 @@
        (li ((class "event")) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
     ["taylor"
-     (define-values (prev pt var) (apply values (map (curry hash-ref json) '(prev pt var))))
+     (define-values (prev pt var order)
+       (apply values (map (curry hash-ref json) '(prev pt var order))))
      `(,@(render-history prev ctx)
-       (li (p "Taylor expanded in " ,var " around " ,pt)
+       (li (p "Taylor expanded in " ,var " around " ,pt " to order " ,(~a order))
            (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]
 
     ["evaluate"
@@ -237,12 +238,13 @@
                         (define mask* (vector-map and-fn mask new-mask))
                         (render-json entry pcontext ctx errcache mask* fpcore-cache))))]
 
-    [(alt prog `(taylor ,start-expr ,pt ,var) `(,prev))
+    [(alt prog `(taylor ,start-expr ,pt ,var ,order) `(,prev))
      `#hash((program . ,(program->json-string prog ctx fpcore-cache))
             (type . "taylor")
             (prev . ,(render-json prev pcontext ctx errcache mask fpcore-cache))
             (pt . ,(~a pt))
             (var . ,(~a var))
+            (order . ,order)
             (error . ,err))]
 
     [(alt prog `(evaluate ,start-expr) `(,prev))

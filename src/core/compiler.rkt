@@ -5,6 +5,8 @@
          "../syntax/platform.rkt"
          "../syntax/float.rkt"
          "../utils/timeline.rkt"
+         "../utils/common.rkt"
+         "../utils/dvector.rkt"
          "../syntax/batch.rkt")
 
 (provide compile-progs
@@ -37,7 +39,6 @@
     [(list a b) (λ () (op (vector-ref regs a) (vector-ref regs b)))]
     [(list a b c) (λ () (op (vector-ref regs a) (vector-ref regs b) (vector-ref regs c)))]
     [(list args ...)
-     (define argc (length args))
      (define argv (list->vector args))
      (λ ()
        (apply op
@@ -48,29 +49,30 @@
 ;;   1) copies only nodes associated with provided brfs - so, gets rid of useless nodes
 ;;   2) rewrites these nodes as fl-instructions
 (define (batch-for-compiler batch brfs vars args vregs)
-  (define out (batch-empty))
-  (define f
-    (batch-recurse batch
-                   (λ (brf recurse)
-                     (match (deref brf)
-                       [(approx _ impl) (recurse impl)] ;; do not push, it is already a batchref
-                       [(? symbol? n)
-                        (define idx (index-of vars n))
-                        (batch-push! out (make-thunk (λ () (vector-ref args idx)) '() vregs))]
-                       [(literal value (app get-representation repr))
-                        (batch-push! out (make-thunk (const (real->repr value repr)) '() vregs))]
-                       [(list op args ...)
-                        (batch-push! out
-                                     (make-thunk (impl-info op 'fl)
-                                                 (map (compose batchref-idx recurse) args)
-                                                 vregs))]))))
-  (values out (map f brfs)))
+  (define out (make-dvector (batch-length batch)))
+  (define (compile-node brf recurse)
+    (match (deref brf)
+      [(approx _ impl) (recurse impl)] ;; do not push, it is already compiled
+      [(? symbol? n)
+       (define idx (index-of vars n))
+       (dvector-add! out (make-thunk (λ () (vector-ref args idx)) '() vregs))]
+      [(literal value (app get-representation repr))
+       (dvector-add! out (make-thunk (const (real->repr value repr)) '() vregs))]
+      [(list op args ...)
+       (dvector-add! out (make-thunk (impl-info op 'fl) (map recurse args) vregs))]))
+  (define roots (map (batch-recurse batch compile-node) brfs))
+  (values (dvector->vector out) roots))
+
+(define (batch-tree-size batch brfs)
+  (define (tree-size brf recurse)
+    (define args (reap [sow] (expr-recurse-impl (deref brf) sow)))
+    (apply + 1 (map recurse args)))
+  (apply + (map (batch-recurse batch tree-size) brfs)))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values
 ;; returning representation values.
-;; Translates a Herbie IR into an interpretable IR.
-;; Requires some hooks to complete the translation.
+;; Translates a Herbie IR into a vector of thunks.
 (define (compile-progs exprs ctx)
   (define vars (context-vars ctx))
   (define-values (batch brfs) (progs->batch exprs #:vars vars))
@@ -80,12 +82,9 @@
   (define vars (context-vars ctx))
   (define args (make-vector (length vars)))
   (define vregs (make-vector (batch-length batch)))
-  (define-values (batch* brfs*) (batch-for-compiler batch brfs vars args vregs))
-  (define thunks (batch-get-nodes batch*))
-  (define rootvec (list->vector (map batchref-idx brfs*)))
-
-  (timeline-push! 'compiler (batch-tree-size batch* brfs*) (batch-length batch*))
-
+  (define-values (thunks roots) (batch-for-compiler batch brfs vars args vregs))
+  (define rootvec (list->vector roots))
+  (timeline-push! 'compiler (batch-tree-size batch brfs) (vector-length thunks))
   (make-progs-interpreter thunks rootvec args vregs))
 
 ;; Like `compile-progs`, but a single prog.

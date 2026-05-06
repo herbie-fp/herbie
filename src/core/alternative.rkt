@@ -33,7 +33,8 @@
   (define (unmunge-event event)
     (match event
       [(list 'evaluate (? batchref? start-expr)) (list 'evaluate (exprs start-expr))]
-      [(list 'taylor (? batchref? start-expr) name var) (list 'taylor (exprs start-expr) name var)]
+      [(list 'taylor (? batchref? start-expr) name var order)
+       (list 'taylor (exprs start-expr) name var order)]
       [(list 'rr (? batchref? start-expr) (? batchref? end-expr) input proof)
        (define proof* (and proof (map exprs proof)))
        (list 'rr (exprs start-expr) (exprs end-expr) input proof*)]

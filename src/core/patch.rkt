@@ -52,11 +52,11 @@
           (for ([spec-brf (in-list spec-brfs)]
                 [repr (in-list reprs)]
                 [altn (in-list altns)]
-                #:unless (array-representation? repr))
+                #:when (equal? (representation-type repr) 'real))
             (define genexpr0 (batch-add! global-batch 0))
             (define gen0 (approx spec-brf (hole (representation-name repr) genexpr0)))
             (define brf0 (batch-add! global-batch gen0))
-            (sow (alt brf0 `(taylor zero undef-var) (list altn))))
+            (sow (alt brf0 `(taylor zero undef-var -1) (list altn))))
 
           ;; Taylor expansions
           ;; List<List<(cons offset coeffs)>>
@@ -78,7 +78,7 @@
                 ;; adding a new expansion to the global batch
                 (define gen (approx spec-brf (hole (representation-name repr) (copier (genexpr)))))
                 (define brf (batch-add! global-batch gen))
-                (sow (alt brf `(taylor ,name ,var) (list altn)))))
+                (sow (alt brf `(taylor ,name ,var ,i) (list altn)))))
             (set! idx (add1 idx))
             (timeline-stop!)))))
 
@@ -179,19 +179,24 @@
   (timeline-event! 'rewrite)
 
   ; egg schedule (4-phases for mathematical rewrites, sound-X removal, and implementation selection)
-  (define schedule '(lift rewrite unsound lower))
+  (define schedule '(rewrite unsound lower))
 
   (define brfs (map alt-expr altns))
+  (define spec-brfs (batch-to-spec! global-batch brfs))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+  (define rr-brfs
+    (for/list ([spec-brf (in-list spec-brfs)]
+               [repr (in-list reprs)])
+      (batch-add! global-batch (hole (representation-name repr) spec-brf))))
 
   (define runner
     (cond
       [(flag-set? 'generate 'egglog)
        (define batch* (batch-empty))
        (define copy-f (batch-copy-only! batch* global-batch))
-       (define brfs* (map copy-f brfs))
+       (define brfs* (map copy-f rr-brfs))
        (make-egglog-runner batch* brfs* reprs schedule (*context*))]
-      [else (make-egraph global-batch brfs reprs schedule (*context*))]))
+      [else (make-egraph global-batch rr-brfs reprs schedule (*context*))]))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
