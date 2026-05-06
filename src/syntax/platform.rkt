@@ -35,6 +35,7 @@
          prog->spec
          batch-to-spec!
          get-fpcore-impl
+         impl->fpcore
          (struct-out $platform)
          ;; Platform API
          ;; Operator sets
@@ -176,11 +177,16 @@
          (apply cost-proc (map loop args itypes))]))))
 
 ;; Extracts the `fpcore` field of an operator implementation
-;; as a property dictionary and expression.
+;; as a property dictionary and operation.
 (define (impl->fpcore impl)
-  (match (impl-info impl 'fpcore)
-    [(list '! props ... body) (values (props->dict props) body)]
-    [body (values '() body)]))
+  (define-values (props body)
+    (match (impl-info impl 'fpcore)
+      [(list '! props ... body) (values (props->dict props) body)]
+      [body (values '() body)]))
+  (values props
+          (if (symbol? body)
+              (list body)
+              body)))
 
 (define/reset op-hash #f)
 
@@ -192,12 +198,8 @@
     (define h (make-hash))
     (for ([impl (in-list (platform-impls (*active-platform*)))])
       (define-values (_ expr) (impl->fpcore impl))
-      (define expr*
-        (if (symbol? expr)
-            (list expr)
-            expr))
-      (when (list? expr*)
-        (hash-update! h (car expr*) (curry cons impl) '())))
+      (when (list? expr)
+        (hash-update! h (car expr) (curry cons impl) '())))
     (op-hash h))
 
   ; gather all implementations that have the same spec, input representations,
@@ -207,12 +209,8 @@
           (for ([impl (in-list (hash-ref (op-hash) op '()))]
                 #:when (equal? ireprs (impl-info impl 'itype)))
             (define-values (prop-dict* expr) (impl->fpcore impl))
-            (define expr*
-              (if (symbol? expr)
-                  (list expr)
-                  expr)) ; Handle named constants
             (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))
-            (when (and (subset? prop-dict* prop-dict) (pattern-match pattern expr*))
+            (when (and (subset? prop-dict* prop-dict) (pattern-match pattern expr))
               (sow impl)))))
   ; check that we have any matching impls
   (cond
