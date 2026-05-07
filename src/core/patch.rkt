@@ -118,13 +118,13 @@
        (define batch* (batch-empty))
        (define copy-f (batch-copy-only! batch* global-batch))
        (define impl-specs* (map copy-f impl-specs))
-       (make-egglog-runner batch* impl-specs* reprs schedule (*context*))]
-      [else (make-egraph global-batch impl-specs reprs schedule (*context*))]))
+       (make-egglog-runner batch* impl-specs* schedule (*context*))]
+      [else (make-egraph global-batch impl-specs schedule (*context*))]))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog runner global-batch 'taylor #:extract 1)
-        (egraph-best runner global-batch)))
+        (run-egglog runner global-batch reprs 'taylor #:extract 1)
+        (egraph-best runner global-batch reprs)))
 
   ; apply changelists
   (reap [sow]
@@ -197,24 +197,19 @@
   (define brfs (map alt-expr altns))
   (define spec-brfs (batch-to-spec! global-batch brfs))
   (define reprs (map (batch-reprs global-batch (*context*)) brfs))
-  (define rr-brfs
-    (for/list ([spec-brf (in-list spec-brfs)]
-               [repr (in-list reprs)])
-      (batch-add! global-batch (hole (representation-name repr) spec-brf))))
-
   (define runner
     (cond
       [(flag-set? 'generate 'egglog)
        (define batch* (batch-empty))
        (define copy-f (batch-copy-only! batch* global-batch))
-       (define brfs* (map copy-f rr-brfs))
-       (make-egglog-runner batch* brfs* reprs schedule (*context*))]
-      [else (make-egraph global-batch rr-brfs reprs schedule (*context*))]))
+       (define brfs* (map copy-f spec-brfs))
+       (make-egglog-runner batch* brfs* schedule (*context*))]
+      [else (make-egraph global-batch spec-brfs schedule (*context*))]))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog runner global-batch 'rewrite #:extract 1000000) ; "infinity"
-        (egraph-variations runner global-batch)))
+        (run-egglog runner global-batch reprs 'rewrite #:extract 1000000) ; "infinity"
+        (egraph-variations runner global-batch reprs)))
 
   ; apply changelists
   (define rewritten

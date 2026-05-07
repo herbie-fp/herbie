@@ -379,11 +379,13 @@
   (define ctx (context '(x eps) <binary64> (make-list 2 <binary64>)))
 
   (define reprs (make-list (length brfs) (context-repr ctx)))
+  (define spec-brfs (batch-to-spec! batch brfs))
 
   (define schedule '(lift rewrite lower))
 
   (when (find-executable-path "egglog")
-    (void (run-egglog (make-egglog-runner batch brfs reprs schedule ctx) batch #:extract 1000000))))
+    (void
+     (run-egglog (make-egglog-runner batch spec-brfs schedule ctx) batch reprs #:extract 1000000))))
 
 (module+ test
   (require rackunit)
