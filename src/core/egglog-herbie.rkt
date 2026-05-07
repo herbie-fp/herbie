@@ -69,7 +69,7 @@
 
 ;; Herbie's version of an egglog runner.
 ;; Defines parameters for running rewrite rules with egglog
-(struct egglog-runner (batch brfs reprs schedule ctx)
+(struct egglog-runner (batch brfs schedule ctx)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -82,7 +82,7 @@
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
 ;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
 ;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
-(define (make-egglog-runner batch brfs reprs schedule ctx)
+(define (make-egglog-runner batch brfs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -91,10 +91,14 @@
       (oops! "unknown schedule step `~a`" step)))
 
   ; make the runner
-  (egglog-runner batch brfs reprs schedule ctx))
+  (egglog-runner batch brfs schedule ctx))
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
-(define (run-egglog runner output-batch [label #f] #:extract extract) ; multi expression extraction
+(define (run-egglog runner
+                    output-batch
+                    reprs
+                    [label #f]
+                    #:extract extract) ; multi expression extraction
   (define insert-batch (egglog-runner-batch runner))
   (define insert-brfs (egglog-runner-brfs runner))
   (define schedule (egglog-runner-schedule runner))
@@ -173,8 +177,10 @@
   (define stdout-content
     (egglog-multi-extract subproc
                           `(multi-extract ,extract
-                                          ,@(for/list ([constructor-name extract-bindings])
-                                              `(,constructor-name)))))
+                                          ,@(for/list ([constructor-name (in-list extract-bindings)]
+                                                       [repr (in-list reprs)])
+                                              `(do-lower (,constructor-name)
+                                                         ,(egglog-repr-token repr))))))
 
   ;; Close everything subprocess related
   (egglog-subprocess-close subproc)
@@ -434,8 +440,7 @@
        (match node
          [(? literal?) #f] ;; If literal, not a spec
          [(? number?) #t] ;; If number, it's a spec
-         [(? symbol?)
-          #f] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
+         [(? symbol?) #t]
          [(hole _ _) #f] ;; If hole, not a spec
          [(approx _ _) #f] ;; If approx, not a spec
          [`(if ,cond ,ift ,iff)
@@ -557,7 +562,7 @@
         [(cons 'do-lift _) 'M]
 
         ;; TODO : fix this way of getting spec or impl
-        [_ (if root? 'MTy 'M)]))
+        [_ (if (spec? (batchref batch n)) 'M 'MTy)]))
 
     (define curr-binding-exprs `(let ,binding-name ,actual-binding))
 

@@ -1203,7 +1203,7 @@
 
 ;; Herbie's version of an egg runner.
 ;; Defines parameters for running rewrite rules with egg
-(struct egg-runner (batch reprs schedule ctx new-roots egg-graph)
+(struct egg-runner (batch schedule ctx new-roots egg-graph)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -1216,7 +1216,7 @@
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
 ;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
 ;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
-(define (make-egraph batch brfs reprs schedule ctx)
+(define (make-egraph batch brfs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -1227,7 +1227,7 @@
   (define-values (root-ids egg-graph) (egraph-run-schedule batch brfs schedule ctx))
 
   ; make the runner
-  (egg-runner batch reprs schedule ctx root-ids egg-graph))
+  (egg-runner batch schedule ctx root-ids egg-graph))
 
 (module+ test
   (require "../syntax/load-platform.rkt")
@@ -1236,7 +1236,7 @@
     (define rebuild-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
     (define expr '(+ (/ 1 2) (* x y)))
     (define-values (batch brfs) (progs->batch (list expr)))
-    (define runner (make-egraph batch brfs (list (context-repr rebuild-ctx)) '() rebuild-ctx))
+    (define runner (make-egraph batch brfs '() rebuild-ctx))
     (define egg-graph (egg-runner-egg-graph runner))
     (define eclasses (u32vector->list (egraph_get_eclasses egg-graph)))
 
@@ -1286,7 +1286,7 @@
     (error 'egraph-prove "proof extraction failed between`~a` and `~a`" start end))
   proof)
 
-(define (egraph-best runner batch)
+(define (egraph-best runner batch reprs)
   (define ctx (egg-runner-ctx runner))
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
@@ -1296,7 +1296,6 @@
     [(egraph_is_unsound_detected egg-graph) (map (const empty) root-ids)]
     [else
      (define regraph (make-regraph egg-graph ctx))
-     (define reprs (egg-runner-reprs runner))
      (when (flag-set? 'dump 'egg)
        (regraph-dump regraph root-ids reprs))
 
@@ -1307,7 +1306,7 @@
                 [repr (in-list reprs)])
        (regraph-extract-best regraph extract-id id repr))]))
 
-(define (egraph-variations runner batch)
+(define (egraph-variations runner batch reprs)
   (define ctx (egg-runner-ctx runner))
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
@@ -1317,7 +1316,6 @@
     [(egraph_is_unsound_detected egg-graph) (map (const empty) root-ids)]
     [else
      (define regraph (make-regraph egg-graph ctx))
-     (define reprs (egg-runner-reprs runner))
      (when (flag-set? 'dump 'egg)
        (regraph-dump regraph root-ids reprs))
 
@@ -1331,8 +1329,9 @@
 (define (deduplicate-exprs exprs ctxs)
   (define ctx (contexts-union ctxs))
   (define-values (batch brfs) (progs->batch exprs))
-  (define runner (make-egraph batch brfs (map context-repr ctxs) '(lift rewrite lower) ctx))
-  (define batchrefss (egraph-best runner batch))
+  (define reprs (map context-repr ctxs))
+  (define runner (make-egraph batch brfs '(lift rewrite lower) ctx))
+  (define batchrefss (egraph-best runner batch reprs))
   (define batch-pull (batch-exprs batch))
   (for/list ([orig-expr (in-list exprs)]
              [refs (in-list batchrefss)])
