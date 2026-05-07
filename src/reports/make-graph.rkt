@@ -1,15 +1,9 @@
 #lang racket
 
-(require (only-in xml write-xexpr xexpr?)
-         (only-in fpbench core->tex *expr-cse-able?* [core-common-subexpr-elim core-cse]))
 (require math/flonum)
 
-(require "../core/alternative.rkt"
-         "../utils/common.rkt"
-         "../syntax/float.rkt"
+(require "../utils/common.rkt"
          "../syntax/read.rkt"
-         "../syntax/types.rkt"
-         "../core/bsearch.rkt"
          "../core/points.rkt"
          "common.rkt"
          "history.rkt")
