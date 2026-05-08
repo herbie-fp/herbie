@@ -29,11 +29,10 @@
 
 (define (finish-combine-alts batch alts brf splitindices splitpoints)
   (define splitpoints* (append splitpoints (list (sp (si-cidx (last splitindices)) brf +nan.0))))
-  (define reprs (batch-reprs batch))
   (define brf*
     (for/fold ([brf (alt-expr (list-ref alts (sp-cidx (last splitpoints*))))])
               ([splitpoint (cdr (reverse splitpoints*))])
-      (define repr (reprs (sp-bexpr splitpoint)))
+      (define repr (batch-repr-of (sp-bexpr splitpoint)))
       (define if-impl (get-fpcore-impl 'if '() (list (get-representation 'bool) repr repr)))
       (define <=-impl (get-fpcore-impl '<= '() (list repr repr)))
       (define lit-brf
@@ -139,7 +138,7 @@
 ;; problems may arise.
 (define/contract (sindices->spoints/left batch points brf sindices)
   (-> batch? (listof vector?) batchref? (listof si?) (listof sp?))
-  (define repr ((batch-reprs batch) brf))
+  (define repr (batch-repr-of brf))
   (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf))))
 
   (define (left-point p1 p2)
@@ -176,7 +175,7 @@
       context?
       pcontext?
       (listof sp?))
-  (define repr ((batch-reprs batch) brf))
+  (define repr (batch-repr-of brf))
   (define ulps (repr-ulps repr))
   (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf))))
   (define brf-node (deref brf))
@@ -197,7 +196,6 @@
      "mainloop called binary splitpoint search without extractable critical subexpressions"))
   (define spec-brfs (batch-to-spec! batch* (list start-prog-sub)))
   (define start-real-compiler (make-real-compiler batch* spec-brfs (list ctx*)))
-  (define repr-of* (batch-reprs batch*))
 
   (define (prepend-macro v)
     (prepend-argument start-real-compiler v pcontext))
@@ -206,7 +204,7 @@
     (define brf1 (list-ref progs (si-cidx si1)))
     (define brf2 (list-ref progs (si-cidx si2)))
     (define eval-errors (compile-batch batch* (list brf1 brf2)))
-    (define score-ulps (repr-ulps (repr-of* brf1)))
+    (define score-ulps (repr-ulps (batch-repr-of brf1)))
     (define (pred v)
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])

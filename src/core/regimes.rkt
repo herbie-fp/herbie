@@ -50,9 +50,8 @@
   (define alts-vec (list->vector sorted))
   (define alt-count (vector-length alts-vec))
   (define err-cols (batch-errors batch (map alt-expr sorted) pcontext ctx))
-  (define reprs (batch-reprs batch))
   (define (real-brf? brf)
-    (equal? (representation-type (reprs brf)) 'real))
+    (equal? (representation-type (batch-repr-of brf)) 'real))
   (define branch-brfs
     (filter real-brf?
             (if (flag-set? 'reduce 'branch-expressions)
@@ -72,7 +71,7 @@
     (for/list ([brf (in-list branch-brfs)]
                [brf-vals-vec (in-list brf-vals)])
       (define timeline-stop! (timeline-start! 'times (batch->jsexpr batch (list brf))))
-      (define repr (reprs brf))
+      (define repr (batch-repr-of brf))
       (define curve (branch-options batch alts-vec err-cols pts-vec brf brf-vals-vec repr))
       (define last-point (last curve))
       (timeline-stop!)
@@ -211,22 +210,26 @@
     (define-values (batch brfs) (progs->batch (list expr) #:ctx ctx))
     (define brf (car brfs))
     (define brf-vals (car (brf-values* batch (list brf) pctx)))
-    (define reprs (batch-reprs batch))
     (check
      (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
      (pareto-point-data
-      (first (branch-options batch (list->vector alts) err-cols pts-vec brf brf-vals (reprs brf))))
+      (first
+       (branch-options batch (list->vector alts) err-cols pts-vec brf brf-vals (batch-repr-of brf))))
      goal))
 
   (define (test-regimes/prefixes expr goals)
     (define-values (batch brfs) (progs->batch (list expr) #:ctx ctx))
     (define brf (car brfs))
     (define brf-vals (car (brf-values* batch (list brf) pctx)))
-    (define reprs (batch-reprs batch))
     (define options
       (map pareto-point-data
-           (reverse
-            (branch-options batch (list->vector alts) err-cols pts-vec brf brf-vals (reprs brf)))))
+           (reverse (branch-options batch
+                                    (list->vector alts)
+                                    err-cols
+                                    pts-vec
+                                    brf
+                                    brf-vals
+                                    (batch-repr-of brf)))))
     (for ([goal (in-list goals)]
           [opt (in-list options)])
       (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y)) opt goal)))

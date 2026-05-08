@@ -206,11 +206,11 @@
 
 (define (atab-add-altn atab altn errs cost)
   (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
-  (define brf (alt-expr altn))
-  (define max-valid-bits (representation-total-bits ((batch-reprs (batchref-batch brf)) brf)))
   ;; Check  whether altn is already inserted into atab
   (match (hash-has-key? alt->point-idxs altn)
     [#f
+     (define brf (alt-expr altn))
+     (define max-valid-bits (representation-total-bits (batch-repr-of brf)))
      (define point-idx->alts*
        (for/vector #:length (vector-length point-idx->alts)
                    ([pcurve (in-vector point-idx->alts)]

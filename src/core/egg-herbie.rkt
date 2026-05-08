@@ -85,7 +85,6 @@
       [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
-  (define reprs (batch-reprs batch))
   (define add-to-egraph
     (batch-recurse
      batch
@@ -1328,7 +1327,7 @@
 (define (deduplicate-exprs exprs ctxs)
   (define ctx (contexts-union ctxs))
   (define-values (batch brfs) (progs->batch exprs #:ctx ctx))
-  (define reprs (map (batch-reprs batch) brfs))
+  (define reprs (map batch-repr-of brfs))
   (define runner (make-egraph batch brfs '(lift rewrite lower) ctx))
   (define batchrefss (egraph-best runner batch reprs))
   (define batch-pull (batch-exprs batch))

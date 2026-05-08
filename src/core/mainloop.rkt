@@ -256,7 +256,7 @@
        (timeline-push! 'taylor-count (~a transform) order nvars 1 (if kept? 1 0))]
       [#f (void)]))
 
-  (define repr ((batch-reprs (*global-batch*)) (*start-brf*)))
+  (define repr (batch-repr-of (*start-brf*)))
   (timeline-push! 'min-error
                   (errors-score (atab-min-errors (^table^)))
                   (format "~a" (representation-name repr)))
@@ -277,7 +277,7 @@
 
 (define (make-regime! batch alts start-prog)
   (define ctx (*context*))
-  (define repr ((batch-reprs batch) start-prog))
+  (define repr (batch-repr-of start-prog))
   (define alt-costs (alt-batch-costs batch))
 
   (cond
