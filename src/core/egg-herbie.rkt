@@ -1033,8 +1033,7 @@
      (define ctx (regraph-ctx regraph))
      (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
      (match node
-       ; numbers (repr is unused)
-       [(? number? n) ((node-cost-proc (literal n type) type))]
+       [(? number? n) ((node-cost-proc (literal n type)))]
        ; variables
        [(? symbol?) 0]
        ; approx node
@@ -1046,7 +1045,7 @@
                     (fraction-with-odd-denominator? n))
            +inf.0]
           [_
-           (define cost-proc (node-cost-proc node type))
+           (define cost-proc (node-cost-proc node))
            (apply cost-proc (map rec args))])])]
     [else (default-egg-cost-proc regraph cache node type rec)]))
 

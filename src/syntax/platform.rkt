@@ -169,9 +169,9 @@
 
 ; Cost model of a single node by a platform.
 ; Returns a procedure that must be called with the costs of the children.
-(define ((platform-node-cost-proc platform) expr repr)
+(define ((platform-node-cost-proc platform) expr)
   (match expr
-    [(? literal?) (lambda () (platform-repr-cost platform repr))]
+    [(literal _ precision) (lambda () (platform-repr-cost platform (get-representation precision)))]
     [(? symbol?) (lambda () 0)]
     [(list impl args ...)
      (define impl-cost (impl-info impl 'cost))
@@ -184,17 +184,15 @@
 ; Cost model parameterized by a platform.
 (define (platform-cost-proc platform)
   (define node-cost-proc (platform-node-cost-proc platform))
-  (λ (expr repr)
-    (let loop ([expr expr]
-               [repr repr])
+  (λ (expr)
+    (let loop ([expr expr])
       (match expr
-        [(? literal?) ((node-cost-proc expr repr))]
-        [(? symbol?) ((node-cost-proc expr repr))]
-        [(approx _ impl) (loop impl repr)]
+        [(? literal?) ((node-cost-proc expr))]
+        [(? symbol?) ((node-cost-proc expr))]
+        [(approx _ impl) (loop impl)]
         [(list impl args ...)
-         (define cost-proc (node-cost-proc expr repr))
-         (define itypes (impl-info impl 'itype))
-         (apply cost-proc (map loop args itypes))]))))
+         (define cost-proc (node-cost-proc expr))
+         (apply cost-proc (map loop args))]))))
 
 ;; Extracts the `fpcore` field of an operator implementation
 ;; as a property dictionary and operation.

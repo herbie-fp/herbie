@@ -319,11 +319,10 @@
 
 (define (sort-alts alts [errss (exprs-errors (map alt-expr alts) (*pcontext*) (*context*))])
   ;; sort everything by error + cost
-  (define repr (context-repr (*context*)))
   (define alts-to-be-sorted (map cons alts errss))
   (sort alts-to-be-sorted
         (lambda (x y)
           (or (< (errors-score (cdr x)) (errors-score (cdr y))) ; sort by error
               (and (equal? (errors-score (cdr x))
                            (errors-score (cdr y))) ; if error is equal sort by cost
-                   (< (alt-cost (car x) repr) (alt-cost (car y) repr)))))))
+                   (< (alt-cost (car x)) (alt-cost (car y))))))))

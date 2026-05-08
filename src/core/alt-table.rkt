@@ -30,19 +30,17 @@
 
 (define (alt-batch-costs batch)
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
-  (define reprs (batch-reprs batch))
   (batch-recurse batch
                  (λ (brf recurse)
                    (define node (deref brf))
-                   (define repr (reprs brf))
                    (match node
-                     [(? literal?) ((node-cost-proc node repr))]
-                     [(? symbol?) ((node-cost-proc node repr))]
+                     [(? literal?) ((node-cost-proc node))]
+                     [(? symbol?) ((node-cost-proc node))]
                      [(? number?) 0] ; specs
                      [(approx _ impl) (recurse impl)]
                      [(list (? (negate impl-exists?) impl) args ...) 0] ; specs
                      [(list impl args ...)
-                      (define cost-proc (node-cost-proc node repr))
+                      (define cost-proc (node-cost-proc node))
                       (apply cost-proc (map recurse args))]))))
 
 (define (make-alt-table batch pcontext initial-alt ctx)
