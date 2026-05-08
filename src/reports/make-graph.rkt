@@ -163,7 +163,7 @@
                ,dropdown
                ,(render-help "report.html#alternatives"))
            ,body
-           (details (summary "Derivation") (ol ((class "history")) ,@(render-history history ctx)))))
+           (details (summary "Derivation") (ol ((class "history")) ,@(render-history history repr)))))
      ,@(for/list ([i (in-naturals 1)]
                   [target (in-list targets)])
          (define target-error (hash-ref target 'errors))

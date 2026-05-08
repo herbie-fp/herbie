@@ -41,9 +41,10 @@
 ;; The odd identities: f(x) = -f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
 (define (make-odd-identities spec ctx)
+  (define output-repr (context-repr ctx))
   (for/list ([var (in-list (context-vars ctx))]
              [repr (in-list (context-var-reprs ctx))]
-             #:when (and (has-fabs-impl? repr) (has-copysign-impl? (context-repr ctx))))
+             #:when (and (has-fabs-impl? repr) (has-copysign-impl? output-repr)))
     (cons `(negabs ,var) (replace-expression `(neg ,spec) var `(neg ,var)))))
 
 ;; Sort identities: f(a, b) = f(b, a)
@@ -97,7 +98,6 @@
 
 (define (instruction->operator context instruction)
   (define variables (context-vars context))
-  (define sort* (curryr sort (curryr </total (context-repr context))))
   (match instruction
     [(list 'sort a b)
      (define indices (indexes-where variables (curry set-member? (list a b))))

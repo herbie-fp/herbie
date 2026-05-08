@@ -1329,7 +1329,7 @@
 (define (deduplicate-exprs exprs ctxs)
   (define ctx (contexts-union ctxs))
   (define-values (batch brfs) (progs->batch exprs))
-  (define reprs (map context-repr ctxs))
+  (define reprs (map (batch-reprs batch ctx) brfs))
   (define runner (make-egraph batch brfs '(lift rewrite lower) ctx))
   (define batchrefss (egraph-best runner batch reprs))
   (define batch-pull (batch-exprs batch))

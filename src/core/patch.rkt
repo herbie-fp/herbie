@@ -170,9 +170,8 @@
     (for/list ([pt (in-list (if (equal? status 'valid)
                                 pts
                                 '()))]
-               [ctx (in-list contexts)]
+               [repr (in-list reprs)]
                #:when (equal? status 'valid))
-      (define repr (context-repr ctx))
       (literal (repr->real pt repr) (representation-name repr))))
 
   (define final-altns

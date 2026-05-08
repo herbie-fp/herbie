@@ -189,6 +189,7 @@
      "mainloop called binary splitpoint search without extractable critical subexpressions"))
   (define spec-brfs (batch-to-spec! batch (list start-prog)))
   (define start-real-compiler (make-real-compiler batch spec-brfs (list ctx*)))
+  (define repr-of* (batch-reprs batch ctx*))
 
   (define (prepend-macro v)
     (prepend-argument start-real-compiler v pcontext))
@@ -197,7 +198,7 @@
     (define brf1 (list-ref progs (si-cidx si1)))
     (define brf2 (list-ref progs (si-cidx si2)))
     (define eval-errors (compile-batch batch (list brf1 brf2) ctx*))
-    (define score-ulps (repr-ulps (context-repr ctx*)))
+    (define score-ulps (repr-ulps (repr-of* brf1)))
     (define (pred v)
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
@@ -224,14 +225,14 @@
   (define num-alts (length alts))
   (define num-points (pcontext-length pcontext))
   (define bexpr (sp-bexpr (car splitpoints)))
-  (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
+  (define repr (repr-of bexpr ctx))
+  (define ctx* (struct-copy context ctx [repr repr]))
   (define prog (compile-prog bexpr ctx*))
   (define masks (build-vector num-alts (λ (_) (make-vector num-points #f))))
   (for ([(pt _) (in-pcontext pcontext)]
         [idx (in-naturals)])
     (define val (prog pt))
     (for/first ([right (in-list splitpoints)]
-                #:when (or (equal? (sp-point right) +nan.0)
-                           (<=/total val (sp-point right) (context-repr ctx*))))
+                #:when (or (equal? (sp-point right) +nan.0) (<=/total val (sp-point right) repr)))
       (vector-set! (vector-ref masks (sp-cidx right)) idx #t)))
   masks)

@@ -256,7 +256,7 @@
        (timeline-push! 'taylor-count (~a transform) order nvars 1 (if kept? 1 0))]
       [#f (void)]))
 
-  (define repr (context-repr (*context*)))
+  (define repr ((batch-reprs (*global-batch*) (*context*)) (*start-brf*)))
   (timeline-push! 'min-error
                   (errors-score (atab-min-errors (^table^)))
                   (format "~a" (representation-name repr)))

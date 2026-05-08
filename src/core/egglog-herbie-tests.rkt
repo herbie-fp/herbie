@@ -318,6 +318,7 @@
 (module+ test
   (require rackunit
            "egglog-herbie.rkt"
+           "programs.rkt"
            "../syntax/types.rkt"
            "../syntax/batch.rkt"
            "rules.rkt"
@@ -378,7 +379,7 @@
 
   (define ctx (context '(x eps) <binary64> (make-list 2 <binary64>)))
 
-  (define reprs (make-list (length brfs) (context-repr ctx)))
+  (define reprs (map (batch-reprs batch ctx) brfs))
   (define spec-brfs (batch-to-spec! batch brfs))
 
   (define schedule '(lift rewrite lower))

@@ -35,7 +35,7 @@
 (define (check-rule test-rule)
   (match-define (rule name p1 p2 _) test-rule)
   (define ctx (env->ctx p1 p2))
-  (define ulps (repr-ulps (context-repr ctx)))
+  (define ulps (repr-ulps double-repr))
 
   (define-values (batch brfs) (progs->batch (list p1 (drop-sound p2))))
   (match-define (list pts exs1 exs2)
