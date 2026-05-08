@@ -42,13 +42,14 @@
     [(hole precision spec) (get-representation precision)]
     [(list op args ...) (impl-info op 'otype)]))
 
-(define (batch-reprs batch ctx)
+(define (batch-reprs batch)
+  (define var-reprs (map cons (batch-vars batch) (batch-var-reprs batch)))
   (batch-recurse batch
                  (lambda (brf recurse)
                    (define node (deref brf))
                    (match node
                      [(literal val precision) (get-representation precision)]
-                     [(? symbol?) (context-lookup ctx node)]
+                     [(? symbol?) (dict-ref var-reprs node)]
                      [(approx _ impl) (recurse impl)]
                      [(hole precision spec) (get-representation precision)]
                      [(list op args ...) (impl-info op 'otype)]))))

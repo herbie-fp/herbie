@@ -66,7 +66,7 @@
             (make-sort-identities spec ctx)))
 
   ;; make egg runner
-  (define-values (batch brfs) (progs->batch (cons spec (map cdr identities))))
+  (define-values (batch brfs) (progs->batch (cons spec (map cdr identities)) #:ctx ctx))
   (define runner (make-egraph batch brfs '(rewrite) ctx))
 
   ;; collect equalities

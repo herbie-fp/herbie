@@ -85,7 +85,7 @@
       [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
-  (define reprs (batch-reprs batch ctx))
+  (define reprs (batch-reprs batch))
   (define add-to-egraph
     (batch-recurse
      batch
@@ -140,7 +140,7 @@
   eclass)
 
 (define (egraph-expr-equal? ptr expr goal ctx)
-  (define-values (batch brfs) (progs->batch (list expr goal)))
+  (define-values (batch brfs) (progs->batch (list expr goal) #:ctx ctx))
   (match-define (list id1 id2) (egraph-add-exprs ptr batch brfs ctx))
   (= id1 id2))
 
@@ -1235,7 +1235,7 @@
     (activate-platform! "c")
     (define rebuild-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
     (define expr '(+ (/ 1 2) (* x y)))
-    (define-values (batch brfs) (progs->batch (list expr)))
+    (define-values (batch brfs) (progs->batch (list expr) #:ctx rebuild-ctx))
     (define runner (make-egraph batch brfs '() rebuild-ctx))
     (define egg-graph (egg-runner-egg-graph runner))
     (define eclasses (u32vector->list (egraph_get_eclasses egg-graph)))
@@ -1328,8 +1328,8 @@
 
 (define (deduplicate-exprs exprs ctxs)
   (define ctx (contexts-union ctxs))
-  (define-values (batch brfs) (progs->batch exprs))
-  (define reprs (map (batch-reprs batch ctx) brfs))
+  (define-values (batch brfs) (progs->batch exprs #:ctx ctx))
+  (define reprs (map (batch-reprs batch) brfs))
   (define runner (make-egraph batch brfs '(lift rewrite lower) ctx))
   (define batchrefss (egraph-best runner batch reprs))
   (define batch-pull (batch-exprs batch))

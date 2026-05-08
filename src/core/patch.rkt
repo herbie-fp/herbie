@@ -34,11 +34,12 @@
 
 (define (taylor-alts altns global-batch spec-batch reducer)
   (define vars
-    (for/list ([var (in-list (context-vars (*context*)))]
-               #:when (equal? (representation-type (context-lookup (*context*) var)) 'real))
+    (for/list ([var (in-list (batch-vars global-batch))]
+               [repr (in-list (batch-var-reprs global-batch))]
+               #:when (equal? (representation-type repr) 'real))
       var))
   (define brfs (map alt-expr altns))
-  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+  (define reprs (map (batch-reprs global-batch) brfs))
   ;; Specs
   (define spec-brfs (batch-to-spec! global-batch brfs)) ;; These specs will go into (approx spec impl)
   (define free-vars (map (batch-free-vars global-batch) spec-brfs))
@@ -115,7 +116,7 @@
   (define runner
     (cond
       [(flag-set? 'generate 'egglog)
-       (define batch* (batch-empty))
+       (define batch* (batch-empty (*context*)))
        (define copy-f (batch-copy-only! batch* global-batch))
        (define impl-specs* (map copy-f impl-specs))
        (make-egglog-runner batch* impl-specs* schedule (*context*))]
@@ -144,7 +145,7 @@
   (define all-brfs (map alt-expr altns))
   (define spec-brfs (batch-to-spec! global-batch all-brfs))
   (define free-vars (batch-free-vars global-batch))
-  (define repr-of (batch-reprs global-batch (*context*)))
+  (define repr-of (batch-reprs global-batch))
   (define real-pairs
     (for/list ([altn (in-list altns)]
                [spec-brf (in-list spec-brfs)]
@@ -195,11 +196,11 @@
 
   (define brfs (map alt-expr altns))
   (define spec-brfs (batch-to-spec! global-batch brfs))
-  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+  (define reprs (map (batch-reprs global-batch) brfs))
   (define runner
     (cond
       [(flag-set? 'generate 'egglog)
-       (define batch* (batch-empty))
+       (define batch* (batch-empty (*context*)))
        (define copy-f (batch-copy-only! batch* global-batch))
        (define brfs* (map copy-f spec-brfs))
        (make-egglog-runner batch* brfs* schedule (*context*))]

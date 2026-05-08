@@ -75,7 +75,7 @@
   (define repr-hash
     (make-immutable-hash (map (lambda (e ctx) (cons e (context-repr ctx))) subexprs ctxs)))
 
-  (define-values (batch brfs) (progs->batch spec-list))
+  (define-values (batch brfs) (progs->batch spec-list #:ctx ctx))
   (define subexprs-fn
     (parameterize ([*max-mpfr-prec* 128])
       (eval-progs-real batch brfs ctxs)))

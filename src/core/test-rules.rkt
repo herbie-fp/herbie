@@ -37,7 +37,7 @@
   (define ctx (env->ctx p1 p2))
   (define ulps (repr-ulps double-repr))
 
-  (define-values (batch brfs) (progs->batch (list p1 (drop-sound p2))))
+  (define-values (batch brfs) (progs->batch (list p1 (drop-sound p2)) #:ctx ctx))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
                    [*max-find-range-depth* 0])

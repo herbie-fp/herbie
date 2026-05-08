@@ -140,7 +140,7 @@
   (random) ;; Tick the random number generator, for backwards compatibility
   (define specification (test-spec test))
   (define precondition (test-pre test))
-  (define-values (batch brfs) (progs->batch (list specification)))
+  (define-values (batch brfs) (progs->batch (list specification) #:ctx (*context*)))
   (define sample
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (sample-points precondition batch brfs (list (*context*)))))
