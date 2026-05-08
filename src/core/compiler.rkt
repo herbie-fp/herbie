@@ -75,7 +75,7 @@
 ;; Translates a Herbie IR into a vector of thunks.
 (define (compile-progs exprs ctx)
   (define-values (batch brfs) (progs->batch exprs #:ctx ctx))
-  (compile-batch batch brfs ctx))
+  (compile-batch batch brfs))
 
 (define (compile-batch batch brfs)
   (define vars (batch-vars batch))

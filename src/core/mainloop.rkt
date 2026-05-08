@@ -142,7 +142,7 @@
   (timeline-event! 'reconstruct)
 
   (define (group-equivalent-alts alts)
-    (define fn (compile-batch (*global-batch*) (map alt-expr alts) (*context*)))
+    (define fn (compile-batch (*global-batch*) (map alt-expr alts)))
     (define signatures (make-vector (length alts) '()))
     (define batch-cost (alt-batch-costs (*global-batch*)))
 
@@ -305,7 +305,7 @@
        (cond
          [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
          [use-binary? (combine-alts/binary batch opt start-prog ctx (*pcontext*))]
-         [else (combine-alts batch opt ctx)]))]
+         [else (combine-alts batch opt)]))]
     [else
      (define scores (batch-score-alts alts))
      (list (cdr (argmin car (map (λ (a s) (cons s a)) alts scores))))]))

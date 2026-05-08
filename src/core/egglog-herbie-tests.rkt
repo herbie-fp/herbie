@@ -377,8 +377,8 @@
       #s(approx (+ x 1) #s(hole binary64 (* x (+ 1 (/ 1 x)))))
       #s(approx (sin x) #s(hole binary64 (sin x)))
       #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (- (sin (- 1 (* -1 x))) (sin x))))
-      #s(approx (sin (+ x 1)) #s(hole binary64 (sin (- 1 (* -1 x)))))))
-    #:ctx ctx)
+      #s(approx (sin (+ x 1)) #s(hole binary64 (sin (- 1 (* -1 x))))))
+     #:ctx ctx))
 
   (define reprs (map (batch-reprs batch) brfs))
   (define spec-brfs (batch-to-spec! batch brfs))

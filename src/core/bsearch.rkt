@@ -46,7 +46,7 @@
   (define-values (alts* splitpoints**) (remove-unused-alts alts splitpoints*))
   (alt brf* (list 'regimes splitpoints**) alts*))
 
-(define (combine-alts batch best-option ctx)
+(define (combine-alts batch best-option)
   (match-define (option splitindices alts pts brf) best-option)
   (define splitpoints (sindices->spoints/left batch pts brf splitindices))
   (finish-combine-alts batch alts brf splitindices splitpoints))
@@ -138,7 +138,7 @@
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
 (define/contract (sindices->spoints/left batch points brf sindices)
-  (-> batch? (listof vector?) batchref? (listof si?) context? (listof sp?))
+  (-> batch? (listof vector?) batchref? (listof si?) (listof sp?))
   (define repr ((batch-reprs batch) brf))
   (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf))))
 

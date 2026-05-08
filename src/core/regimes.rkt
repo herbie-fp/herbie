@@ -59,7 +59,7 @@
                 (critical-subexpressions batch start-prog)
                 (map (curry batch-add! batch) (batch-vars batch)))))
 
-  (define brf-vals (brf-values* batch branch-brfs ctx pcontext))
+  (define brf-vals (brf-values* batch branch-brfs pcontext))
   (define pts-vec (pcontext-points pcontext))
 
   ;; For timeline
@@ -160,9 +160,9 @@
                 (min best-err (flvector-ref err-col point-idx))))
      num-points))
 
-(define (brf-values* batch brfs ctx pcontext)
+(define (brf-values* batch brfs pcontext)
   (define count (length brfs))
-  (define fn (compile-batch batch brfs ctx))
+  (define fn (compile-batch batch brfs))
   (define num-points (pcontext-length pcontext))
   (define vals (build-vector count (lambda (_) (make-vector num-points))))
   (for ([pt (in-vector (pcontext-points pcontext))]
@@ -210,7 +210,7 @@
   (define (test-regimes expr goal)
     (define-values (batch brfs) (progs->batch (list expr) #:ctx ctx))
     (define brf (car brfs))
-    (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
+    (define brf-vals (car (brf-values* batch (list brf) pctx)))
     (define reprs (batch-reprs batch))
     (check
      (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
@@ -221,7 +221,7 @@
   (define (test-regimes/prefixes expr goals)
     (define-values (batch brfs) (progs->batch (list expr) #:ctx ctx))
     (define brf (car brfs))
-    (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
+    (define brf-vals (car (brf-values* batch (list brf) pctx)))
     (define reprs (batch-reprs batch))
     (define options
       (map pareto-point-data
