@@ -27,7 +27,7 @@
 (module+ test
   (require rackunit))
 
-(define (finish-combine-alts batch alts brf splitindices splitpoints ctx)
+(define (finish-combine-alts batch alts brf splitindices splitpoints)
   (define splitpoints* (append splitpoints (list (sp (si-cidx (last splitindices)) brf +nan.0))))
   (define reprs (batch-reprs batch))
   (define brf*
@@ -48,14 +48,14 @@
 
 (define (combine-alts batch best-option ctx)
   (match-define (option splitindices alts pts brf) best-option)
-  (define splitpoints (sindices->spoints/left batch pts brf splitindices ctx))
-  (finish-combine-alts batch alts brf splitindices splitpoints ctx))
+  (define splitpoints (sindices->spoints/left batch pts brf splitindices))
+  (finish-combine-alts batch alts brf splitindices splitpoints))
 
 (define (combine-alts/binary batch best-option start-prog ctx pcontext)
   (match-define (option splitindices alts pts brf) best-option)
   (define splitpoints
     (sindices->spoints/binary batch pts brf alts splitindices start-prog ctx pcontext))
-  (finish-combine-alts batch alts brf splitindices splitpoints ctx))
+  (finish-combine-alts batch alts brf splitindices splitpoints))
 
 (define (remove-unused-alts alts splitpoints)
   (for/fold ([alts* '()]
@@ -137,10 +137,10 @@
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
-(define/contract (sindices->spoints/left batch points brf sindices ctx)
+(define/contract (sindices->spoints/left batch points brf sindices)
   (-> batch? (listof vector?) batchref? (listof si?) context? (listof sp?))
   (define repr ((batch-reprs batch) brf))
-  (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf) ctx)))
+  (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf))))
 
   (define (left-point p1 p2)
     (define left ((representation-repr->bf repr) p1))
@@ -178,7 +178,7 @@
       (listof sp?))
   (define repr ((batch-reprs batch) brf))
   (define ulps (repr-ulps repr))
-  (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf) ctx)))
+  (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf))))
   (define brf-node (deref brf))
   (define var
     (if (symbol? brf-node)
@@ -205,7 +205,7 @@
   (define (find-split si1 si2 p1 p2)
     (define brf1 (list-ref progs (si-cidx si1)))
     (define brf2 (list-ref progs (si-cidx si2)))
-    (define eval-errors (compile-batch batch* (list brf1 brf2) ctx*))
+    (define eval-errors (compile-batch batch* (list brf1 brf2)))
     (define score-ulps (repr-ulps (repr-of* brf1)))
     (define (pred v)
       (define pctx

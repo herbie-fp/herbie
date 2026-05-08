@@ -77,7 +77,7 @@
   (define-values (batch brfs) (progs->batch exprs #:ctx ctx))
   (compile-batch batch brfs ctx))
 
-(define (compile-batch batch brfs ctx)
+(define (compile-batch batch brfs)
   (define vars (batch-vars batch))
   (define args (make-vector (length vars)))
   (define vregs (make-vector (batch-length batch)))
