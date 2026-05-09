@@ -154,8 +154,7 @@
   ;; of a rule and make them accessible through their unique constructor. Therefore, we must
   ;; keep track of the mapping between each binding and its corresponding constructor.
 
-  (define-values (all-bindings extract-bindings)
-    (egglog-add-exprs insert-batch insert-brfs (egglog-runner-ctx runner) subproc))
+  (define-values (all-bindings extract-bindings) (egglog-add-exprs insert-batch insert-brfs subproc))
 
   (egglog-send subproc
                `(ruleset run-extract-commands)
@@ -405,7 +404,7 @@
               :ruleset
               ,tag)))
 
-(define (egglog-add-exprs batch brfs ctx subproc)
+(define (egglog-add-exprs batch brfs subproc)
   (define mappings (build-vector (batch-length batch) values))
   (define bindings (make-hash))
   (define vars (make-hash))
@@ -478,8 +477,8 @@
       (set! root-bindings (cons (vector-ref mappings n) root-bindings))))
 
   ; Var-lowering-rules
-  (for ([var (in-list (context-vars ctx))]
-        [repr (in-list (context-var-reprs ctx))])
+  (for ([var (in-list (batch-vars batch))]
+        [repr (in-list (batch-var-reprs batch))])
     (egglog-send subproc
                  `(rule ((= e (Var ,(symbol->string var))))
                         ((union (do-lower e ,(egglog-repr-token repr))
@@ -488,8 +487,8 @@
                         lower)))
 
   ; Var-lifting-rules
-  (for ([var (in-list (context-vars ctx))]
-        [repr (in-list (context-var-reprs ctx))])
+  (for ([var (in-list (batch-vars batch))]
+        [repr (in-list (batch-var-reprs batch))])
     (egglog-send subproc
                  `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
                         ((union (do-lift e) (Var ,(symbol->string var))))
@@ -502,7 +501,7 @@
   (define constructor-num 1)
 
   ; ; Var-spec-bindings
-  (for ([var (in-list (context-vars ctx))])
+  (for ([var (in-list (batch-vars batch))])
     ; Get the binding names for the program
     (define binding-name (string->symbol (format "?s~a" var)))
     (define constructor-name (string->symbol (format "const~a" constructor-num)))
@@ -521,8 +520,8 @@
     (set! constructor-num (add1 constructor-num)))
 
   ; Var-typed-bindings
-  (for ([var (in-list (context-vars ctx))]
-        [repr (in-list (context-var-reprs ctx))])
+  (for ([var (in-list (batch-vars batch))]
+        [repr (in-list (batch-var-reprs batch))])
     ; Get the binding names for the program
     (define binding-name (string->symbol (format "?t~a" var)))
     (define constructor-name (string->symbol (format "const~a" constructor-num)))

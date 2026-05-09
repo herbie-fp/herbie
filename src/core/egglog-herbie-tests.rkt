@@ -318,6 +318,7 @@
 (module+ test
   (require rackunit
            "egglog-herbie.rkt"
+           "programs.rkt"
            "../syntax/types.rkt"
            "../syntax/batch.rkt"
            "rules.rkt"
@@ -326,6 +327,7 @@
            "../syntax/float.rkt"
            "../syntax/load-platform.rkt")
   (activate-platform! "c")
+  (define ctx (context '(x eps) <binary64> (make-list 2 <binary64>)))
 
   (define-values (batch brfs)
     (progs->batch (list '(-.f64 (sin.f64 (+.f64 x eps)) (sin.f64 x))
@@ -333,7 +335,8 @@
                         '(+.f64 x eps)
                         'x
                         'eps
-                        '(sin.f64 x))))
+                        '(sin.f64 x))
+                  #:ctx ctx))
 
   (define-values (batch2 brfs2)
     (progs->batch
@@ -374,11 +377,10 @@
       #s(approx (+ x 1) #s(hole binary64 (* x (+ 1 (/ 1 x)))))
       #s(approx (sin x) #s(hole binary64 (sin x)))
       #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (- (sin (- 1 (* -1 x))) (sin x))))
-      #s(approx (sin (+ x 1)) #s(hole binary64 (sin (- 1 (* -1 x))))))))
+      #s(approx (sin (+ x 1)) #s(hole binary64 (sin (- 1 (* -1 x))))))
+     #:ctx ctx))
 
-  (define ctx (context '(x eps) <binary64> (make-list 2 <binary64>)))
-
-  (define reprs (make-list (length brfs) (context-repr ctx)))
+  (define reprs (map batch-repr-of brfs))
   (define spec-brfs (batch-to-spec! batch brfs))
 
   (define schedule '(lift rewrite lower))

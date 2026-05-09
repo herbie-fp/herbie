@@ -597,7 +597,7 @@
 (define (analysis->json analysis pcontext test errcache)
   (define repr (context-repr (test-context test)))
   (match-define (alt-analysis alt test-errors) analysis)
-  (define cost (alt-cost alt repr))
+  (define cost (alt-cost alt))
 
   (define history-json (render-json alt pcontext (test-context test) errcache))
 

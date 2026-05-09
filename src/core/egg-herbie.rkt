@@ -85,7 +85,6 @@
       [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
-  (define reprs (batch-reprs batch ctx))
   (define add-to-egraph
     (batch-recurse
      batch
@@ -140,7 +139,7 @@
   eclass)
 
 (define (egraph-expr-equal? ptr expr goal ctx)
-  (define-values (batch brfs) (progs->batch (list expr goal)))
+  (define-values (batch brfs) (progs->batch (list expr goal) #:ctx ctx))
   (match-define (list id1 id2) (egraph-add-exprs ptr batch brfs ctx))
   (= id1 id2))
 
@@ -1033,8 +1032,7 @@
      (define ctx (regraph-ctx regraph))
      (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
      (match node
-       ; numbers (repr is unused)
-       [(? number? n) ((node-cost-proc (literal n type) type))]
+       [(? number? n) ((node-cost-proc (literal n type)))]
        ; variables
        [(? symbol?) 0]
        ; approx node
@@ -1046,7 +1044,7 @@
                     (fraction-with-odd-denominator? n))
            +inf.0]
           [_
-           (define cost-proc (node-cost-proc node type))
+           (define cost-proc (node-cost-proc node))
            (apply cost-proc (map rec args))])])]
     [else (default-egg-cost-proc regraph cache node type rec)]))
 
@@ -1235,7 +1233,7 @@
     (activate-platform! "c")
     (define rebuild-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
     (define expr '(+ (/ 1 2) (* x y)))
-    (define-values (batch brfs) (progs->batch (list expr)))
+    (define-values (batch brfs) (progs->batch (list expr) #:ctx rebuild-ctx))
     (define runner (make-egraph batch brfs '() rebuild-ctx))
     (define egg-graph (egg-runner-egg-graph runner))
     (define eclasses (u32vector->list (egraph_get_eclasses egg-graph)))
@@ -1328,8 +1326,8 @@
 
 (define (deduplicate-exprs exprs ctxs)
   (define ctx (contexts-union ctxs))
-  (define-values (batch brfs) (progs->batch exprs))
-  (define reprs (map context-repr ctxs))
+  (define-values (batch brfs) (progs->batch exprs #:ctx ctx))
+  (define reprs (map batch-repr-of brfs))
   (define runner (make-egraph batch brfs '(lift rewrite lower) ctx))
   (define batchrefss (egraph-best runner batch reprs))
   (define batch-pull (batch-exprs batch))

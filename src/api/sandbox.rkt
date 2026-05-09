@@ -98,8 +98,7 @@
 
 (define (get-cost test)
   (define cost-proc (platform-cost-proc (*active-platform*)))
-  (define output-repr (context-repr (*context*)))
-  (cost-proc (test-input test) output-repr))
+  (cost-proc (test-input test)))
 
 (define (get-errors test pcontext)
   (unless pcontext
@@ -140,7 +139,7 @@
   (random) ;; Tick the random number generator, for backwards compatibility
   (define specification (test-spec test))
   (define precondition (test-pre test))
-  (define-values (batch brfs) (progs->batch (list specification)))
+  (define-values (batch brfs) (progs->batch (list specification) #:ctx (*context*)))
   (define sample
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (sample-points precondition batch brfs (list (*context*)))))
@@ -247,8 +246,6 @@
      (define start (hash-ref backend 'start))
      (define targets (hash-ref backend 'target))
      (define end (hash-ref backend 'end))
-     (define expr-cost (platform-cost-proc (*active-platform*)))
-     (define repr (test-output-repr test))
 
      ; starting expr analysis
      (define start-expr (read (open-input-string (hash-ref start 'expr))))

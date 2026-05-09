@@ -34,11 +34,12 @@
 
 (define (taylor-alts altns global-batch spec-batch reducer)
   (define vars
-    (for/list ([var (in-list (context-vars (*context*)))]
-               #:when (equal? (representation-type (context-lookup (*context*) var)) 'real))
+    (for/list ([var (in-list (batch-vars global-batch))]
+               [repr (in-list (batch-var-reprs global-batch))]
+               #:when (equal? (representation-type repr) 'real))
       var))
   (define brfs (map alt-expr altns))
-  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+  (define reprs (map batch-repr-of brfs))
   ;; Specs
   (define spec-brfs (batch-to-spec! global-batch brfs)) ;; These specs will go into (approx spec impl)
   (define free-vars (map (batch-free-vars global-batch) spec-brfs))
@@ -115,7 +116,7 @@
   (define runner
     (cond
       [(flag-set? 'generate 'egglog)
-       (define batch* (batch-empty))
+       (define batch* (batch-empty (*context*)))
        (define copy-f (batch-copy-only! batch* global-batch))
        (define impl-specs* (map copy-f impl-specs))
        (make-egglog-runner batch* impl-specs* schedule (*context*))]
@@ -144,19 +145,18 @@
   (define all-brfs (map alt-expr altns))
   (define spec-brfs (batch-to-spec! global-batch all-brfs))
   (define free-vars (batch-free-vars global-batch))
-  (define repr-of (batch-reprs global-batch (*context*)))
   (define real-pairs
     (for/list ([altn (in-list altns)]
                [spec-brf (in-list spec-brfs)]
                #:when (set-empty? (free-vars spec-brf))
                #:unless (literal? (deref (alt-expr altn)))
-               #:when (equal? (representation-type (repr-of (alt-expr altn))) 'real))
+               #:when (equal? (representation-type (batch-repr-of (alt-expr altn))) 'real))
       (cons altn spec-brf)))
   (define real-altns (map car real-pairs))
   (define real-spec-brfs (map cdr real-pairs))
 
   (define brfs (map alt-expr real-altns))
-  (define reprs (map repr-of brfs))
+  (define reprs (map batch-repr-of brfs))
   (define contexts
     (for/list ([repr (in-list reprs)])
       (context '() repr '())))
@@ -170,9 +170,8 @@
     (for/list ([pt (in-list (if (equal? status 'valid)
                                 pts
                                 '()))]
-               [ctx (in-list contexts)]
+               [repr (in-list reprs)]
                #:when (equal? status 'valid))
-      (define repr (context-repr ctx))
       (literal (repr->real pt repr) (representation-name repr))))
 
   (define final-altns
@@ -196,11 +195,11 @@
 
   (define brfs (map alt-expr altns))
   (define spec-brfs (batch-to-spec! global-batch brfs))
-  (define reprs (map (batch-reprs global-batch (*context*)) brfs))
+  (define reprs (map batch-repr-of brfs))
   (define runner
     (cond
       [(flag-set? 'generate 'egglog)
-       (define batch* (batch-empty))
+       (define batch* (batch-empty (*context*)))
        (define copy-f (batch-copy-only! batch* global-batch))
        (define brfs* (map copy-f spec-brfs))
        (make-egglog-runner batch* brfs* schedule (*context*))]

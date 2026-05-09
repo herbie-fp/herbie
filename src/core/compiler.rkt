@@ -74,12 +74,11 @@
 ;; returning representation values.
 ;; Translates a Herbie IR into a vector of thunks.
 (define (compile-progs exprs ctx)
-  (define vars (context-vars ctx))
-  (define-values (batch brfs) (progs->batch exprs #:vars vars))
-  (compile-batch batch brfs ctx))
+  (define-values (batch brfs) (progs->batch exprs #:ctx ctx))
+  (compile-batch batch brfs))
 
-(define (compile-batch batch brfs ctx)
-  (define vars (context-vars ctx))
+(define (compile-batch batch brfs)
+  (define vars (batch-vars batch))
   (define args (make-vector (length vars)))
   (define vregs (make-vector (batch-length batch)))
   (define-values (thunks roots) (batch-for-compiler batch brfs vars args vregs))
