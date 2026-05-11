@@ -13,7 +13,7 @@
          "programs.rkt")
 
 (provide (contract-out
-          (make-alt-table (batch? pcontext? alt? any/c . -> . alt-table?))
+          (make-alt-table (batch? pcontext? alt? . -> . alt-table?))
           (atab-active-alts (alt-table? . -> . (listof alt?)))
           (atab-all-alts (alt-table? . -> . (listof alt?)))
           (atab-not-done-alts (alt-table? . -> . (listof alt?)))
