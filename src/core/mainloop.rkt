@@ -50,6 +50,7 @@
     (if (flag-set? 'setup 'preprocess)
         (find-preprocessing specification context)
         '()))
+  (displayln preprocessing)
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)

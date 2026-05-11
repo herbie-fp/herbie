@@ -22,6 +22,9 @@
 
 (provide (struct-out egg-runner)
          make-egraph
+         make-ffi-rule
+         var->egg-var
+         *extra-ffi-rules*
          egraph-equal?
          egraph-prove
          egraph-best
@@ -394,6 +397,7 @@
 ;; egg rule cache: rule -> FFI-rule
 (define/reset *egg-rule-cache* (make-hasheq))
 (define/reset *egraph-rule-counts* (make-hasheq))
+(define *extra-ffi-rules* (make-parameter '()))
 
 (define (egraph-rule-counts)
   (for/hash ([rule (in-list (*rules*))])
@@ -1154,7 +1158,7 @@
            (define rules (convert-rules (*sound-removal-rules*)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['rewrite
-           (define rules (convert-rules (*rules*)))
+           (define rules (append (convert-rules (*rules*)) (*extra-ffi-rules*)))
            (egraph-run-rules egg-graph rules #:node-limit (*node-limit*))]))
 
       ; get cost statistics

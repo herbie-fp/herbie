@@ -324,7 +324,7 @@
 
 (define-operation (rem2pi.f64 [x <binary64>])
                   <binary64>
-                  #:spec (remainder x (* 2 (PI)))
+                  #:spec (remainder x (* (PI) 2))
                   #:impl (from-accelerators 'rem2pi)
                   #:fpcore (! :precision binary64 (rem2pi x))
                   #:cost 1.000)

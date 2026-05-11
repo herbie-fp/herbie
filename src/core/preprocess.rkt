@@ -10,7 +10,8 @@
          "../syntax/batch.rkt"
          "egg-herbie.rkt"
          "points.rkt"
-         "programs.rkt")
+         "programs.rkt"
+         "../config.rkt")
 
 (provide find-preprocessing
          preprocess-pcontext
@@ -29,11 +30,15 @@
   (and (get-fpcore-impl '* (repr->prop repr) (list repr repr))
        (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr))))
 
-(define (has-periodic-impl? repr)
-  (and (get-fpcore-impl '+ (repr->prop repr) (list repr repr))
-       (get-fpcore-impl '* (repr->prop repr) (list repr repr))
-       (get-fpcore-impl 'PI (repr->prop repr) '())
-       (get-fpcore-impl 'rem2pi (repr->prop repr) (list repr))))
+(define (get-periodic-op period repr)
+  (for/first ([impl (in-list (platform-impls (*active-platform*)))]
+              #:when (and (equal? (impl-info impl 'itype) (list repr))
+                          (equal? (impl-info impl 'otype) repr)
+                          (match (impl-info impl 'spec)
+                            [`(remainder ,_ ,p) (equal? p period)]
+                            [_ #f])))
+    impl))
+
 
 (define (has-exponential-impl? repr out-repr)
   (and (equal? repr out-repr)
@@ -45,11 +50,6 @@
        (get-fpcore-impl 'exp2 (repr->prop repr) (list repr))
        (get-fpcore-impl 'rint (repr->prop repr) (list repr))))
 
-(define (make-periodic-identities spec ctx)
-  (for/list ([var (in-list (context-vars ctx))]
-             [repr (in-list (context-var-reprs ctx))]
-             #:when (has-periodic-impl? repr))
-    (cons `(periodic ,var) (replace-expression spec var `(+ ,var (* 2 (PI)))))))
 
 (define (make-exponential-identities spec ctx)
   (for/list ([var (in-list (context-vars ctx))]
@@ -84,14 +84,73 @@
     (cons `(sort ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
+
+(define (free-of? expr var)
+  (not (member var (free-variables expr))))
+
+(define (get-period expr var)
+  (match expr
+    [(list 'periodic var* period)
+     (and (equal? var var*)
+          (when (free-of? period var)
+            #f
+            period))]
+    [_ #f]))
+
+(define (expr->egg-pattern/fixed-vars expr ctx fixed-vars)
+  (let loop ([expr expr])
+    (match expr
+      [(? number?) expr]
+      [(? literal?) (literal-value expr)]
+      [(? symbol? x)
+       (if (member x fixed-vars)
+           (var->egg-var x ctx)
+           (string->symbol (format "?~a" x)))]
+      [(approx spec impl) (list '$approx (loop spec) (loop impl))]
+      [(list op args ...) (cons op (map loop args))])))
+
+(define (make-periodic-marker-rule spec ctx var)
+  (make-ffi-rule
+   (string->symbol (format "preprocess-periodic-~a" var))
+   (expr->egg-pattern/fixed-vars (replace-expression spec var `(+ ,var a)) ctx (list var))
+   (expr->egg-pattern/fixed-vars `(periodic ,var a) ctx (list var))))
+
+(define (make-general-periodic-identities spec ctx)
+  (define periodic-marker-rules
+    (for/list ([var (in-list (context-vars ctx))])
+      (make-periodic-marker-rule spec ctx var)))
+  (parameterize ([*node-limit* 4000]
+                 [*extra-ffi-rules* periodic-marker-rules])
+    (define-values (batch brfs) (progs->batch (list spec)))
+    (define runner (make-egraph batch brfs (list 'real) '(rewrite) ctx))
+    (define out (batch-empty))
+    (define variants (egraph-variations runner out))
+    (define get-exprs (batch-exprs out))
+
+    (define exprs (map get-exprs (first variants)))
+
+    (define candidates
+      (filter (and (lambda (x) (not (equal? x 0))) identity)
+              (remove-duplicates (for*/list ([expr (in-list exprs)]
+                                            [var (in-list (context-vars ctx))])
+                                   (get-period expr var)))))
+
+    (displayln candidates)
+
+    (for/list ([var (in-list (context-vars ctx))]
+               [repr (in-list (context-var-reprs ctx))]
+               [cand (in-list candidates)]
+               #:when (get-periodic-op cand repr))
+      (cons `(periodic ,var ,cand) (replace-expression spec var `(+ ,var ,cand))))))
+
 (define (find-preprocessing spec ctx)
   ;; identities
   (define identities
     (append (make-even-identities spec ctx)
             (make-odd-identities spec ctx)
             (make-sort-identities spec ctx)
-            (make-periodic-identities spec ctx)
-            (make-exponential-identities spec ctx)))
+            (make-exponential-identities spec ctx)
+            (make-general-periodic-identities spec ctx)))
   ;; make egg runner
   (define-values (batch brfs) (progs->batch (cons spec (map cdr identities))))
   (define runner (make-egraph batch brfs (make-list (length brfs) (context-repr ctx)) '(rewrite) ctx))
@@ -122,6 +181,17 @@
     (vector-set! copy i v))
   copy)
 
+;;; (define (context-with-repr ctx repr)
+;;;   (struct-copy context ctx [repr repr]))
+
+;;; (define (periodic-reduction-prog period ctx repr var)
+;;;   (define rem2pi-impl (and (equal? period default-period) (period-rem2pi-impl repr)))
+;;;   (if rem2pi-impl
+;;;       (list rem2pi-impl var)
+;;;       (list (get-fpcore-impl 'remainder (repr->prop repr) (list repr repr))
+;;;             var
+;;;             (fpcore->prog period (context-with-repr ctx repr)))))
+
 (define (instruction->operator context instruction)
   (define variables (context-vars context))
   (match instruction
@@ -140,11 +210,6 @@
        (define k (rint (div val log2)))
        (define scale (exp2 k))
        (values (vector-update x index (lambda (_) (sub val (mul k log2)))) (div y scale)))]
-    [(list 'periodic variable)
-     (define index (index-of variables variable))
-     (define var-repr (context-lookup context variable))
-     (define rem2pi (impl-info (get-fpcore-impl 'rem2pi (repr->prop var-repr) (list var-repr)) 'fl))
-     (lambda (x y) (values (vector-update x index (lambda (val) (rem2pi val))) y))]
     [(list 'sort a b)
      (define indices (indexes-where variables (curry set-member? (list a b))))
      (define repr (context-lookup context a))
@@ -152,6 +217,11 @@
        (define subsequence (map (curry vector-ref x) indices))
        (define sorted (sort subsequence (curryr </total repr)))
        (values (vector-set* x indices sorted) y))]
+    [(list 'periodic variable period)
+     (define index (index-of variables variable))
+     (define repr (context-lookup context variable))
+     (define periodic-op (get-periodic-op period repr))
+     (lambda (x y) (values (vector-update x index (lambda (val) (periodic-op val))) y))]
     [(list 'abs variable)
      (define index (index-of variables variable))
      (define var-repr (context-lookup context variable))
@@ -210,10 +280,9 @@
      (define k (list rint (list div var log2)))
      (define reduced-var (list sub var (list mul k log2)))
      `(,mul (,exp2 ,k) ,(replace-expression expression var reduced-var))]
-    [(list 'periodic var)
+    [(list 'periodic var period)
      (define repr (context-lookup context var))
-     (define rem2pi (get-fpcore-impl 'rem2pi (repr->prop repr) (list repr)))
-     (define replacement (list rem2pi var))
+     (define replacement (get-periodic-op period repr))
      (replace-expression expression var replacement)]
     [(list 'sort a b)
      (define repr (context-lookup context a))
