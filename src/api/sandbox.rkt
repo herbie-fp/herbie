@@ -33,8 +33,7 @@
          *reeval-pts*
          (struct-out job-result)
          (struct-out improve-result)
-         (struct-out alt-analysis)
-         get-sample)
+         (struct-out alt-analysis))
 
 (struct job-result (command test status time timeline profile warnings backend))
 (struct improve-result (pcontext start target end))
