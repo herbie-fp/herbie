@@ -35,7 +35,7 @@
                   (hash-clear! cache))))
 
 (define-generator ((from-rival #:cache? [cache? #t]) spec ctx)
-  (define-values (batch brfs) (progs->batch (list spec)))
+  (define-values (batch brfs) (progs->batch (list spec) #:ctx ctx))
   (define compiler (make-real-compiler batch brfs (list ctx)))
   (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
   (define (compute . pt)

@@ -140,6 +140,7 @@
 
 ;; The platform that Herbie will evaluate with.
 (define *platform-name* (make-parameter (if (equal? (system-type 'os) 'windows) "c-windows" "c")))
+(define *platform-state* (make-parameter #f))
 
 ;; Sets the number of total points for Herbie to sample.
 (define *reeval-pts* (make-parameter 8000))

@@ -5,6 +5,7 @@
          json)
 
 (require "../syntax/read.rkt"
+         "../syntax/platform-state.rkt"
          "../syntax/syntax.rkt"
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
@@ -65,7 +66,11 @@
     (error 'get-alternatives "cannnot run without a pcontext"))
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
-  (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
+  (define initial-expr
+    (if (equal? (prog->spec (test-input test)) (test-spec test))
+        (test-input test)
+        (approx (test-spec test) (test-input test))))
+  (define alternatives (run-improve! initial-expr (test-spec test) (*context*) train-pcontext))
 
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
@@ -94,8 +99,7 @@
 
 (define (get-cost test)
   (define cost-proc (platform-cost-proc (*active-platform*)))
-  (define output-repr (context-repr (*context*)))
-  (cost-proc (test-input test) output-repr))
+  (cost-proc (test-input test)))
 
 (define (get-errors test pcontext)
   (unless pcontext
@@ -134,9 +138,9 @@
 
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility
-  (define specification (prog->spec (or (test-spec test) (test-input test))))
-  (define precondition (prog->spec (test-pre test)))
-  (define-values (batch brfs) (progs->batch (list specification)))
+  (define specification (test-spec test))
+  (define precondition (test-pre test))
+  (define-values (batch brfs) (progs->batch (list specification) #:ctx (*context*)))
   (define sample
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (sample-points precondition batch brfs (list (*context*)))))
@@ -178,9 +182,7 @@
       (define start-time (current-inexact-milliseconds))
       (reset!)
       (*context* (test-context test))
-      (if platform
-          (*active-platform* platform)
-          (activate-platform! (*platform-name*)))
+      (activate-platform! (platform-serialize))
       (set! timeline (*timeline*))
       (when seed
         (set-seed! seed))
@@ -216,7 +218,7 @@
     (custodian-shutdown-all run-custodian)))
 
 (define (dummy-table-row-from-hash result-hash status link)
-  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
+  (define test (load-test (open-input-string (hash-ref result-hash 'test))))
   (define repr (test-output-repr test))
   (table-row (test-name test)
              (test-identifier test)
@@ -238,7 +240,7 @@
              '()))
 
 (define (get-table-data-from-hash result-hash link)
-  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
+  (define test (load-test (open-input-string (hash-ref result-hash 'test))))
   (define backend (hash-ref result-hash 'backend))
   (define status (hash-ref result-hash 'status))
   (match status
@@ -246,8 +248,6 @@
      (define start (hash-ref backend 'start))
      (define targets (hash-ref backend 'target))
      (define end (hash-ref backend 'end))
-     (define expr-cost (platform-cost-proc (*active-platform*)))
-     (define repr (test-output-repr test))
 
      ; starting expr analysis
      (define start-expr (read (open-input-string (hash-ref start 'expr))))

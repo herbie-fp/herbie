@@ -64,7 +64,8 @@
          "syntax.rkt"
          "types.rkt")
 
-(provide fpcore->prog
+(provide fpcore->spec
+         fpcore->prog
          prog->fpcore)
 
 ;; Local copies to avoid depending on core/programs.rkt.
@@ -84,6 +85,18 @@
       [(? symbol?) (dict-ref dict expr expr)]
       [(approx impl spec) (approx (loop impl) (loop spec))]
       [(list op args ...) (cons op (map loop args))])))
+
+(define (fpcore-extension-spec expr)
+  (define specs
+    (remove-duplicates (filter identity
+                               (for/list ([impl (in-list (platform-impls (*active-platform*)))])
+                                 (define-values (_ body) (impl->fpcore impl))
+                                 (define subst (pattern-match (expand-expr body) expr))
+                                 (and subst (pattern-substitute (impl-info impl 'spec) subst))))))
+  (match specs
+    ['() #f]
+    [(list spec) spec]
+    [_ (error 'fpcore->spec "ambiguous platform specs for `~a`: ~a" expr specs)]))
 
 ;; Expression pre-processing for normalizing expressions.
 ;; Used for conversion from FPCore to other IRs.
@@ -143,23 +156,36 @@
                (list 'and out (list '!= term term2))
                (list '!= term term2))))
        (or out '(TRUE))]
-      ; function calls
-      [(list (? (curry hash-has-key? (*functions*)) fname) args ...)
-       (match-define (list vars _ body) (hash-ref (*functions*) fname))
-       (define env*
-         (for/fold ([env* '()])
-                   ([var (in-list vars)]
-                    [arg (in-list args)])
-           (dict-set env* var (loop arg env))))
-       (loop body env*)]
       ; applications
       [`(,op ,args ...) `(,op ,@(map (curryr loop env) args))]
       ; constants
-      [(? operator-exists? op) (list expr)]
+      [(? operator-exists? op) (list op)]
       ; variables
       [(? symbol?) (dict-ref env expr expr)]
       ; other
       [_ expr])))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; FPCore -> LSpec
+
+(define (fpcore->spec prog)
+  (let loop ([expr (expand-expr prog)])
+    (match expr
+      [(? number?)
+       (match expr
+         [(or +inf.0 -inf.0 +nan.0) expr]
+         [(? exact?) expr]
+         [_ (inexact->exact expr)])]
+      [(? symbol?) expr]
+      [(list '! _ ... body) (loop body)]
+      [(list 'cast arg) (loop arg)]
+      [(list op args ...)
+       (define args* (map loop args))
+       (define expr* `(,op ,@args*))
+       (match (fpcore-extension-spec expr*)
+         [#f expr*]
+         [(== expr*) expr*]
+         [spec (loop spec)])])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FPCore -> LImpl
@@ -178,11 +204,8 @@
   (define ireprs (map (lambda (arg) (repr-of arg ctx)) args))
   (define impl (assert-fpcore-impl op prop-dict ireprs))
   (define vars (impl-info impl 'vars))
-  (define pattern
-    (match (impl-info impl 'fpcore)
-      [(list '! _ ... body) body]
-      [body body]))
-  (define subst (pattern-match pattern (cons op args)))
+  (define-values (_ body) (impl->fpcore impl))
+  (define subst (pattern-match body (cons op args)))
   (pattern-substitute (cons impl vars) subst))
 
 ;; Translates from FPCore to an LImpl.
@@ -218,11 +241,8 @@
        (define idx-repr (repr-of idx* ctx))
        (define impl (assert-fpcore-impl 'ref prop-dict (list arr-repr idx-repr)))
        (define vars (impl-info impl 'vars))
-       (define pattern
-         (match (impl-info impl 'fpcore)
-           [(list '! _ ... body) body]
-           [body body]))
-       (define subst (pattern-match pattern (list 'ref arr* idx*)))
+       (define-values (_ body) (impl->fpcore impl))
+       (define subst (pattern-match body (list 'ref arr* idx*)))
        (pattern-substitute (cons impl vars) subst)]
       [(list op args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
