@@ -171,7 +171,7 @@
                   #:when (equal? (representation-type (context-lookup ctx var)) 'real))
          var))
      (define brfs (map alt-expr altns))
-     (define reprs (map (batch-reprs global-batch ctx) brfs))
+     (define reprs (map batch-repr-of brfs))
      (define spec-brfs (batch-to-spec! global-batch brfs))
      (define free-vars-fn (batch-free-vars global-batch))
      (define copier (batch-copy-only! spec-batch global-batch))

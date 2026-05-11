@@ -1,6 +1,7 @@
 #lang racket
 
-(require "../syntax/batch.rkt"
+(require "../syntax/types.rkt"
+         "../syntax/batch.rkt"
          "../utils/common.rkt"
          "programs.rkt")
 
@@ -336,7 +337,7 @@
 
 (module+ test
   (require rackunit)
-  (define batch (batch-empty))
+  (define batch (batch-empty (context '() #f '())))
   (define evaluator (batch-eval-application batch))
   (define (evaluator-results expr)
     (evaluator (batch-add! batch expr)))

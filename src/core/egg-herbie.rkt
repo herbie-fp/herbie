@@ -85,7 +85,6 @@
       [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
-  (define reprs (batch-reprs batch ctx))
   (define add-to-egraph
     (batch-recurse
      batch
@@ -140,7 +139,7 @@
   eclass)
 
 (define (egraph-expr-equal? ptr expr goal ctx)
-  (define-values (batch brfs) (progs->batch (list expr goal)))
+  (define-values (batch brfs) (progs->batch (list expr goal) #:ctx ctx))
   (match-define (list id1 id2) (egraph-add-exprs ptr batch brfs ctx))
   (= id1 id2))
 
@@ -1033,8 +1032,7 @@
      (define ctx (regraph-ctx regraph))
      (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
      (match node
-       ; numbers (repr is unused)
-       [(? number? n) ((node-cost-proc (literal n type) type))]
+       [(? number? n) ((node-cost-proc (literal n type)))]
        ; variables
        [(? symbol?) 0]
        ; approx node
@@ -1046,7 +1044,7 @@
                     (fraction-with-odd-denominator? n))
            +inf.0]
           [_
-           (define cost-proc (node-cost-proc node type))
+           (define cost-proc (node-cost-proc node))
            (apply cost-proc (map rec args))])])]
     [else (default-egg-cost-proc regraph cache node type rec)]))
 
@@ -1203,7 +1201,7 @@
 
 ;; Herbie's version of an egg runner.
 ;; Defines parameters for running rewrite rules with egg
-(struct egg-runner (batch reprs schedule ctx new-roots egg-graph)
+(struct egg-runner (batch schedule ctx new-roots egg-graph)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -1216,7 +1214,7 @@
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
 ;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
 ;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
-(define (make-egraph batch brfs reprs schedule ctx)
+(define (make-egraph batch brfs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -1227,7 +1225,7 @@
   (define-values (root-ids egg-graph) (egraph-run-schedule batch brfs schedule ctx))
 
   ; make the runner
-  (egg-runner batch reprs schedule ctx root-ids egg-graph))
+  (egg-runner batch schedule ctx root-ids egg-graph))
 
 (module+ test
   (require "../syntax/load-platform.rkt")
@@ -1235,8 +1233,8 @@
     (activate-platform! "c")
     (define rebuild-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
     (define expr '(+ (/ 1 2) (* x y)))
-    (define-values (batch brfs) (progs->batch (list expr)))
-    (define runner (make-egraph batch brfs (list (context-repr rebuild-ctx)) '() rebuild-ctx))
+    (define-values (batch brfs) (progs->batch (list expr) #:ctx rebuild-ctx))
+    (define runner (make-egraph batch brfs '() rebuild-ctx))
     (define egg-graph (egg-runner-egg-graph runner))
     (define eclasses (u32vector->list (egraph_get_eclasses egg-graph)))
 
@@ -1286,7 +1284,7 @@
     (error 'egraph-prove "proof extraction failed between`~a` and `~a`" start end))
   proof)
 
-(define (egraph-best runner batch)
+(define (egraph-best runner batch reprs)
   (define ctx (egg-runner-ctx runner))
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
@@ -1296,7 +1294,6 @@
     [(egraph_is_unsound_detected egg-graph) (map (const empty) root-ids)]
     [else
      (define regraph (make-regraph egg-graph ctx))
-     (define reprs (egg-runner-reprs runner))
      (when (flag-set? 'dump 'egg)
        (regraph-dump regraph root-ids reprs))
 
@@ -1307,7 +1304,7 @@
                 [repr (in-list reprs)])
        (regraph-extract-best regraph extract-id id repr))]))
 
-(define (egraph-variations runner batch)
+(define (egraph-variations runner batch reprs)
   (define ctx (egg-runner-ctx runner))
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
@@ -1317,7 +1314,6 @@
     [(egraph_is_unsound_detected egg-graph) (map (const empty) root-ids)]
     [else
      (define regraph (make-regraph egg-graph ctx))
-     (define reprs (egg-runner-reprs runner))
      (when (flag-set? 'dump 'egg)
        (regraph-dump regraph root-ids reprs))
 
@@ -1330,9 +1326,10 @@
 
 (define (deduplicate-exprs exprs ctxs)
   (define ctx (contexts-union ctxs))
-  (define-values (batch brfs) (progs->batch exprs))
-  (define runner (make-egraph batch brfs (map context-repr ctxs) '(lift rewrite lower) ctx))
-  (define batchrefss (egraph-best runner batch))
+  (define-values (batch brfs) (progs->batch exprs #:ctx ctx))
+  (define reprs (map batch-repr-of brfs))
+  (define runner (make-egraph batch brfs '(lift rewrite lower) ctx))
+  (define batchrefss (egraph-best runner batch reprs))
   (define batch-pull (batch-exprs batch))
   (for/list ([orig-expr (in-list exprs)]
              [refs (in-list batchrefss)])
