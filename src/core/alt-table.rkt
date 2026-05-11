@@ -43,9 +43,9 @@
                       (define cost-proc (node-cost-proc node))
                       (apply cost-proc (map recurse args))]))))
 
-(define (make-alt-table batch pcontext initial-alt ctx)
+(define (make-alt-table batch pcontext initial-alt)
   (define cost ((alt-batch-costs batch) (alt-expr initial-alt)))
-  (define errs (batchref-errors (alt-expr initial-alt) pcontext ctx))
+  (define errs (batchref-errors (alt-expr initial-alt) pcontext))
   (alt-table (for/vector #:length (pcontext-length pcontext)
                          ([err (in-flvector errs)])
                (list (pareto-point cost err (list initial-alt))))
@@ -173,9 +173,9 @@
                [alt->done? (hash-remove* alt->done? altns)]
                [alt->cost (hash-remove* alt->cost altns)]))
 
-(define (atab-eval-altns atab batch altns ctx)
+(define (atab-eval-altns atab batch altns)
   (define brfs (map alt-expr altns))
-  (define errss (batch-errors batch brfs (alt-table-pcontext atab) ctx))
+  (define errss (batch-errors batch brfs (alt-table-pcontext atab)))
   (define costs (map (alt-batch-costs batch) brfs))
   (values errss costs))
 

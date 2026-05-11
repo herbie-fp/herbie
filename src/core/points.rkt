@@ -64,18 +64,18 @@
 (define (errors expr pcontext ctx)
   (first (exprs-errors (list expr) pcontext ctx)))
 
-(define (batchref-errors brf pcontext ctx)
-  (first (batch-errors (batchref-batch brf) (list brf) pcontext ctx)))
+(define (batchref-errors brf pcontext)
+  (first (batch-errors (batchref-batch brf) (list brf) pcontext)))
 
 (define (exprs-errors exprs pcontext ctx)
   (define fn (compile-progs exprs ctx))
   (define num-exprs (length exprs))
   (generate-errors fn pcontext (context-repr ctx) num-exprs))
 
-(define (batch-errors batch brfs pcontext ctx)
+(define (batch-errors batch brfs pcontext)
   (define fn (compile-batch batch brfs))
   (define num-exprs (length brfs))
-  (generate-errors fn pcontext (context-repr ctx) num-exprs))
+  (generate-errors fn pcontext (batch-repr-of (first brfs)) num-exprs))
 
 (define (generate-errors fn pcontext repr num-exprs)
   (define ulps (repr-ulps repr))
