@@ -80,9 +80,6 @@
 ;;; ------------------------- HELPERS ---------------------------------
 (define cost-proc (platform-cost-proc (*active-platform*)))
 
-(define (get-cost expr)
-  (cost-proc expr (get-representation 'binary64)))
-
 (define (operator-expr? e)
   (match e
     [(list _ _ ...) #t]
@@ -258,15 +255,14 @@
 (for* ([(root-expr root-count) (in-hash canonical-root-hash)]
        [subexpr (in-list (get-subexpressions root-expr))]
        #:when (candidate-expr? subexpr))
-  (define renamed-subexprs (alpha-rename subexpr))
-  (for ([c (in-list renamed-subexprs)])
-    (hash-update! candidate-hash c (lambda (old) (+ old root-count)) 0)))
+  (define renamed-subexpr (alpha-rename subexpr))
+  (hash-update! candidate-hash renamed-subexpr (lambda (old) (+ old root-count)) 0))
 
 (run-egg-batched egg-batch-size candidate-hash canonical-candidate-hash)
 
 (define pairs-raw (hash->list canonical-candidate-hash))
 (define candidates
-  (map (lambda (p) (candidate (car p) (get-cost (car p)) (cdr p) (get-ctx (car p)))) pairs-raw))
+  (map (lambda (p) (candidate (car p) (cost-proc (car p)) (cdr p) (get-ctx (car p)))) pairs-raw))
 
 (define filtered-candidates
   (filter (lambda (c)

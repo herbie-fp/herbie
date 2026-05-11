@@ -37,7 +37,7 @@
   (define var-repr-names
     (for/list ([var (in-list vars)])
       (cons var out-repr-name)))
-  (define spec impl-expr)
+  (define spec (prog->spec impl-expr))
   (test name
         #f
         vars
