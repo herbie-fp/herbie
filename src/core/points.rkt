@@ -4,6 +4,7 @@
          "../syntax/float.rkt"
          "../syntax/types.rkt"
          "../syntax/batch.rkt"
+         "programs.rkt"
          "compiler.rkt")
 
 (provide in-pcontext
