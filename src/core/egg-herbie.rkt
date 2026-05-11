@@ -265,15 +265,12 @@
   (define ctx (context '(x y z) <binary64> (make-list 3 <binary64>)))
 
   (define test-exprs
-    (list (cons '(+.f64 y x) '(+.f64 $var1 $var0))
-          (cons '(+.f64 x y) '(+.f64 $var0 $var1))
-          (cons '(-.f64 #s(literal 2 binary64) (+.f64 x y)) '(-.f64 2 (+.f64 $var0 $var1)))
-          (cons '(-.f64 z (+.f64 (+.f64 y #s(literal 2 binary64)) x))
-                '(-.f64 $var2 (+.f64 (+.f64 $var1 2) $var0)))
-          (cons '(*.f64 x y) '(*.f64 $var0 $var1))
-          (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64)) '(+.f64 (*.f64 $var0 $var1) 2))
-          (cons '(cos.f32 (PI.f32)) '(cos.f32 (PI.f32)))
-          (cons '(if.f64 (TRUE) x y) '(if.f64 (TRUE) $var0 $var1))))
+    (list (cons '(+ y x) '(+ $var1 $var0))
+          (cons '(+ x y) '(+ $var0 $var1))
+          (cons '(- 2 (+ x y)) '(- 2 (+ $var0 $var1)))
+          (cons '(- z (+ (+ y 2) x)) '(- $var2 (+ (+ $var1 2) $var0)))
+          (cons '(* x y) '(* $var0 $var1))
+          (cons '(+ (* x y) 2) '(+ (* $var0 $var1) 2))))
 
   (let ([egg-graph (egraph_create)])
     (for ([(in expected-out) (in-dict test-exprs)])
@@ -286,24 +283,12 @@
 
   (set! ctx (context '(x a b c r) <binary64> (make-list 5 <binary64>)))
   (define extended-expr-list
-    ; specifications
     (list '(/ (- (exp x) (exp (neg x))) 2)
           '(/ (+ (neg b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
           '(/ (+ (neg b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
           '(* r 30)
           '(* 23/54 r)
-          '(+ 3/2 14/10)
-          ; implementations
-          `(/.f64 (-.f64 (exp.f64 x) (exp.f64 (neg.f64 x))) ,(literal 2 'binary64))
-          `(/.f64 (+.f64 (neg.f64 b)
-                         (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 (*.f64 ,(literal 3 'binary64) a) c))))
-                  (*.f64 ,(literal 3 'binary64) a))
-          `(/.f64 (+.f64 (neg.f64 b)
-                         (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 (*.f64 ,(literal 3 'binary64) a) c))))
-                  (*.f64 ,(literal 3 'binary64) a))
-          `(*.f64 r ,(literal 30 'binary64))
-          `(*.f64 ,(literal 23/54 'binary64) r)
-          `(+.f64 ,(literal 3/2 'binary64) ,(literal 14/10 'binary64))))
+          '(+ 3/2 14/10)))
 
   (let ([egg-graph (egraph_create)])
     (for ([expr extended-expr-list])
@@ -312,7 +297,7 @@
 
   (define dedup-ctx1 (context '(x y) <binary64> (list <binary64> <binary64>)))
   (define dedup-ctx2 (context '(y x) <binary64> (list <binary64> <binary64>)))
-  (define deduped (deduplicate-exprs (list '(+.f64 x y) '(+.f64 y x)) (list dedup-ctx1 dedup-ctx2)))
+  (define deduped (deduplicate-exprs (list '(+ x y) '(+ y x)) (list dedup-ctx1 dedup-ctx2)))
   (check-equal? (length deduped) 2)
   (check-equal? (first deduped) (second deduped)))
 
@@ -1115,14 +1100,11 @@
   (define egg-graph (egraph_create))
   (egraph-add-exprs egg-graph batch brfs ctx)
   (define-values (egg-graph0 _0) (egraph-run-rules egg-graph '()))
-  (define lifting-rules (convert-rules (platform-lifting-rules)))
   (define-values (egg-graph1 _1)
-    (egraph-run-rules egg-graph0 lifting-rules #:iter-limit 1 #:scheduler 'simple))
-  (define-values (egg-graph2 _2)
     (if (> iter 0)
-        (egraph-run-rules egg-graph1 (convert-rules (*rules*)) #:iter-limit iter)
-        (values egg-graph1 _1)))
-  (define-values (egg-graph3 iter-data3) (egraph-run-rules egg-graph2 '()))
+        (egraph-run-rules egg-graph0 (convert-rules (*rules*)) #:iter-limit iter)
+        (values egg-graph0 _0)))
+  (define-values (egg-graph3 iter-data3) (egraph-run-rules egg-graph1 '()))
   (define initial-size (iteration-data-num-nodes (last iter-data3)))
   (define results
     (for/list ([rule (in-list (*rules*))])
@@ -1327,8 +1309,8 @@
 (define (deduplicate-exprs exprs ctxs)
   (define ctx (contexts-union ctxs))
   (define-values (batch brfs) (progs->batch exprs #:ctx ctx))
-  (define reprs (map batch-repr-of brfs))
-  (define runner (make-egraph batch brfs '(lift rewrite lower) ctx))
+  (define reprs (make-list (length brfs) (context-repr ctx)))
+  (define runner (make-egraph batch brfs '(rewrite lower) ctx))
   (define batchrefss (egraph-best runner batch reprs))
   (define batch-pull (batch-exprs batch))
   (for/list ([orig-expr (in-list exprs)]
