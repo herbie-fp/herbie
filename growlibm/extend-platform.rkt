@@ -7,10 +7,9 @@
          "../src/api/sandbox.rkt"
          "../src/core/points.rkt"
          "../src/config.rkt"
-         "../src/syntax/load-platform.rkt"
-         "../src/syntax/sugar.rkt"
-         "../src/core/programs.rkt"
-         "../src/syntax/platform-language.rkt")
+         "../src/syntax/platform.rkt"
+         "../src/syntax/platform-state.rkt"
+         "../src/syntax/types.rkt")
 
 ;;; ------------------------- SETUP ---------------------------------
 (activate-platform! "grow")
@@ -25,22 +24,13 @@
 (disable-flag! 'generate 'proofs)
 
 ;;; ------------------------- HELPERS ---------------------------------
-(define (register-op! platform fpcore name cost)
+(define (register-op! platform fpcore name)
   (parameterize ([*active-platform* platform])
     (define impl (fpcore->prog fpcore (get-ctx fpcore)))
     (define spec (prog->spec impl))
     (define ctx (get-ctx spec))
-    (define vars (context-vars ctx))
     (define name* (string->symbol name))
-
-    (define op-impl
-      (create-operator-impl! name*
-                             ctx
-                             #:spec spec
-                             #:impl (from-rival)
-                             #:fpcore `(! :precision binary64 (,name* ,@vars))
-                             #:cost cost))
-    (platform-register-implementation! platform op-impl)
+    (register-fpcore-operator! name* ctx impl impl)
     (void)))
 
 (define (run-herbie-expr expr
@@ -49,7 +39,9 @@
                          #:name [name "scratch"]
                          #:precision [precision (*default-precision*)])
   (define test (expr->test expr #:name name #:precision precision))
-  (define result (run-herbie 'improve test #:seed seed #:platform platform))
+  (define result
+    (parameterize ([*active-platform* platform])
+      (run-herbie 'improve test #:seed seed)))
   (match (job-result-status result)
     ['success
      (define backend (job-result-backend result))
@@ -128,13 +120,6 @@
 (define (format-accuracy percent)
   (~r percent #:precision '(= 1)))
 
-(define (clone-platform platform)
-  (struct-copy $platform
-               platform
-               [representations (hash-copy (platform-representations platform))]
-               [implementations (hash-copy (platform-implementations platform))]
-               [representation-costs (hash-copy (platform-representation-costs platform))]))
-
 ;;; ------------------------- MAIN PIPELINE ---------------------------------
 (define filename (vector-ref (current-command-line-arguments) 0))
 (define count-list (call-with-input-file "reports/counts.rkt" read))
@@ -198,7 +183,7 @@
 
 (define top-cands (take filtered-cands (min (length filtered-cands) top-k)))
 
-(define base-platform (clone-platform (*active-platform*)))
+(define base-platform (platform-copy (*active-platform*)))
 (define implied-by (make-hash))
 
 (for-each (lambda (cand) (displayln (format "~a: ~a" (candidate-name cand) (candidate-spec cand))))
@@ -209,30 +194,31 @@
     (displayln "")
     (displayln
      (format "considering implication from ~a: ~a" (candidate-name cand-a) (candidate-spec cand-a)))
-    (define platform-a (clone-platform base-platform))
+    (define platform-a (platform-copy base-platform))
     (define name-a (candidate-name cand-a))
     (define spec-a (candidate-spec cand-a))
-    (define fake-cost-a 0)
-    (register-op! platform-a spec-a (candidate-name cand-a) fake-cost-a)
-    (for ([cand-b (in-list top-cands)]
-          #:unless (equal? (candidate-name cand-b) name-a))
+    (parameterize ([*active-platform* platform-a]
+                   [*platform-extensions* '()])
+      (register-op! platform-a spec-a (candidate-name cand-a))
+      (for ([cand-b (in-list top-cands)]
+            #:unless (equal? (candidate-name cand-b) name-a))
 
-      (define err (run-herbie-expr (candidate-spec cand-b) platform-a #:seed implication-seed))
-      (define baseline-err (candidate-error cand-b))
-      (define accuracy (error->accuracy err))
-      (define baseline-accuracy (error->accuracy baseline-err))
-      (displayln (format "     ~a: ~a, post-run ~a bits (~a%%), baseline ~a bits (~a%%)"
-                         (candidate-name cand-b)
-                         (candidate-spec cand-b)
-                         err
-                         (format-accuracy accuracy)
-                         baseline-err
-                         (format-accuracy baseline-accuracy)))
-      (when (implied-by-accuracy? err)
-        (displayln
-         (format "     -> IMPLICATION DETECTED: ~a implies ~a" name-a (candidate-name cand-b)))
-        (define name-b (candidate-name cand-b))
-        (hash-set! implied-by name-b (set-add (hash-ref implied-by name-b (set)) name-a))))))
+        (define err (run-herbie-expr (candidate-spec cand-b) platform-a #:seed implication-seed))
+        (define baseline-err (candidate-error cand-b))
+        (define accuracy (error->accuracy err))
+        (define baseline-accuracy (error->accuracy baseline-err))
+        (displayln (format "     ~a: ~a, post-run ~a bits (~a%%), baseline ~a bits (~a%%)"
+                           (candidate-name cand-b)
+                           (candidate-spec cand-b)
+                           err
+                           (format-accuracy accuracy)
+                           baseline-err
+                           (format-accuracy baseline-accuracy)))
+        (when (implied-by-accuracy? err)
+          (displayln
+           (format "     -> IMPLICATION DETECTED: ~a implies ~a" name-a (candidate-name cand-b)))
+          (define name-b (candidate-name cand-b))
+          (hash-set! implied-by name-b (set-add (hash-ref implied-by name-b (set)) name-a)))))))
 
 (define (get-final-candidate-structs top-cands implied-by)
   (define name->struct (make-hash (map (lambda (c) (cons (candidate-name c) c)) top-cands)))
