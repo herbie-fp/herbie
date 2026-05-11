@@ -41,7 +41,7 @@
 
 ;; The even identities: f(x) = f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
-(define (make-even-identities batch spec-brf)
+(define (make-even-identities batch spec-brf output-repr)
   (for/list ([var (in-list (batch-vars batch))]
              [repr (in-list (batch-var-reprs batch))]
              #:when (has-fabs-impl? repr))
@@ -52,8 +52,7 @@
 
 ;; The odd identities: f(x) = -f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
-(define (make-odd-identities batch spec-brf)
-  (define output-repr (batch-repr-of spec-brf))
+(define (make-odd-identities batch spec-brf output-repr)
   (for/list ([var (in-list (batch-vars batch))]
              [repr (in-list (batch-var-reprs batch))]
              #:when (and (has-fabs-impl? repr) (has-copysign-impl? output-repr)))
@@ -64,7 +63,7 @@
     (cons `(negabs ,var) replace-neg)))
 
 ;; Sort identities: f(a, b) = f(b, a)
-(define (make-sort-identities batch spec-brf)
+(define (make-sort-identities batch spec-brf output-repr)
   (define pairs (combinations (batch-vars batch) 2))
   (define reprs (map cons (batch-vars batch) (batch-var-reprs batch)))
   (for/list ([pair (in-list pairs)]
@@ -80,11 +79,13 @@
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing batch spec-brf ctx)
+  (define repr (context-repr ctx))
+
   ;; identities
   (define identities
-    (append (make-even-identities batch spec-brf)
-            (make-odd-identities batch spec-brf)
-            (make-sort-identities batch spec-brf)))
+    (append (make-even-identities batch spec-brf repr)
+            (make-odd-identities batch spec-brf repr)
+            (make-sort-identities batch spec-brf repr)))
 
   ;; make egg runner
   (define brfs (cons spec-brf (map cdr identities)))
