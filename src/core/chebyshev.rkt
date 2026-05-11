@@ -2,7 +2,6 @@
 
 (require math/flonum
          "../config.rkt"
-         "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../syntax/batch.rkt"
          "../syntax/platform.rkt"
@@ -161,15 +160,13 @@
                      [b-k (batch-add! batch `(- ,sum-brf ,b-k+2))])
                 (loop (sub1 k) b-k b-k+1)))))))
 
-(define (chebyshev-alts altns global-batch spec-batch reducer pcontext source-brfs)
+(define (chebyshev-alts altns global-batch spec-batch reducer pcontext source-brfs make-approx)
   (cond
     [(or (not pcontext) (null? source-brfs)) '()]
     [else
      (define ctx (*context*))
-     (define vars
-       (for/list ([var (in-list (context-vars ctx))]
-                  #:when (equal? (representation-type (context-lookup ctx var)) 'real))
-         var))
+     (define vars (batch-vars global-batch))
+     (define var-reprs (batch-var-reprs global-batch))
      (define brfs (map alt-expr altns))
      (define reprs (map batch-repr-of brfs))
      (define spec-brfs (batch-to-spec! global-batch brfs))
@@ -183,9 +180,10 @@
          (minimum-errors (batch-errors global-batch source-brfs pcontext ctx))))
 
      (reap [sow]
-           (for ([var (in-list vars)])
-             (define var-repr (context-lookup ctx var))
-             (define var-idx (index-of (context-vars ctx) var))
+           (for ([var (in-list vars)]
+                 [var-repr (in-list var-reprs)]
+                 [var-idx (in-naturals)]
+                 #:when (equal? (representation-type var-repr) 'real))
              (define point-values (sorted-point-values pcontext var-idx var-repr))
              (define intervals (chebyshev-intervals point-values source-errors))
 
@@ -294,7 +292,5 @@
                              #:break (>= order degree-limit))
                          (when (not (zero? (vector-ref coeffs k)))
                            (define poly-brf (build-clenshaw-poly! global-batch coeffs k var m r))
-                           (define gen (approx spec-brf (hole (representation-name repr) poly-brf)))
-                           (define brf (batch-add! global-batch gen))
-                           (sow (alt brf `(taylor cheb ,var ,order) (list altn)))
+                           (sow (make-approx spec-brf repr poly-brf 'cheb var order altn))
                            (set! order (add1 order)))))))))))]))

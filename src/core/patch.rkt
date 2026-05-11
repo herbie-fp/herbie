@@ -83,12 +83,6 @@
             (set! idx (add1 idx))
             (timeline-stop!)))))
 
-(define (chebyshev-approx->taylor-approx altn)
-  (match-define (approx spec (hole precision impl-spec)) (deref (alt-expr altn)))
-  (match-define `(taylor ,name ,var ,order) (alt-event altn))
-  (match-define (list prev) (alt-prevs altn))
-  (taylor-approx spec (get-representation precision) impl-spec name var order prev))
-
 (define (run-taylor altns global-batch spec-batch reducer [pcontext #f] [source-brfs '()])
   (timeline-event! 'series)
   (define (taylor-key x)
@@ -98,8 +92,7 @@
 
   (define taylor-approxs (taylor-alts altns global-batch spec-batch reducer))
   (define chebyshev-approxs
-    (map chebyshev-approx->taylor-approx
-         (chebyshev-alts altns global-batch spec-batch reducer pcontext source-brfs)))
+    (chebyshev-alts altns global-batch spec-batch reducer pcontext source-brfs taylor-approx))
   (define approxs (remove-duplicates (append taylor-approxs chebyshev-approxs) #:key taylor-key))
   (define approxs* (remove-duplicates (run-lowering approxs global-batch) #:key approx-key))
 
