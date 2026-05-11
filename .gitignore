@@ -31,14 +31,5 @@ herbie-compiled/
 
 # Python
 .env/
+.worktrees
 
-.vscode/
-
-benchmark
-tmp
-out
-tball.fpcore
-reports2/
-reports3/
-reports4/
-out.html
