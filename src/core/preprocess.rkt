@@ -58,7 +58,9 @@
     (cons `(sort ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
-(define (find-preprocessing spec ctx)
+(define (find-preprocessing batch spec-brf ctx)
+  (define spec ((batch-exprs batch) spec-brf))
+
   ;; identities
   (define identities
     (append (make-even-identities spec ctx)
@@ -66,7 +68,7 @@
             (make-sort-identities spec ctx)))
 
   ;; make egg runner
-  (define-values (batch brfs) (progs->batch (cons spec (map cdr identities)) #:ctx ctx))
+  (define brfs (cons spec-brf (map (compose (curry batch-add! batch) cdr) identities)))
   (define runner (make-egraph batch brfs '(rewrite) ctx))
 
   ;; collect equalities
