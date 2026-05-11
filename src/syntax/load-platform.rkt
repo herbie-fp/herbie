@@ -8,14 +8,12 @@
 
 (define-runtime-module-path herbie10-platform "../platforms/herbie10.rkt")
 (define-runtime-module-path herbie20-platform "../platforms/herbie20.rkt")
-(define-runtime-module-path no-accelerators-platform "../platforms/no-accelerators.rkt")
 (define-runtime-module-path grow-platform "../../growlibm/grow.rkt")
 (define-runtime-module-path c-platform "../platforms/c.rkt")
 (define-runtime-module-path c-windows-platform "../platforms/c-windows.rkt")
 (define-runtime-module-path racket-platform "../platforms/racket.rkt")
 (define-runtime-module-path math-platform "../platforms/math.rkt")
 (define-runtime-module-path rival-platform "../platforms/rival.rkt")
-(define-runtime-module-path growlibm-platform "../platforms/grow-libm.rkt")
 (define-runtime-module-path vanilla-platform "../../growlibm/platforms/vanilla.rkt")
 (define-runtime-module-path herbie20plus-platform "../../growlibm/platforms/herbie20plus.rkt")
 (define-runtime-module-path growlibmbest-platform "../../growlibm/platforms/growlibmbest.rkt")
@@ -38,12 +36,8 @@
         math-platform
         "rival"
         rival-platform
-        "no-accelerators"
-        no-accelerators-platform
         "grow"
         grow-platform
-        "growlibm"
-        growlibm-platform
         "vanilla"
         vanilla-platform
         "herbie20plus"

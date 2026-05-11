@@ -154,7 +154,6 @@
                     test
                     #:seed [seed #f]
                     #:pcontext [pcontext #f]
-                    #:platform [platform #f]
                     #:profile? [profile? #f]
                     #:timeline? [timeline? #f])
   (define timeline #f)

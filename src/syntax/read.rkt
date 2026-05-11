@@ -16,8 +16,7 @@
          test-var-reprs
          load-test
          load-tests
-         parse-test
-         load-port)
+         parse-test)
 
 (define (free-variables prog)
   (match prog
