@@ -142,23 +142,53 @@
                 (define theta (* pi (/ (+ j 0.5) denom)))
                 (* (vector-ref values j) (cos (* k theta)))))))
 
-(define (build-clenshaw-poly! batch coeffs d var m r)
-  (define t-brf (batch-add! batch `(/ (- ,var ,(real->double-flonum m)) ,(real->double-flonum r))))
-  (define c0-half (real->double-flonum (* 0.5 (vector-ref coeffs 0))))
+(define (add-scaled-vector! target scale source)
+  (for ([x (in-vector source)]
+        [idx (in-naturals)])
+    (vector-set! target idx (+ (vector-ref target idx) (* scale x)))))
+
+(define (chebyshev->power-coeffs coeffs d)
+  (define power-coeffs (make-vector (add1 d) 0.0))
+  (define t0 (make-vector (add1 d) 0.0))
+  (vector-set! t0 0 1.0)
+  (add-scaled-vector! power-coeffs (* 0.5 (vector-ref coeffs 0)) t0)
+
+  (when (positive? d)
+    (define t1 (make-vector (add1 d) 0.0))
+    (vector-set! t1 1 1.0)
+    (add-scaled-vector! power-coeffs (vector-ref coeffs 1) t1)
+
+    (let loop ([k 2]
+               [t-k-2 t0]
+               [t-k-1 t1])
+      (when (<= k d)
+        (define t-k (make-vector (add1 d) 0.0))
+        (for ([idx (in-range 1 (add1 k))])
+          (vector-set! t-k idx (* 2.0 (vector-ref t-k-1 (sub1 idx)))))
+        (for ([idx (in-range (sub1 k))])
+          (vector-set! t-k idx (- (vector-ref t-k idx) (vector-ref t-k-2 idx))))
+        (add-scaled-vector! power-coeffs (vector-ref coeffs k) t-k)
+        (loop (add1 k) t-k-1 t-k))))
+
+  power-coeffs)
+
+(define (build-horner-poly! batch coeffs d var m r)
+  (define power-coeffs (chebyshev->power-coeffs coeffs d))
   (if (zero? d)
-      (batch-add! batch c0-half)
-      (let ([two-t-brf (batch-add! batch `(* 2.0 ,t-brf))])
-        (let loop ([k d]
-                   [b-k+1 (batch-add! batch 0.0)] ; b_{k+1}
-                   [b-k+2 (batch-add! batch 0.0)]) ; b_{k+2}
-          (if (zero? k)
-              (let* ([tb1-brf (batch-add! batch `(* ,t-brf ,b-k+1))]
-                     [tail-brf (batch-add! batch `(- ,tb1-brf ,b-k+2))])
-                (batch-add! batch `(+ ,c0-half ,tail-brf)))
-              (let* ([ck (real->double-flonum (vector-ref coeffs k))]
-                     [sum-brf (batch-add! batch `(+ ,ck (* ,two-t-brf ,b-k+1)))]
-                     [b-k (batch-add! batch `(- ,sum-brf ,b-k+2))])
-                (loop (sub1 k) b-k b-k+1)))))))
+      (batch-add! batch (real->double-flonum (vector-ref power-coeffs 0)))
+      (let ([t-brf (batch-add! batch
+                               `(/ (- ,var ,(real->double-flonum m)) ,(real->double-flonum r)))])
+        (let loop ([k (sub1 d)]
+                   [acc (batch-add! batch (real->double-flonum (vector-ref power-coeffs d)))])
+          (cond
+            [(negative? k) acc]
+            [else
+             (define term (batch-add! batch `(* ,t-brf ,acc)))
+             (define coeff (real->double-flonum (vector-ref power-coeffs k)))
+             (loop (sub1 k)
+                   (if (zero? coeff)
+                       term
+                       (batch-add! batch `(+ ,coeff ,term))))])))))
 
 (define (chebyshev-alts altns global-batch spec-batch reducer pcontext source-brfs make-approx)
   (cond
@@ -291,6 +321,6 @@
                        (for ([k (in-range (add1 N))]
                              #:break (>= order degree-limit))
                          (when (not (zero? (vector-ref coeffs k)))
-                           (define poly-brf (build-clenshaw-poly! global-batch coeffs k var m r))
+                           (define poly-brf (build-horner-poly! global-batch coeffs k var m r))
                            (sow (make-approx spec-brf repr poly-brf 'cheb var order altn))
                            (set! order (add1 order)))))))))))]))
