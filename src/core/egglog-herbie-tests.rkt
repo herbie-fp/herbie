@@ -330,64 +330,15 @@
   (define ctx (context '(x eps) <binary64> (make-list 2 <binary64>)))
 
   (define-values (batch brfs)
-    (progs->batch (list '(-.f64 (sin.f64 (+.f64 x eps)) (sin.f64 x))
-                        '(sin.f64 (+.f64 x eps))
-                        '(+.f64 x eps)
-                        'x
-                        'eps
-                        '(sin.f64 x))
+    (progs->batch (list '(- (sin (+ x eps)) (sin x)) '(sin (+ x eps)) '(+ x eps) 'x 'eps '(sin x))
                   #:ctx ctx))
 
-  (define-values (batch2 brfs2)
-    (progs->batch
-     (list
-      '(-.f64 (sin.f64 (+.f64 x #s(literal 1 binary64))) (sin.f64 x))
-      '(sin.f64 (+.f64 x #s(literal 1 binary64)))
-      '(+.f64 x #s(literal 1 binary64))
-      'x
-      #s(literal 1 binary64)
-      '(sin.f64 x)
-      #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (sin 1)))
-      #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (+ (sin 1) (* x (- (cos 1) 1)))))
-      #s(approx (- (sin (+ x 1)) (sin x))
-                #s(hole binary64 (+ (sin 1) (* x (- (+ (cos 1) (* -1/2 (* x (sin 1)))) 1)))))
-      #s(approx (- (sin (+ x 1)) (sin x))
-                #s(hole binary64
-                        (+ (sin 1)
-                           (* x
-                              (- (+ (cos 1) (* x (+ (* -1/2 (sin 1)) (* x (+ 1/6 (* -1/6 (cos 1)))))))
-                                 1)))))
-      #s(approx (sin (+ x 1)) #s(hole binary64 (+ (sin 1) (* x (cos 1)))))
-      #s(approx (sin (+ x 1)) #s(hole binary64 (+ (sin 1) (* x (+ (cos 1) (* -1/2 (* x (sin 1))))))))
-      #s(approx (sin (+ x 1))
-                #s(hole binary64
-                        (+ (sin 1)
-                           (* x (+ (cos 1) (* x (+ (* -1/2 (sin 1)) (* -1/6 (* x (cos 1))))))))))
-      #s(approx (+ x 1) #s(hole binary64 1))
-      #s(approx (+ x 1) #s(hole binary64 (+ 1 x)))
-      #s(approx x #s(hole binary64 x))
-      #s(approx (sin x) #s(hole binary64 (* x (+ 1 (* -1/6 (pow x 2))))))
-      #s(approx (sin x) #s(hole binary64 (* x (+ 1 (* (pow x 2) (- (* 1/120 (pow x 2)) 1/6))))))
-      #s(approx
-         (sin x)
-         #s(hole binary64
-                 (* x (+ 1 (* (pow x 2) (- (* (pow x 2) (+ 1/120 (* -1/5040 (pow x 2)))) 1/6))))))
-      #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (- (sin (+ 1 x)) (sin x))))
-      #s(approx (sin (+ x 1)) #s(hole binary64 (sin (+ 1 x))))
-      #s(approx (+ x 1) #s(hole binary64 (* x (+ 1 (/ 1 x)))))
-      #s(approx (sin x) #s(hole binary64 (sin x)))
-      #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (- (sin (- 1 (* -1 x))) (sin x))))
-      #s(approx (sin (+ x 1)) #s(hole binary64 (sin (- 1 (* -1 x))))))
-     #:ctx ctx))
+  (define reprs (make-list (length brfs) <binary64>))
 
-  (define reprs (map batch-repr-of brfs))
-  (define spec-brfs (batch-to-spec! batch brfs))
-
-  (define schedule '(lift rewrite lower))
+  (define schedule '(rewrite lower))
 
   (when (find-executable-path "egglog")
-    (void
-     (run-egglog (make-egglog-runner batch spec-brfs schedule ctx) batch reprs #:extract 1000000))))
+    (void (run-egglog (make-egglog-runner batch brfs schedule ctx) batch reprs #:extract 1000000))))
 
 (module+ test
   (require rackunit)

@@ -44,24 +44,25 @@
 ;; - Final steps: regimes, derivations, and remove preprocessing
 
 (define (run-improve! initial specification context pcontext)
-  (timeline-event! 'preprocess)
-  (define preprocessing
-    (if (flag-set? 'setup 'preprocess)
-        (find-preprocessing specification context)
-        '()))
-  (timeline-push! 'symmetry (map ~a preprocessing))
-  (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-  (*pcontext* pcontext*)
-
   (parameterize ([*global-batch* (batch-empty context)])
     (define global-spec-batch (batch-empty context))
+    (define initial-brf (batch-add! (*global-batch*) initial))
+    (define specification-brf (batch-add! global-spec-batch specification))
+    (timeline-event! 'preprocess)
+    (define preprocessing
+      (if (flag-set? 'setup 'preprocess)
+          (find-preprocessing global-spec-batch specification-brf context)
+          '()))
+    (timeline-push! 'symmetry (map ~a preprocessing))
+    (define pcontext* (preprocess-pcontext context pcontext preprocessing))
+    (*pcontext* pcontext*)
+
     (define spec-reducer (batch-reduce global-spec-batch))
 
     (*preprocessing* preprocessing)
-    (define initial-brf (batch-add! (*global-batch*) initial))
     (*start-brf* initial-brf)
     (define start-alt (alt initial-brf 'start '()))
-    (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
+    (^table^ (make-alt-table (*global-batch*) pcontext start-alt))
 
     (for ([_ (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
@@ -226,7 +227,7 @@
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract orig-all-alts (atab-not-done-alts (^table^))))
 
-  (define-values (errss costs) (atab-eval-altns (^table^) (*global-batch*) patched (*context*)))
+  (define-values (errss costs) (atab-eval-altns (^table^) (*global-batch*) patched))
   (timeline-event! 'prune)
   (^table^ (atab-add-altns (^table^) patched errss costs))
   (define final-fresh-set (list->seteq (atab-not-done-alts (^table^))))
@@ -277,7 +278,6 @@
   (void))
 
 (define (make-regime! batch alts start-prog)
-  (define ctx (*context*))
   (define repr (batch-repr-of start-prog))
   (define alt-costs (alt-batch-costs batch))
 
@@ -292,7 +292,6 @@
        (pareto-regimes batch
                        (sort alts < #:key (compose alt-costs alt-expr))
                        start-prog
-                       ctx
                        (*pcontext*)))
      (for/list ([opt (in-list opts)])
        (match-define (option splitindices opt-alts _ brf) opt)
@@ -305,7 +304,7 @@
                 (critical-subexpression? batch (alt-expr alt) brf))))
        (cond
          [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
-         [use-binary? (combine-alts/binary batch opt start-prog ctx (*pcontext*))]
+         [use-binary? (combine-alts/binary batch opt start-prog (*context*) (*pcontext*))]
          [else (combine-alts batch opt)]))]
     [else
      (define scores (batch-score-alts alts))
