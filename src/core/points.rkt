@@ -64,9 +64,6 @@
 (define (errors expr pcontext ctx)
   (first (exprs-errors (list expr) pcontext ctx)))
 
-(define (batchref-errors brf pcontext ctx)
-  (first (batch-errors (batchref-batch brf) (list brf) pcontext ctx)))
-
 (define (exprs-errors exprs pcontext ctx)
   (define fn (compile-progs exprs ctx))
   (define num-exprs (length exprs))

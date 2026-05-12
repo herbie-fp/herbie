@@ -79,10 +79,11 @@
   (define all-alts (atab-all-alts (^table^)))
   (define joined-alts (make-regime! (*global-batch*) all-alts (*start-brf*)))
   (define annotated-alts (add-derivations! joined-alts))
+  (define scores (batch-errors (*global-batch*) (map alt-expr annotated-alts) (*pcontext*)))
+  (define sorted-alts (map car (sort-alts annotated-alts scores)))
   (define unbatched-alts (unbatchify-alts (*global-batch*) annotated-alts))
-
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
-  (map car (sort-alts unbatched-alts)))
+  unbatched-alts)
 
 ;; The rest of the file is various helper / glue functions used by
 ;; Herbie. These often wrap other Herbie components, but add logging
@@ -137,6 +138,7 @@
           (list (alt _ `(taylor ,prev-start-expr ,transform ,var ,order) prevs)))
      (car (alt-prevs altn))]
     [_ #f]))
+
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! starting-alts new-alts)
   (timeline-event! 'reconstruct)
@@ -317,7 +319,7 @@
      (add-derivations alts)]
     [else alts]))
 
-(define (sort-alts alts [errss (exprs-errors (map alt-expr alts) (*pcontext*) (*context*))])
+(define (sort-alts alts errss)
   ;; sort everything by error + cost
   (define alts-to-be-sorted (map cons alts errss))
   (sort alts-to-be-sorted

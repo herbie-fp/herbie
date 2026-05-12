@@ -45,7 +45,7 @@
 
 (define (make-alt-table batch pcontext initial-alt ctx)
   (define cost ((alt-batch-costs batch) (alt-expr initial-alt)))
-  (define errs (batchref-errors (alt-expr initial-alt) pcontext ctx))
+  (define errs (first (batch-errors batch (list (alt-expr initial-alt)) pcontext ctx)))
   (alt-table (for/vector #:length (pcontext-length pcontext)
                          ([err (in-flvector errs)])
                (list (pareto-point cost err (list initial-alt))))
