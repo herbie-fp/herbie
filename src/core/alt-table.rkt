@@ -12,17 +12,16 @@
          "points.rkt"
          "programs.rkt")
 
-(provide (contract-out
-          (make-alt-table (batch? pcontext? alt? any/c . -> . alt-table?))
-          (atab-active-alts (alt-table? . -> . (listof alt?)))
-          (atab-all-alts (alt-table? . -> . (listof alt?)))
-          (atab-not-done-alts (alt-table? . -> . (listof alt?)))
-          (atab-eval-altns (alt-table? batch? (listof alt?) context? . -> . (values any/c any/c)))
-          (atab-add-altns (alt-table? (listof alt?) any/c any/c . -> . alt-table?))
-          (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
-          (atab-completed? (alt-table? . -> . boolean?))
-          (atab-min-errors (alt-table? . -> . flvector?))
-          (alt-batch-costs (batch? . -> . (batchref? . -> . real?)))))
+(provide (contract-out (make-alt-table (batch? pcontext? alt? . -> . alt-table?))
+                       (atab-active-alts (alt-table? . -> . (listof alt?)))
+                       (atab-all-alts (alt-table? . -> . (listof alt?)))
+                       (atab-not-done-alts (alt-table? . -> . (listof alt?)))
+                       (atab-eval-altns (alt-table? batch? (listof alt?) . -> . (values any/c any/c)))
+                       (atab-add-altns (alt-table? (listof alt?) any/c any/c . -> . alt-table?))
+                       (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
+                       (atab-completed? (alt-table? . -> . boolean?))
+                       (atab-min-errors (alt-table? . -> . flvector?))
+                       (alt-batch-costs (batch? . -> . (batchref? . -> . real?)))))
 
 ;; Public API
 
@@ -43,9 +42,9 @@
                       (define cost-proc (node-cost-proc node))
                       (apply cost-proc (map recurse args))]))))
 
-(define (make-alt-table batch pcontext initial-alt ctx)
+(define (make-alt-table batch pcontext initial-alt)
   (define cost ((alt-batch-costs batch) (alt-expr initial-alt)))
-  (define errs (batchref-errors (alt-expr initial-alt) pcontext ctx))
+  (define errs (batchref-errors (alt-expr initial-alt) pcontext))
   (alt-table (for/vector #:length (pcontext-length pcontext)
                          ([err (in-flvector errs)])
                (list (pareto-point cost err (list initial-alt))))
@@ -173,9 +172,9 @@
                [alt->done? (hash-remove* alt->done? altns)]
                [alt->cost (hash-remove* alt->cost altns)]))
 
-(define (atab-eval-altns atab batch altns ctx)
+(define (atab-eval-altns atab batch altns)
   (define brfs (map alt-expr altns))
-  (define errss (batch-errors batch brfs (alt-table-pcontext atab) ctx))
+  (define errss (batch-errors batch brfs (alt-table-pcontext atab)))
   (define costs (map (alt-batch-costs batch) brfs))
   (values errss costs))
 

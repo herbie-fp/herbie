@@ -45,11 +45,11 @@
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
 ;; CONSIDER: move start-prog and the "branch-brfs" computation into caller.
-(define (pareto-regimes batch sorted start-prog ctx pcontext)
+(define (pareto-regimes batch sorted start-prog pcontext)
   (timeline-event! 'regimes)
   (define alts-vec (list->vector sorted))
   (define alt-count (vector-length alts-vec))
-  (define err-cols (batch-errors batch (map alt-expr sorted) pcontext ctx))
+  (define err-cols (batch-errors batch (map alt-expr sorted) pcontext))
   (define (real-brf? brf)
     (equal? (representation-type (batch-repr-of brf)) 'real))
   (define branch-brfs
