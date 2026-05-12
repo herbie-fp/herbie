@@ -55,9 +55,6 @@
 ;; Herbie's standard error measure is the average bits of error across
 ;; all points in a pcontext.
 
-(define (average . s)
-  (/ (apply + s) (length s)))
-
 (define (errors-score e)
   (/ (flvector-sum e) (flvector-length e)))
 
