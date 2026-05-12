@@ -104,7 +104,7 @@
                              (writeln (exprs (alt-expr altn)) out)))))
 
 (define (batch-score-alts altns)
-  (map errors-score (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*) (*context*))))
+  (map errors-score (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*))))
 
 (define (timeline-push-alts! next-alts)
   (define pending-alts (atab-not-done-alts (^table^)))
