@@ -70,10 +70,10 @@
                [repr (in-list reprs-list)])
       (struct-copy context ctx [repr repr])))
 
-  (define-values (expr-batch brfs) (progs->batch exprs-list))
+  (define-values (expr-batch brfs) (progs->batch exprs-list #:ctx ctx))
   (define roots (list->vector (map batchref-idx brfs)))
 
-  (define-values (spec-batch spec-brfs) (progs->batch (map prog->spec exprs-list)))
+  (define-values (spec-batch spec-brfs) (progs->batch (map prog->spec exprs-list) #:ctx ctx))
   (define subexprs-fn (eval-progs-real spec-batch spec-brfs ctx-list))
 
   (define errs (make-matrix roots pcontext))
@@ -124,7 +124,7 @@
     (for/list ([subexpr (in-list exprs-list)]
                [repr (in-list reprs-list)])
       (struct-copy context ctx [repr repr])))
-  (define-values (spec-batch spec-brfs) (progs->batch spec-list))
+  (define-values (spec-batch spec-brfs) (progs->batch spec-list #:ctx ctx))
   (define subexprs-fn (eval-progs-real spec-batch spec-brfs ctx-list))
 
   ;; And the absolute difference between the two
@@ -144,10 +144,10 @@
         ['bool 0] ; We can't subtract booleans so ignore them
         ['real `(fabs (- ,spec ,var))]
         [_ 0])))
-  (define-values (compare-batch compare-brfs) (progs->batch compare-specs))
+  (define-values (compare-batch compare-brfs) (progs->batch compare-specs #:ctx delta-ctx))
   (define delta-fn (eval-progs-real compare-batch compare-brfs (map (const delta-ctx) compare-specs)))
 
-  (define-values (expr-batch brfs) (progs->batch exprs-list))
+  (define-values (expr-batch brfs) (progs->batch exprs-list #:ctx ctx))
   (define roots (list->vector (map batchref-idx brfs)))
 
   (define ulp-errs (make-matrix roots pcontext))
