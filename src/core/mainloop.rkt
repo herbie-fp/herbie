@@ -19,8 +19,7 @@
          "regimes.rkt"
          "batch-reduce.rkt")
 
-(provide run-improve!
-         sort-alts)
+(provide run-improve!)
 
 ;; The Herbie main loop goes through a simple iterative process:
 ;;

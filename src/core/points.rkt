@@ -14,7 +14,6 @@
          split-pcontext
          pcontext-length
          errors
-         batchref-errors
          batch-errors
          exprs-errors
          errors-score)
