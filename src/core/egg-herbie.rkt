@@ -23,6 +23,7 @@
 (provide (struct-out egg-runner)
          make-egraph
          egraph-equal?
+         egraph-roots-equal?
          egraph-prove
          egraph-best
          egraph-variations
@@ -1268,6 +1269,10 @@
   (define ctx (egg-runner-ctx runner))
   (define egg-graph (egg-runner-egg-graph runner))
   (egraph-expr-equal? egg-graph start end ctx))
+
+(define (egraph-roots-equal? runner idx1 idx2)
+  (define root-ids (egg-runner-new-roots runner))
+  (= (list-ref root-ids idx1) (list-ref root-ids idx2)))
 
 (define (egraph-prove runner start-brf end-brf)
   (define ctx (egg-runner-ctx runner))

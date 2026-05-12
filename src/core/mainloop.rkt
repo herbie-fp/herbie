@@ -45,21 +45,22 @@
 ;; - Final steps: regimes, derivations, and remove preprocessing
 
 (define (run-improve! initial specification context pcontext)
-  (timeline-event! 'preprocess)
-  (define preprocessing
-    (if (flag-set? 'setup 'preprocess)
-        (find-preprocessing specification context)
-        '()))
-  (timeline-push! 'symmetry (map ~a preprocessing))
-  (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-  (*pcontext* pcontext*)
-
   (parameterize ([*global-batch* (batch-empty context)])
     (define global-spec-batch (batch-empty context))
+    (define initial-brf (batch-add! (*global-batch*) initial))
+    (define specification-brf (batch-add! global-spec-batch specification))
+    (timeline-event! 'preprocess)
+    (define preprocessing
+      (if (flag-set? 'setup 'preprocess)
+          (find-preprocessing global-spec-batch specification-brf context)
+          '()))
+    (timeline-push! 'symmetry (map ~a preprocessing))
+    (define pcontext* (preprocess-pcontext context pcontext preprocessing))
+    (*pcontext* pcontext*)
+
     (define spec-reducer (batch-reduce global-spec-batch))
 
     (*preprocessing* preprocessing)
-    (define initial-brf (batch-add! (*global-batch*) initial))
     (*start-brf* initial-brf)
     (define start-alt (alt initial-brf 'start '()))
     (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
