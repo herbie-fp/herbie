@@ -185,7 +185,7 @@
        (match (fpcore-extension-spec expr*)
          [#f expr*]
          [(== expr*) expr*]
-          [spec (loop spec)])])))
+         [spec (loop spec)])])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FPCore -> LImpl
