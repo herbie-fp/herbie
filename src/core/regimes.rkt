@@ -145,7 +145,7 @@
     (define idx2 (batchref-idx brf2))
     (cond
       [(= idx1 idx2) brf1]
-      [(< idx1 idx2) (loop (dom-parent brf1) brf2)]
+      [(> idx1 idx2) (loop (dom-parent brf1) brf2)]
       [else (loop brf1 (dom-parent brf2))])))
 
 (define (baseline-errors-score err-cols count)
@@ -259,6 +259,11 @@
     (define-values (batch brfs) (progs->batch (list 'x) #:ctx xy-ctx))
     (check-true (critical-subexpression? batch (first brfs) (batch-add! batch 'x)))
     (check-false (critical-subexpression? batch (first brfs) (batch-add! batch 'y))))
+
+  (let ()
+    (define xyz-ctx (context '(x y z) <binary64> (list <binary64> <binary64> <binary64>)))
+    (define-values (batch brfs) (progs->batch (list '(* (+ x y) (/ x z))) #:ctx xyz-ctx))
+    (check-false (critical-subexpression? batch (first brfs) (batch-add! batch '(+ x y)))))
 
   (let ()
     (define vec2-ctx
