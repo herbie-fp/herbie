@@ -45,7 +45,7 @@
      (define fl-proc
        (procedure-reduce-arity (lambda args (core-proc (list->vector args)))
                                (length (context-vars ctx))))
-     (define cost ((platform-cost-proc (*active-platform*)) body* output-repr))
+     (define cost ((platform-cost-proc (*active-platform*)) body*))
      (define fpcore-expr (cons name (context-vars ctx)))
      (define impl
        (create-operator-impl! name ctx #:spec spec* #:impl fl-proc #:fpcore fpcore-expr #:cost cost))

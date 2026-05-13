@@ -57,6 +57,10 @@
  :alt 
  (! :herbie-platform c
   (+ (/ 1 a) (/ 1 b)))
+ :alt
+ (! :herbie-platform c
+  (+ eps (+ (/ (if (== (* a eps) 0) 1 (/ (* eps a) (expm1 (* eps a)))) a)
+            (/ (if (== (* b eps) 0) 1 (/ (* eps b) (expm1 (* eps b)))) b))))
 
  (/
   (* eps (- (exp (* (+ a b) eps)) 1))

@@ -37,6 +37,7 @@
          prog->spec
          batch-to-spec!
          get-fpcore-impl
+         impl->fpcore
          reset-fpcore-op-cache!
          (struct-out $platform)
          ;; Platform API
@@ -168,9 +169,9 @@
 
 ; Cost model of a single node by a platform.
 ; Returns a procedure that must be called with the costs of the children.
-(define ((platform-node-cost-proc platform) expr repr)
+(define ((platform-node-cost-proc platform) expr)
   (match expr
-    [(? literal?) (lambda () (platform-repr-cost platform repr))]
+    [(literal _ precision) (lambda () (platform-repr-cost platform (get-representation precision)))]
     [(? symbol?) (lambda () 0)]
     [(list impl args ...)
      (define impl-cost (impl-info impl 'cost))
@@ -183,24 +184,27 @@
 ; Cost model parameterized by a platform.
 (define (platform-cost-proc platform)
   (define node-cost-proc (platform-node-cost-proc platform))
-  (λ (expr repr)
-    (let loop ([expr expr]
-               [repr repr])
+  (λ (expr)
+    (let loop ([expr expr])
       (match expr
-        [(? literal?) ((node-cost-proc expr repr))]
-        [(? symbol?) ((node-cost-proc expr repr))]
-        [(approx _ impl) (loop impl repr)]
+        [(? literal?) ((node-cost-proc expr))]
+        [(? symbol?) ((node-cost-proc expr))]
+        [(approx _ impl) (loop impl)]
         [(list impl args ...)
-         (define cost-proc (node-cost-proc expr repr))
-         (define itypes (impl-info impl 'itype))
-         (apply cost-proc (map loop args itypes))]))))
+         (define cost-proc (node-cost-proc expr))
+         (apply cost-proc (map loop args))]))))
 
 ;; Extracts the `fpcore` field of an operator implementation
-;; as a property dictionary and expression.
+;; as a property dictionary and operation.
 (define (impl->fpcore impl)
-  (match (impl-info impl 'fpcore)
-    [(list '! props ... body) (values (props->dict props) body)]
-    [body (values '() body)]))
+  (define-values (props body)
+    (match (impl-info impl 'fpcore)
+      [(list '! props ... body) (values (props->dict props) body)]
+      [body (values '() body)]))
+  (values props
+          (if (symbol? body)
+              (list body)
+              body)))
 
 (define/reset op-hash #f)
 
@@ -215,12 +219,8 @@
     (define h (make-hash))
     (for ([impl (in-list (platform-impls (*active-platform*)))])
       (define-values (_ expr) (impl->fpcore impl))
-      (define expr*
-        (if (symbol? expr)
-            (list expr)
-            expr))
-      (when (list? expr*)
-        (hash-update! h (car expr*) (curry cons impl) '())))
+      (when (list? expr)
+        (hash-update! h (car expr) (curry cons impl) '())))
     (op-hash h))
 
   ; gather all implementations that have the same spec, input representations,
@@ -230,12 +230,8 @@
           (for ([impl (in-list (hash-ref (op-hash) op '()))]
                 #:when (equal? ireprs (impl-info impl 'itype)))
             (define-values (prop-dict* expr) (impl->fpcore impl))
-            (define expr*
-              (if (symbol? expr)
-                  (list expr)
-                  expr)) ; Handle named constants
             (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))
-            (when (and (subset? prop-dict* prop-dict) (pattern-match pattern expr*))
+            (when (and (subset? prop-dict* prop-dict) (pattern-match pattern expr))
               (sow impl)))))
   ; check that we have any matching impls
   (cond

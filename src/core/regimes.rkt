@@ -31,8 +31,12 @@
            "../syntax/sugar.rkt")
 
   (define (check-critical expr subexpr)
-    (define-values (batch brfs) (progs->batch (list expr)))
-    (critical-subexpression? batch (first brfs) (batch-add! batch subexpr) (free-variables expr))))
+    (define ctx
+      (context (free-variables expr)
+               <binary64>
+               (make-list (length (free-variables expr)) <binary64>)))
+    (define-values (batch brfs) (progs->batch (list expr) #:ctx ctx))
+    (critical-subexpression? batch (first brfs) (batch-add! batch subexpr))))
 
 (struct option (split-indices alts pts expr)
   #:transparent
@@ -41,21 +45,20 @@
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
 ;; CONSIDER: move start-prog and the "branch-brfs" computation into caller.
-(define (pareto-regimes batch sorted start-prog ctx pcontext)
+(define (pareto-regimes batch sorted start-prog pcontext)
   (timeline-event! 'regimes)
   (define alts-vec (list->vector sorted))
   (define alt-count (vector-length alts-vec))
-  (define err-cols (batch-errors batch (map alt-expr sorted) pcontext ctx))
-  (define reprs (batch-reprs batch ctx))
+  (define err-cols (batch-errors batch (map alt-expr sorted) pcontext))
   (define (real-brf? brf)
-    (equal? (representation-type (reprs brf)) 'real))
+    (equal? (representation-type (batch-repr-of brf)) 'real))
   (define branch-brfs
     (filter real-brf?
             (if (flag-set? 'reduce 'branch-expressions)
-                (critical-subexpressions batch start-prog (context-vars ctx))
-                (map (curry batch-add! batch) (context-vars ctx)))))
+                (critical-subexpressions batch start-prog)
+                (map (curry batch-add! batch) (batch-vars batch)))))
 
-  (define brf-vals (brf-values* batch branch-brfs ctx pcontext))
+  (define brf-vals (brf-values* batch branch-brfs pcontext))
   (define pts-vec (pcontext-points pcontext))
 
   ;; For timeline
@@ -68,7 +71,7 @@
     (for/list ([brf (in-list branch-brfs)]
                [brf-vals-vec (in-list brf-vals)])
       (define timeline-stop! (timeline-start! 'times (batch->jsexpr batch (list brf))))
-      (define repr (reprs brf))
+      (define repr (batch-repr-of brf))
       (define curve (branch-options batch alts-vec err-cols pts-vec brf brf-vals-vec repr))
       (define last-point (last curve))
       (timeline-stop!)
@@ -101,11 +104,11 @@
                     (baseline-errors-score err-cols (pareto-point-cost ppt)))
     opt))
 
-(define (critical-subexpression? batch root-brf sub-brf vars)
-  (set-member? (critical-subexpressions batch root-brf vars) sub-brf))
+(define (critical-subexpression? batch root-brf sub-brf)
+  (set-member? (critical-subexpressions batch root-brf) sub-brf))
 
-(define (critical-subexpressions batch root-brf vars)
-  (define var-brfs (map (curry batch-add! batch) vars))
+(define (critical-subexpressions batch root-brf)
+  (define var-brfs (map (curry batch-add! batch) (batch-vars batch)))
   (define dom-parent (build-dominator-tree batch root-brf))
   (reap [sow]
         (define seen-brfs (mutable-set root-brf))
@@ -156,9 +159,9 @@
                 (min best-err (flvector-ref err-col point-idx))))
      num-points))
 
-(define (brf-values* batch brfs ctx pcontext)
+(define (brf-values* batch brfs pcontext)
   (define count (length brfs))
-  (define fn (compile-batch batch brfs ctx))
+  (define fn (compile-batch batch brfs))
   (define num-points (pcontext-length pcontext))
   (define vals (build-vector count (lambda (_) (make-vector num-points))))
   (for ([pt (in-vector (pcontext-points pcontext))]
@@ -204,25 +207,29 @@
   (define pts-vec (pcontext-points pctx))
 
   (define (test-regimes expr goal)
-    (define-values (batch brfs) (progs->batch (list expr)))
+    (define-values (batch brfs) (progs->batch (list expr) #:ctx ctx))
     (define brf (car brfs))
-    (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
-    (define reprs (batch-reprs batch ctx))
+    (define brf-vals (car (brf-values* batch (list brf) pctx)))
     (check
      (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
      (pareto-point-data
-      (first (branch-options batch (list->vector alts) err-cols pts-vec brf brf-vals (reprs brf))))
+      (first
+       (branch-options batch (list->vector alts) err-cols pts-vec brf brf-vals (batch-repr-of brf))))
      goal))
 
   (define (test-regimes/prefixes expr goals)
-    (define-values (batch brfs) (progs->batch (list expr)))
+    (define-values (batch brfs) (progs->batch (list expr) #:ctx ctx))
     (define brf (car brfs))
-    (define brf-vals (car (brf-values* batch (list brf) ctx pctx)))
-    (define reprs (batch-reprs batch ctx))
+    (define brf-vals (car (brf-values* batch (list brf) pctx)))
     (define options
       (map pareto-point-data
-           (reverse
-            (branch-options batch (list->vector alts) err-cols pts-vec brf brf-vals (reprs brf)))))
+           (reverse (branch-options batch
+                                    (list->vector alts)
+                                    err-cols
+                                    pts-vec
+                                    brf
+                                    brf-vals
+                                    (batch-repr-of brf)))))
     (for ([goal (in-list goals)]
           [opt (in-list options)])
       (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y)) opt goal)))
@@ -249,11 +256,9 @@
 
   (let ()
     (define xy-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
-    (define-values (batch brfs) (progs->batch (list 'x)))
-    (check-true
-     (critical-subexpression? batch (first brfs) (batch-add! batch 'x) (context-vars xy-ctx)))
-    (check-false
-     (critical-subexpression? batch (first brfs) (batch-add! batch 'y) (context-vars xy-ctx))))
+    (define-values (batch brfs) (progs->batch (list 'x) #:ctx xy-ctx))
+    (check-true (critical-subexpression? batch (first brfs) (batch-add! batch 'x)))
+    (check-false (critical-subexpression? batch (first brfs) (batch-add! batch 'y))))
 
   (let ()
     (define vec2-ctx
@@ -264,9 +269,8 @@
     (define dot-product
       '(+.f64 (*.f64 (ref.f64 a #s(literal 0 binary64)) (ref.f64 b #s(literal 0 binary64)))
               (*.f64 (ref.f64 a #s(literal 1 binary64)) (ref.f64 b #s(literal 1 binary64)))))
-    (define-values (batch brfs) (progs->batch (list dot-product)))
-    (check-true (set-member? (critical-subexpressions batch (first brfs) (context-vars vec2-ctx))
-                             (first brfs)))))
+    (define-values (batch brfs) (progs->batch (list dot-product) #:ctx vec2-ctx))
+    (check-true (set-member? (critical-subexpressions batch (first brfs)) (first brfs)))))
 
 (define (valid-splitindices? can-split? split-indices)
   (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])

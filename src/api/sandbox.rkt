@@ -98,8 +98,7 @@
 
 (define (get-cost test)
   (define cost-proc (platform-cost-proc (*active-platform*)))
-  (define output-repr (context-repr (*context*)))
-  (cost-proc (test-input test) output-repr))
+  (cost-proc (test-input test)))
 
 (define (get-errors test pcontext)
   (unless pcontext
@@ -140,7 +139,7 @@
   (random) ;; Tick the random number generator, for backwards compatibility
   (define specification (test-spec test))
   (define precondition (test-pre test))
-  (define-values (batch brfs) (progs->batch (list specification)))
+  (define-values (batch brfs) (progs->batch (list specification) #:ctx (*context*)))
   (define sample
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (sample-points precondition batch brfs (list (*context*)))))
@@ -247,8 +246,6 @@
      (define start (hash-ref backend 'start))
      (define targets (hash-ref backend 'target))
      (define end (hash-ref backend 'end))
-     (define expr-cost (platform-cost-proc (*active-platform*)))
-     (define repr (test-output-repr test))
 
      ; starting expr analysis
      (define start-expr (read (open-input-string (hash-ref start 'expr))))
@@ -272,6 +269,7 @@
      (define end-exprs
        (for/list ([end-analysis (in-list end)])
          (read (open-input-string (hash-ref end-analysis 'expr)))))
+     (define end-expr-strings (map (curryr hash-ref 'expr) end))
      (define end-scores
        (for/list ([end-analysis (in-list end)])
          (errors-score (list->flvector (hash-ref end-analysis 'errors)))))
@@ -282,8 +280,11 @@
        (/ (round (* x 1000)) 1000.0))
      (define cost&accuracy
        (list (list (round3 start-cost) (round3 start-score))
-             (list (round3 (car end-costs)) (round3 (car end-scores)))
-             (map (λ (c s) (list (round3 c) (round3 s))) (cdr end-costs) (cdr end-scores))))
+             (list (round3 (car end-costs)) (round3 (car end-scores)) (car end-expr-strings))
+             (map (λ (c s expr) (list (round3 c) (round3 s) expr))
+                  (cdr end-costs)
+                  (cdr end-scores)
+                  (cdr end-expr-strings))))
 
      (define fuzz 0.1)
      (define end-score (car end-scores))

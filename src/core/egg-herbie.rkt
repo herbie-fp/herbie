@@ -23,6 +23,7 @@
 (provide (struct-out egg-runner)
          make-egraph
          egraph-equal?
+         egraph-roots-equal?
          egraph-prove
          egraph-best
          egraph-variations
@@ -85,7 +86,6 @@
       [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
-  (define reprs (batch-reprs batch ctx))
   (define add-to-egraph
     (batch-recurse
      batch
@@ -140,7 +140,7 @@
   eclass)
 
 (define (egraph-expr-equal? ptr expr goal ctx)
-  (define-values (batch brfs) (progs->batch (list expr goal)))
+  (define-values (batch brfs) (progs->batch (list expr goal) #:ctx ctx))
   (match-define (list id1 id2) (egraph-add-exprs ptr batch brfs ctx))
   (= id1 id2))
 
@@ -266,15 +266,12 @@
   (define ctx (context '(x y z) <binary64> (make-list 3 <binary64>)))
 
   (define test-exprs
-    (list (cons '(+.f64 y x) '(+.f64 $var1 $var0))
-          (cons '(+.f64 x y) '(+.f64 $var0 $var1))
-          (cons '(-.f64 #s(literal 2 binary64) (+.f64 x y)) '(-.f64 2 (+.f64 $var0 $var1)))
-          (cons '(-.f64 z (+.f64 (+.f64 y #s(literal 2 binary64)) x))
-                '(-.f64 $var2 (+.f64 (+.f64 $var1 2) $var0)))
-          (cons '(*.f64 x y) '(*.f64 $var0 $var1))
-          (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64)) '(+.f64 (*.f64 $var0 $var1) 2))
-          (cons '(cos.f32 (PI.f32)) '(cos.f32 (PI.f32)))
-          (cons '(if.f64 (TRUE) x y) '(if.f64 (TRUE) $var0 $var1))))
+    (list (cons '(+ y x) '(+ $var1 $var0))
+          (cons '(+ x y) '(+ $var0 $var1))
+          (cons '(- 2 (+ x y)) '(- 2 (+ $var0 $var1)))
+          (cons '(- z (+ (+ y 2) x)) '(- $var2 (+ (+ $var1 2) $var0)))
+          (cons '(* x y) '(* $var0 $var1))
+          (cons '(+ (* x y) 2) '(+ (* $var0 $var1) 2))))
 
   (let ([egg-graph (egraph_create)])
     (for ([(in expected-out) (in-dict test-exprs)])
@@ -287,24 +284,12 @@
 
   (set! ctx (context '(x a b c r) <binary64> (make-list 5 <binary64>)))
   (define extended-expr-list
-    ; specifications
     (list '(/ (- (exp x) (exp (neg x))) 2)
           '(/ (+ (neg b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
           '(/ (+ (neg b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
           '(* r 30)
           '(* 23/54 r)
-          '(+ 3/2 14/10)
-          ; implementations
-          `(/.f64 (-.f64 (exp.f64 x) (exp.f64 (neg.f64 x))) ,(literal 2 'binary64))
-          `(/.f64 (+.f64 (neg.f64 b)
-                         (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 (*.f64 ,(literal 3 'binary64) a) c))))
-                  (*.f64 ,(literal 3 'binary64) a))
-          `(/.f64 (+.f64 (neg.f64 b)
-                         (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 (*.f64 ,(literal 3 'binary64) a) c))))
-                  (*.f64 ,(literal 3 'binary64) a))
-          `(*.f64 r ,(literal 30 'binary64))
-          `(*.f64 ,(literal 23/54 'binary64) r)
-          `(+.f64 ,(literal 3/2 'binary64) ,(literal 14/10 'binary64))))
+          '(+ 3/2 14/10)))
 
   (let ([egg-graph (egraph_create)])
     (for ([expr extended-expr-list])
@@ -313,7 +298,7 @@
 
   (define dedup-ctx1 (context '(x y) <binary64> (list <binary64> <binary64>)))
   (define dedup-ctx2 (context '(y x) <binary64> (list <binary64> <binary64>)))
-  (define deduped (deduplicate-exprs (list '(+.f64 x y) '(+.f64 y x)) (list dedup-ctx1 dedup-ctx2)))
+  (define deduped (deduplicate-exprs (list '(+ x y) '(+ y x)) (list dedup-ctx1 dedup-ctx2)))
   (check-equal? (length deduped) 2)
   (check-equal? (first deduped) (second deduped)))
 
@@ -1033,8 +1018,7 @@
      (define ctx (regraph-ctx regraph))
      (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
      (match node
-       ; numbers (repr is unused)
-       [(? number? n) ((node-cost-proc (literal n type) type))]
+       [(? number? n) ((node-cost-proc (literal n type)))]
        ; variables
        [(? symbol?) 0]
        ; approx node
@@ -1046,7 +1030,7 @@
                     (fraction-with-odd-denominator? n))
            +inf.0]
           [_
-           (define cost-proc (node-cost-proc node type))
+           (define cost-proc (node-cost-proc node))
            (apply cost-proc (map rec args))])])]
     [else (default-egg-cost-proc regraph cache node type rec)]))
 
@@ -1117,14 +1101,11 @@
   (define egg-graph (egraph_create))
   (egraph-add-exprs egg-graph batch brfs ctx)
   (define-values (egg-graph0 _0) (egraph-run-rules egg-graph '()))
-  (define lifting-rules (convert-rules (platform-lifting-rules)))
   (define-values (egg-graph1 _1)
-    (egraph-run-rules egg-graph0 lifting-rules #:iter-limit 1 #:scheduler 'simple))
-  (define-values (egg-graph2 _2)
     (if (> iter 0)
-        (egraph-run-rules egg-graph1 (convert-rules (*rules*)) #:iter-limit iter)
-        (values egg-graph1 _1)))
-  (define-values (egg-graph3 iter-data3) (egraph-run-rules egg-graph2 '()))
+        (egraph-run-rules egg-graph0 (convert-rules (*rules*)) #:iter-limit iter)
+        (values egg-graph0 _0)))
+  (define-values (egg-graph3 iter-data3) (egraph-run-rules egg-graph1 '()))
   (define initial-size (iteration-data-num-nodes (last iter-data3)))
   (define results
     (for/list ([rule (in-list (*rules*))])
@@ -1203,7 +1184,7 @@
 
 ;; Herbie's version of an egg runner.
 ;; Defines parameters for running rewrite rules with egg
-(struct egg-runner (batch reprs schedule ctx new-roots egg-graph)
+(struct egg-runner (batch schedule ctx new-roots egg-graph)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -1216,7 +1197,7 @@
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
 ;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
 ;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
-(define (make-egraph batch brfs reprs schedule ctx)
+(define (make-egraph batch brfs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -1227,7 +1208,7 @@
   (define-values (root-ids egg-graph) (egraph-run-schedule batch brfs schedule ctx))
 
   ; make the runner
-  (egg-runner batch reprs schedule ctx root-ids egg-graph))
+  (egg-runner batch schedule ctx root-ids egg-graph))
 
 (module+ test
   (require "../syntax/load-platform.rkt")
@@ -1235,8 +1216,8 @@
     (activate-platform! "c")
     (define rebuild-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
     (define expr '(+ (/ 1 2) (* x y)))
-    (define-values (batch brfs) (progs->batch (list expr)))
-    (define runner (make-egraph batch brfs (list (context-repr rebuild-ctx)) '() rebuild-ctx))
+    (define-values (batch brfs) (progs->batch (list expr) #:ctx rebuild-ctx))
+    (define runner (make-egraph batch brfs '() rebuild-ctx))
     (define egg-graph (egg-runner-egg-graph runner))
     (define eclasses (u32vector->list (egraph_get_eclasses egg-graph)))
 
@@ -1271,6 +1252,10 @@
   (define egg-graph (egg-runner-egg-graph runner))
   (egraph-expr-equal? egg-graph start end ctx))
 
+(define (egraph-roots-equal? runner idx1 idx2)
+  (define root-ids (egg-runner-new-roots runner))
+  (= (list-ref root-ids idx1) (list-ref root-ids idx2)))
+
 (define (egraph-prove runner start-brf end-brf)
   (define ctx (egg-runner-ctx runner))
   (define egg-graph (egg-runner-egg-graph runner))
@@ -1286,7 +1271,7 @@
     (error 'egraph-prove "proof extraction failed between`~a` and `~a`" start end))
   proof)
 
-(define (egraph-best runner batch)
+(define (egraph-best runner batch reprs)
   (define ctx (egg-runner-ctx runner))
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
@@ -1296,7 +1281,6 @@
     [(egraph_is_unsound_detected egg-graph) (map (const empty) root-ids)]
     [else
      (define regraph (make-regraph egg-graph ctx))
-     (define reprs (egg-runner-reprs runner))
      (when (flag-set? 'dump 'egg)
        (regraph-dump regraph root-ids reprs))
 
@@ -1307,7 +1291,7 @@
                 [repr (in-list reprs)])
        (regraph-extract-best regraph extract-id id repr))]))
 
-(define (egraph-variations runner batch)
+(define (egraph-variations runner batch reprs)
   (define ctx (egg-runner-ctx runner))
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
@@ -1317,7 +1301,6 @@
     [(egraph_is_unsound_detected egg-graph) (map (const empty) root-ids)]
     [else
      (define regraph (make-regraph egg-graph ctx))
-     (define reprs (egg-runner-reprs runner))
      (when (flag-set? 'dump 'egg)
        (regraph-dump regraph root-ids reprs))
 
@@ -1330,9 +1313,10 @@
 
 (define (deduplicate-exprs exprs ctxs)
   (define ctx (contexts-union ctxs))
-  (define-values (batch brfs) (progs->batch exprs))
-  (define runner (make-egraph batch brfs (map context-repr ctxs) '(lift rewrite lower) ctx))
-  (define batchrefss (egraph-best runner batch))
+  (define-values (batch brfs) (progs->batch exprs #:ctx ctx))
+  (define reprs (make-list (length brfs) (context-repr ctx)))
+  (define runner (make-egraph batch brfs '(rewrite lower) ctx))
+  (define batchrefss (egraph-best runner batch reprs))
   (define batch-pull (batch-exprs batch))
   (for/list ([orig-expr (in-list exprs)]
              [refs (in-list batchrefss)])

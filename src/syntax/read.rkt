@@ -188,11 +188,13 @@
            (fpcore->prog val ctx)
            (cons val #t))])))
 
-  (define spec (fpcore->spec (dict-ref prop-dict ':spec body)))
+  (define spec-src (dict-ref prop-dict ':spec body))
+  (define spec (fpcore->spec spec-src))
 
   ;; Named fpcores become platform operators
   (when (and func-name (*register-named-fpcore-operators?*))
-    (register-fpcore-operator! func-name (struct-copy context ctx [repr output-repr]) body* spec))
+    (define spec* (fpcore->prog spec-src ctx))
+    (register-fpcore-operator! func-name (struct-copy context ctx [repr output-repr]) body* spec*))
   (check-unused-variables var-names body* pre*)
   (check-weird-variables var-names)
 
