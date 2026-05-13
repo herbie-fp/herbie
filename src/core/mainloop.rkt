@@ -45,25 +45,25 @@
 ;; - Final steps: regimes, derivations, and remove preprocessing
 
 (define (run-improve! initial specification context pcontext)
-  (timeline-event! 'preprocess)
-  (define preprocessing
-    (if (flag-set? 'setup 'preprocess)
-        (find-preprocessing specification context)
-        '()))
-  (displayln preprocessing)
-  (timeline-push! 'symmetry (map ~a preprocessing))
-  (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-  (*pcontext* pcontext*)
+  (parameterize ([*global-batch* (batch-empty context)])
+    (define global-spec-batch (batch-empty context))
+    (define initial-brf (batch-add! (*global-batch*) initial))
+    (define specification-brf (batch-add! global-spec-batch specification))
+    (timeline-event! 'preprocess)
+    (define preprocessing
+      (if (flag-set? 'setup 'preprocess)
+          (find-preprocessing global-spec-batch specification-brf context)
+          '()))
+    (timeline-push! 'symmetry (map ~a preprocessing))
+    (define pcontext* (preprocess-pcontext context pcontext preprocessing))
+    (*pcontext* pcontext*)
 
-  (parameterize ([*global-batch* (batch-empty)])
-    (define global-spec-batch (batch-empty))
     (define spec-reducer (batch-reduce global-spec-batch))
 
     (*preprocessing* preprocessing)
-    (define initial-brf (batch-add! (*global-batch*) initial))
     (*start-brf* initial-brf)
     (define start-alt (alt initial-brf 'start '()))
-    (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
+    (^table^ (make-alt-table (*global-batch*) pcontext start-alt))
 
     (for ([_ (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
@@ -105,7 +105,7 @@
                              (writeln (exprs (alt-expr altn)) out)))))
 
 (define (batch-score-alts altns)
-  (map errors-score (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*) (*context*))))
+  (map errors-score (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*))))
 
 (define (timeline-push-alts! next-alts)
   (define pending-alts (atab-not-done-alts (^table^)))
@@ -130,19 +130,22 @@
 (define (set-intersect-size keys set)
   (for/sum ([key (in-list keys)] #:when (set-member? set key)) 1))
 
-(define (expr-recurse-impl expr f)
-  (match expr
-    [(approx _ impl) (f impl)]
-    [_ (expr-recurse expr f)]))
-
+(define (taylor-record altn)
+  (match altn
+    [(alt _ `(taylor ,start-expr ,transform ,var ,order) prevs) altn]
+    [(alt _
+          `(rr ,start-expr ,end-expr ,input ,proof)
+          (list (alt _ `(taylor ,prev-start-expr ,transform ,var ,order) prevs)))
+     (car (alt-prevs altn))]
+    [_ #f]))
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! starting-alts new-alts)
   (timeline-event! 'reconstruct)
 
   (define (group-equivalent-alts alts)
-    (define fn (compile-batch (*global-batch*) (map alt-expr alts) (*context*)))
+    (define fn (compile-batch (*global-batch*) (map alt-expr alts)))
     (define signatures (make-vector (length alts) '()))
-    (define batch-cost (alt-batch-costs (*global-batch*) (*context*)))
+    (define batch-cost (alt-batch-costs (*global-batch*)))
 
     (for ([pt (in-vector (pcontext-points (*pcontext*)))])
       (define outs (fn pt))
@@ -183,7 +186,7 @@
          (define event*
            (match event
              [(list 'evaluate) (list 'evaluate start-expr)]
-             [(list 'taylor name var) (list 'taylor start-expr name var)]
+             [(list 'taylor name var order) (list 'taylor start-expr name var order)]
              [(list 'rr input proof) (list 'rr (alt-expr prev) cur-expr input proof)]))
          (define expr* (batch-replace-subexpr batch (alt-expr orig) start-expr cur-expr can-refer))
          (values (alt expr* event* (list prev-altn)) start-expr)]))
@@ -223,9 +226,9 @@
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract orig-all-alts (atab-not-done-alts (^table^))))
 
-  (define-values (errss costs) (atab-eval-altns (^table^) (*global-batch*) patched (*context*)))
+  (define-values (errss costs) (atab-eval-altns (^table^) (*global-batch*) patched))
   (timeline-event! 'prune)
-  (^table^ (atab-add-altns (^table^) patched errss costs (*context*)))
+  (^table^ (atab-add-altns (^table^) patched errss costs))
   (define final-fresh-set (list->seteq (atab-not-done-alts (^table^))))
   (define final-active-set (list->seteq (atab-active-alts (^table^))))
   (define final-done-set (set-subtract final-active-set final-fresh-set))
@@ -245,8 +248,16 @@
           'picked
           (list (length picked-alts) (set-intersect-size picked-alts final-done-set))))
   (timeline-push! 'kept data)
+  (define free-vars (batch-free-vars (*global-batch*)))
+  (for ([altn (in-list patched)])
+    (match (taylor-record altn)
+      [(alt _ `(taylor ,start-expr ,transform ,var ,order) prevs)
+       (define kept? (set-member? final-active-set altn))
+       (define nvars (min (set-count (free-vars start-expr)) 2))
+       (timeline-push! 'taylor-count (~a transform) order nvars 1 (if kept? 1 0))]
+      [#f (void)]))
 
-  (define repr (context-repr (*context*)))
+  (define repr (batch-repr-of (*start-brf*)))
   (timeline-push! 'min-error
                   (errors-score (atab-min-errors (^table^)))
                   (format "~a" (representation-name repr)))
@@ -266,38 +277,34 @@
   (void))
 
 (define (make-regime! batch alts start-prog)
-  (define ctx (*context*))
-  (define repr (context-repr ctx))
-  (define alt-costs (alt-batch-costs batch ctx))
+  (define repr (batch-repr-of start-prog))
+  (define alt-costs (alt-batch-costs batch))
 
   (cond
     [(and (flag-set? 'reduce 'regimes)
           (> (length alts) 1)
           (equal? (representation-type repr) 'real)
-          (not (null? (context-vars ctx)))
+          (not (null? (batch-vars batch)))
           (get-fpcore-impl 'if '() (list <bool> repr repr))
           (get-fpcore-impl '<= '() (list repr repr)))
      (define opts
        (pareto-regimes batch
                        (sort alts < #:key (compose alt-costs alt-expr))
                        start-prog
-                       ctx
                        (*pcontext*)))
      (for/list ([opt (in-list opts)])
        (match-define (option splitindices opt-alts _ brf) opt)
        (timeline-event! 'bsearch)
-       (define exprs (batch-exprs batch))
-       (define branch-expr (exprs brf))
        (define use-binary?
          (and (flag-set? 'reduce 'binary-search)
               (> (length splitindices) 1)
-              (critical-subexpression? (exprs start-prog) branch-expr)
+              (critical-subexpression? batch start-prog brf)
               (for/and ([alt (in-list opt-alts)])
-                (critical-subexpression? (exprs (alt-expr alt)) branch-expr))))
+                (critical-subexpression? batch (alt-expr alt) brf))))
        (cond
          [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
-         [use-binary? (combine-alts/binary batch opt start-prog ctx (*pcontext*))]
-         [else (combine-alts batch opt ctx)]))]
+         [use-binary? (combine-alts/binary batch opt start-prog (*context*) (*pcontext*))]
+         [else (combine-alts batch opt)]))]
     [else
      (define scores (batch-score-alts alts))
      (list (cdr (argmin car (map (λ (a s) (cons s a)) alts scores))))]))
@@ -311,11 +318,10 @@
 
 (define (sort-alts alts [errss (exprs-errors (map alt-expr alts) (*pcontext*) (*context*))])
   ;; sort everything by error + cost
-  (define repr (context-repr (*context*)))
   (define alts-to-be-sorted (map cons alts errss))
   (sort alts-to-be-sorted
         (lambda (x y)
           (or (< (errors-score (cdr x)) (errors-score (cdr y))) ; sort by error
               (and (equal? (errors-score (cdr x))
                            (errors-score (cdr y))) ; if error is equal sort by cost
-                   (< (alt-cost (car x) repr) (alt-cost (car y) repr)))))))
+                   (< (alt-cost (car x)) (alt-cost (car y))))))))

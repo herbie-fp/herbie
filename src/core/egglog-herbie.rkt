@@ -34,6 +34,26 @@
 (define (all-repr-names [pform (*active-platform*)])
   (map representation-name (platform-reprs pform)))
 
+(define (egglog-repr-token repr-name)
+  (match repr-name
+    [(? representation?) (egglog-repr-token (representation-name repr-name))]
+    [(? symbol?) (format "sym_~a" repr-name)]
+    [`(array ,elem ,len) (format "arr_~a_~a" len (egglog-repr-token elem))]))
+
+(define (egglog-repr-name token)
+  (cond
+    [(string-prefix? token "sym_") (string->symbol (substring token 4))]
+    [(string-prefix? token "arr_")
+     (define rest (substring token 4))
+     (define split
+       (for/first ([i (in-range (string-length rest))]
+                   #:when (char=? (string-ref rest i) #\_))
+         i))
+     `(array ,(egglog-repr-name (substring rest (add1 split)))
+             ,(string->number (substring rest 0 split)))]
+    ;; Legacy scalar encoding used in older tests and dumps.
+    [else (string->symbol token)]))
+
 (define (real->bigrat val)
   `(bigrat (from-string ,(~s (numerator val))) (from-string ,(~s (denominator val)))))
 
@@ -49,7 +69,7 @@
 
 ;; Herbie's version of an egglog runner.
 ;; Defines parameters for running rewrite rules with egglog
-(struct egglog-runner (batch brfs reprs schedule ctx)
+(struct egglog-runner (batch brfs schedule ctx)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -62,7 +82,7 @@
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
 ;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
 ;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
-(define (make-egglog-runner batch brfs reprs schedule ctx)
+(define (make-egglog-runner batch brfs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -71,10 +91,14 @@
       (oops! "unknown schedule step `~a`" step)))
 
   ; make the runner
-  (egglog-runner batch brfs reprs schedule ctx))
+  (egglog-runner batch brfs schedule ctx))
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
-(define (run-egglog runner output-batch [label #f] #:extract extract) ; multi expression extraction
+(define (run-egglog runner
+                    output-batch
+                    reprs
+                    [label #f]
+                    #:extract extract) ; multi expression extraction
   (define insert-batch (egglog-runner-batch runner))
   (define insert-brfs (egglog-runner-brfs runner))
   (define schedule (egglog-runner-schedule runner))
@@ -130,8 +154,7 @@
   ;; of a rule and make them accessible through their unique constructor. Therefore, we must
   ;; keep track of the mapping between each binding and its corresponding constructor.
 
-  (define-values (all-bindings extract-bindings)
-    (egglog-add-exprs insert-batch insert-brfs (egglog-runner-ctx runner) subproc))
+  (define-values (all-bindings extract-bindings) (egglog-add-exprs insert-batch insert-brfs subproc))
 
   (egglog-send subproc
                `(ruleset run-extract-commands)
@@ -153,8 +176,10 @@
   (define stdout-content
     (egglog-multi-extract subproc
                           `(multi-extract ,extract
-                                          ,@(for/list ([constructor-name extract-bindings])
-                                              `(,constructor-name)))))
+                                          ,@(for/list ([constructor-name (in-list extract-bindings)]
+                                                       [repr (in-list reprs)])
+                                              `(do-lower (,constructor-name)
+                                                         ,(egglog-repr-token repr))))))
 
   ;; Close everything subprocess related
   (egglog-subprocess-close subproc)
@@ -225,15 +250,15 @@
     ;; x^0 where x != 0
     (rule ((= e (Pow (Num x) (Num y))) (= $0 y) (!= $0 x)) ((union e (Num $1))) :ruleset const-fold)
     ;; x^y when y is a whole number and y > 0 and x != 0
-    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (= y (round y)))
+    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (= y (round y)) (<= y ,(real->bigrat 16)))
           ((union e (Num (pow x y))))
           :ruleset
           const-fold)
     ;; New rule according to Rust : x^y where y is not a whole number
-    (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (!= y (round y)))
-          ((union e (Num (pow x (round y)))))
-          :ruleset
-          const-fold)
+    ; (rule ((= e (Pow (Num x) (Num y))) (> y $0) (!= $0 x) (!= y (round y)))
+    ;       ((union e (Num (pow x (round y)))))
+    ;       :ruleset
+    ;       const-fold)
     ;; Sqrt rules -> Non-total but egglog implementation handles it
     (rule ((= e (Sqrt (Num n))) (sqrt n)) ((union e (Num (sqrt n)))) :ruleset const-fold)
     (rewrite (Log (Num $1)) (Num $0) :ruleset const-fold)
@@ -274,10 +299,10 @@
     `(,typed-name ,@(make-list arity 'MTy) :cost ,cost)))
 
 (define (typed-num-id repr-name)
-  (string->symbol (format "Num~a" repr-name)))
+  (string->symbol (format "Num_~a" (egglog-repr-token repr-name))))
 
 (define (typed-var-id repr-name)
-  (string->symbol (format "Var~a" repr-name)))
+  (string->symbol (format "Var_~a" (egglog-repr-token repr-name))))
 
 (define (num-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))]
@@ -287,14 +312,13 @@
 
 (define (var-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))])
-    (define cost (normalize-cost (platform-repr-cost pform (get-representation repr))))
-    `(,(typed-var-id repr) String :cost ,cost)))
+    `(,(typed-var-id repr) String :cost 0)))
 
 (define (num-lowering-rules)
   (for/list ([repr (in-list (all-repr-names))]
              #:when (not (eq? repr 'bool)))
     `(rule ((= e (Num n)))
-           ((union (do-lower e ,(symbol->string repr)) (,(typed-num-id repr) n)))
+           ((union (do-lower e ,(egglog-repr-token repr)) (,(typed-num-id repr) n)))
            :ruleset
            lower)))
 
@@ -313,8 +337,8 @@
             ,@(for/list ([v (in-list (impl-info impl 'vars))]
                          [vt (in-list (impl-info impl 'itype))])
                 `(= ,(string->symbol (string-append "t" (symbol->string v)))
-                    (do-lower ,v ,(symbol->string (representation-name vt))))))
-           ((union (do-lower e ,(symbol->string (representation-name (impl-info impl 'otype))))
+                    (do-lower ,v ,(egglog-repr-token vt)))))
+           ((union (do-lower e ,(egglog-repr-token (impl-info impl 'otype)))
                    (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
                     ,@(for/list ([v (in-list (impl-info impl 'vars))])
                         (string->symbol (string-append "t" (symbol->string v)))))))
@@ -380,7 +404,7 @@
               :ruleset
               ,tag)))
 
-(define (egglog-add-exprs batch brfs ctx subproc)
+(define (egglog-add-exprs batch brfs subproc)
   (define mappings (build-vector (batch-length batch) values))
   (define bindings (make-hash))
   (define vars (make-hash))
@@ -415,8 +439,7 @@
        (match node
          [(? literal?) #f] ;; If literal, not a spec
          [(? number?) #t] ;; If number, it's a spec
-         [(? symbol?)
-          #f] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
+         [(? symbol?) #t]
          [(hole _ _) #f] ;; If hole, not a spec
          [(approx _ _) #f] ;; If approx, not a spec
          [`(if ,cond ,ift ,iff)
@@ -445,7 +468,7 @@
            ,@(for/list ([arg (in-list args)])
                (remap arg (spec? (batchref batch n)))))]
 
-        [(hole ty spec) `(do-lower ,(remap spec #t) ,(symbol->string ty))]))
+        [(hole ty spec) `(do-lower ,(remap spec #t) ,(egglog-repr-token ty))]))
 
     (if node*
         (vector-set! mappings n (insert-node! node* n root?))
@@ -454,18 +477,18 @@
       (set! root-bindings (cons (vector-ref mappings n) root-bindings))))
 
   ; Var-lowering-rules
-  (for ([var (in-list (context-vars ctx))]
-        [repr (in-list (context-var-reprs ctx))])
+  (for ([var (in-list (batch-vars batch))]
+        [repr (in-list (batch-var-reprs batch))])
     (egglog-send subproc
                  `(rule ((= e (Var ,(symbol->string var))))
-                        ((union (do-lower e ,(symbol->string (representation-name repr)))
+                        ((union (do-lower e ,(egglog-repr-token repr))
                                 (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
                         :ruleset
                         lower)))
 
   ; Var-lifting-rules
-  (for ([var (in-list (context-vars ctx))]
-        [repr (in-list (context-var-reprs ctx))])
+  (for ([var (in-list (batch-vars batch))]
+        [repr (in-list (batch-var-reprs batch))])
     (egglog-send subproc
                  `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
                         ((union (do-lift e) (Var ,(symbol->string var))))
@@ -478,7 +501,7 @@
   (define constructor-num 1)
 
   ; ; Var-spec-bindings
-  (for ([var (in-list (context-vars ctx))])
+  (for ([var (in-list (batch-vars batch))])
     ; Get the binding names for the program
     (define binding-name (string->symbol (format "?s~a" var)))
     (define constructor-name (string->symbol (format "const~a" constructor-num)))
@@ -497,8 +520,8 @@
     (set! constructor-num (add1 constructor-num)))
 
   ; Var-typed-bindings
-  (for ([var (in-list (context-vars ctx))]
-        [repr (in-list (context-var-reprs ctx))])
+  (for ([var (in-list (batch-vars batch))]
+        [repr (in-list (batch-var-reprs batch))])
     ; Get the binding names for the program
     (define binding-name (string->symbol (format "?t~a" var)))
     (define constructor-name (string->symbol (format "const~a" constructor-num)))
@@ -538,7 +561,7 @@
         [(cons 'do-lift _) 'M]
 
         ;; TODO : fix this way of getting spec or impl
-        [_ (if root? 'MTy 'M)]))
+        [_ (if (spec? (batchref batch n)) 'M 'MTy)]))
 
     (define curr-binding-exprs `(let ,binding-name ,actual-binding))
 
@@ -576,17 +599,22 @@
   ;;   4. Unsoundness is detected (bad-merge? becomes true)
 
   (egglog-send subproc
-               `(run-schedule (repeat ,iter-limit
-                                      (seq (run ,tag :until (<= ,node-limit (get-size!)))
-                                           (run const-fold :until (<= ,node-limit (get-size!)))
-                                           (run bad-merge-rule :until (bad-merge?))))))
+               `(run-schedule
+                 (let-scheduler bo (back-off))
+                 (repeat ,iter-limit
+                         (seq (run-with bo ,tag :until (<= ,node-limit (get-size!)))
+                              (run-with bo const-fold :until (<= ,node-limit (get-size!)))
+                              (run bad-merge-rule :until (bad-merge?))))))
   (void))
 
 (define (egglog-num? id)
   (string-prefix? (symbol->string id) "Num"))
 
 (define (egglog-num-repr id)
-  (string->symbol (substring (symbol->string id) 3)))
+  (define id-str (symbol->string id))
+  (if (string-prefix? id-str "Num_")
+      (egglog-repr-name (substring id-str 4))
+      (string->symbol (substring id-str 3))))
 
 (define (egglog-var? id)
   (string-prefix? (symbol->string id) "Var"))

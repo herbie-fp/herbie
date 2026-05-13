@@ -56,34 +56,56 @@
              [repr (in-list (context-var-reprs ctx))]
              #:when (has-exponential-impl? repr (context-repr ctx)))
     (cons `(exponential ,var) (replace-expression `(* 2 ,spec) var `(- ,var (log 2))))))
+(define (batch-replace-vars! batch replacements)
+  (batch-recurse
+   batch
+   (lambda (brf recurse)
+     (dict-ref replacements
+               brf
+               (lambda ()
+                 (batch-push! batch (expr-recurse (deref brf) (compose batchref-idx recurse))))))))
 
 ;; The even identities: f(x) = f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
-(define (make-even-identities spec ctx)
-  (for/list ([var (in-list (context-vars ctx))]
-             [repr (in-list (context-var-reprs ctx))]
+(define (make-even-identities batch spec-brf output-repr)
+  (for/list ([var (in-list (batch-vars batch))]
+             [repr (in-list (batch-var-reprs batch))]
              #:when (has-fabs-impl? repr))
-    (cons `(abs ,var) (replace-expression spec var `(neg ,var)))))
+    (define var-brf (batch-add! batch var))
+    (define neg-var-brf (batch-add! batch `(neg ,var-brf)))
+    (define replace-neg ((batch-replace-vars! batch `((,var-brf . ,neg-var-brf))) spec-brf))
+    (cons `(abs ,var) replace-neg)))
 
 ;; The odd identities: f(x) = -f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
-(define (make-odd-identities spec ctx)
-  (for/list ([var (in-list (context-vars ctx))]
-             [repr (in-list (context-var-reprs ctx))]
-             #:when (and (has-fabs-impl? repr) (has-copysign-impl? (context-repr ctx))))
-    (cons `(negabs ,var) (replace-expression `(neg ,spec) var `(neg ,var)))))
+(define (make-odd-identities batch spec-brf output-repr)
+  (for/list ([var (in-list (batch-vars batch))]
+             [repr (in-list (batch-var-reprs batch))]
+             #:when (and (has-fabs-impl? repr) (has-copysign-impl? output-repr)))
+    (define neg-spec-brf (batch-add! batch `(neg ,spec-brf)))
+    (define var-brf (batch-add! batch var))
+    (define neg-var-brf (batch-add! batch `(neg ,var-brf)))
+    (define replace-neg ((batch-replace-vars! batch `((,var-brf . ,neg-var-brf))) neg-spec-brf))
+    (cons `(negabs ,var) replace-neg)))
 
 ;; Sort identities: f(a, b) = f(b, a)
-(define (make-sort-identities spec ctx)
-  (define pairs (combinations (context-vars ctx) 2))
+(define (make-sort-identities batch spec-brf output-repr)
+  (define pairs (combinations (batch-vars batch) 2))
+  (define reprs (map cons (batch-vars batch) (batch-var-reprs batch)))
   (for/list ([pair (in-list pairs)]
              ;; Can only sort same-repr variables
-             #:when (equal? (context-lookup ctx (first pair)) (context-lookup ctx (second pair)))
-             #:when (has-fmin-fmax-impl? (context-lookup ctx (first pair))))
+             #:when (equal? (dict-ref reprs (first pair)) (dict-ref reprs (second pair)))
+             #:when (has-fmin-fmax-impl? (dict-ref reprs (first pair))))
     (match-define (list a b) pair)
-    (cons `(sort ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
+    (define a-brf (batch-add! batch a))
+    (define b-brf (batch-add! batch b))
+    (define sorted-spec-brf
+      ((batch-replace-vars! batch `((,a-brf . ,b-brf) (,b-brf . ,a-brf))) spec-brf))
+    (cons `(sort ,a ,b) sorted-spec-brf)))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
+(define (find-preprocessing batch spec-brf ctx)
+  (define repr (context-repr ctx))
 
 (define (free-of? expr var)
   (not (member var (free-variables expr))))
@@ -154,9 +176,18 @@
   ;; make egg runner
   (define-values (batch brfs) (progs->batch (cons spec (map cdr identities))))
   (define runner (make-egraph batch brfs (make-list (length brfs) (context-repr ctx)) '(rewrite) ctx))
+    (append (make-even-identities batch spec-brf repr)
+            (make-odd-identities batch spec-brf repr)
+            (make-sort-identities batch spec-brf repr)))
+
+  ;; make egg runner
+  (define brfs (cons spec-brf (map cdr identities)))
+  (define runner (make-egraph batch brfs '(rewrite) ctx))
+
   ;; collect equalities
-  (for/list ([(ident spec*) (in-dict identities)]
-             #:when (egraph-equal? runner spec spec*))
+  (for/list ([(ident _) (in-dict identities)]
+             [idx (in-naturals 1)]
+             #:when (egraph-roots-equal? runner 0 idx))
     ident))
 
 (define (preprocess-pcontext context pcontext preprocessing)

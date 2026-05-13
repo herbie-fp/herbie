@@ -11,6 +11,8 @@
 (provide define-representation
          define-operation
          define-operations
+         create-operator-impl!
+         platform-register-implementation!
          fpcore-context
          if-impl
          if-cost
@@ -26,10 +28,19 @@
   (define env (map cons vars (map representation-type var-reprs)))
   (define otype (representation-type repr))
 
+  (define (scalar-type? ty)
+    (member ty '(bool real)))
+
+  (define (infer-operator op arg-types)
+    (and (andmap scalar-type? arg-types)
+         (let ([vars (for/list ([_ (in-list arg-types)])
+                       (gensym 'arg))])
+           (rival-type (cons op vars) (map cons vars arg-types)))))
+
   (define (infer spec)
     (match spec
       [(? number?) 'real]
-      [(? symbol? x) (dict-ref env x (lambda () (rival-type spec env)))]
+      [(? symbol? x) (dict-ref env x #f)]
       [(list 'array elems ...)
        (if (null? elems)
            #f
@@ -42,7 +53,10 @@
        (match (infer arr)
          [`(array ,elem-ty ,_) elem-ty]
          [_ #f])]
-      [_ (rival-type spec env)]))
+      [(list op args ...)
+       (define arg-types (map infer args))
+       (and (andmap values arg-types) (infer-operator op arg-types))]
+      [_ #f]))
   (define spec-type (infer spec))
 
   (match spec-type
@@ -149,7 +163,8 @@
                         (operator-impl-name impl)
                         (*platform-name*)))
   ; Update table
-  (hash-set! impls (operator-impl-name impl) impl))
+  (hash-set! impls (operator-impl-name impl) impl)
+  (reset-fpcore-op-cache!))
 
 ;; Macros for the core operations
 

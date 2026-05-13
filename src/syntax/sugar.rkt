@@ -86,6 +86,18 @@
       [(approx impl spec) (approx (loop impl) (loop spec))]
       [(list op args ...) (cons op (map loop args))])))
 
+(define (fpcore-extension-spec expr)
+  (define specs
+    (remove-duplicates (filter identity
+                               (for/list ([impl (in-list (platform-impls (*active-platform*)))])
+                                 (define-values (_ body) (impl->fpcore impl))
+                                 (define subst (pattern-match (expand-expr body) expr))
+                                 (and subst (pattern-substitute (impl-info impl 'spec) subst))))))
+  (match specs
+    ['() #f]
+    [(list spec) spec]
+    [_ (error 'fpcore->spec "ambiguous platform specs for `~a`: ~a" expr specs)]))
+
 ;; Expression pre-processing for normalizing expressions.
 ;; Used for conversion from FPCore to other IRs.
 (define (expand-expr expr)
@@ -144,19 +156,10 @@
                (list 'and out (list '!= term term2))
                (list '!= term term2))))
        (or out '(TRUE))]
-      ; function calls
-      [(list (? (curry hash-has-key? (*functions*)) fname) args ...)
-       (match-define (list vars _ body) (hash-ref (*functions*) fname))
-       (define env*
-         (for/fold ([env* '()])
-                   ([var (in-list vars)]
-                    [arg (in-list args)])
-           (dict-set env* var (loop arg env))))
-       (loop body env*)]
       ; applications
       [`(,op ,args ...) `(,op ,@(map (curryr loop env) args))]
       ; constants
-      [(? operator-exists? op) (list expr)]
+      [(? operator-exists? op) (list op)]
       ; variables
       [(? symbol?) (dict-ref env expr expr)]
       ; other
@@ -176,7 +179,13 @@
       [(? symbol?) expr]
       [(list '! _ ... body) (loop body)]
       [(list 'cast arg) (loop arg)]
-      [(list op args ...) `(,op ,@(map loop args))])))
+      [(list op args ...)
+       (define args* (map loop args))
+       (define expr* `(,op ,@args*))
+       (match (fpcore-extension-spec expr*)
+         [#f expr*]
+         [(== expr*) expr*]
+         [spec (loop spec)])])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FPCore -> LImpl
@@ -195,11 +204,8 @@
   (define ireprs (map (lambda (arg) (repr-of arg ctx)) args))
   (define impl (assert-fpcore-impl op prop-dict ireprs))
   (define vars (impl-info impl 'vars))
-  (define pattern
-    (match (impl-info impl 'fpcore)
-      [(list '! _ ... body) body]
-      [body body]))
-  (define subst (pattern-match pattern (cons op args)))
+  (define-values (_ body) (impl->fpcore impl))
+  (define subst (pattern-match body (cons op args)))
   (pattern-substitute (cons impl vars) subst))
 
 ;; Translates from FPCore to an LImpl.
@@ -235,11 +241,8 @@
        (define idx-repr (repr-of idx* ctx))
        (define impl (assert-fpcore-impl 'ref prop-dict (list arr-repr idx-repr)))
        (define vars (impl-info impl 'vars))
-       (define pattern
-         (match (impl-info impl 'fpcore)
-           [(list '! _ ... body) body]
-           [body body]))
-       (define subst (pattern-match pattern (list 'ref arr* idx*)))
+       (define-values (_ body) (impl->fpcore impl))
+       (define subst (pattern-match body (list 'ref arr* idx*)))
        (pattern-substitute (cons impl vars) subst)]
       [(list op args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
@@ -263,7 +266,12 @@
   (match x
     [(literal -inf.0 _) '(- INFINITY)]
     [(literal +inf.0 _) 'INFINITY]
-    [(literal v (or 'binary64 'binary32)) (exact->inexact v)]
+    [(literal v (or 'binary64 'binary32))
+     (define v* (exact->inexact v))
+     (cond
+       [(equal? v* +inf.0) 'INFINITY]
+       [(equal? v* -inf.0) '(- INFINITY)]
+       [else v*])]
     [(literal v _) v]))
 
 ;; Step 1.
@@ -340,15 +348,13 @@
       [(list '! props ... body) ; explicit rounding context
        (define prop-dict* (props->dict props))
        (define body* (loop body prop-dict*))
-       (define new-prop-dict
+       (define new-props
          (for/list ([(k v) (in-dict prop-dict*)]
                     #:unless (and (dict-has-key? prop-dict k) (equal? (dict-ref prop-dict k) v)))
-           (cons k v)))
-       (if (null? new-prop-dict)
+           (list k v)))
+       (if (null? new-props)
            body*
-           `(! ,@(append* (for/list ([(k v) (in-list new-prop-dict)])
-                            (list k v)))
-               ,body*))]
+           `(! ,@(append* new-props) ,body*))]
       [(list op args ...) ; operator application
        (define args* (map (lambda (e) (loop e prop-dict)) args))
        `(,op ,@args*)])))

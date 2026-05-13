@@ -640,6 +640,11 @@
   [rem-self (remainder x x) 0]
   [rem-zero (remainder 0 x) 0]
   [rem-idempotent (remainder (remainder x y) y) (remainder x y)]
+(define-rules special
+  [erf-0 (erf 0) 0]
+  [erf-neg (erf (neg x)) (neg (erf x))]
+  [erf-neg-rev (neg (erf x)) (erf (neg x))]
+  [erfc-0 (erfc 0) 1])
 
   [rem-add-rgt (remainder (+ x y) y) (remainder x y)]
   [rem-add-lft (remainder (+ y x) y) (remainder x y)]

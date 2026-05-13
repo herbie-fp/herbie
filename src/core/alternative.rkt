@@ -20,9 +20,9 @@
 (define (make-alt expr)
   (alt expr 'start '()))
 
-(define (alt-cost altn repr)
+(define (alt-cost altn)
   (define expr-cost (platform-cost-proc (*active-platform*)))
-  (expr-cost (alt-expr altn) repr))
+  (expr-cost (alt-expr altn)))
 
 (define (alt-map f altn)
   (f (struct-copy alt altn [prevs (map (curry alt-map f) (alt-prevs altn))])))
@@ -33,7 +33,8 @@
   (define (unmunge-event event)
     (match event
       [(list 'evaluate (? batchref? start-expr)) (list 'evaluate (exprs start-expr))]
-      [(list 'taylor (? batchref? start-expr) name var) (list 'taylor (exprs start-expr) name var)]
+      [(list 'taylor (? batchref? start-expr) name var order)
+       (list 'taylor (exprs start-expr) name var order)]
       [(list 'rr (? batchref? start-expr) (? batchref? end-expr) input proof)
        (define proof* (and proof (map exprs proof)))
        (list 'rr (exprs start-expr) (exprs end-expr) input proof*)]
