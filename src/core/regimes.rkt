@@ -109,7 +109,16 @@
 
 (define (critical-subexpressions batch root-brf)
   (define var-brfs (map (curry batch-add! batch) (batch-vars batch)))
+  (define free-vars (batch-free-vars batch))
   (define dom-parent (build-dominator-tree batch root-brf))
+  (define (dominates? parent-brf child-brf)
+    (cond
+      [(equal? parent-brf child-brf) #t]
+      [(equal? child-brf root-brf) #f]
+      [else (dominates? parent-brf (dom-parent child-brf))]))
+  (define (extractable? brf)
+    (for/and ([var (in-set (free-vars brf))])
+      (dominates? brf (batch-add! batch var))))
   (reap [sow]
         (define seen-brfs (mutable-set root-brf))
         (sow root-brf)
@@ -118,7 +127,8 @@
             (let loop ([brf brf])
               (unless (set-member? seen-brfs brf)
                 (set-add! seen-brfs brf)
-                (sow brf)
+                (when (extractable? brf)
+                  (sow brf))
                 (loop (dom-parent brf))))))))
 
 (define (build-dominator-tree batch root-brf)
@@ -145,7 +155,7 @@
     (define idx2 (batchref-idx brf2))
     (cond
       [(= idx1 idx2) brf1]
-      [(> idx1 idx2) (loop (dom-parent brf1) brf2)]
+      [(< idx1 idx2) (loop (dom-parent brf1) brf2)]
       [else (loop brf1 (dom-parent brf2))])))
 
 (define (baseline-errors-score err-cols count)
