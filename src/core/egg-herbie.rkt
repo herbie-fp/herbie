@@ -426,11 +426,8 @@
   (define helper-impls
     (for/seteq ([extension (in-list (*platform-extensions*))])
       (fpcore-extension-name extension)))
-  (define impls
-    (for/list ([impl (in-list (platform-impls pform))]
-               #:unless (set-member? helper-impls impl))
-      impl))
-  (append* (for/list ([impl (in-list impls)])
+  (append* (for/list ([impl (in-list (platform-impls pform))]
+                      #:unless (set-member? helper-impls impl))
              (hash-ref! (*lowering-rules*)
                         (cons impl pform)
                         (lambda ()
