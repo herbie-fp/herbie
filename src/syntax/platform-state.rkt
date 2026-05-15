@@ -14,7 +14,8 @@
          platform-serialize
          register-platform-extensions!
          register-fpcore-operator!
-         (struct-out platform-state))
+         (struct-out platform-state)
+         (struct-out fpcore-extension))
 
 (struct fpcore-extension (name vars output-repr-data var-repr-data body spec) #:prefab)
 (struct platform-state (name extensions) #:prefab)

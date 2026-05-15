@@ -10,10 +10,12 @@
                   u32vector->list)
          json) ; for dumping
 
-(require "../utils/common.rkt"
+(require racket/set
+         "../utils/common.rkt"
          "../utils/errors.rkt"
          "../utils/timeline.rkt"
          "../syntax/platform.rkt"
+         "../syntax/platform-state.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../syntax/batch.rkt"
@@ -421,8 +423,11 @@
 
 ;; Synthesizes lowering rules for a given platform.
 (define (platform-lowering-rules [pform (*active-platform*)])
-  (define impls (platform-impls pform))
-  (append* (for/list ([impl (in-list impls)])
+  (define helper-impls
+    (for/seteq ([extension (in-list (*platform-extensions*))])
+      (fpcore-extension-name extension)))
+  (append* (for/list ([impl (in-list (platform-impls pform))]
+                      #:unless (set-member? helper-impls impl))
              (hash-ref! (*lowering-rules*)
                         (cons impl pform)
                         (lambda ()
