@@ -80,8 +80,8 @@
   (define joined-alts (make-regime! (*global-batch*) all-alts (*start-brf*)))
   (define annotated-alts (add-derivations! joined-alts))
   (define scores (batch-errors (*global-batch*) (map alt-expr annotated-alts) (*pcontext*)))
-  (define sorted-alts (map car (sort-alts annotated-alts scores)))
-  (define unbatched-alts (unbatchify-alts (*global-batch*) annotated-alts))
+  (define sorted-alts (map car (sort-alts (*global-batch*) annotated-alts scores)))
+  (define unbatched-alts (unbatchify-alts (*global-batch*) sorted-alts))
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   unbatched-alts)
 
@@ -317,12 +317,13 @@
      (add-derivations alts)]
     [else alts]))
 
-(define (sort-alts alts errss)
+(define (sort-alts batch alts errss)
   ;; sort everything by error + cost
+  (define alt-costs (alt-batch-costs batch))
   (define alts-to-be-sorted (map cons alts errss))
   (sort alts-to-be-sorted
         (lambda (x y)
           (or (< (errors-score (cdr x)) (errors-score (cdr y))) ; sort by error
               (and (equal? (errors-score (cdr x))
                            (errors-score (cdr y))) ; if error is equal sort by cost
-                   (< (alt-cost (car x)) (alt-cost (car y))))))))
+                   (< (alt-costs (alt-expr (car x))) (alt-costs (alt-expr (car y)))))))))
