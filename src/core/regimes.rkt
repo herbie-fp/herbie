@@ -109,7 +109,16 @@
 
 (define (critical-subexpressions batch root-brf)
   (define var-brfs (map (curry batch-add! batch) (batch-vars batch)))
+  (define free-vars (batch-free-vars batch))
   (define dom-parent (build-dominator-tree batch root-brf))
+  (define (dominates? parent-brf child-brf)
+    (cond
+      [(equal? parent-brf child-brf) #t]
+      [(equal? child-brf root-brf) #f]
+      [else (dominates? parent-brf (dom-parent child-brf))]))
+  (define (extractable? brf)
+    (for/and ([var (in-set (free-vars brf))])
+      (dominates? brf (batch-add! batch var))))
   (reap [sow]
         (define seen-brfs (mutable-set root-brf))
         (sow root-brf)
@@ -118,7 +127,8 @@
             (let loop ([brf brf])
               (unless (set-member? seen-brfs brf)
                 (set-add! seen-brfs brf)
-                (sow brf)
+                (when (extractable? brf)
+                  (sow brf))
                 (loop (dom-parent brf))))))))
 
 (define (build-dominator-tree batch root-brf)
@@ -259,6 +269,11 @@
     (define-values (batch brfs) (progs->batch (list 'x) #:ctx xy-ctx))
     (check-true (critical-subexpression? batch (first brfs) (batch-add! batch 'x)))
     (check-false (critical-subexpression? batch (first brfs) (batch-add! batch 'y))))
+
+  (let ()
+    (define xyz-ctx (context '(x y z) <binary64> (list <binary64> <binary64> <binary64>)))
+    (define-values (batch brfs) (progs->batch (list '(* (+ x y) (/ x z))) #:ctx xyz-ctx))
+    (check-false (critical-subexpression? batch (first brfs) (batch-add! batch '(+ x y)))))
 
   (let ()
     (define vec2-ctx
