@@ -193,8 +193,7 @@
 
   ;; Named fpcores become platform operators
   (when (and func-name (*register-named-fpcore-operators?*))
-    (define spec* (fpcore->prog spec-src ctx))
-    (register-fpcore-operator! func-name (struct-copy context ctx [repr output-repr]) body* spec*))
+    (register-fpcore-operator! func-name (struct-copy context ctx [repr output-repr]) body* spec))
   (check-unused-variables var-names body* pre*)
   (check-weird-variables var-names)
 
