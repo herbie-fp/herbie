@@ -24,6 +24,9 @@
 
 (provide (struct-out egg-runner)
          make-egraph
+         make-ffi-rule
+         var->egg-var
+         *extra-ffi-rules*
          egraph-equal?
          egraph-roots-equal?
          egraph-prove
@@ -386,6 +389,7 @@
 
 ;; egg rule cache: rule -> FFI-rule
 (define/reset *egg-rule-cache* (make-hasheq))
+(define *extra-ffi-rules* (make-parameter '()))
 
 ;; Expand and convert the rules for egg.
 ;; Uses a cache to only expand each rule once.
@@ -1154,7 +1158,7 @@
            (define rules (convert-rules (*sound-removal-rules*)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['rewrite
-           (define rules (convert-rules (*rules*)))
+           (define rules (append (convert-rules (*rules*)) (*extra-ffi-rules*)))
            (egraph-run-rules egg-graph
                              rules
                              #:node-limit (rewrite-node-limit rewrite-initial-size))]))
