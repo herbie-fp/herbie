@@ -658,8 +658,8 @@
   [tan+pi-rev (tan (+ x (PI))) (tan x)])
 
 (define-rules arithmetic
-  [force-factor-lft (+ (* a b) c) (* a (+ b (/ c a)))]
-  [force-factor-rgt (+ c (* a b)) (* a (+ (/ c a) b))]
+  [force-factor-lft (+ (* a b) c) (sound-/ (* a (* a (+ b (sound-/ c a 0)))) a (+ (* a b) c))]
+  [force-factor-rgt (+ c (* a b)) (sound-/ (* a (* a (+ (sound-/ c a 0) b))) a (+ c (* a b)))]
   [factor-div-lft (+ (/ x c) b) (/ (+ x (* b c)) c)]
   [factor-div-rgt (+ b (/ x c)) (/ (+ (* b c) x) c)]
   [factor-div-lft2 (+ (/ x c) (* a b)) (/ (+ x (* (* a b) c)) c)]
