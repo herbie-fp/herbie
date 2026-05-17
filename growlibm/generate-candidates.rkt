@@ -203,9 +203,11 @@
 
 (define (to-fpcore-str cand)
   (define expr (candidate-spec cand))
-  (define vars (free-variables expr))
-  (format "(FPCore ~a ~a)" vars (prog->fpcore expr (candidate-ctx cand))))
-
+  (define (binary64-impl expr)
+    (define spec (prog->spec expr))
+    (fpcore->prog spec (get-ctx spec)))
+  (define impl (binary64-impl expr))
+  (format "(FPCore ~a ~a)" (free-variables impl) (prog->fpcore impl (get-ctx impl))))
 (define (candidate-expr? expr)
   (and (not (or (symbol? expr) (literal? expr) (number? expr)))
        (has-some-free-vars? expr)
@@ -225,8 +227,8 @@
 
 (define (log-info name number report-dir)
   (with-output-to-file (string-append report-dir "/info.txt")
-    (lambda () (display (format "~a, ~a\n" name number)))
-    #:exists 'append))
+                       (lambda () (display (format "~a, ~a\n" name number)))
+                       #:exists 'append))
 
 ;;; ------------------------- MAIN PIPELINE ---------------------------------
 (define root-hash (make-hash))
@@ -304,17 +306,17 @@
        sorted-candidates))
 
 (with-output-to-file (string-append report-dir "/full-candidates.txt")
-  (lambda () (for-each display full-cands-out))
-  #:exists 'replace)
+                     (lambda () (for-each display full-cands-out))
+                     #:exists 'replace)
 
 (with-output-to-file (string-append report-dir "/counts.rkt")
-  (lambda () (display counts-out))
-  #:exists 'replace)
+                     (lambda () (display counts-out))
+                     #:exists 'replace)
 
 (with-output-to-file (string-append report-dir "/costs.rkt")
-  (lambda () (display costs-out))
-  #:exists 'replace)
+                     (lambda () (display costs-out))
+                     #:exists 'replace)
 
 (with-output-to-file (string-append report-dir "/candidates.txt")
-  (lambda () (for-each displayln fpcores-out))
-  #:exists 'replace)
+                     (lambda () (for-each displayln fpcores-out))
+                     #:exists 'replace)
