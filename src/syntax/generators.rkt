@@ -2,8 +2,7 @@
 
 (require math/flonum
          math/bigfloat
-         ffi/unsafe
-         racket/runtime-path)
+         ffi/unsafe)
 
 (require "rival.rkt"
          "../config.rkt"
@@ -13,7 +12,6 @@
 (provide from-rival
          from-ffi
          from-libm
-         from-accelerators
          from-bigfloat
          define-generator
          (struct-out generator))
@@ -75,21 +73,8 @@
         (error 'ffi-generator "Could not find FFI implementation of `~a ~a ~a`" otype name itypes))))
 
 (define libm-lib (ffi-lib #f))
-
-(define-runtime-path growlibm-dir "../../rempio2")
-(define accelerator-lib-path
-  (let ([suffix (bytes->string/utf-8 (system-type 'so-suffix))])
-    (build-path growlibm-dir (string-append "rem2pi" suffix))))
-
-(define accelerators-lib
-  (with-handlers ([exn:fail? (lambda (_exn) #f)])
-    (ffi-lib accelerator-lib-path #:fail (lambda () #f))))
-
 (define (from-libm name)
   (from-ffi libm-lib name))
-
-(define (from-accelerators name)
-  (from-ffi accelerators-lib name))
 
 ; ----------------------- BIGFLOAT GENERATOR ------------------------
 
