@@ -33,8 +33,3 @@ herbie-compiled/
 .env/
 .worktrees
 
-.vscode
-
-optest/
-optesteml/
-sintest/

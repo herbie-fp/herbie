@@ -13,9 +13,6 @@
 (define-runtime-module-path racket-platform "../platforms/racket.rkt")
 (define-runtime-module-path math-platform "../platforms/math.rkt")
 (define-runtime-module-path rival-platform "../platforms/rival.rkt")
-(define-runtime-module-path rr-platform "../platforms/rr.rkt")
-(define-runtime-module-path arith-platform "../platforms/arith.rkt")
-(define-runtime-module-path eml-platform "../platforms/expminuslog.rkt")
 
 (define default-platforms
   (hash "herbie10"
@@ -31,13 +28,7 @@
         "math"
         math-platform
         "rival"
-        rival-platform
-        "rr"
-        rr-platform
-        "arith"
-        arith-platform
-        "eml"
-        eml-platform))
+        rival-platform))
 
 (define platforms (make-hash))
 
