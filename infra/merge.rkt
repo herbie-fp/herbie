@@ -36,20 +36,6 @@
                          #:exists 'replace
                          (curry write-json (profile->json joint-pf))))
 
-(define (merge-rules outdir . dirs)
-  (define rs
-    (filter (conjoin (negate eof-object?) identity)
-            (for/list ([dir (in-list dirs)])
-              (with-handlers ([exn? (const #f)])
-                (call-with-input-file (build-path outdir dir "rules.json") read-json)))))
-  (define counts (make-hash))
-  (for* ([r (in-list rs)]
-         [(name count) (in-dict r)])
-    (hash-update! counts name (curryr + count) 0))
-  (call-with-output-file (build-path outdir "rules.json")
-                         #:exists 'replace
-                         (curry write-json counts)))
-
 (define (merge-reports outdir . dirs)
   (define rss
     (filter (conjoin (negate eof-object?) identity)
@@ -71,7 +57,6 @@
                 (apply merge-reports outdir dirs)
                 (apply merge-timelines outdir dirs)
                 (apply merge-profiles outdir dirs)
-                (apply merge-rules outdir dirs)
                 (copy-file (web-resource "report.js") (build-path outdir "report.js") #t)
                 (copy-file (web-resource "report-page.js") (build-path outdir "report-page.js") #t)
                 (copy-file (web-resource "report.css") (build-path outdir "report.css") #t)

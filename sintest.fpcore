@@ -1,3 +1,0 @@
-(FPCore (x) :name "sin" :spec (sin x) 1)
-(FPCore (x) :name "sinpi" :spec (sin (* (PI) x)) 1)
-(FPCore (x y) :name "sinprod" :spec (sin (* y x)) 1)
