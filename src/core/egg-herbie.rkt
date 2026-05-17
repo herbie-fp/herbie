@@ -1153,7 +1153,7 @@
            (define rules (convert-rules (*sound-removal-rules*)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['rewrite
-           (define rules (convert-rules (*rules*) (*extra-ffi-rules*)))
+           (define rules (append (convert-rules (*rules*)) (*extra-ffi-rules*)))
            (egraph-run-rules egg-graph
                              rules
                              #:node-limit (rewrite-node-limit rewrite-initial-size))]))

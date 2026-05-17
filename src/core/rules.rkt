@@ -6,11 +6,8 @@
          "../syntax/syntax.rkt")
 
 (provide *rules*
-         *extra-rules*
          *sound-removal-rules*
          (struct-out rule))
-
-(define *extra-rules* (make-parameter '()))
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
 ;; are patterns, meaning that symbols represent pattern variables.
@@ -25,7 +22,7 @@
   (ormap (curry flag-set? 'rules) (rule-tags rule)))
 
 (define (*rules*)
-  (append (filter rule-enabled? *all-rules*) (*extra-rules*)))
+  (filter rule-enabled? *all-rules*))
 
 (define-syntax-rule (define-rule rname group input output)
   (set! *all-rules* (cons (rule 'rname 'input 'output '(group)) *all-rules*)))
@@ -524,24 +521,6 @@
   [sin-atan-rev (/ x (sqrt (+ 1 (* x x)))) (sin (atan x))]
   [sin-acos-rev (sqrt (- 1 (* x x))) (sin (acos x))])
 
-(define-rules trigonometry
-  [sin+2pi (sin x) (sin (+ x (* 2 (PI))))]
-  [cos+2pi (cos x) (cos (+ x (* 2 (PI))))]
-  [tan+pi (tan x) (tan (+ x (PI)))]
-  [sin+2pi-rev (sin (+ x (* 2 (PI)))) (sin x)]
-  [cos+2pi-rev (cos (+ x (* 2 (PI)))) (cos x)]
-  [tan+pi-rev (tan (+ x (PI))) (tan x)])
-;;;   [sin-rem2pi (sin x) (sin (remainder x (* 2 (PI))))]
-;;;   [cos-rem2pi (cos x) (cos (remainder x (* 2 (PI))))]
-;;;   [tan-rempi (tan x) (tan (remainder x (PI)))]
-;;;   [rev-sin-rem2pi (sin (remainder x (* 2 (PI)))) (sin x)]
-;;;   [rev-cos-rem2pi (cos (remainder x (* 2 (PI)))) (cos x)]
-;;;   [rev-tan-rempi (tan (remainder x (PI))) (tan x)]
-;;;   [tan-rem2pi (tan x) (tan (remainder x (* 2 (PI))))]
-;;;   [csc-rem2pi (csc x) (csc (remainder x (* 2 (PI))))]
-;;;   [sec-rem2pi (sec x) (sec (remainder x (* 2 (PI))))]
-;;;   [cot-rempi (cot x) (cot (remainder x (PI)))]
-
 ; Hyperbolic trigonometric functions
 (define-rules hyperbolic
   [sinh-def (sinh x) (/ (- (exp x) (exp (neg x))) 2)]
@@ -636,33 +615,47 @@
   [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh (fabs x)))]
   [acosh-2-rev (* 2 (acosh x)) (acosh (- (* 2 (* x x)) 1))])
 
-(define-rules arithmetic
-  [rem-self (remainder x x) 0]
-  [rem-zero (remainder 0 x) 0]
-  [rem-idempotent (remainder (remainder x y) y) (remainder x y)]
-  [rem-add-rgt (remainder (+ x y) y) (remainder x y)]
-  [rem-add-lft (remainder (+ y x) y) (remainder x y)]
-  [rem-sub-rgt (remainder (- x y) y) (remainder x y)]
+(define-rules special
+  [erf-0 (erf 0) 0]
+  [erf-neg (erf (neg x)) (neg (erf x))]
+  [erf-neg-rev (neg (erf x)) (erf (neg x))]
+  [erfc-0 (erfc 0) 1])
 
-  [rem-dist-add-lft (remainder (+ (remainder x z) y) z) (remainder (+ x y) z)]
-  [rem-dist-add-rgt (remainder (+ x (remainder y z)) z) (remainder (+ x y) z)]
+(define-rules trigonometry
+  [asin-0 (asin 0) 0]
+  [asin-1 (asin 1) (/ (PI) 2)]
+  [asin--1 (asin -1) (neg (/ (PI) 2))]
+  [asin-1/2 (asin 1/2) (/ (PI) 6)]
+  [asin--1/2 (asin -1/2) (neg (/ (PI) 6))]
+  [asin-sqrt2/2 (asin (/ (sqrt 2) 2)) (/ (PI) 4)]
+  [asin--sqrt2/2 (asin (/ (neg (sqrt 2)) 2)) (neg (/ (PI) 4))]
+  [asin-sqrt3/2 (asin (/ (sqrt 3) 2)) (/ (PI) 3)]
+  [asin--sqrt3/2 (asin (/ (neg (sqrt 3)) 2)) (neg (/ (PI) 3))]
+  [acos-1 (acos 1) 0]
+  [acos-0 (acos 0) (/ (PI) 2)]
+  [acos--1 (acos -1) (PI)]
+  [acos-1/2 (acos 1/2) (/ (PI) 3)]
+  [acos--1/2 (acos -1/2) (/ (* 2 (PI)) 3)]
+  [acos-sqrt2/2 (acos (/ (sqrt 2) 2)) (/ (PI) 4)]
+  [acos--sqrt2/2 (acos (/ (neg (sqrt 2)) 2)) (/ (* 3 (PI)) 4)]
+  [acos-sqrt3/2 (acos (/ (sqrt 3) 2)) (/ (PI) 6)]
+  [acos--sqrt3/2 (acos (/ (neg (sqrt 3)) 2)) (/ (* 5 (PI)) 6)]
+  [atan-0 (atan 0) 0]
+  [atan-1 (atan 1) (/ (PI) 4)]
+  [atan--1 (atan -1) (neg (/ (PI) 4))])
 
-  [rem-neg (remainder (neg x) y) (neg (remainder x y))]
-  [rem-neg-rev (neg (remainder x y)) (remainder (neg x) y)])
+(define-rules hyperbolic
+  [asinh-0 (asinh 0) 0]
+  [acosh-1 (acosh 1) 0]
+  [atanh-0 (atanh 0) 0])
 
-; Sound-X removal rules: run these before lowering
-(define (*sound-removal-rules*)
-  (list (rule 'remove-sound-/ '(sound-/ a b fallback) '(/ a b) '(sound-removal))
-        (rule 'remove-sound-pow '(sound-pow a b fallback) '(pow a b) '(sound-removal))
-        (rule 'remove-sound-log '(sound-log a fallback) '(log a) '(sound-removal))))
-
-;;; (define-rules arithmetic
-;;;   [force-factor-lft (+ (* a b) c) (* a (+ b (/ c a)))]
-;;;   [force-factor-rgt (+ c (* a b)) (* a (+ (/ c a) b))]
-
-;;;   ; And the subtraction variants for completeness
-;;;   [force-factor-sub-lft (- (* a b) c) (* a (- b (/ c a)))]
-;;;   [force-factor-sub-rgt (- c (* a b)) (* a (- (/ c a) b))])
+(define-rules trigonometry
+  [sin+2pi (sin x) (sin (+ x (* 2 (PI))))]
+  [cos+2pi (cos x) (cos (+ x (* 2 (PI))))]
+  [tan+pi (tan x) (tan (+ x (PI)))]
+  [sin+2pi-rev (sin (+ x (* 2 (PI)))) (sin x)]
+  [cos+2pi-rev (cos (+ x (* 2 (PI)))) (cos x)]
+  [tan+pi-rev (tan (+ x (PI))) (tan x)])
 
 (define-rules arithmetic
   [force-factor-lft (+ (* a b) c) (* a (+ b (/ c a)))]
@@ -672,9 +665,8 @@
   [factor-div-lft2 (+ (/ x c) (* a b)) (/ (+ x (* (* a b) c)) c)]
   [factor-div-rgt2 (+ (* a b) (/ x c)) (/ (+ (* (* a b) c) x) c)])
 
-;;; (define-rules fractions
-;;;               [factor-shift-lft (+ (sound-/ x c f) b) (sound-/ (+ x (* b c)) c f)]
-;;;               [factor-shift-rgt (+ b (sound-/ x c f)) (sound-/ (+ (* b c) x) c f)]
-
-;;;               ; Version for standard division just in case
-;;;               [factor-shift-std-lft (+ (/ x c) b) (/ (+ x (* b c)) c)])
+; Sound-X removal rules: run these before lowering
+(define (*sound-removal-rules*)
+  (list (rule 'remove-sound-/ '(sound-/ a b fallback) '(/ a b) '(sound-removal))
+        (rule 'remove-sound-pow '(sound-pow a b fallback) '(pow a b) '(sound-removal))
+        (rule 'remove-sound-log '(sound-log a fallback) '(log a) '(sound-removal))))
