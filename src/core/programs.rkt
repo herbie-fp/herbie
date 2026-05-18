@@ -39,7 +39,6 @@
     [(literal val precision) (get-representation precision)]
     [(? symbol?) (context-lookup ctx expr)]
     [(approx _ impl) (repr-of impl ctx)]
-    [(hole precision spec) (get-representation precision)]
     [(list op args ...) (impl-info op 'otype)]))
 
 (define (batch-repr-of brf)
@@ -50,7 +49,6 @@
       [(literal val precision) (get-representation precision)]
       [(? symbol? node) (dict-ref var-reprs node)]
       [(approx _ impl) (loop impl)]
-      [(hole precision spec) (get-representation precision)]
       [(list op args ...) (impl-info op 'otype)])))
 
 (define (all-subexpressions expr #:reverse? [reverse? #f])
@@ -127,13 +125,6 @@
          cmp-spec)]
     [((? approx?) _) 1]
     [(_ (? approx?)) -1]
-    [((? hole?) (? hole?))
-     (define cmp-spec (expr-cmp (hole-spec a) (hole-spec b)))
-     (if (zero? cmp-spec)
-         (expr-cmp (hole-precision a) (hole-precision b))
-         cmp-spec)]
-    [((? hole?) _) 1]
-    [(_ (? hole?)) -1]
     [((? symbol?) (? symbol?))
      (cond
        [(symbol<? a b) -1]
