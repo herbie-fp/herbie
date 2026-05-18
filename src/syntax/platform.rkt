@@ -118,7 +118,6 @@
                        [(? literal?) (batch-push! batch (literal-value node))]
                        [(? number?) brf]
                        [(? symbol?) brf]
-                       [(hole _ spec) (recurse spec)]
                        [(approx spec _) (recurse spec)]
                        [(list (? impl-exists? impl) args ...)
                         (define vars (impl-info impl 'vars))

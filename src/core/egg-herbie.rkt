@@ -97,7 +97,6 @@
          [(literal v _) (insert-node! v)]
          [(? number?) (insert-node! node)]
          [(? symbol?) (insert-node! (var->egg-var node ctx))]
-         [(hole prec spec) (recurse spec)] ; "hole" terms currently disappear
          [(approx spec impl) (insert-node! (list '$approx (recurse spec) (recurse impl)))]
          [(list op (app recurse args) ...) (insert-node! (cons op args))]))))
 
@@ -198,7 +197,6 @@
       [(? literal?) (literal-value expr)]
       [(? symbol? x) (var->egg-var x ctx)]
       [(approx spec impl) (list '$approx (loop spec) (loop impl))]
-      [(hole precision spec) (loop spec)]
       [(list op args ...) (cons op (map loop args))])))
 
 (define (flatten-let expr)
