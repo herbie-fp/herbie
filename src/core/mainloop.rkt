@@ -167,7 +167,7 @@
       (define key (cons (get-starting-expr altn) signature))
       (hash-update! groups key (curry best-alt altn) altn))
 
-    (hash-values groups))
+    (sort (hash-values groups) expr<? #:key alt-expr))
 
   (define (compute-referrers parents root)
     (define seen (mutable-seteq))
