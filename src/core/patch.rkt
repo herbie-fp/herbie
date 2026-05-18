@@ -41,7 +41,8 @@
   (define brfs (map alt-expr altns))
   (define reprs (map batch-repr-of brfs))
   ;; Specs
-  (define spec-brfs (batch-to-spec! global-batch brfs)) ;; These specs will go into (approx spec impl)
+  (define spec-brfs
+    (batch-to-spec! global-batch global-batch brfs)) ;; These specs will go into (approx spec impl)
   (define free-vars (map (batch-free-vars global-batch) spec-brfs))
   (define spec-brfs*
     (map (batch-copy-only! spec-batch global-batch)
@@ -143,7 +144,7 @@
 (define (run-evaluate altns global-batch)
   (timeline-event! 'sample)
   (define all-brfs (map alt-expr altns))
-  (define spec-brfs (batch-to-spec! global-batch all-brfs))
+  (define spec-brfs (batch-to-spec! global-batch global-batch all-brfs))
   (define free-vars (batch-free-vars global-batch))
   (define real-pairs
     (for/list ([altn (in-list altns)]
@@ -194,7 +195,7 @@
   (define schedule '(rewrite unsound lower))
 
   (define brfs (map alt-expr altns))
-  (define spec-brfs (batch-to-spec! global-batch brfs))
+  (define spec-brfs (batch-to-spec! global-batch global-batch brfs))
   (define reprs (map batch-repr-of brfs))
   (define runner
     (cond

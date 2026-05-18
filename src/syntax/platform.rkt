@@ -109,25 +109,66 @@
      (define env (map cons vars (map prog->spec args)))
      (pattern-substitute spec env)]))
 
-(define (batch-to-spec! batch brfs)
+(define (batch-to-spec! in-batch out-batch brfs)
+  (define (check-output-spec! spec)
+    (unless (equal? (batchref-batch spec) out-batch)
+      (error 'batch-to-spec! "spec reference does not belong to the output batch"))
+    spec)
   (define lower
-    (batch-recurse batch
-                   (lambda (brf recurse)
-                     (define node (deref brf))
-                     (match node
-                       [(? literal?) (batch-push! batch (literal-value node))]
-                       [(? number?) brf]
-                       [(? symbol?) brf]
-                       [(hole _ spec) (recurse spec)]
-                       [(approx spec _) (recurse spec)]
-                       [(list (? impl-exists? impl) args ...)
-                        (define vars (impl-info impl 'vars))
-                        (define spec (impl-info impl 'spec))
-                        (define env (map cons vars (map recurse args)))
-                        (batch-add! batch (pattern-substitute spec env))]
-                       [(list op args ...)
-                        (batch-push! batch (cons op (map (compose batchref-idx recurse) args)))]))))
+    (batch-recurse
+     in-batch
+     (lambda (brf recurse)
+       (define node (deref brf))
+       (match node
+         [(? literal?) (batch-add! out-batch (literal-value node))]
+         [(? number?) (error 'batch-to-spec! "unexpected spec node in input batch: ~a" node)]
+         [(? symbol?) (batch-add! out-batch node)]
+         [(hole _ spec) (check-output-spec! spec)]
+         [(approx spec _) (check-output-spec! spec)]
+         [(list (? impl-exists? impl) args ...)
+          (define vars (impl-info impl 'vars))
+          (define spec (impl-info impl 'spec))
+          (define env (map cons vars (map recurse args)))
+          (batch-add! out-batch (pattern-substitute spec env))]
+         [(list op args ...)
+          (error 'batch-to-spec! "unexpected spec node in input batch: ~a" node)]))))
   (map lower brfs))
+
+(module+ test
+  (require rackunit)
+
+  (define test-empty-ctx (context '() #f '()))
+
+  (let* ([in-batch (batch-empty test-empty-ctx)]
+         [out-batch (batch-empty test-empty-ctx)]
+         [x (batch-add! in-batch 'x)]
+         [x* (first (batch-to-spec! in-batch out-batch (list x)))])
+    (check-equal? (batchref-batch x*) out-batch)
+    (check-equal? (deref x*) 'x))
+
+  (let* ([batch (batch-empty test-empty-ctx)]
+         [spec (batch-add! batch 'x)]
+         [impl (batch-add! batch (literal 1 'binary64))]
+         [approx-brf (batch-add! batch (approx spec impl))]
+         [hole-brf (batch-add! batch (hole 'binary64 spec))])
+    (check-equal? (batch-to-spec! batch batch (list approx-brf hole-brf)) (list spec spec)))
+
+  (let* ([in-batch (batch-empty test-empty-ctx)]
+         [out-batch (batch-empty test-empty-ctx)]
+         [spec (batch-add! in-batch 'x)]
+         [impl (batch-add! in-batch (literal 1 'binary64))]
+         [approx-brf (batch-add! in-batch (approx spec impl))]
+         [hole-brf (batch-add! in-batch (hole 'binary64 spec))])
+    (check-exn #rx"output batch" (λ () (batch-to-spec! in-batch out-batch (list approx-brf))))
+    (check-exn #rx"output batch" (λ () (batch-to-spec! in-batch out-batch (list hole-brf)))))
+
+  (let* ([in-batch (batch-empty test-empty-ctx)]
+         [out-batch (batch-empty test-empty-ctx)]
+         [num (batch-add! in-batch 1)]
+         [expr (batch-add! in-batch `(+ ,num ,num))])
+    (parameterize ([*active-platform* (make-empty-platform)])
+      (check-exn #rx"unexpected spec node" (λ () (batch-to-spec! in-batch out-batch (list num))))
+      (check-exn #rx"unexpected spec node" (λ () (batch-to-spec! in-batch out-batch (list expr)))))))
 
 ;; Expression predicates ;;
 
