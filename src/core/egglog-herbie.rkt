@@ -606,10 +606,10 @@
 
   (egglog-send subproc
                `(run-schedule
-                 (let-scheduler bo (back-off))
+                 (let-scheduler cbo (capped-back-off :node-cap ,node-limit))
                  (repeat ,iter-limit
-                         (seq (run-with bo ,tag :until (<= ,node-limit (get-size!)))
-                              (run-with bo const-fold :until (<= ,node-limit (get-size!)))
+                         (seq (run-with cbo ,tag :until (<= ,node-limit (get-size!)))
+                              (run-with cbo const-fold :until (<= ,node-limit (get-size!)))
                               (run bad-merge-rule :until (bad-merge?))))))
   (void))
 
