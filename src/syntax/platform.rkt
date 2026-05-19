@@ -148,18 +148,15 @@
   (let* ([batch (batch-empty test-empty-ctx)]
          [spec (batch-add! batch 'x)]
          [impl (batch-add! batch (literal 1 'binary64))]
-         [approx-brf (batch-add! batch (approx spec impl))]
-         [hole-brf (batch-add! batch (hole 'binary64 spec))])
-    (check-equal? (batch-to-spec! batch batch (list approx-brf hole-brf)) (list spec spec)))
+         [approx-brf (batch-add! batch (approx spec impl))])
+    (check-equal? (batch-to-spec! batch batch (list approx-brf)) (list spec)))
 
   (let* ([in-batch (batch-empty test-empty-ctx)]
          [out-batch (batch-empty test-empty-ctx)]
          [spec (batch-add! in-batch 'x)]
          [impl (batch-add! in-batch (literal 1 'binary64))]
-         [approx-brf (batch-add! in-batch (approx spec impl))]
-         [hole-brf (batch-add! in-batch (hole 'binary64 spec))])
-    (check-exn #rx"output batch" (λ () (batch-to-spec! in-batch out-batch (list approx-brf))))
-    (check-exn #rx"output batch" (λ () (batch-to-spec! in-batch out-batch (list hole-brf)))))
+         [approx-brf (batch-add! in-batch (approx spec impl))])
+    (check-exn #rx"output batch" (λ () (batch-to-spec! in-batch out-batch (list approx-brf)))))
 
   (let* ([in-batch (batch-empty test-empty-ctx)]
          [out-batch (batch-empty test-empty-ctx)]
