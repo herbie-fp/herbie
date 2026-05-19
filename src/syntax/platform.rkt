@@ -123,7 +123,6 @@
          [(? literal?) (batch-add! out-batch (literal-value node))]
          [(? number?) (error 'batch-to-spec! "unexpected spec node in input batch: ~a" node)]
          [(? symbol?) (batch-add! out-batch node)]
-         [(hole _ spec) (check-output-spec! spec)]
          [(approx spec _) (check-output-spec! spec)]
          [(list (? impl-exists? impl) args ...)
           (define vars (impl-info impl 'vars))
