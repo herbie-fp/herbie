@@ -74,7 +74,6 @@
     [(literal _ precision) (get-representation precision)]
     [(? symbol?) (context-lookup ctx expr)]
     [(approx _ impl) (repr-of impl ctx)]
-    [(hole precision _) (get-representation precision)]
     [(list op _ ...) (impl-info op 'otype)]))
 
 (define (replace-vars dict expr)
@@ -294,7 +293,6 @@
       [(? number?) expr]
       [(? symbol?) expr]
       [(approx _ impl) (munge impl)]
-      [(hole _ spec) (munge spec)]
       [(list (? impl-exists? impl) args ...)
        (define args* (map munge args))
        (define vars (impl-info impl 'vars))
