@@ -45,7 +45,6 @@
 (define (expr-recurse expr f)
   (match expr
     [(approx spec impl) (approx (f spec) (f impl))]
-    [(hole precision spec) (hole precision (f spec))]
     [(list op) (list op)]
     [(list op arg1) (list op (f arg1))]
     [(list op arg1 arg2) (list op (f arg1) (f arg2))]
@@ -171,7 +170,6 @@
         [(? symbol?) (~a node)]
         [(? number?) (~a node)]
         [(approx spec impl) (list "approx" spec impl)]
-        [(hole precision spec) (list "hole" (~a precision) spec)]
         [(list op args ...) (cons (~a op) args)]
         [_ (~a node)])))
   (hash 'nodes nodes 'roots (map batchref-idx brfs*)))

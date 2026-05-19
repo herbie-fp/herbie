@@ -446,7 +446,6 @@
          [(? literal?) #f] ;; If literal, not a spec
          [(? number?) #t] ;; If number, it's a spec
          [(? symbol?) #t]
-         [(hole _ _) #f] ;; If hole, not a spec
          [(approx _ _) #f] ;; If approx, not a spec
          [`(if ,cond ,ift ,iff)
           (recurse cond)] ;; If the condition or any branch is a spec, then this is a spec
@@ -472,9 +471,7 @@
                           (id->e2))
                       impl)
            ,@(for/list ([arg (in-list args)])
-               (remap arg (spec? (batchref batch n)))))]
-
-        [(hole ty spec) `(do-lower ,(remap spec #t) ,(egglog-repr-token ty))]))
+               (remap arg (spec? (batchref batch n)))))]))
 
     (if node*
         (vector-set! mappings n (insert-node! node* n root?))
