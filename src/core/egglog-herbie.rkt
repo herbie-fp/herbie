@@ -496,27 +496,6 @@
 
     (set! constructor-num (add1 constructor-num)))
 
-  ; Var-typed-bindings
-  (for ([var (in-list (batch-vars batch))]
-        [repr (in-list (batch-var-reprs batch))])
-    ; Get the binding names for the program
-    (define binding-name (string->symbol (format "?t~a" var)))
-    (define constructor-name (string->symbol (format "const~a" constructor-num)))
-    (hash-set! binding->constructor binding-name constructor-name)
-
-    ; Define the actual binding
-    (define curr-var-typed-binding
-      `(let ,binding-name (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
-
-    ; Send the constructor definition
-    (egglog-send subproc `(constructor ,constructor-name () MTy :unextractable))
-
-    ; Add the binding and constructor union to all-bindings for the future rule
-    (set! all-bindings (cons curr-var-typed-binding all-bindings))
-    (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
-
-    (set! constructor-num (add1 constructor-num)))
-
   ; Binding Exprs
   (for ([brf (in-list (reverse reachable-brfs))]
         #:unless (symbol? (deref brf)))
