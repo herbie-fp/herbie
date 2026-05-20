@@ -157,14 +157,11 @@
 
   (define brfs (map alt-expr real-altns))
   (define reprs (map batch-repr-of brfs))
-  (define contexts
-    (for/list ([repr (in-list reprs)])
-      (context '() repr '())))
 
   (define-values (status pts)
     (if (null? real-spec-brfs)
         (values 'invalid #f)
-        (let ([real-compiler (make-real-compiler global-batch real-spec-brfs contexts)])
+        (let ([real-compiler (make-real-compiler global-batch real-spec-brfs reprs)])
           (real-apply real-compiler (vector)))))
   (define literals
     (for/list ([pt (in-list (if (equal? status 'valid)

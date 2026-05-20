@@ -180,9 +180,9 @@
   (for/fold ([t1 (hash-remove (hash-remove t1 'unknown) 'valid)]) ([(k v) (in-hash t2)])
     (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
 
-(define (sample-points pre batch brfs ctxs)
+(define (sample-points pre batch brfs reprs)
   (timeline-event! 'analyze)
-  (define compiler (make-real-compiler batch brfs ctxs #:pre pre))
+  (define compiler (make-real-compiler batch brfs reprs #:pre pre))
   (define-values (sampler table) (make-sampler compiler))
   (timeline-event! 'sample)
   (define-values (results table2) (batch-prepare-points compiler sampler))
