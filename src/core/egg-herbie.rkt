@@ -38,9 +38,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FFI utils
 
-(define (u32vector-empty? x)
-  (zero? (u32vector-length x)))
-
 (define (in-u32vector vec)
   (make-do-sequence
    (lambda ()
@@ -116,16 +113,6 @@
       ['simple #t]
       [_ (error 'egraph-run "unknown scheduler: `~a`" scheduler)]))
   (egraph_run ptr ffi-rules iter_limit node_limit simple_scheduler?))
-
-(define (egraph-get-simplest ptr node-id iteration ctx)
-  (define expr (egraph_get_simplest ptr node-id iteration))
-  (egg-expr->expr expr ctx))
-
-(define (egraph-get-variants ptr node-id orig-expr ctx)
-  (define egg-expr (expr->egg-expr orig-expr ctx))
-  (define exprs (egraph_get_variants ptr node-id egg-expr))
-  (for/list ([expr (in-list exprs)])
-    (egg-expr->expr expr ctx)))
 
 (define empty-u32vec (make-u32vector 0))
 
@@ -853,7 +840,6 @@
 ;;
 ;; Typed cost functions take:
 ;;  - the regraph we are extracting from
-;;  - a mutable cache (to possibly stash per-node data)
 ;;  - the node we are computing cost for
 ;;  - 3 argument procedure taking:
 ;;       - an eclass id
@@ -886,10 +872,8 @@
       [(list _ ids ...) (andmap (lambda (id) (vector-ref costs id)) ids)]))
 
   ; computes cost of a node (as long as each of its children have costs)
-  ; cost function has access to a mutable value through `cache`
-  (define cache (box #f))
   (define (node-cost node type)
-    (and (node-ready? node) (platform-egg-cost-proc regraph cache node type unsafe-eclass-cost)))
+    (and (node-ready? node) (platform-egg-cost-proc regraph node type unsafe-eclass-cost)))
 
   ; updates the cost of the current eclass.
   ; returns whether the cost of the current eclass has improved.
@@ -993,7 +977,7 @@
     [_ #f]))
 
 ;; Old cost model version
-(define (default-egg-cost-proc regraph cache node type rec)
+(define (default-egg-cost-proc regraph node rec)
   (match node
     [(? number?) 1]
     [(? symbol?) 1]
@@ -1014,11 +998,10 @@
     [(list _ args ...) (apply + 1 (map rec args))]))
 
 ;; Per-node cost function according to the platform
-;; `rec` takes an id, type, and failure value
-(define (platform-egg-cost-proc regraph cache node type rec)
+;; `rec` takes an eclass id.
+(define (platform-egg-cost-proc regraph node type rec)
   (cond
     [(representation? type)
-     (define ctx (regraph-ctx regraph))
      (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
      (match node
        [(? number? n) ((node-cost-proc (literal n type)))]
@@ -1035,15 +1018,14 @@
           [_
            (define cost-proc (node-cost-proc node))
            (apply cost-proc (map rec args))])])]
-    [else (default-egg-cost-proc regraph cache node type rec)]))
+    [else (default-egg-cost-proc regraph node rec)]))
 
 (module+ test
   (define cost-regraph (regraph #() #() #f (vector #f #f 2/3 1/2) #() #hash() ctx))
   (define (test-rec _)
     1)
-  (check-equal? (platform-egg-cost-proc cost-regraph #f '(pow.f64 0 2) <binary64> test-rec) +inf.0)
-  (check-not-equal? (platform-egg-cost-proc cost-regraph #f '(pow.f64 0 3) <binary64> test-rec)
-                    +inf.0))
+  (check-equal? (platform-egg-cost-proc cost-regraph '(pow.f64 0 2) <binary64> test-rec) +inf.0)
+  (check-not-equal? (platform-egg-cost-proc cost-regraph '(pow.f64 0 3) <binary64> test-rec) +inf.0))
 
 ;; Extracts the best expression according to the extractor.
 ;; Result is a single element list.
