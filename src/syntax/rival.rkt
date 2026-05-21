@@ -118,25 +118,16 @@
          ival-hi
          (contract-out
           [make-real-compiler
-           (->i
-            ([batch batch?]
-             [brfs (listof batchref?)]
-             [ctxs (brfs) (and/c unified-contexts? (lambda (ctxs) (= (length brfs) (length ctxs))))])
-            (#:pre [pre any/c])
-            [c real-compiler?])]
+           (->i ([batch batch?] [brfs (listof batchref?)]
+                                [reprs
+                                 (brfs)
+                                 (and/c (listof representation?)
+                                        (lambda (reprs) (= (length brfs) (length reprs))))])
+                (#:pre [pre any/c])
+                [c real-compiler?])]
           [real-apply (->* (real-compiler? vector?) (any/c) (values symbol? any/c))]
           [real-compiler-clear! (-> real-compiler? void?)]
           [real-compiler-analyze (->* (real-compiler? (vectorof ival?)) (any/c) (listof any/c))]))
-
-(define (unified-contexts? ctxs)
-  (cond
-    [((non-empty-listof context?) ctxs)
-     (define ctx0 (car ctxs))
-     (for/and ([ctx (in-list (cdr ctxs))])
-       (and (equal? (context-vars ctx0) (context-vars ctx))
-            (for/and ([var (in-list (context-vars ctx0))])
-              (equal? (context-lookup ctx0 var) (context-lookup ctx var)))))]
-    [else #f]))
 
 (define (expr-size expr)
   (if (list? expr)
@@ -148,15 +139,18 @@
         (pre vars var-reprs exprs reprs machine dump-file assemble-point assemble-output))
 
 ;; Creates a Rival machine.
-(define (make-real-compiler batch brfs ctxs #:pre [pre '(TRUE)])
+(define (make-real-compiler batch brfs output-reprs #:pre [pre '(TRUE)])
   (define specs (map (batch-exprs batch) brfs))
-  (define-values (specs* ctxs* pre* assemble-point assemble-output reprs)
+  (define ctxs
+    (for/list ([repr (in-list output-reprs)])
+      (context (batch-vars batch) repr (batch-var-reprs batch))))
+  (define-values (specs* ctxs* pre* assemble-point assemble-output flattened-reprs)
     (flatten-arrays-for-rival specs ctxs pre))
   (define vars (context-vars (first ctxs*)))
 
   ; create the machine
   (define exprs (cons `(assert ,pre*) specs*))
-  (define discs (make-discretizations reprs))
+  (define discs (make-discretizations flattened-reprs))
   (define machine (rival-compile exprs vars discs))
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre*) (map expr-size specs*))
@@ -186,7 +180,7 @@
                  (list->vector vars)
                  (list->vector (context-var-reprs (first ctxs*)))
                  specs*
-                 (list->vector reprs)
+                 (list->vector flattened-reprs)
                  machine
                  dump-file
                  assemble-point

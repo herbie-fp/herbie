@@ -141,8 +141,11 @@
 (define (run-evaluate altns global-batch)
   (timeline-event! 'sample)
   (define all-brfs (map alt-expr altns))
-  (define spec-brfs (batch-to-spec! global-batch global-batch all-brfs))
-  (define free-vars (batch-free-vars global-batch))
+  (define global-spec-brfs (batch-to-spec! global-batch global-batch all-brfs))
+  (define constant-batch (batch-empty (context '() #f '())))
+  (define copy-constant (batch-copy-only! constant-batch global-batch))
+  (define spec-brfs (map copy-constant global-spec-brfs))
+  (define free-vars (batch-free-vars constant-batch))
   (define real-pairs
     (for/list ([altn (in-list altns)]
                [spec-brf (in-list spec-brfs)]
@@ -155,14 +158,11 @@
 
   (define brfs (map alt-expr real-altns))
   (define reprs (map batch-repr-of brfs))
-  (define contexts
-    (for/list ([repr (in-list reprs)])
-      (context '() repr '())))
 
   (define-values (status pts)
     (if (null? real-spec-brfs)
         (values 'invalid #f)
-        (let ([real-compiler (make-real-compiler global-batch real-spec-brfs contexts)])
+        (let ([real-compiler (make-real-compiler constant-batch real-spec-brfs reprs)])
           (real-apply real-compiler (vector)))))
   (define literals
     (for/list ([pt (in-list (if (equal? status 'valid)
@@ -179,7 +179,7 @@
       (define brf (batch-add! global-batch literal))
       (alt brf '(evaluate) (list altn))))
 
-  (timeline-push! 'inputs (batch->jsexpr global-batch real-spec-brfs))
+  (timeline-push! 'inputs (batch->jsexpr constant-batch real-spec-brfs))
   (timeline-push! 'outputs (map ~a literals))
   final-altns)
 
