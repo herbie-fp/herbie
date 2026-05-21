@@ -304,7 +304,7 @@
                 (critical-subexpression? batch (alt-expr alt) brf))))
        (cond
          [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
-         [use-binary? (combine-alts/binary batch opt start-prog (*context*) (*pcontext*))]
+         [use-binary? (combine-alts/binary batch opt start-prog (*pcontext*))]
          [else (combine-alts batch opt)]))]
     [else
      (define scores (batch-score-alts alts))

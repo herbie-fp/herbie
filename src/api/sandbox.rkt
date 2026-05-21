@@ -140,7 +140,7 @@
   (define-values (batch brfs) (progs->batch (list specification) #:ctx (*context*)))
   (define sample
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-points precondition batch brfs (list (*context*)))))
+      (sample-points precondition batch brfs (list (context-repr (*context*))))))
   (apply mk-pcontext sample))
 
 ;;
