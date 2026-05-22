@@ -1,5 +1,6 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?)
+         racket/runtime-path
          (only-in fpbench
                   fpcore?
                   supported-by-lang?
@@ -10,6 +11,7 @@
                   core->julia
                   core->matlab
                   core->wls
+                  core->reflow
                   core->tex
                   expr->tex
                   core->js
@@ -39,6 +41,7 @@
          program->fpcore
          fpcore->tex
          fpcore->string
+         web-resource
          js-tex-include
          doc-url
          core->c
@@ -48,6 +51,7 @@
          core->julia
          core->matlab
          core->wls
+         core->reflow
          core->tex
          expr->tex
          core->js)
@@ -77,6 +81,9 @@
     [(list 'FPCore name args expr) `(FPCore ,name ,args ,@props ,expr)]
     [(list 'FPCore args expr) `(FPCore ,args ,@props ,expr)]))
 
+(define (repr->precision-name repr)
+  (dict-ref (repr->prop repr) ':precision (representation-name repr)))
+
 (define (at-least-two-ops? expr)
   (match expr
     [(list op args ...) (ormap list? args)]
@@ -84,6 +91,13 @@
 
 (define (doc-url page)
   (format "https://herbie.uwplse.org/doc/~a/~a" *herbie-version* page))
+
+(define-runtime-path web-resource-path "resources/")
+
+(define (web-resource [name #f])
+  (if name
+      (build-path web-resource-path name)
+      web-resource-path))
 
 (define/contract (render-menu #:path [path "."] name links)
   (->* (string? (listof (cons/c string? string?))) (#:path string?) xexpr?)
@@ -142,6 +156,7 @@
                                                       ("Julia" "jl" ,core->julia)
                                                       ("MATLAB" "mat" ,core->matlab)
                                                       ("Wolfram" "wl" ,core->wls)
+                                                      ("ReFlow" "reflow" ,core->reflow)
                                                       ("TeX" "tex" ,(λ (c i) (core->tex c)))))
 
 (define (fpcore->tex fpcore #:loc [loc #f])
@@ -155,8 +170,9 @@
     (parameterize ([*expr-cse-able?* at-least-two-ops?])
       (core-cse (program->fpcore expr ctx #:ident identifier))))
 
-  (define output-prec (representation-name output-repr))
-  (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec)))
+  (define output-prec (repr->precision-name output-repr))
+  (define precondition* (prog->fpcore precondition ctx))
+  (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec ':pre precondition*)))
 
   (define versions
     (reap [sow]
@@ -207,13 +223,29 @@
 (define/contract (render-fpcore test)
   (-> test? string?)
   (define output-repr (test-output-repr test))
+  (define output-precision (repr->precision-name output-repr))
+  (define rendered-vars
+    (for/list ([var (in-list (test-vars test))])
+      (define repr (get-representation (dict-ref (test-var-repr-names test) var)))
+      (cond
+        [(array-representation? repr)
+         (define dims (array-representation-shape repr))
+         (define elem-precision (repr->precision-name (array-representation-base repr)))
+         (if (equal? elem-precision output-precision)
+             (append (list var) dims)
+             (append (list '! ':precision elem-precision var) dims))]
+        [else
+         (define var-precision (repr->precision-name repr))
+         (if (equal? var-precision output-precision)
+             var
+             (list '! ':precision var-precision var))])))
   (string-join
    (filter identity
            (list (if (test-identifier test)
-                     (format "(FPCore ~a ~a" (test-identifier test) (test-vars test))
-                     (format "(FPCore ~a" (test-vars test)))
+                     (format "(FPCore ~a ~a" (test-identifier test) rendered-vars)
+                     (format "(FPCore ~a" rendered-vars))
                  (format "  :name ~s" (test-name test))
-                 (format "  :precision ~s" (representation-name (test-output-repr test)))
+                 (format "  :precision ~s" output-precision)
                  (if (equal? (test-pre test) '(TRUE))
                      #f
                      (format "  :pre ~a" (prog->fpcore (test-pre test) (test-context test))))

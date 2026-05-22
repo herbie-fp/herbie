@@ -1,4 +1,4 @@
-.PHONY: help install egg-herbie nightly index start-server deploy
+.PHONY: help install egg-herbie nightly index start-server deploy coverage
 
 help:
 	@echo "Type 'make install' to install Herbie"
@@ -15,8 +15,9 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Uninstalled old egg-herbie" || :
 
 update:
-	raco pkg install --skip-installed --no-docs --auto --name herbie src/
+	raco pkg install --update-deps --no-docs --auto --name herbie src/
 	raco pkg update --auto rival
+	raco pkg update --auto rival3
 	raco pkg update --name herbie --deps search-auto src/
 
 egg-herbie:
@@ -29,8 +30,7 @@ egg-herbie:
 	raco pkg install ./egg-herbie
 
 egglog-herbie:
-	cargo install --locked --git https://github.com/egraphs-good/egglog.git --rev 052a330de22d40e9eded19e7f0891c921f7f458c
-
+	cargo install --git "https://github.com/egraphs-good/egglog-experimental" --branch main egglog-experimental
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/
@@ -45,8 +45,8 @@ minimal-distribution:
 	[ ! -f herbie.app ] || (raco distribute herbie-compiled herbie.app && rm herbie.app)
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
-nightly: install
-	bash infra/nightly.sh bench/ reports/ --threads 4
+nightly:
+	bash infra/nightly.sh bench reports --threads 2
 
 upgrade:
 	git pull
@@ -58,7 +58,10 @@ start-server:
 		--log infra/server.log --quiet 2>&1
 
 fmt:
-	@raco fmt -i $(shell find egg-herbie/ src/ infra/ -name '*.rkt' -not -path 'src/platforms/*.rkt' -not -path "infra/softposit.rkt")
+	@raco fmt -i $(shell find egg-herbie src infra -name '*.rkt' -not -path 'src/platforms/*.rkt' -not -path 'infra/softposit.rkt')
+
+coverage:
+	@racket infra/coverage.rkt --benchmark $(or $(BENCH),bench/hamming) $(ARGS)
 
 herbie.zip herbie.zip.CHECKSUM:
 	raco pkg create src/

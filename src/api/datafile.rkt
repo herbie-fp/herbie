@@ -5,7 +5,7 @@
 (require "../syntax/platform.rkt"
          "../syntax/types.rkt"
          "../utils/common.rkt"
-         "../utils/pareto.rkt")
+         "../reports/data.rkt")
 
 (provide (struct-out table-row)
          (struct-out report-info)
@@ -13,29 +13,6 @@
          read-datafile
          write-datafile
          merge-datafiles)
-
-(struct table-row
-        (name identifier
-              status
-              pre
-              precision
-              conversions
-              vars
-              warnings
-              input
-              output
-              spec
-              target-prog
-              start
-              result
-              target
-              time
-              link
-              cost-accuracy)
-  #:prefab)
-
-(struct report-info (date commit branch seed flags points iterations tests merged-cost-accuracy)
-  #:prefab)
 
 (define (make-report-info tests #:seed [seed #f])
   (report-info (current-date)
@@ -45,52 +22,7 @@
                (*flags*)
                (*num-points*)
                (*num-iterations*)
-               tests
-               (merged-cost-accuracy tests)))
-
-;; Calculate the initial cost and accuracy and the rescaled and combined Pareto
-;; frontier for the given `tests` and return these as a list.
-(define (merged-cost-accuracy tests)
-  (define tests-length (length tests))
-  (define cost-accuracies (map table-row-cost-accuracy tests))
-  (define maximum-accuracy
-    (for/sum ([test (in-list tests)])
-             (representation-total-bits (get-representation (table-row-precision test)))))
-  (define initial-accuracy
-    (let ([initial-accuracies-sum
-           (for/sum ([cost-accuracy (in-list cost-accuracies)] #:unless (null? cost-accuracy))
-                    (match-define (list (list _ initial-accuracy) _ _) cost-accuracy)
-                    initial-accuracy)])
-      (if (positive? maximum-accuracy)
-          (exact->inexact (- 1 (/ initial-accuracies-sum maximum-accuracy)))
-          1.0)))
-  (define rescaled
-    (for/list ([cost-accuracy (in-list cost-accuracies)]
-               #:unless (null? cost-accuracy))
-      (match-define (list (and initial-point (list initial-cost _)) best-point other-points)
-        cost-accuracy)
-      ;; Has to be floating point so serializing to JSON doesn't complain
-      ;; about rational numbers later
-      (define initial-cost* (exact->inexact initial-cost))
-      (for/list ([point (in-list (list* initial-point best-point other-points))])
-        (match-define (list cost accuracy _ ...) point)
-        (list (/ cost initial-cost*) accuracy))))
-  (define frontier
-    (map
-     (match-lambda
-       [(list 0 accuracy)
-        (list "N/A" (- 1 (/ accuracy maximum-accuracy)))] ; in case if cost-model is 0
-       ;; Equivalent to (/ 1 (/ cost tests-length))
-       [(list cost accuracy) (list (/ 1 (/ cost tests-length)) (- 1 (/ accuracy maximum-accuracy)))])
-     (pareto-combine rescaled #:convex? #t)))
-  (define maximum-cost
-    (argmax identity
-            (cons 0.0 ;; To prevent `argmax` from signaling an error in case `tests` is empty
-                  (map (match-lambda
-                         [(list "N/A" _) 1.0]
-                         [(list cost _) cost])
-                       frontier))))
-  (list (list 1.0 initial-accuracy) frontier))
+               tests))
 
 (define (write-datafile file info)
   (define (simplify-test test)
@@ -114,15 +46,6 @@
                              cost-accuracy)
       test)
     (define bits (representation-total-bits (get-representation prec)))
-    (define cost-accuracy*
-      (match cost-accuracy
-        [(list) (list)]
-        [(list start best others)
-         (list start
-               best
-               (for/list ([other (in-list others)])
-                 (match-define (list cost error expr) other)
-                 (list cost error (~a expr))))]))
     (make-hash `((name . ,name) (identifier . ,(~s identifier))
                                 (pre . ,(~s pre))
                                 (prec . ,(~s prec))
@@ -136,23 +59,24 @@
                                 (warnings . ,warnings)
                                 (input . ,(~s input))
                                 (output . ,(~s output))
-                                (spec . ,(~s spec))
+                                (spec . ,(if (equal? spec input)
+                                             #f
+                                             (~s spec)))
                                 (target-prog . ,(~s target-prog))
                                 (time . ,time)
                                 (link . ,(~a link))
-                                (cost-accuracy . ,cost-accuracy*))))
+                                (cost-accuracy . ,cost-accuracy))))
 
   (define data
     (match info
-      [(report-info date commit branch seed flags points iterations tests merged-cost-accuracy)
+      [(report-info date commit branch seed flags points iterations tests)
        (make-hash `((date . ,(date->seconds date)) (commit . ,commit)
                                                    (branch . ,branch)
                                                    (seed . ,(~a seed))
                                                    (flags . ,(flags->list flags))
                                                    (points . ,points)
                                                    (iterations . ,iterations)
-                                                   (tests . ,(map simplify-test tests))
-                                                   (merged-cost-accuracy . ,merged-cost-accuracy)))]))
+                                                   (tests . ,(map simplify-test tests))))]))
 
   (if (port? file)
       (write-json data file)
@@ -191,16 +115,7 @@
                      (match (hash-ref test 'vars)
                        [(list names ...) (map string->symbol names)]
                        [string-lst (parse-string string-lst)]))
-                   (define cost-accuracy
-                     (match (hash-ref test 'cost-accuracy '())
-                       [(list) (list)]
-                       [(list start best others)
-                        (list start
-                              best
-                              (for/list ([other (in-list others)])
-                                (match-define (list cost err expr) other)
-                                (list cost err (parse-string expr))))]
-                       [(? string? s) (parse-string s)]))
+                   (define cost-accuracy (hash-ref test 'cost-accuracy '()))
                    (table-row (get 'name)
                               (parse-string (hash-ref test 'identifier "#f"))
                               (get 'status)
@@ -214,15 +129,15 @@
                               (hash-ref test 'warnings '())
                               (parse-string (get 'input))
                               (parse-string (get 'output))
-                              (parse-string (hash-ref test 'spec "#f"))
+                              (or (parse-string (hash-ref test 'spec "#f"))
+                                  (parse-string (get 'input)))
                               (parse-string (hash-ref test 'target-prog "#f"))
                               (get 'start)
                               (get 'end)
                               (get 'target)
                               (get 'time)
                               (get 'link)
-                              cost-accuracy)))
-               (hash-ref json 'merged-cost-accuracy null)))
+                              cost-accuracy)))))
 
 (define (merge-datafiles dfs #:dirs [dirs #f])
   (when (null? dfs)
@@ -254,6 +169,4 @@
                (report-info-flags (first dfs))
                (report-info-points (first dfs))
                (report-info-iterations (first dfs))
-               tests
-               ;; Easiest to just recompute everything based off the combined tests
-               (merged-cost-accuracy tests)))
+               tests))

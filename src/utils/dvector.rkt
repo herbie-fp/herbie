@@ -7,19 +7,12 @@
          in-dvector
          dvector-length
          dvector-capacity
-         dvector-copy
          create-dvector
          dvector->vector)
 
 (define starting-capacity 128)
 
 (struct dvector ([vec #:mutable] [length #:mutable] filling-value)
-  #:methods gen:custom-write
-  [(define (write-proc dvec port mode)
-     (define elems
-       (for/list ([elem (in-dvector dvec)])
-         (~a elem)))
-     (fprintf port "'#d(~a)" (string-join elems " ")))]
   #:property prop:equal+hash
   (list (λ (a b eq?) ; equal? override
           (and (dvector? b) (eq? (dvector-vec a) (dvector-vec b))))
@@ -68,7 +61,8 @@
      (dvector-add! dvec elem)]
     [else
      (vector-set! vec len elem)
-     (set-dvector-length! dvec (add1 len))]))
+     (set-dvector-length! dvec (add1 len))
+     len]))
 
 (define (dvector-set! dvec idx elem)
   (match-define (dvector vec len _) dvec)
@@ -82,10 +76,6 @@
 
 (define (dvector-ref dvec idx)
   (vector-ref (dvector-vec dvec) idx))
-
-(define (dvector-copy dvec)
-  (match-define (dvector vec len filling-val) dvec)
-  (dvector (vector-copy vec) len filling-val))
 
 (define (in-dvector dvec [start 0] [end (dvector-length dvec)] [step 1])
   (when (or (< (dvector-length dvec) (or end (dvector-length dvec))) (> start (dvector-length dvec)))

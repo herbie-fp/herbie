@@ -11,6 +11,7 @@
          timeline-load!
          timeline-extract
          timeline-merge
+         timeline-reattribute-gc
          *timeline-disabled*)
 (module+ debug
   (provide *timeline*))
@@ -25,7 +26,7 @@
 
 (define *timeline-disabled* (make-parameter true))
 
-(define always-compact '(mixsample outcomes))
+(define always-compact '(mixsample outcomes taylor-count))
 
 (define (timeline-event! type)
   (when (and *timeline-active-key* (pair? (unbox (*timeline*))))
@@ -127,13 +128,14 @@
             (current-gc-milliseconds)
             'memory
             (list (list (current-memory-use #f) (current-memory-use 'cumulative)))))
-  (reverse (for/list ([evt (unbox (*timeline*))]
-                      [next (cons end (unbox (*timeline*)))])
-             (define evt* (hash-copy evt))
-             (hash-update! evt* 'time (λ (v) (- (hash-ref next 'time) v)))
-             (hash-update! evt* 'gc-time (λ (v) (- (hash-ref next 'gc-time) v)))
-             (hash-update! evt* 'memory (λ (v) (diff-memory-records (hash-ref next 'memory) v)))
-             evt*)))
+  (timeline-reattribute-gc
+   (reverse (for/list ([evt (in-list (unbox (*timeline*)))]
+                       [next (in-list (cons end (unbox (*timeline*))))])
+              (define evt* (hash-copy evt))
+              (hash-update! evt* 'time (λ (v) (- (hash-ref next 'time) v)))
+              (hash-update! evt* 'gc-time (λ (v) (- (hash-ref next 'gc-time) v)))
+              (hash-update! evt* 'memory (λ (v) (diff-memory-records (hash-ref next 'memory) v)))
+              evt*))))
 
 (define timeline-types (make-hasheq))
 
@@ -180,22 +182,25 @@
       [(l1* '()) (cons rec (loop l1* (list (list (+ n2 1) t2))))]
       [(l1* l2*) (cons rec (loop l1* l2*))])))
 
+;; Generic & universal
 (define-timeline type #:custom (λ (a b) a))
 (define-timeline time #:custom +)
-(define-timeline gc-time #:custom +)
 
+;; Handled with separate GC phase
+(define-timeline gc-time #:custom +)
 (define-timeline memory [live +] [alloc +])
+(define-timeline allocations [phase false] [memory +])
+
 (define-timeline method [method])
 (define-timeline mixsample [time +] [function false] [precision false] [memory +])
 (define-timeline times [time +] [input false])
 (define-timeline series [time +] [var false] [transform false])
 (define-timeline compiler [before +] [after +])
 (define-timeline outcomes [time +] [prec false] [category false] [count +])
-(define-timeline accuracy [accuracy])
-(define-timeline oracle [oracle])
-(define-timeline baseline [baseline])
+(define-timeline accuracy [accuracy] [oracle] [baseline])
 (define-timeline count [input +] [output +])
 (define-timeline alts #:unmergable)
+(define-timeline batch #:unmergable)
 (define-timeline inputs #:unmergable)
 (define-timeline outputs #:unmergable)
 (define-timeline sampling #:custom merge-sampling-tables)
@@ -203,6 +208,7 @@
 (define-timeline symmetry #:unmergable)
 (define-timeline bstep #:unmergable)
 (define-timeline kept #:unmergable)
+(define-timeline taylor-count [transform false] [order false] [vars false] [generated +] [kept +])
 (define-timeline min-error #:unmergable)
 (define-timeline egraph #:unmergable)
 (define-timeline stop [reason false] [count +])
@@ -220,10 +226,36 @@
           (hash-update! data k (λ (old) ((hash-ref timeline-types k) v old)))
           (hash-set! data k v))))
 
-  (sort (hash-values types) > #:key (curryr hash-ref 'time)))
+  (sort (timeline-reattribute-gc (hash-values types)) > #:key (curryr hash-ref 'time)))
 
 (define (timeline-compact! key)
   (unless (*timeline-disabled*)
     (define fn (hash-ref timeline-types key #f))
     (when fn
       (hash-update! (car (unbox (*timeline*))) key (curryr fn '()) '()))))
+
+(define (timeline-reattribute-gc timeline)
+  (define total-gc-time (for/sum ([phase (in-list timeline)]) (hash-ref phase 'gc-time 0)))
+  (define allocations-by-phase (make-hash))
+  (for ([phase (in-list timeline)])
+    (define type (hash-ref phase 'type "unknown"))
+    (define alloc (second (first (hash-ref phase 'memory '((0 0))))))
+    (hash-update! allocations-by-phase type (curry + alloc) 0))
+  (define allocation-table
+    (for/list ([(type alloc) (in-hash allocations-by-phase)])
+      (list type alloc)))
+  (define adjusted-phases
+    (for/list ([phase (in-list timeline)])
+      (define gc-time (hash-ref phase 'gc-time 0))
+      (define new-time (- (hash-ref phase 'time 0) gc-time))
+      (define phase* (hash-copy phase))
+      (hash-set! phase* 'time new-time)
+      (hash-remove! phase* 'gc-time)
+      (hash-remove! phase* 'memory)
+      phase*))
+  (define gc-phase
+    (make-hasheq
+     (list (cons 'type "gc") (cons 'time total-gc-time) (cons 'allocations allocation-table))))
+  (if (zero? total-gc-time)
+      adjusted-phases
+      (append adjusted-phases (list gc-phase))))

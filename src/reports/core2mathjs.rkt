@@ -94,7 +94,8 @@
   (visit/ctx vtor body ctx*))
 
 (define (visit-!/mathjs vtor props body #:ctx ctx)
-  ; TODO: Ignoring the right thing?
+  ; MathJS has no rounding-property syntax, but nested metadata still updates
+  ; compiler context (for names and scoped properties).
   (define ctx* (ctx-update-props ctx props))
   (visit/ctx vtor body ctx*))
 

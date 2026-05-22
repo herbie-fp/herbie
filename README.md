@@ -24,7 +24,7 @@ instructions, see the
 You can install Herbie from source if you want to participate in
 Herbie development. This requires
 [Racket](https://download.racket-lang.org/) (8.0 or later) and
-[Rust](https://www.rust-lang.org/tools/install) (1.60.0 or later).
+[Rust](https://www.rust-lang.org/tools/install) (1.87.0 or later).
 On Linux, avoid the Snap installer for Racket. Then, download the
 this repository and run:
 

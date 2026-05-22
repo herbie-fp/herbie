@@ -612,7 +612,8 @@ function onload() {
         const range_div = document.querySelector('#input-ranges')
         range_div.replaceChildren(...varnames.map(range_inputs))
     }
-    CHECK_ERRORS_AND_DRAW_RANGES = check_errors_and_draw_ranges // HACK
+    // Expose the updater so generated range callbacks can trigger a refresh.
+    CHECK_ERRORS_AND_DRAW_RANGES = check_errors_and_draw_ranges
     check_errors_and_draw_ranges()
     
     form.math.addEventListener("input", function () {
@@ -630,7 +631,6 @@ function onload() {
         } else {
             fpcore = form.fpcore.value;
         }
-        form.fpcore.value = fpcore;
         console.log(STATE, fpcore);
 
         var url = document.getElementById("formula").getAttribute("data-progress");
@@ -660,6 +660,10 @@ function get_progress(loc) {
                 setTimeout(function() {get_progress(loc)}, 100);
             } else if (req2.status == 201) {
                 var loc2 = req2.getResponseHeader("Location");
+                var form = new Form(document.getElementById("formula"));
+                form.math.removeAttribute("disabled");
+                form.fpcore.removeAttribute("disabled");
+                form.button.removeAttribute("disabled");
                 window.location.href = loc2;
             } else {
                 document.getElementById("errors").innerHTML = req2.responseText;

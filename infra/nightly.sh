@@ -4,12 +4,27 @@
 set -e -x
 
 # Ensure egglog is in the path
-export PATH="$PATH:$HOME/.cargo/bin/"
+export PATH="$HOME/.cargo/bin/:$PATH"
+rustup update
+
+# Keep nightly installs isolated and consistent across install/run steps.
+export PLTADDONDIR="${PLTADDONDIR:-pltlibs}"
+make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
 BENCHDIR="$1"; shift
 REPORTDIR="$1"; shift
+
+if [[ "$BRANCH" == egglog-* ]]; then
+  set -- "$@" --enable generate:egglog
+fi
+
+if [[ "$BRANCH" == rival2-* || "$BRANCH" == "rival2" ]]; then
+  set -- "$@" --enable setup:rival2
+fi
 
 mkdir -p "$REPORTDIR"
 rm -rf "reports"/* || echo "nothing to delete"
@@ -30,4 +45,3 @@ done
 
 # merge reports
 racket -y infra/merge.rkt "$REPORTDIR" $dirs
-

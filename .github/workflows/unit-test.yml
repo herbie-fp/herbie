@@ -13,15 +13,17 @@ jobs:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v1.11
+        uses: Bogdanp/setup-racket@v1.14
         with:
-          version: "8.14"
+          version: "8.18"
       - name: Install Rust compiler
         uses: dtolnay/rust-toolchain@stable
         with:
             toolchain: stable
             components: rustfmt, clippy
-      - uses: actions/checkout@master
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@v5
       - name: "Install dependencies"
         run: make install
       # SoftPosit is required to test the softposit platform we use for testing
@@ -54,11 +56,14 @@ jobs:
           test -f /tmp/out/results.json
       - name: "Run two reports with the same seed and diff them"
         run: |
-          racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs0
-          racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs1
-          racket infra/diff.rkt graphs0 graphs1
+          racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore tmp-0
+          racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore tmp-1
+          racket infra/diff.rkt tmp-0 tmp-1
+
+      - name: "Run Herbie on array benchmarks"
+        run: racket -l herbie improve bench/arrays /tmp/out.fpcore
       - name: "Run Herbie with egglog"
-        run: racket -l herbie report --timeout 600 +o generate:egglog --seed 1 bench/hamming/trigonometry.fpcore graphs2
+        run: racket -y infra/ci.rkt --egglog --precision binary64 --seed 1 bench/tutorial.fpcore
 
       # Test the egg-herbie Rust code
       - run: cd egg-herbie && cargo clippy --tests
@@ -68,7 +73,7 @@ jobs:
       - run: cd egg-herbie && raco test ./
 
       # Test the API
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - name: "Test the endpoint"

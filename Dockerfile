@@ -8,7 +8,7 @@ FROM rust:1.88.0 AS egg-herbie-builder
 WORKDIR /herbie
 COPY egg-herbie egg-herbie
 RUN cargo build --release --manifest-path=egg-herbie/Cargo.toml
-RUN cargo install --locked --git https://github.com/egraphs-good/egglog.git --rev 052a330de22d40e9eded19e7f0891c921f7f458c
+RUN cargo install egglog --version 1.0.0
 
 # Production image
 FROM racket/racket:8.17-full AS production

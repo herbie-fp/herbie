@@ -4,17 +4,19 @@
 (require (only-in xml write-xexpr))
 (require json)
 (require data/queue)
+(require math/flonum)
 
 (require "../syntax/read.rkt"
+         "../syntax/platform-state.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../syntax/platform.rkt"
          "../syntax/load-platform.rkt"
-         "../utils/alternative.rkt"
+         "../core/alternative.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../core/points.rkt"
          "../reports/common.rkt"
          "../reports/history.rkt"
@@ -82,6 +84,8 @@
          (define mode (~a (vector-ref data 1)))
          (define start (exact-floor (* 1000 (vector-ref data 9))))
          (define end (exact-floor (* 1000 (vector-ref data 10))))
+         (define post-amount (vector-ref data 5))
+         (define post-admin-amount (vector-ref data 6))
          (call-with-output-file "dump-trace.json"
                                 #:exists 'append
                                 (λ (out)
@@ -100,6 +104,20 @@
                                                     (equal-hash-code 'gc)
                                                     'args
                                                     (hash))
+                                              out)
+                                  (fprintf out ",")
+                                  (write-json (hash 'name
+                                                    "Memory"
+                                                    'ph
+                                                    "C"
+                                                    'ts
+                                                    end
+                                                    'pid
+                                                    0
+                                                    'tid
+                                                    (equal-hash-code 'gc)
+                                                    'args
+                                                    (hash 'live post-amount 'admin post-admin-amount))
                                               out)))
          (drain)]))))
 
@@ -172,6 +190,8 @@
               (get-seed))]
     [else (eprintf "Starting Herbie ~a with seed ~a...\n" *herbie-version* (get-seed))])
 
+  (*platform-state* (platform-serialize))
+
   (set! manager
         (if threads
             (make-manager threads)
@@ -236,7 +256,7 @@
      job-id]
     [(list 'count) (hash-count queued-jobs)]
     [(list 'improve)
-     (for/list ([(job-id result) (in-hash completed-jobs)]
+     (for/list ([result (in-hash-values completed-jobs)]
                 #:when (equal? (hash-ref result 'command) "improve"))
        result)]
     [(list 'forget job-id)
@@ -271,9 +291,8 @@
                          *reeval-pts*
                          *node-limit*
                          *max-find-range-depth*
-                         *platform-name*
-                         *functions*)
-   (activate-platform! (*platform-name*))
+                         *platform-state*)
+   (activate-platform! (*platform-state*))
    ; not sure if the above code is actaully needed.
    (define busy-workers (make-hash))
    (define waiting-workers (make-hash))
@@ -283,11 +302,13 @@
      (set! worker-count (processor-count)))
    (for ([i (in-range worker-count)])
      (hash-set! waiting-workers i (make-worker i)))
+   (define dead-worker-evts (map place-dead-evt (hash-values waiting-workers)))
    (log "~a workers ready.\n" (hash-count waiting-workers))
    (define waiting (make-hash))
    (log "Manager waiting to assign work.\n")
    (for ([i (in-naturals)])
-     (match (place-channel-get ch)
+     (match (apply sync ch dead-worker-evts)
+       [(? evt?) (error 'make-manager "worker place died")]
 
        ;; Private API
        [(list 'assign self)
@@ -368,7 +389,7 @@
        ; Retrieve the improve results for results.json
        [(list 'improve handler)
         (define improved-list
-          (for/list ([(job-id result) (in-hash completed-jobs)]
+          (for/list ([result (in-hash-values completed-jobs)]
                      #:when (equal? (hash-ref result 'command) "improve"))
             result))
         (place-channel-put handler improved-list)]
@@ -396,9 +417,8 @@
                          *reeval-pts*
                          *node-limit*
                          *max-find-range-depth*
-                         *platform-name*
-                         *functions*)
-   (activate-platform! (*platform-name*))
+                         *platform-state*)
+   (activate-platform! (*platform-state*))
    (define worker-thread
      (thread (λ ()
                (let loop ()
@@ -411,7 +431,8 @@
    (define timeline #f)
    (define current-job-id #f)
    (for ([_ (in-naturals)])
-     (match (place-channel-get ch)
+     (match (sync ch (thread-dead-evt worker-thread))
+       [(? evt?) (error 'make-worker "worker thread died")]
        [(list 'apply manager command job-id)
         (set! timeline (*timeline*))
         (set! current-job-id job-id)
@@ -475,8 +496,8 @@
 (define (make-sample-result herbie-result job-id)
   (define test (job-result-test herbie-result))
   (define pctx (job-result-backend herbie-result))
-  (define repr (context-repr (test-context test)))
-  (hasheq 'points (pcontext->json pctx repr)))
+  (define ctx (test-context test))
+  (hasheq 'points (pcontext->json pctx ctx)))
 
 (define (make-cost-result herbie-result job-id)
   (hasheq 'cost (job-result-backend herbie-result)))
@@ -488,7 +509,7 @@
       (list (for/list ([val (in-vector pt)]
                        [repr (in-list (context-var-reprs (test-context test)))])
               (value->json val repr))
-            (format-bits (ulps->bits err)))))
+            (format-bits err))))
   (hasheq 'points errs))
 
 (define (make-alternatives-result herbie-result job-id)
@@ -514,7 +535,7 @@
               (append (list (improve-result-start backend))
                       (improve-result-target backend)
                       (improve-result-end backend))))
-       (define exprs (append-map collect-expressions all-alts))
+       (define exprs (remove-duplicates (append-map collect-expressions all-alts)))
        (make-hash (map cons exprs (exprs-errors exprs pcontext ctx)))]
       [else #f]))
 
@@ -553,10 +574,10 @@
           backend-hash))
 
 (define (backend-improve-result-hash-table backend test errcache)
-  (define repr (context-repr (test-context test)))
+  (define ctx (test-context test))
   (define pcontext (improve-result-pcontext backend))
   (hasheq 'pcontext
-          (pcontext->json pcontext repr)
+          (pcontext->json pcontext ctx)
           'start
           (analysis->json (improve-result-start backend) pcontext test errcache)
           'target
@@ -564,14 +585,19 @@
           'end
           (map (curryr analysis->json pcontext test errcache) (improve-result-end backend))))
 
-(define (pcontext->json pcontext repr)
+(define (pcontext->json pcontext ctx)
+  (define var-reprs (context-var-reprs ctx))
+  (define out-repr (context-repr ctx))
   (for/list ([(pt ex) (in-pcontext pcontext)])
-    (list (map (curryr value->json repr) (vector->list pt)) (value->json ex repr))))
+    (list (for/list ([val (in-vector pt)]
+                     [repr (in-list var-reprs)])
+            (value->json val repr))
+          (value->json ex out-repr))))
 
 (define (analysis->json analysis pcontext test errcache)
   (define repr (context-repr (test-context test)))
   (match-define (alt-analysis alt test-errors) analysis)
-  (define cost (alt-cost alt repr))
+  (define cost (alt-cost alt))
 
   (define history-json (render-json alt pcontext (test-context test) errcache))
 
@@ -579,7 +605,7 @@
   (define splitpoints
     (for/list ([var (in-list vars)])
       (if (equal? var (regime-var alt))
-          (for/list ([val (regime-splitpoints alt)])
+          (for/list ([val (in-list (regime-splitpoints alt))])
             (real->ordinal (repr->real val repr) repr))
           '())))
 
@@ -588,23 +614,33 @@
           'history
           history-json
           'errors
-          test-errors
+          (flvector->list test-errors)
           'cost
           cost
           'splitpoints
           splitpoints))
 
 (define (alt->fpcore test altn)
+  (define out-repr (test-output-repr test))
+  (define out-base-repr (array-representation-base out-repr))
   `(FPCore ,@(filter identity (list (test-identifier test)))
-           ,(for/list ([var (in-list (test-vars test))])
-              (define repr (dict-ref (test-var-repr-names test) var))
-              (if (equal? repr (test-output-repr-name test))
-                  var
-                  (list '! ':precision repr var)))
+           ,(for/list ([var (in-list (test-vars test))]
+                       [repr (in-list (test-var-reprs test))])
+              (cond
+                [(array-representation? repr)
+                 (define dims (array-representation-shape repr))
+                 (define elem-repr (array-representation-base repr))
+                 (if (equal? elem-repr out-base-repr)
+                     (append (list var) dims)
+                     (append (list '! ':precision (representation-name elem-repr) var) dims))]
+                [else
+                 (if (equal? repr out-base-repr)
+                     var
+                     (list '! ':precision (representation-name repr) var))]))
            :name
            ,(test-name test)
            :precision
-           ,(test-output-repr-name test)
+           ,(representation-name out-base-repr)
            ,@(if (equal? (test-pre test) '(TRUE))
                  '()
                  `(:pre ,(prog->fpcore (test-pre test) (test-context test))))

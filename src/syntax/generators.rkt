@@ -4,8 +4,10 @@
          math/bigfloat
          ffi/unsafe)
 
-(require "../core/rival.rkt"
-         "types.rkt")
+(require "rival.rkt"
+         "../config.rkt"
+         "types.rkt"
+         "batch.rkt")
 
 (provide from-rival
          from-ffi
@@ -24,14 +26,27 @@
 
 ; ----------------------- RIVAL GENERATOR ---------------------------
 
-(define-generator ((from-rival) spec ctx)
-  (define compiler (make-real-compiler (list spec) (list ctx)))
+(define/reset caches
+              '()
+              (lambda ()
+                (for ([cache (caches)])
+                  (hash-clear! cache))))
+
+(define-generator ((from-rival #:cache? [cache? #t]) spec ctx)
+  (define-values (batch brfs) (progs->batch (list spec) #:ctx ctx))
+  (define compiler (make-real-compiler batch brfs (list (context-repr ctx))))
   (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
-  (lambda pt
+  (define (compute . pt)
     (define-values (_ exs) (real-apply compiler (list->vector pt)))
     (if exs
         (first exs)
-        fail)))
+        fail))
+  (cond
+    [cache?
+     (define cache (make-hash))
+     (caches (cons cache (caches)))
+     (lambda pt (hash-ref! cache pt (lambda () (apply compute pt))))]
+    [else compute]))
 
 ; ----------------------- FFI GENERATOR -----------------------------
 

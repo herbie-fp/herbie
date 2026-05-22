@@ -5,11 +5,14 @@
          "types.rkt"
          "generators.rkt"
          "../utils/errors.rkt"
-         "../config.rkt")
+         "../config.rkt"
+         rival/eval/types)
 
 (provide define-representation
          define-operation
          define-operations
+         create-operator-impl!
+         platform-register-implementation!
          fpcore-context
          if-impl
          if-cost
@@ -19,70 +22,47 @@
          (all-from-out "generators.rkt")
          (all-from-out "types.rkt"))
 
-(define platform-being-defined (make-parameter #f))
-
-;; Specification checking and operator implementation creation moved
-;; from syntax.rkt
+;; Core error checking code
 (define (check-spec! name ctx spec)
-  (define (bad! fmt . args)
-    (error name "~a in `~a`" (apply format fmt args) spec))
-
-  (define (type-error! expr actual-ty expect-ty)
-    (bad! "expression `~a` has type `~a`, expected `~a`" expr actual-ty expect-ty))
-
   (match-define (context vars repr var-reprs) ctx)
-  (define itypes (map representation-type var-reprs))
+  (define env (map cons vars (map representation-type var-reprs)))
   (define otype (representation-type repr))
 
-  (unless (= (length itypes) (length vars))
-    (bad! "arity mismatch; expected ~a, got ~a" (length itypes) (length vars)))
+  (define (scalar-type? ty)
+    (member ty '(bool real)))
 
-  (define env (map cons vars itypes))
-  (define actual-ty
-    (let type-of ([expr spec])
-      (match expr
-        [(? number?) 'real]
-        [(? symbol?)
-         #:when (assq expr env)
-         (cdr (assq expr env))]
-        [(? symbol?) (bad! "unbound variable `~a`" expr)]
-        [`(if ,cond ,ift ,iff)
-         (define cond-ty (type-of cond))
-         (unless (equal? cond-ty 'bool)
-           (type-error! cond cond-ty 'bool))
-         (define ift-ty (type-of ift))
-         (define iff-ty (type-of iff))
-         (unless (equal? ift-ty iff-ty)
-           (type-error! iff iff-ty ift-ty))
-         ift-ty]
-        [`(,op ,args ...)
-         (unless (operator-exists? op)
-           (bad! "at `~a`, `~a` not an operator" expr op))
-         (define itypes (operator-info op 'itype))
-         (unless (= (length itypes) (length args))
-           (bad! "arity mismatch at `~a`: expected `~a`, got `~a`"
-                 expr
-                 (length itypes)
-                 (length args)))
-         (for ([arg (in-list args)]
-               [itype (in-list itypes)])
-           (define arg-ty (type-of arg))
-           (unless (equal? itype arg-ty)
-             (type-error! arg arg-ty itype)))
-         (operator-info op 'otype)]
-        [_ (bad! "expected an expression, got `~a`" expr)])))
+  (define (infer-operator op arg-types)
+    (and (andmap scalar-type? arg-types)
+         (let ([vars (for/list ([_ (in-list arg-types)])
+                       (gensym 'arg))])
+           (rival-type (cons op vars) (map cons vars arg-types)))))
 
-  (unless (equal? actual-ty otype)
-    (type-error! spec actual-ty otype)))
+  (define (infer spec)
+    (match spec
+      [(? number?) 'real]
+      [(? symbol? x) (dict-ref env x #f)]
+      [(list 'array elems ...)
+       (if (null? elems)
+           #f
+           (let ([elem-ty (infer (first elems))])
+             (and elem-ty
+                  (for/and ([elem (in-list (rest elems))])
+                    (equal? elem-ty (infer elem)))
+                  `(array ,elem-ty ,(length elems)))))]
+      [(list 'ref arr idx)
+       (match (infer arr)
+         [`(array ,elem-ty ,_) elem-ty]
+         [_ #f])]
+      [(list op args ...)
+       (define arg-types (map infer args))
+       (and (andmap values arg-types) (infer-operator op arg-types))]
+      [_ #f]))
+  (define spec-type (infer spec))
 
-(define fpcore-context (make-parameter '_))
-
-(define (fpcore-parameterize spec)
-  (let loop ([ctx (fpcore-context)])
-    (match ctx
-      ['_ spec]
-      [(list arg ...) (map loop arg)]
-      [_ ctx])))
+  (match spec-type
+    [(== otype) (void)]
+    [#f (error name "expression ~a is ill-typed, expected `~a`" spec otype)]
+    [actual-ty (error name "expression ~a has type `~a`, expected `~a`" spec actual-ty otype)]))
 
 (define (check-fpcore! name fpcore)
   (match (fpcore-parameterize fpcore)
@@ -122,6 +102,17 @@
     [(? procedure?) (values 0 cost)]
     [_ (error 'define-operation "Invalid cost for ~a: ~a" name cost)]))
 
+;; Functions for the core operations
+
+(define fpcore-context (make-parameter '_))
+
+(define (fpcore-parameterize spec)
+  (let loop ([ctx (fpcore-context)])
+    (match ctx
+      ['_ spec]
+      [(list arg ...) (map loop arg)]
+      [_ ctx])))
+
 (define/contract (create-operator-impl! name
                                         ctx
                                         #:spec spec
@@ -141,7 +132,42 @@
   (define-values (cost* aggregate*) (check-cost! name cost))
   (operator-impl name ctx spec (fpcore-parameterize fpcore) fl-proc* cost* aggregate*))
 
-;; Generic keyword parser for syntax (at compile-time)
+(define (platform-register-representation! platform #:repr repr #:cost cost)
+  (define reprs (platform-representations platform))
+  (define repr-costs (platform-representation-costs platform))
+  ; Duplicate check
+  (when (hash-has-key? reprs (representation-name repr))
+    (raise-herbie-error "Duplicate representation ~a in platform ~a"
+                        (representation-name repr)
+                        (*platform-name*)))
+  ; Update tables
+  (hash-set! reprs (representation-name repr) repr)
+  (hash-set! repr-costs (representation-name repr) cost))
+
+(define (platform-register-implementation! platform impl)
+  ; Reprs check
+  (define reprs (platform-representations platform))
+  (define otype (context-repr (operator-impl-ctx impl)))
+  (define itype (context-var-reprs (operator-impl-ctx impl)))
+  (define impl-reprs (map representation-name (remove-duplicates (cons otype itype))))
+  (for ([repr-name (in-list impl-reprs)]
+        #:unless (hash-has-key? reprs repr-name))
+    (raise-herbie-error "Platform ~a missing representation ~a for ~a implementation"
+                        (*platform-name*)
+                        repr-name
+                        (operator-impl-name impl)))
+  ; Duplicate check
+  (define impls (platform-implementations platform))
+  (when (hash-has-key? impls (operator-impl-name impl))
+    (raise-herbie-error "Impl ~a is already registered in platform ~a"
+                        (operator-impl-name impl)
+                        (*platform-name*)))
+  ; Update table
+  (hash-set! impls (operator-impl-name impl) impl)
+  (reset-fpcore-op-cache!))
+
+;; Macros for the core operations
+
 (begin-for-syntax
   (define (parse-keyword-fields stx fields-stx allowed-keywords op-name)
     (define (oops! why [sub-stx #f])
@@ -203,57 +229,7 @@
                                   #:cost cost-val)))]
     [_ (oops! "bad syntax")]))
 
-;; Platform registration functions moved from platform.rkt
-(define (platform-register-representation! platform #:repr repr #:cost cost)
-  (define reprs (platform-representations platform))
-  (define repr-costs (platform-representation-costs platform))
-  ; Duplicate check
-  (when (hash-has-key? reprs (representation-name repr))
-    (raise-herbie-error "Duplicate representation ~a in platform ~a"
-                        (representation-name repr)
-                        (*platform-name*)))
-  ; Update tables
-  (hash-set! reprs (representation-name repr) repr)
-  (hash-set! repr-costs (representation-name repr) cost))
-
-(define (platform-register-implementation! platform impl)
-  (unless impl
-    (raise-herbie-error "Platform ~a missing implementation" (*platform-name*)))
-  ; Reprs check
-  (define reprs (platform-representations platform))
-  (define otype (context-repr (operator-impl-ctx impl)))
-  (define itype (context-var-reprs (operator-impl-ctx impl)))
-  (define impl-reprs (map representation-name (remove-duplicates (cons otype itype))))
-  (unless (andmap (curry hash-has-key? reprs) impl-reprs)
-    (raise-herbie-error "Platform ~a missing representation of ~a implementation"
-                        (*platform-name*)
-                        (operator-impl-name impl)))
-  ; Cost check
-  (define impl-cost (operator-impl-cost impl))
-  (unless impl-cost
-    (raise-herbie-error "Missing cost for ~a" (operator-impl-name impl)))
-  ; Duplicate check
-  (define impls (platform-implementations platform))
-  (when (hash-has-key? impls (operator-impl-name impl))
-    (raise-herbie-error "Impl ~a is already registered in platform ~a"
-                        (operator-impl-name impl)
-                        (*platform-name*)))
-  ; Update table
-  (hash-set! impls (operator-impl-name impl) impl))
-
-
-
-(define-syntax (platform-register-implementations! stx)
-  (syntax-case stx ()
-    [(_ platform ([name ([var : repr] ...) otype spec fl fpcore cost] ...))
-     #'(begin
-         (platform-register-implementation! platform
-                                            (make-operator-impl (name [var : repr] ...)
-                                                                otype
-                                                                #:spec spec
-                                                                #:impl fl
-                                                                #:fpcore fpcore
-                                                                #:cost cost)) ...)]))
+(define platform-being-defined (make-parameter #f))
 
 (define-syntax-rule (define-representation repr #:cost cost)
   (platform-register-representation! (platform-being-defined) #:repr repr #:cost cost))
@@ -262,15 +238,7 @@
   (let ([impl (make-operator-impl (name [arg : irepr] ...) orepr flags ...)])
     (platform-register-implementation! (platform-being-defined) impl)))
 
-(define-syntax (define-operations stx)
-  (syntax-case stx ()
-    [(_ ([arg irepr] ...) orepr #:fpcore fc [name flags ...] ...)
-     #'(parameterize ([fpcore-context 'fc])
-         (begin
-           (define-operation (name [arg irepr] ...) orepr flags ...) ...))]
-    [(_ ([arg irepr] ...) orepr [name flags ...] ...)
-     #'(begin
-         (define-operation (name [arg irepr] ...) orepr flags ...) ...)]))
+;; Language definition and syntactic sugar / helpers
 
 (define-syntax (platform-module-begin stx)
   (with-syntax ([local-platform (datum->syntax stx 'platform)])
@@ -281,12 +249,20 @@
                          (platform-being-defined local-platform)
                          content ...
                          (platform-being-defined old-platform-being-defined)
-
                          (provide local-platform)
                          (module+ main
                            (display-platform local-platform))
                          (module test racket/base
                            ))])))
+
+(define-syntax (define-operations stx)
+  (syntax-case stx ()
+    [(_ ([arg irepr] ...) orepr #:fpcore fc [name flags ...] ...)
+     #'(parameterize ([fpcore-context 'fc])
+         (define-operation (name [arg irepr] ...) orepr flags ...) ...)]
+    [(_ ([arg irepr] ...) orepr [name flags ...] ...)
+     #'(begin
+         (define-operation (name [arg irepr] ...) orepr flags ...) ...)]))
 
 (define (if-impl c t f)
   (if c t f))

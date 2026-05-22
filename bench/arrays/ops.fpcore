@@ -1,0 +1,40 @@
+; -*- mode: scheme -*-
+
+(FPCore vector-sum ((v 2))
+ :name "Sum two-element vector"
+ :pre (and (<= (fabs (ref v 0)) 1e150)
+           (<= (fabs (ref v 1)) 1e150))
+ (+ (ref v 0) (ref v 1)))
+
+(FPCore dot-product-2d ((a 2) (b 2))
+ :name "2D vector dot product"
+ :pre (and (<= (fabs (ref a 0)) 1e150)
+           (<= (fabs (ref a 1)) 1e150)
+           (<= (fabs (ref b 0)) 1e150)
+           (<= (fabs (ref b 1)) 1e150))
+ (+ (* (ref a 0) (ref b 0))
+    (* (ref a 1) (ref b 1))))
+
+(FPCore weighted-combo (w (v 2))
+ :name "Weighted combination of scalar and vector"
+ :pre (and (<= (fabs w) 1e150)
+           (<= (fabs (ref v 0)) 1e150)
+           (<= (fabs (ref v 1)) 1e150))
+ (+ (* w (ref v 0)) (ref v 1)))
+
+(FPCore scaled-sum ((v 2) s)
+ :name "Scaled sum of vector elements"
+ :pre (and (<= (fabs s) 1e150)
+           (<= (fabs (ref v 0)) 1e150)
+           (<= (fabs (ref v 1)) 1e150))
+ (+ (* s (ref v 0))
+    (* s (ref v 1))))
+
+(FPCore mat-vec-first-row ((v 2))
+ :name "Apply fixed 2x2 matrix row to vector"
+ :pre (and (<= (fabs (ref v 0)) 1e150)
+           (<= (fabs (ref v 1)) 1e150))
+ (let* ([row0 (array 1.5 -0.75)]
+        [row1 (array -0.1 0.3)])
+   (+ (* (ref row0 0) (ref v 0))
+      (* (ref row0 1) (ref v 1)))))

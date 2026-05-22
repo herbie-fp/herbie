@@ -2,12 +2,14 @@
 
 (require racket/set
          math/bigfloat
+         math/flonum
          racket/hash)
 (require "../utils/common.rkt"
-         "../utils/float.rkt"
+         "../syntax/float.rkt"
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
          "../syntax/platform.rkt"
+         "../syntax/batch.rkt"
          "localize.rkt"
          "points.rkt"
          "programs.rkt"
@@ -38,8 +40,9 @@
 
 (define (actual-errors expr ctx pcontext)
   (match-define (cons subexprs pt-errorss)
-    (flip-lists
-     (hash->list (first (compute-local-errors (list (all-subexpressions expr)) ctx pcontext)))))
+    (apply map
+           list
+           (hash->list (first (compute-local-errors (list (all-subexpressions expr)) ctx pcontext)))))
 
   (define pt-worst-subexpr
     (append* (reap [sow]
@@ -65,16 +68,14 @@
 (define (compile-expr expr ctx)
   (define subexprs (all-subexpressions expr #:reverse? #t))
   (define spec-list (map prog->spec subexprs))
-  (define ctxs
-    (for/list ([subexpr (in-list subexprs)])
-      (struct-copy context ctx [repr (repr-of subexpr ctx)])))
+  (define reprs (map (curryr repr-of ctx) subexprs))
 
-  (define repr-hash
-    (make-immutable-hash (map (lambda (e ctx) (cons e (context-repr ctx))) subexprs ctxs)))
+  (define repr-hash (make-immutable-hash (map cons subexprs reprs)))
 
+  (define-values (batch brfs) (progs->batch spec-list #:ctx ctx))
   (define subexprs-fn
     (parameterize ([*max-mpfr-prec* 128])
-      (eval-progs-real spec-list ctxs)))
+      (eval-progs-real batch brfs reprs)))
   (values subexprs repr-hash subexprs-fn))
 
 (define (predict-errors ctx pctx subexprs-list repr-hash subexprs-fn)
@@ -153,7 +154,8 @@
 
          (cond
            [(> (- x.eps y.eps) 100) (silence y-ex)]
-           [(> (- y.eps x.eps) 100) (silence x-ex)])
+           [(> (- y.eps x.eps) 100) (silence x-ex)]
+           [else (void)])
 
          (cond
            ; Condition number hallucination
@@ -180,7 +182,6 @@
            [(or (bf> cond-x cond-thres) (bf> cond-y cond-thres))
             (mark-erroneous! subexpr 'cancellation)]
 
-           ; Maybe
            [(or (bf> cond-x maybe-cond-thres) (bf> cond-y maybe-cond-thres))
             (mark-maybe! subexpr 'cancellation)]
            [else #f])]
@@ -198,7 +199,8 @@
 
          (cond
            [(> (- x.eps y.eps) 100) (silence y-ex)]
-           [(> (- y.eps x.eps) 100) (silence x-ex)])
+           [(> (- y.eps x.eps) 100) (silence x-ex)]
+           [else (void)])
 
          (cond
            ; Condition number hallucination:
@@ -224,7 +226,6 @@
            [(or (bf> cond-x cond-thres) (bf> cond-y cond-thres))
             (mark-erroneous! subexpr 'cancellation)]
 
-           ; Maybe
            [(or (bf> cond-x maybe-cond-thres) (bf> cond-y maybe-cond-thres))
             (mark-maybe! subexpr 'cancellation)]
            [else #f])]
@@ -525,12 +526,12 @@
 
   (define true-error-hash
     (for/hash ([(key _) (in-pcontext pctx)]
-               [value (in-list (errors expr pctx ctx))])
+               [value (in-flvector (errors expr pctx ctx))])
       (values key value)))
 
   (define explanations-table
     (for/list ([(key val) (in-dict expls->points)]
-               #:unless (zero? (length val)))
+               #:unless (empty? val))
       (define subexpr (car key))
       (define expl (cdr key))
       (define err-count (length val))
@@ -582,7 +583,7 @@
 
   (define points->expl (make-hash))
 
-  (for* ([(_ points) (in-dict expls->points)]
+  (for* ([points (in-dict-values expls->points)]
          [pt (in-list points)])
     (hash-update! points->expl pt add1 0))
 

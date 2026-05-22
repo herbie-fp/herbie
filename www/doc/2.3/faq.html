@@ -74,6 +74,14 @@
     You should use a different variable name.
   </p>
 
+  <h3 id="unsound-egraph">Unsoundness detected in the egraph</h3>
+  
+  <p>
+    Herbie raises this warning when its algebraic rewriting phase
+    fails. This indicates a bug in Herbie itself and should be
+    reported to the developers.
+  </p>
+
   <h2>Common errors</h2>
 
   <h3 id="invalid-syntax">Invalid syntax</h3>
@@ -100,7 +108,7 @@
 
   <p>This error indicates that your input has no valid inputs, usually
   due to an overly restriction precondition. For example, the
-  precondition <code>(&lt 3 x 2)</code> excludes all inputs. You
+  precondition <code>(&lt; 3 x 2)</code> excludes all inputs. You
   should fix either the precondition or the input program.</p>
 
 </body>

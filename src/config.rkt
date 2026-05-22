@@ -8,11 +8,11 @@
 
 (define default-flags
   #hash([precision . ()]
-        [setup . (search)]
+        [setup . (search preprocess)]
         [localize . ()]
         [generate . (rr taylor proofs evaluate)]
         [reduce . (regimes binary-search branch-expressions)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic)]
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic special)]
         [dump . ()]))
 
 (define deprecated-flags
@@ -23,7 +23,8 @@
         [reduce . (avg-error simplify)]
         [rules . (numerics special bools branches)]))
 
-(define debug-flags #hash([generate . (egglog)] [dump . (egg rival egglog trace)]))
+(define debug-flags
+  #hash([generate . (egglog)] [dump . (egg rival egglog trace intermediates)] [setup . (rival2)]))
 
 (define all-flags (hash-union default-flags deprecated-flags debug-flags #:combine set-union))
 
@@ -128,20 +129,18 @@
 (define *proof-max-string-length* (make-parameter 10000))
 
 ;; How long of a Taylor series to generate; too long and we time out
-(define *taylor-order-limit* (make-parameter 4))
+(define *taylor-order-limit* (make-parameter 2))
 
 ;; How accurate to make the binary search
 (define *binary-search-test-points* (make-parameter 16))
 (define *binary-search-accuracy* (make-parameter 48))
-
-;; Pherbie related options
-(define *pareto-pick-limit* (make-parameter 5))
 
 ;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))
 
 ;; The platform that Herbie will evaluate with.
 (define *platform-name* (make-parameter (if (equal? (system-type 'os) 'windows) "c-windows" "c")))
+(define *platform-state* (make-parameter #f))
 
 ;; Sets the number of total points for Herbie to sample.
 (define *reeval-pts* (make-parameter 8000))
@@ -175,7 +174,7 @@
   (parameterize ([current-error-port (open-output-nowhere)])
     (string-trim (with-output-to-string (λ () (system cmd))))))
 
-(define (git-command #:default [default ""] gitcmd . args)
+(define (git-command #:default default gitcmd . args)
   (cond
     [(or (directory-exists? ".git") (file-exists? ".git")) ; gitlinks like for worktrees
      (define cmd (format "git ~a ~a" gitcmd (string-join args " ")))

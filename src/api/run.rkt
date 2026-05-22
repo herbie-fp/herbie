@@ -1,13 +1,14 @@
 #lang racket
 
-(require json)
+(require json
+         math/flonum)
 (require "../reports/common.rkt"
          "../reports/pages.rkt"
          "../reports/timeline.rkt"
          "../syntax/read.rkt"
          "../syntax/sugar.rkt"
-         "../syntax/types.rkt"
          "../syntax/platform.rkt"
+         "../syntax/types.rkt"
          "../syntax/load-platform.rkt"
          "../utils/common.rkt"
          "../utils/profile.rkt"
@@ -31,16 +32,15 @@
         (fpcore->prog (table-row-input row) ctx)
         (fpcore->prog (table-row-output row) ctx)
         (table-row-target-prog row)
-        (fpcore->prog (table-row-spec row) ctx)
-        (fpcore->prog (table-row-pre row) ctx)
+        (fpcore->spec (table-row-spec row))
+        (fpcore->spec (table-row-pre row))
         (representation-name repr)
         (for/list ([(k v) (in-dict var-reprs)])
-          (cons k (representation-name v)))
-        (table-row-conversions row)))
+          (cons k (representation-name v)))))
 
 (define (make-report bench-dirs #:dir dir #:threads threads)
   (activate-platform! (*platform-name*))
-  (define tests (reverse (sort (append-map load-tests bench-dirs) test<?)))
+  (define tests (sort (append-map load-tests bench-dirs) string-ci<? #:key test-name))
   (run-tests tests #:dir dir #:threads threads))
 
 (define (rerun-report json-file #:dir dir #:threads threads)
@@ -128,13 +128,6 @@
     (with-handlers ([exn:fail:filesystem? (const true)])
       (delete-directory/files (build-path dir subdir)))))
 
-(define (test<? t1 t2)
-  (cond
-    [(and (test-output t1) (test-output t2)) (string<? (test-name t1) (test-name t2))]
-    [(and (not (test-output t1)) (not (test-output t2))) (string<? (test-name t1) (test-name t2))]
-    ; Put things with an output first
-    [else (test-output t1)]))
-
 ;; Generate a path for a given benchmark name
 (define (bench-folder-path bench-name index)
   (define replaced (string-replace bench-name #px"\\W+" ""))
@@ -147,7 +140,7 @@
     [(cons (? integer? key) rest) (apply hash-ref-path (list-ref hash key) rest)]))
 
 (define (print-test-result i n test result-hash)
-  (eprintf "~a/~a\t" (~a i #:width 3 #:align 'right) n)
+  (eprintf "~a/~a\t" (~a i #:min-width 3 #:align 'right) n)
   (define name (test-name test))
   (match (hash-ref-path result-hash 'status)
     ["failure"
@@ -159,8 +152,10 @@
     [_
      (define bits (representation-total-bits (test-output-repr test)))
      (define time (hash-ref-path result-hash 'time))
-     (define start-score (errors-score (hash-ref-path result-hash 'backend 'start 'errors)))
-     (define end-score (errors-score (hash-ref-path result-hash 'backend 'end 0 'errors)))
+     (define start-score
+       (errors-score (list->flvector (hash-ref-path result-hash 'backend 'start 'errors))))
+     (define end-score
+       (errors-score (list->flvector (hash-ref-path result-hash 'backend 'end 0 'errors))))
      (eprintf "[~as]  ~a% → ~a%\t~a\n"
               (~r (/ time 1000) #:min-width 6 #:precision '(= 1))
               (~r (* 100 (- 1 (/ start-score bits))) #:min-width 3 #:precision 0)

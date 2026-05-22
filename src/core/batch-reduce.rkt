@@ -1,6 +1,7 @@
 #lang racket
 
-(require "batch.rkt"
+(require "../syntax/types.rkt"
+         "../syntax/batch.rkt"
          "../utils/common.rkt"
          "programs.rkt")
 
@@ -110,30 +111,37 @@
 
 (define (reduce-evaluation brf)
   (define batch (batchref-batch brf))
+  (define (pi-multiple expr)
+    (match expr
+      [`(PI) 1]
+      [`(* ,(app deref (? rational? coeff)) ,(app deref '(PI))) coeff]
+      [`(* ,(app deref '(PI)) ,(app deref (? rational? coeff))) coeff]
+      [`(/ ,(app deref '(PI)) ,(app deref (? rational? denom))) (/ denom)]
+      [_ #f]))
   (define node*
     (match (deref brf)
       [(list 'sin (app deref 0)) 0]
       [(list 'cos (app deref 0)) 1]
-      [(list 'sin (app deref (list 'PI))) 0]
-      [(list 'cos (app deref (list 'PI))) -1]
+      [(list 'sin (app deref (app pi-multiple 1))) 0]
+      [(list 'cos (app deref (app pi-multiple 1))) -1]
       [(list 'exp (app deref 1)) '(E)]
       [(list 'tan (app deref 0)) 0]
       [(list 'sinh (app deref 0)) 0]
       [(list 'log (app deref (list 'E))) 1]
       [(list 'exp (app deref 0)) 1]
-      [(list 'tan (app deref (list 'PI))) 0]
+      [(list 'tan (app deref (app pi-multiple 1))) 0]
       [(list 'cosh (app deref 0)) 1]
-      [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 6)))) '(/ (sqrt 3) 2)]
-      [(list 'tan (app deref (list '/ (app deref '(PI)) (app deref 3)))) '(sqrt 3)]
-      [(list 'tan (app deref (list '/ (app deref '(PI)) (app deref 4)))) 1]
-      [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 2)))) 0]
-      [(list 'tan (app deref (list '/ (app deref '(PI)) (app deref 6)))) '(/ 1 (sqrt 3))]
-      [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 3)))) '(/ (sqrt 3) 2)]
-      [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 6)))) 1/2]
-      [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 4)))) '(/ (sqrt 2) 2)]
-      [(list 'sin (app deref (list '/ (app deref '(PI)) (app deref 2)))) 1]
-      [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 3)))) 1/2]
-      [(list 'cos (app deref (list '/ (app deref '(PI)) (app deref 4)))) '(/ (sqrt 2) 2)]
+      [(list 'cos (app deref (app pi-multiple 1/6))) '(/ (sqrt 3) 2)]
+      [(list 'tan (app deref (app pi-multiple 1/3))) '(sqrt 3)]
+      [(list 'tan (app deref (app pi-multiple 1/4))) 1]
+      [(list 'cos (app deref (app pi-multiple 1/2))) 0]
+      [(list 'tan (app deref (app pi-multiple 1/6))) '(/ 1 (sqrt 3))]
+      [(list 'sin (app deref (app pi-multiple 1/3))) '(/ (sqrt 3) 2)]
+      [(list 'sin (app deref (app pi-multiple 1/6))) 1/2]
+      [(list 'sin (app deref (app pi-multiple 1/4))) '(/ (sqrt 2) 2)]
+      [(list 'sin (app deref (app pi-multiple 1/2))) 1]
+      [(list 'cos (app deref (app pi-multiple 1/3))) 1/2]
+      [(list 'cos (app deref (app pi-multiple 1/4))) '(/ (sqrt 2) 2)]
       [node node]))
   (batch-add! batch node*))
 
@@ -167,7 +175,7 @@
   (define (gather-multiplicative-terms brf recurse)
     (match (deref brf)
       [+nan.0 (nan-term)]
-      [(? number? n) `(,n . ())]
+      [(? number? n) (list n)]
       [(? symbol?) `(1 . ((1 . ,brf)))]
       [`(neg ,arg)
        (define terms (recurse arg))
@@ -201,10 +209,10 @@
               (cons exact-cbrt
                     (for/list ([term (cdr terms)])
                       (cons (/ (car term) 3) (cdr term))))
-              (cons 1
-                    (list* (cons 1 (batch-add! batch `(cbrt ,(car terms))))
-                           (for/list ([term (cdr terms)])
-                             (cons (/ (car term) 3) (cdr term))))))])]
+              (list* 1
+                     (cons 1 (batch-add! batch `(cbrt ,(car terms))))
+                     (for/list ([term (cdr terms)])
+                       (cons (/ (car term) 3) (cdr term)))))])]
       [`(pow ,arg ,(app deref 0))
        (define terms (recurse arg))
        (if (equal? (car terms) +nan.0)
@@ -220,18 +228,17 @@
            (cons exact-pow
                  (for/list ([term (cdr terms)])
                    (cons (* a (car term)) (cdr term))))
-           (cons 1
-                 (list* (cons a (batch-push! batch (car terms)))
-                        (for/list ([term (cdr terms)])
-                          (cons (* a (car term)) (cdr term))))))]
+           (list* 1
+                  (cons a (batch-push! batch (car terms)))
+                  (for/list ([term (cdr terms)])
+                    (cons (* a (car term)) (cdr term)))))]
       [_ `(1 . ((1 . ,brf)))]))
   (batch-recurse batch gather-multiplicative-terms))
 
 (define (combine-aterms terms)
   (define h (make-hash))
   (for ([term terms])
-    (define sum (hash-ref! h (cadr term) 0))
-    (hash-set! h (cadr term) (+ (car term) sum)))
+    (hash-update! h (cadr term) (λ (sum) (+ (car term) sum)) 0))
   (sort (reap [sow]
               (for ([(k v) (in-hash h)]
                     #:when (not (= v 0)))
@@ -243,8 +250,7 @@
   (cons (car terms)
         (let ([h (make-hash)])
           (for ([term (cdr terms)])
-            (define sum (hash-ref! h (cdr term) 0))
-            (hash-set! h (cdr term) (+ (car term) sum)))
+            (hash-update! h (cdr term) (λ (sum) (+ (car term) sum)) 0))
           (sort (reap [sow]
                       (for ([(k v) (in-hash h)]
                             #:unless (= v 0))
@@ -269,7 +275,6 @@
      (batch-add! (global-batch)
                  `(- ,(make-addition-node* pos) ,(make-addition-node* (map negate-term neg))))]))
 
-;; TODO : Use (- x y) when it is simpler
 (define (make-addition-node* terms)
   (match terms
     ['() (batch-push! (global-batch) 0)]
@@ -314,17 +319,25 @@
 
 (define (mterm->expr term)
   (match term
-    [(cons 1 x) x]
-    [(cons -1 x) (batch-add! (global-batch) `(/ 1 ,x))]
-    [(cons 1/2 x) (batch-add! (global-batch) `(sqrt ,x))]
-    [(cons -1/2 x) (batch-add! (global-batch) `(/ 1 (sqrt ,x)))]
-    [(cons 1/3 x) (batch-add! (global-batch) `(cbrt ,x))]
-    [(cons -1/3 x) (batch-add! (global-batch) `(/ 1 (cbrt ,x)))]
+    [(cons (? exact-integer? power) x)
+     (cond
+       [(zero? power) (batch-push! (global-batch) 1)]
+       [(= power 1) x]
+       [(negative? power) (batch-add! (global-batch) `(/ 1 ,(mterm->expr (cons (- power) x))))]
+       [(even? power)
+        (define factor (mterm->expr (cons (/ power 2) x)))
+        (batch-add! (global-batch) `(* ,factor ,factor))]
+       [else (batch-add! (global-batch) `(* ,x ,(mterm->expr (cons (sub1 power) x))))])]
+    [(cons (? rational? power) x)
+     (match (denominator power)
+       [2 (mterm->expr (cons (numerator power) (batch-add! (global-batch) `(sqrt ,x))))]
+       [3 (mterm->expr (cons (numerator power) (batch-add! (global-batch) `(cbrt ,x))))]
+       [_ (batch-add! (global-batch) `(pow ,x ,power))])]
     [(cons power x) (batch-add! (global-batch) `(pow ,x ,power))]))
 
 (module+ test
   (require rackunit)
-  (define batch (batch-empty))
+  (define batch (batch-empty (context '() #f '())))
   (define evaluator (batch-eval-application batch))
   (define (evaluator-results expr)
     (evaluator (batch-add! batch expr)))
@@ -339,7 +352,7 @@
 
   ;; Checks for batch-reduce-evaluation
   (define (reducer-results expr)
-    (batch-pull (reduce-evaluation (batch-add! batch expr))))
+    ((batch-exprs batch) (reduce-evaluation (batch-add! batch expr))))
   (check-equal? (reducer-results '(cos (/ (PI) 6))) '(/ (sqrt 3) 2))
   (check-equal? (reducer-results '(sin (/ (PI) 4))) '(/ (sqrt 2) 2))
   (check-equal? (reducer-results '(cos (PI))) -1)
@@ -347,7 +360,7 @@
 
   ;; Checks for batch-reduce-inverses
   (define (inverse-reducer-results expr)
-    (batch-pull (reduce-inverses (batch-add! batch expr))))
+    ((batch-exprs batch) (reduce-inverses (batch-add! batch expr))))
   (check-equal? (inverse-reducer-results '(cosh (acosh x))) 'x)
   (check-equal? (inverse-reducer-results '(tanh (atanh x))) 'x)
   (check-equal? (inverse-reducer-results '(sinh (asinh x))) 'x)
@@ -367,14 +380,19 @@
   ;; Checks for batch-reduce
   (define reduce (batch-reduce batch))
   (define (reduce-results expr)
-    (batch-pull (reduce (batch-add! batch expr))))
-  (check-equal? '(- (pow (+ 1 x) 2) 1) (reduce-results '(- (* (+ x 1) (+ x 1)) 1)))
+    ((batch-exprs batch) (reduce (batch-add! batch expr))))
+  (check-equal? '(- (* (+ 1 x) (+ 1 x)) 1) (reduce-results '(- (* (+ x 1) (+ x 1)) 1)))
   (check-equal? '(neg (* 2 (/ 1 x))) (reduce-results '(+ (/ 1 (neg x)) (/ 1 (neg x)))))
-  (check-equal? '(- (pow (- 1 (/ 1 x)) 2) 1)
+  (check-equal? '(- (* (- 1 (/ 1 x)) (- 1 (/ 1 x))) 1)
                 (reduce-results '(- (* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1)) 1)))
-  (check-equal? '(pow (- 1 (/ 1 x)) 2) (reduce-results '(* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1))))
-  (check-equal? '(+ (* 2 (/ 1 x)) (/ 1 (pow x 2)))
+  (check-equal? '(* (- 1 (/ 1 x)) (- 1 (/ 1 x)))
+                (reduce-results '(* (+ (/ 1 (neg x)) 1) (+ (/ 1 (neg x)) 1))))
+  (check-equal? '(+ (* 2 (/ 1 x)) (/ 1 (* x x)))
                 (reduce-results '(+ (* (/ 1 x) (/ 1 x)) (+ (/ 1 x) (/ 1 x)))))
-  (check-equal? '(+ (* 2 (/ 1 x)) (/ 1 (pow x 2)))
+  (check-equal? '(+ (* 2 (/ 1 x)) (/ 1 (* x x)))
                 (reduce-results '(+ (* (/ 1 x) (/ 1 x)) (+ (/ 1 x) (/ 1 x)))))
+  (check-equal? '(* (cbrt x) (* (* (cbrt x) (cbrt x)) (* (cbrt x) (cbrt x))))
+                (reduce-results '(* x (cbrt x) (cbrt x))))
+  (check-equal? '(/ 1 (* (cbrt x) (* (* (cbrt x) (cbrt x)) (* (cbrt x) (cbrt x)))))
+                (reduce-results '(/ 1 (* x (cbrt x) (cbrt x)))))
   (check-equal? '(/ 1 (* (cbrt 2) (cbrt a))) (reduce-results '(pow (+ a a) -1/3))))

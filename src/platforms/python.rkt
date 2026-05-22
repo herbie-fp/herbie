@@ -1,4 +1,4 @@
-#lang herbie/platform
+#lang s-exp "../syntax/platform-language.rkt"
 
 (require math/flonum)
 
