@@ -24,11 +24,11 @@
          eval-progs-real
          local-error-as-tree)
 
-(define (eval-progs-real batch brfs ctxs)
-  (define compiler (make-real-compiler batch brfs ctxs))
+(define (eval-progs-real batch brfs reprs)
+  (define compiler (make-real-compiler batch brfs reprs))
   (define bad-pt
-    (for/list ([ctx* (in-list ctxs)])
-      ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
+    (for/list ([repr (in-list reprs)])
+      ((representation-bf->repr repr) +nan.bf)))
   (define (<eval-prog-real> pt)
     (define-values (_ exs) (real-apply compiler pt))
     (or exs bad-pt))
@@ -65,16 +65,11 @@
   (define exprs-list (append* subexprss)) ; unroll subexprss
   (define reprs-list (map (curryr repr-of ctx) exprs-list))
   (define ulps-list (map repr-ulps reprs-list))
-  (define ctx-list
-    (for/list ([subexpr (in-list exprs-list)]
-               [repr (in-list reprs-list)])
-      (struct-copy context ctx [repr repr])))
-
   (define-values (expr-batch brfs) (progs->batch exprs-list #:ctx ctx))
   (define roots (list->vector (map batchref-idx brfs)))
 
   (define-values (spec-batch spec-brfs) (progs->batch (map prog->spec exprs-list) #:ctx ctx))
-  (define subexprs-fn (eval-progs-real spec-batch spec-brfs ctx-list))
+  (define subexprs-fn (eval-progs-real spec-batch spec-brfs reprs-list))
 
   (define errs (make-matrix roots pcontext))
 
@@ -120,12 +115,8 @@
   (define spec-list (map prog->spec exprs-list))
   (define reprs-list (map (curryr repr-of ctx) exprs-list))
   (define ulps-list (map repr-ulps reprs-list))
-  (define ctx-list
-    (for/list ([subexpr (in-list exprs-list)]
-               [repr (in-list reprs-list)])
-      (struct-copy context ctx [repr repr])))
   (define-values (spec-batch spec-brfs) (progs->batch spec-list #:ctx ctx))
-  (define subexprs-fn (eval-progs-real spec-batch spec-brfs ctx-list))
+  (define subexprs-fn (eval-progs-real spec-batch spec-brfs reprs-list))
 
   ;; And the absolute difference between the two
   (define exact-var-names
@@ -133,7 +124,7 @@
       (gensym 'exact)))
   (define delta-ctx
     (context (append (context-vars ctx) exact-var-names)
-             (get-representation 'binary64)
+             <binary64>
              (append (context-var-reprs ctx) reprs-list)))
   (define compare-specs
     (for/list ([spec (in-list spec-list)]
@@ -145,7 +136,8 @@
         ['real `(fabs (- ,spec ,var))]
         [_ 0])))
   (define-values (compare-batch compare-brfs) (progs->batch compare-specs #:ctx delta-ctx))
-  (define delta-fn (eval-progs-real compare-batch compare-brfs (map (const delta-ctx) compare-specs)))
+  (define delta-fn
+    (eval-progs-real compare-batch compare-brfs (map (const <binary64>) compare-specs)))
 
   (define-values (expr-batch brfs) (progs->batch exprs-list #:ctx ctx))
   (define roots (list->vector (map batchref-idx brfs)))
@@ -155,8 +147,6 @@
   (define approx-out (make-matrix roots pcontext))
   (define true-error-out (make-matrix roots pcontext))
 
-  (define spec-vec (list->vector spec-list))
-  (define ctx-vec (list->vector ctx-list))
   (for ([(pt ex) (in-pcontext pcontext)]
         [pt-idx (in-naturals)])
 

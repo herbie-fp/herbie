@@ -41,7 +41,8 @@
   (define brfs (map alt-expr altns))
   (define reprs (map batch-repr-of brfs))
   ;; Specs
-  (define spec-brfs (batch-to-spec! global-batch brfs)) ;; These specs will go into (approx spec impl)
+  (define spec-brfs
+    (batch-to-spec! global-batch global-batch brfs)) ;; These specs will go into (approx spec impl)
   (define free-vars (map (batch-free-vars global-batch) spec-brfs))
   (define spec-brfs*
     (map (batch-copy-only! spec-batch global-batch)
@@ -116,10 +117,7 @@
   (define runner
     (cond
       [(flag-set? 'generate 'egglog)
-       (define batch* (batch-empty (*context*)))
-       (define copy-f (batch-copy-only! batch* global-batch))
-       (define impl-specs* (map copy-f impl-specs))
-       (make-egglog-runner batch* impl-specs* schedule (*context*))]
+       (make-egglog-runner global-batch impl-specs schedule (*context*))]
       [else (make-egraph global-batch impl-specs schedule (*context*))]))
 
   (define batchrefss
@@ -143,8 +141,11 @@
 (define (run-evaluate altns global-batch)
   (timeline-event! 'sample)
   (define all-brfs (map alt-expr altns))
-  (define spec-brfs (batch-to-spec! global-batch all-brfs))
-  (define free-vars (batch-free-vars global-batch))
+  (define global-spec-brfs (batch-to-spec! global-batch global-batch all-brfs))
+  (define constant-batch (batch-empty (context '() #f '())))
+  (define copy-constant (batch-copy-only! constant-batch global-batch))
+  (define spec-brfs (map copy-constant global-spec-brfs))
+  (define free-vars (batch-free-vars constant-batch))
   (define real-pairs
     (for/list ([altn (in-list altns)]
                [spec-brf (in-list spec-brfs)]
@@ -157,14 +158,11 @@
 
   (define brfs (map alt-expr real-altns))
   (define reprs (map batch-repr-of brfs))
-  (define contexts
-    (for/list ([repr (in-list reprs)])
-      (context '() repr '())))
 
   (define-values (status pts)
     (if (null? real-spec-brfs)
         (values 'invalid #f)
-        (let ([real-compiler (make-real-compiler global-batch real-spec-brfs contexts)])
+        (let ([real-compiler (make-real-compiler constant-batch real-spec-brfs reprs)])
           (real-apply real-compiler (vector)))))
   (define literals
     (for/list ([pt (in-list (if (equal? status 'valid)
@@ -181,7 +179,7 @@
       (define brf (batch-add! global-batch literal))
       (alt brf '(evaluate) (list altn))))
 
-  (timeline-push! 'inputs (batch->jsexpr global-batch real-spec-brfs))
+  (timeline-push! 'inputs (batch->jsexpr constant-batch real-spec-brfs))
   (timeline-push! 'outputs (map ~a literals))
   final-altns)
 
@@ -194,15 +192,11 @@
   (define schedule '(rewrite unsound lower))
 
   (define brfs (map alt-expr altns))
-  (define spec-brfs (batch-to-spec! global-batch brfs))
+  (define spec-brfs (batch-to-spec! global-batch global-batch brfs))
   (define reprs (map batch-repr-of brfs))
   (define runner
     (cond
-      [(flag-set? 'generate 'egglog)
-       (define batch* (batch-empty (*context*)))
-       (define copy-f (batch-copy-only! batch* global-batch))
-       (define brfs* (map copy-f spec-brfs))
-       (make-egglog-runner batch* brfs* schedule (*context*))]
+      [(flag-set? 'generate 'egglog) (make-egglog-runner global-batch spec-brfs schedule (*context*))]
       [else (make-egraph global-batch spec-brfs schedule (*context*))]))
 
   (define batchrefss

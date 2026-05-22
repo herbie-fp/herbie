@@ -41,7 +41,7 @@
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
                    [*max-find-range-depth* 0])
-      (sample-points '(TRUE) batch brfs (list ctx ctx))))
+      (sample-points '(TRUE) batch brfs (make-list 2 double-repr))))
 
   (for ([pt (in-list pts)]
         [v1 (in-list exs1)]

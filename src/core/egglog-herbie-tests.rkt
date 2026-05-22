@@ -343,6 +343,24 @@
 (module+ test
   (require rackunit)
   (when (find-executable-path "egglog")
+    (let ()
+      (define ctx (context '(x y) <binary64> (make-list 2 <binary64>)))
+      (define-values (batch brfs) (progs->batch (list '(+ x y)) #:ctx ctx))
+      (batch-add! batch '(* x y))
+
+      (define subproc (create-new-egglog-subprocess #f))
+      (prelude subproc)
+      (define-values (all-bindings root-constructors) (egglog-add-exprs batch brfs subproc))
+      (egglog-subprocess-close subproc)
+
+      (check-equal? (length root-constructors) 1)
+      (check-equal? (length (filter (lambda (stmt)
+                                      (match stmt
+                                        [`(let . ,_) #t]
+                                        [_ #f]))
+                                    all-bindings))
+                    5))
+
     (define subproc (create-new-egglog-subprocess #f))
 
     (define first-commands

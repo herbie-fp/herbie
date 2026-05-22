@@ -50,10 +50,9 @@
   (define splitpoints (sindices->spoints/left batch pts brf splitindices))
   (finish-combine-alts batch alts brf splitindices splitpoints))
 
-(define (combine-alts/binary batch best-option start-prog ctx pcontext)
+(define (combine-alts/binary batch best-option start-prog pcontext)
   (match-define (option splitindices alts pts brf) best-option)
-  (define splitpoints
-    (sindices->spoints/binary batch pts brf alts splitindices start-prog ctx pcontext))
+  (define splitpoints (sindices->spoints/binary batch pts brf alts splitindices start-prog pcontext))
   (finish-combine-alts batch alts brf splitindices splitpoints))
 
 (define (remove-unused-alts alts splitpoints)
@@ -165,16 +164,8 @@
     (timeline-push! 'method "left-value")
     (sp (si-cidx si1) brf split-at)))
 
-(define/contract (sindices->spoints/binary batch points brf alts sindices start-prog ctx pcontext)
-  (-> batch?
-      (listof vector?)
-      batchref?
-      (listof alt?)
-      (listof si?)
-      any/c
-      context?
-      pcontext?
-      (listof sp?))
+(define/contract (sindices->spoints/binary batch points brf alts sindices start-prog pcontext)
+  (-> batch? (listof vector?) batchref? (listof alt?) (listof si?) any/c pcontext? (listof sp?))
   (define repr (batch-repr-of brf))
   (define ulps (repr-ulps repr))
   (define eval-expr (compose (curryr vector-ref 0) (compile-batch batch (list brf))))
@@ -183,9 +174,7 @@
     (if (symbol? brf-node)
         brf-node
         (deterministic-branch-var batch)))
-  (define ctx* (context-extend ctx var repr))
-  (define batch* (batch-empty ctx*))
-  (define var-brf (batch-add! batch* var))
+  (define-values (batch* var-brf) (batch-empty-extend batch var repr))
   (define progs
     (for/list ([alt (in-list alts)])
       (extract-subexpression batch (alt-expr alt) brf batch* var-brf)))
@@ -194,8 +183,8 @@
     (raise-user-error
      'sindices->spoints/binary
      "mainloop called binary splitpoint search without extractable critical subexpressions"))
-  (define spec-brfs (batch-to-spec! batch* (list start-prog-sub)))
-  (define start-real-compiler (make-real-compiler batch* spec-brfs (list ctx*)))
+  (define spec-brfs (batch-to-spec! batch* batch* (list start-prog-sub)))
+  (define start-real-compiler (make-real-compiler batch* spec-brfs (list repr)))
 
   (define (prepend-macro v)
     (prepend-argument start-real-compiler v pcontext))

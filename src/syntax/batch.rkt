@@ -11,6 +11,7 @@
          expr-recurse-impl
          (struct-out batch)
          batch-empty ; Batch
+         batch-empty-extend
          batch-push!
          batch-add! ; Batch -> (or Expr Batchref Expr<Batchref>) -> Batchref
          batch-copy-only!
@@ -37,6 +38,11 @@
 (define (batch-empty ctx)
   (match-define (context vars _ var-reprs) ctx)
   (batch (make-dvector) (make-hash) vars var-reprs))
+
+(define (batch-empty-extend b var repr)
+  (define out
+    (batch (make-dvector) (make-hash) (cons var (batch-vars b)) (cons repr (batch-var-reprs b))))
+  (values out (batch-push! out var)))
 
 (define (in-batch batch [start 0] [end #f] [step 1])
   (in-dvector (batch-nodes batch) start end step))
