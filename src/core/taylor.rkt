@@ -4,6 +4,7 @@
 (require "../utils/common.rkt"
          "../utils/dvector.rkt"
          "../syntax/syntax.rkt"
+         "../syntax/types.rkt"
          "../syntax/batch.rkt"
          "programs.rkt")
 
@@ -109,9 +110,10 @@
 ; Tests for expand-taylor
 (module+ test
   (require rackunit)
+  (define taylor-test-ctx (context '(x) <binary64> (list <binary64>)))
 
   (define (test-expand-taylor expr)
-    (define-values (batch brfs) (progs->batch (list expr)))
+    (define-values (batch brfs) (progs->batch (list expr) #:ctx taylor-test-ctx))
     (define brf* ((expand-taylor! batch) (car brfs)))
     ((batch-exprs batch) brf*))
 
@@ -610,7 +612,7 @@
 
 (module+ test
   (require rackunit)
-  (define-values (batch brfs) (progs->batch (list '(pow x 1.0))))
+  (define-values (batch brfs) (progs->batch (list '(pow x 1.0)) #:ctx taylor-test-ctx))
   (parameterize ([reduce (batch-reduce batch)]
                  [add (λ (x) (batch-add! batch x))])
     (define brfs* (map (expand-taylor! batch) brfs))
@@ -620,7 +622,7 @@
 (module+ test
   (require "batch-reduce.rkt")
   (define (coeffs expr #:n [n 7])
-    (define-values (batch brfs) (progs->batch (list expr)))
+    (define-values (batch brfs) (progs->batch (list expr) #:ctx taylor-test-ctx))
     (parameterize ([reduce (batch-reduce batch)]
                    [add (λ (x) (batch-add! batch x))])
       (define brfs* (map (expand-taylor! batch) brfs))
@@ -632,6 +634,6 @@
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
   (check-equal? (coeffs '(sqrt x)) '((sqrt x) 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt x)) '((cbrt x) 0 0 0 0 0 0))
-  (check-equal? (coeffs '(cbrt (* x x))) '((pow (cbrt x) 2) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(cbrt (* x x))) '((* (cbrt x) (cbrt x)) 0 0 0 0 0 0))
   (check-equal? (coeffs '(fabs (+ 2 x))) '(2 1 0 0 0 0 0))
   (check-equal? (coeffs '(fabs (+ -2 x))) '(2 -1 0 0 0 0 0)))

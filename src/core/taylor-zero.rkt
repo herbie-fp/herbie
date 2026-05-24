@@ -77,9 +77,9 @@
   (and (finite-real? radius-value) (positive? radius-value) radius-value))
 
 (define (constant-value expr repr)
-  (define-values (batch brfs) (progs->batch (list expr)))
   (define ctx (context '() repr '()))
-  (define compiler (make-real-compiler batch brfs (list ctx)))
+  (define-values (batch brfs) (progs->batch (list expr) #:ctx ctx))
+  (define compiler (make-real-compiler batch brfs (list repr)))
   (define-values (status values) (real-apply compiler (vector)))
   (and (equal? status 'valid) (repr->real (first values) repr)))
 
@@ -107,7 +107,7 @@
        [_ `(* ,coeff ,monomial)])]))
 
 (define (build-taylor-zero-cover spec ctx var var-repr out-repr epsilon cap)
-  (define-values (batch brfs) (progs->batch (list spec)))
+  (define-values (batch brfs) (progs->batch (list spec) #:ctx ctx))
   (parameterize ([reduce (batch-reduce batch)]
                  [add (lambda (x) (batch-add! batch x))])
     (define coeffs (taylor-coefficients batch brfs (list var) transforms-at-zero))
@@ -137,9 +137,7 @@
             [else
              (define radius (repr->real radius-value var-repr))
              (define taylor-expr
-               (spec->impl
-                (taylor-zero-term->spec kept-value (taylor-term-exponent kept) var)
-                ctx))
+               (spec->impl (taylor-zero-term->spec kept-value (taylor-term-exponent kept) var) ctx))
              (taylor-zero-cover var
                                 var-repr
                                 out-repr

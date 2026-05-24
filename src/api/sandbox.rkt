@@ -62,10 +62,21 @@
 ;; API Functions
 
 (define (prepare-test test)
-  (define specification (prog->spec (or (test-spec test) (test-input test))))
-  (define precondition (prog->spec (test-pre test)))
-  (define-values (batch brfs) (progs->batch (list specification)))
+  (define specification (test-spec test))
+  (define precondition (test-pre test))
+  (define-values (batch brfs) (progs->batch (list specification) #:ctx (*context*)))
   (prepared-test specification precondition batch brfs))
+
+(define (sort-alt-analyses alts errss)
+  (sort (map alt-analysis alts errss)
+        (lambda (x y)
+          (define x-errs (alt-analysis-errors x))
+          (define y-errs (alt-analysis-errors y))
+          (define x-score (errors-score x-errs))
+          (define y-score (errors-score y-errs))
+          (define x-cost (alt-cost (alt-analysis-alt x)))
+          (define y-cost (alt-cost (alt-analysis-alt y)))
+          (or (< x-score y-score) (and (equal? x-score y-score) (< x-cost y-cost))))))
 
 ;; The main Herbie function
 (define (get-alternatives test search-joint-pcontext report-joint-pcontext cover)
@@ -74,7 +85,11 @@
 
   (define-values (train-pcontext search-test-pcontext) (partition-pcontext search-joint-pcontext))
   (define-values (_ report-test-pcontext) (partition-pcontext report-joint-pcontext))
-  (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
+  (define initial-expr
+    (if (equal? (prog->spec (test-input test)) (test-spec test))
+        (test-input test)
+        (approx (test-spec test) (test-input test))))
+  (define alternatives (run-improve! initial-expr (test-spec test) (*context*) train-pcontext))
 
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
@@ -95,25 +110,23 @@
   (define end-data
     (cond
       [cover
-       (define search-errs (exprs-errors (map alt-expr alternatives) search-test-pcontext (*context*)))
-       (define sorted-end-exprs (sort-alts alternatives search-errs))
-       (define sorted-alts (wrap-taylor-zero-alts (map car sorted-end-exprs) cover))
+       (define search-errs
+         (exprs-errors (map alt-expr alternatives) search-test-pcontext (*context*)))
+       (define search-data (sort-alt-analyses alternatives search-errs))
+       (define sorted-alts (wrap-taylor-zero-alts (map alt-analysis-alt search-data) cover))
        (define report-errs (exprs-errors (map alt-expr sorted-alts) report-test-pcontext (*context*)))
        (for/list ([altn (in-list sorted-alts)]
                   [errs (in-list report-errs)])
          (alt-analysis altn errs))]
       [else
        (define test-errs (exprs-errors (map alt-expr alternatives) report-test-pcontext (*context*)))
-       (define sorted-end-exprs (sort-alts alternatives test-errs))
-       (define end-errs (map cdr sorted-end-exprs))
-       (map alt-analysis alternatives end-errs)]))
+       (sort-alt-analyses alternatives test-errs)]))
 
   (improve-result report-test-pcontext cover start-alt-data target-alt-data end-data))
 
 (define (get-cost test)
   (define cost-proc (platform-cost-proc (*active-platform*)))
-  (define output-repr (context-repr (*context*)))
-  (cost-proc (test-input test) output-repr))
+  (cost-proc (test-input test)))
 
 (define (get-errors test pcontext)
   (unless pcontext
@@ -156,7 +169,7 @@
       (sample-points precondition
                      (prepared-test-batch prepared)
                      (prepared-test-brfs prepared)
-                     (list (*context*)))))
+                     (list (context-repr (*context*))))))
   (apply mk-pcontext sample))
 
 (define (get-taylor-zero-cover prepared)
@@ -280,8 +293,6 @@
      (define start (hash-ref backend 'start))
      (define targets (hash-ref backend 'target))
      (define end (hash-ref backend 'end))
-     (define expr-cost (platform-cost-proc (*active-platform*)))
-     (define repr (test-output-repr test))
 
      ; starting expr analysis
      (define start-expr (read (open-input-string (hash-ref start 'expr))))
@@ -305,6 +316,7 @@
      (define end-exprs
        (for/list ([end-analysis (in-list end)])
          (read (open-input-string (hash-ref end-analysis 'expr)))))
+     (define end-expr-strings (map (curryr hash-ref 'expr) end))
      (define end-scores
        (for/list ([end-analysis (in-list end)])
          (errors-score (list->flvector (hash-ref end-analysis 'errors)))))
@@ -315,8 +327,11 @@
        (/ (round (* x 1000)) 1000.0))
      (define cost&accuracy
        (list (list (round3 start-cost) (round3 start-score))
-             (list (round3 (car end-costs)) (round3 (car end-scores)))
-             (map (λ (c s) (list (round3 c) (round3 s))) (cdr end-costs) (cdr end-scores))))
+             (list (round3 (car end-costs)) (round3 (car end-scores)) (car end-expr-strings))
+             (map (λ (c s expr) (list (round3 c) (round3 s) expr))
+                  (cdr end-costs)
+                  (cdr end-scores)
+                  (cdr end-expr-strings))))
 
      (define fuzz 0.1)
      (define end-score (car end-scores))

@@ -1,6 +1,7 @@
 #lang racket
 
 (require "syntax.rkt"
+         "types.rkt"
          "../utils/common.rkt"
          "../utils/dvector.rkt")
 
@@ -10,18 +11,17 @@
          expr-recurse-impl
          (struct-out batch)
          batch-empty ; Batch
+         batch-empty-extend
          batch-push!
          batch-add! ; Batch -> (or Expr Batchref Expr<Batchref>) -> Batchref
          batch-copy-only!
          batch-length ; Batch -> Integer
-         batch-tree-size ; Batch -> List<Batchref> -> Integer
          batch-free-vars ; Batch -> (Batchref -> Set<Var>)
          in-batch ; Batch -> Sequence<Node>
          batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-reachable/impl ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
          batch-exprs
          batch-recurse
-         batch-get-nodes
          batch->jsexpr
          jsexpr->batch-exprs
 
@@ -29,26 +29,28 @@
          deref) ; Batchref -> Expr
 
 ;; Batches store these recursive structures, flattened
-(struct batch ([nodes #:mutable] [index #:mutable]))
+(struct batch ([nodes #:mutable] [index #:mutable] vars var-reprs))
 
 (struct batchref (batch idx) #:transparent)
 
 ;; --------------------------------- CORE BATCH FUNCTION ------------------------------------
 
-(define (batch-empty)
-  (batch (make-dvector) (make-hash)))
+(define (batch-empty ctx)
+  (match-define (context vars _ var-reprs) ctx)
+  (batch (make-dvector) (make-hash) vars var-reprs))
+
+(define (batch-empty-extend b var repr)
+  (define out
+    (batch (make-dvector) (make-hash) (cons var (batch-vars b)) (cons repr (batch-var-reprs b))))
+  (values out (batch-push! out var)))
 
 (define (in-batch batch [start 0] [end #f] [step 1])
   (in-dvector (batch-nodes batch) start end step))
-
-(define (batch-get-nodes b)
-  (dvector->vector (batch-nodes b)))
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
   (match expr
     [(approx spec impl) (approx (f spec) (f impl))]
-    [(hole precision spec) (hole precision (f spec))]
     [(list op) (list op)]
     [(list op arg1) (list op (f arg1))]
     [(list op arg1 arg2) (list op (f arg1) (f arg2))]
@@ -81,9 +83,9 @@
   (match-define (batchref b idx) x)
   (expr-recurse (dvector-ref (batch-nodes b) idx) (lambda (ref) (batchref b ref))))
 
-(define (progs->batch exprs #:vars [vars '()])
-  (define out (batch-empty))
-  (for ([var (in-list vars)])
+(define (progs->batch exprs #:ctx ctx)
+  (define out (batch-empty ctx))
+  (for ([var (in-list (context-vars ctx))])
     (batch-push! out var))
   (define brfs
     (for/list ([expr (in-list exprs)])
@@ -161,19 +163,11 @@
                       (expr-recurse node (lambda (i) (set-union! arg-free-vars (recurse i))))
                       arg-free-vars]))))
 
-(define (batch-tree-size batch brfs)
-  (define counts
-    (batch-recurse batch
-                   (lambda (brf recurse)
-                     (define args (reap [sow] (expr-recurse (deref brf) sow)))
-                     (apply + 1 (map recurse args)))))
-  (apply + (map counts brfs)))
-
 ;; Converts a batch + roots to a JSON-compatible structure
 ;; Returns: (hash 'nodes [...] 'roots [idx1 idx2 ...])
 ;; Nodes are: atoms (symbols->strings, numbers) or [op-string idx1 idx2 ...]
 (define (batch->jsexpr b brfs)
-  (define batch* (batch-empty))
+  (define batch* (batch-empty (context (batch-vars b) #f (batch-var-reprs b))))
   (define copy-f (batch-copy-only! batch* b))
   (define brfs* (map copy-f brfs))
   (define nodes
@@ -182,7 +176,6 @@
         [(? symbol?) (~a node)]
         [(? number?) (~a node)]
         [(approx spec impl) (list "approx" spec impl)]
-        [(hole precision spec) (list "hole" (~a precision) spec)]
         [(list op args ...) (cons (~a op) args)]
         [_ (~a node)])))
   (hash 'nodes nodes 'roots (map batchref-idx brfs*)))
@@ -257,8 +250,9 @@
 ; Tests for progs->batch and batch-exprs
 (module+ test
   (require rackunit)
+  (define test-empty-ctx (context '() #f '()))
   (define (test-munge-unmunge expr)
-    (define-values (batch brfs) (progs->batch (list expr)))
+    (define-values (batch brfs) (progs->batch (list expr) #:ctx test-empty-ctx))
     (check-equal? (list expr) (map (batch-exprs batch) brfs)))
 
   (define (f64 x)
@@ -278,9 +272,9 @@
 (module+ test
   (require rackunit)
   (define (zombie-test #:nodes nodes #:roots roots)
-    (define in-batch (batch nodes (make-hash)))
+    (define in-batch (batch nodes (make-hash) '() '()))
     (define brfs (map (curry batchref in-batch) roots))
-    (define out-batch (batch-empty))
+    (define out-batch (batch-empty test-empty-ctx))
     (define copy-f (batch-copy-only! out-batch in-batch))
     (define brfs* (map copy-f brfs))
     (check-equal? (map (batch-exprs out-batch) brfs*) (map (batch-exprs in-batch) brfs))
@@ -310,7 +304,7 @@
 (module+ test
   (require rackunit)
   (define (test-json-tostring expr expected)
-    (define-values (batch brfs) (progs->batch (list expr)))
+    (define-values (batch brfs) (progs->batch (list expr) #:ctx test-empty-ctx))
     (define jsexpr (batch->jsexpr batch brfs))
     (define str (jsexpr->batch-exprs jsexpr))
     (check-equal? str expected))

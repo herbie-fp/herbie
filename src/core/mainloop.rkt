@@ -19,8 +19,7 @@
          "regimes.rkt"
          "batch-reduce.rkt")
 
-(provide run-improve!
-         sort-alts)
+(provide run-improve!)
 
 ;; The Herbie main loop goes through a simple iterative process:
 ;;
@@ -45,24 +44,25 @@
 ;; - Final steps: regimes, derivations, and remove preprocessing
 
 (define (run-improve! initial specification context pcontext)
-  (timeline-event! 'preprocess)
-  (define preprocessing
-    (if (flag-set? 'setup 'preprocess)
-        (find-preprocessing specification context)
-        '()))
-  (timeline-push! 'symmetry (map ~a preprocessing))
-  (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-  (*pcontext* pcontext*)
+  (parameterize ([*global-batch* (batch-empty context)])
+    (define global-spec-batch (batch-empty context))
+    (define initial-brf (batch-add! (*global-batch*) initial))
+    (define specification-brf (batch-add! global-spec-batch specification))
+    (timeline-event! 'preprocess)
+    (define preprocessing
+      (if (flag-set? 'setup 'preprocess)
+          (find-preprocessing global-spec-batch specification-brf context)
+          '()))
+    (timeline-push! 'symmetry (map ~a preprocessing))
+    (define pcontext* (preprocess-pcontext context pcontext preprocessing))
+    (*pcontext* pcontext*)
 
-  (parameterize ([*global-batch* (batch-empty)])
-    (define global-spec-batch (batch-empty))
     (define spec-reducer (batch-reduce global-spec-batch))
 
     (*preprocessing* preprocessing)
-    (define initial-brf (batch-add! (*global-batch*) initial))
     (*start-brf* initial-brf)
     (define start-alt (alt initial-brf 'start '()))
-    (^table^ (make-alt-table (*global-batch*) pcontext start-alt context))
+    (^table^ (make-alt-table (*global-batch*) pcontext start-alt))
 
     (for ([_ (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
@@ -79,10 +79,11 @@
   (define all-alts (atab-all-alts (^table^)))
   (define joined-alts (make-regime! (*global-batch*) all-alts (*start-brf*)))
   (define annotated-alts (add-derivations! joined-alts))
-  (define unbatched-alts (unbatchify-alts (*global-batch*) annotated-alts))
-
+  (define scores (batch-errors (*global-batch*) (map alt-expr annotated-alts) (*pcontext*)))
+  (define sorted-alts (map car (sort-alts (*global-batch*) annotated-alts scores)))
+  (define unbatched-alts (unbatchify-alts (*global-batch*) sorted-alts))
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
-  (map car (sort-alts unbatched-alts)))
+  unbatched-alts)
 
 ;; The rest of the file is various helper / glue functions used by
 ;; Herbie. These often wrap other Herbie components, but add logging
@@ -104,7 +105,7 @@
                              (writeln (exprs (alt-expr altn)) out)))))
 
 (define (batch-score-alts altns)
-  (map errors-score (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*) (*context*))))
+  (map errors-score (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*))))
 
 (define (timeline-push-alts! next-alts)
   (define pending-alts (atab-not-done-alts (^table^)))
@@ -137,14 +138,15 @@
           (list (alt _ `(taylor ,prev-start-expr ,transform ,var ,order) prevs)))
      (car (alt-prevs altn))]
     [_ #f]))
+
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! starting-alts new-alts)
   (timeline-event! 'reconstruct)
 
   (define (group-equivalent-alts alts)
-    (define fn (compile-batch (*global-batch*) (map alt-expr alts) (*context*)))
+    (define fn (compile-batch (*global-batch*) (map alt-expr alts)))
     (define signatures (make-vector (length alts) '()))
-    (define batch-cost (alt-batch-costs (*global-batch*) (*context*)))
+    (define batch-cost (alt-batch-costs (*global-batch*)))
 
     (for ([pt (in-vector (pcontext-points (*pcontext*)))])
       (define outs (fn pt))
@@ -165,7 +167,7 @@
       (define key (cons (get-starting-expr altn) signature))
       (hash-update! groups key (curry best-alt altn) altn))
 
-    (hash-values groups))
+    (sort (hash-values groups) expr<? #:key alt-expr))
 
   (define (compute-referrers parents root)
     (define seen (mutable-seteq))
@@ -225,9 +227,9 @@
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract orig-all-alts (atab-not-done-alts (^table^))))
 
-  (define-values (errss costs) (atab-eval-altns (^table^) (*global-batch*) patched (*context*)))
+  (define-values (errss costs) (atab-eval-altns (^table^) (*global-batch*) patched))
   (timeline-event! 'prune)
-  (^table^ (atab-add-altns (^table^) patched errss costs (*context*)))
+  (^table^ (atab-add-altns (^table^) patched errss costs))
   (define final-fresh-set (list->seteq (atab-not-done-alts (^table^))))
   (define final-active-set (list->seteq (atab-active-alts (^table^))))
   (define final-done-set (set-subtract final-active-set final-fresh-set))
@@ -256,7 +258,7 @@
        (timeline-push! 'taylor-count (~a transform) order nvars 1 (if kept? 1 0))]
       [#f (void)]))
 
-  (define repr (context-repr (*context*)))
+  (define repr (batch-repr-of (*start-brf*)))
   (timeline-push! 'min-error
                   (errors-score (atab-min-errors (^table^)))
                   (format "~a" (representation-name repr)))
@@ -276,22 +278,20 @@
   (void))
 
 (define (make-regime! batch alts start-prog)
-  (define ctx (*context*))
-  (define repr ((batch-reprs batch ctx) start-prog))
-  (define alt-costs (alt-batch-costs batch ctx))
+  (define repr (batch-repr-of start-prog))
+  (define alt-costs (alt-batch-costs batch))
 
   (cond
     [(and (flag-set? 'reduce 'regimes)
           (> (length alts) 1)
           (equal? (representation-type repr) 'real)
-          (not (null? (context-vars ctx)))
+          (not (null? (batch-vars batch)))
           (get-fpcore-impl 'if '() (list <bool> repr repr))
           (get-fpcore-impl '<= '() (list repr repr)))
      (define opts
        (pareto-regimes batch
                        (sort alts < #:key (compose alt-costs alt-expr))
                        start-prog
-                       ctx
                        (*pcontext*)))
      (for/list ([opt (in-list opts)])
        (match-define (option splitindices opt-alts _ brf) opt)
@@ -299,13 +299,13 @@
        (define use-binary?
          (and (flag-set? 'reduce 'binary-search)
               (> (length splitindices) 1)
-              (critical-subexpression? batch start-prog brf (context-vars ctx))
+              (critical-subexpression? batch start-prog brf)
               (for/and ([alt (in-list opt-alts)])
-                (critical-subexpression? batch (alt-expr alt) brf (context-vars ctx)))))
+                (critical-subexpression? batch (alt-expr alt) brf))))
        (cond
          [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
-         [use-binary? (combine-alts/binary batch opt start-prog ctx (*pcontext*))]
-         [else (combine-alts batch opt ctx)]))]
+         [use-binary? (combine-alts/binary batch opt start-prog (*pcontext*))]
+         [else (combine-alts batch opt)]))]
     [else
      (define scores (batch-score-alts alts))
      (list (cdr (argmin car (map (λ (a s) (cons s a)) alts scores))))]))
@@ -317,13 +317,13 @@
      (add-derivations alts)]
     [else alts]))
 
-(define (sort-alts alts [errss (exprs-errors (map alt-expr alts) (*pcontext*) (*context*))])
+(define (sort-alts batch alts errss)
   ;; sort everything by error + cost
-  (define repr (context-repr (*context*)))
+  (define alt-costs (alt-batch-costs batch))
   (define alts-to-be-sorted (map cons alts errss))
   (sort alts-to-be-sorted
         (lambda (x y)
           (or (< (errors-score (cdr x)) (errors-score (cdr y))) ; sort by error
               (and (equal? (errors-score (cdr x))
                            (errors-score (cdr y))) ; if error is equal sort by cost
-                   (< (alt-cost (car x) repr) (alt-cost (car y) repr)))))))
+                   (< (alt-costs (alt-expr (car x))) (alt-costs (alt-expr (car y)))))))))

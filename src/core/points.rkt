@@ -4,6 +4,7 @@
          "../syntax/float.rkt"
          "../syntax/types.rkt"
          "../syntax/batch.rkt"
+         "programs.rkt"
          "compiler.rkt")
 
 (provide in-pcontext
@@ -14,7 +15,6 @@
          split-pcontext
          pcontext-length
          errors
-         batchref-errors
          batch-errors
          exprs-errors
          errors-score)
@@ -55,30 +55,23 @@
 ;; Herbie's standard error measure is the average bits of error across
 ;; all points in a pcontext.
 
-(define (average . s)
-  (/ (apply + s) (length s)))
-
 (define (errors-score e)
   (/ (flvector-sum e) (flvector-length e)))
 
 (define (errors expr pcontext ctx)
   (first (exprs-errors (list expr) pcontext ctx)))
 
-(define (batchref-errors brf pcontext ctx)
-  (first (batch-errors (batchref-batch brf) (list brf) pcontext ctx)))
-
 (define (exprs-errors exprs pcontext ctx)
   (define fn (compile-progs exprs ctx))
   (define num-exprs (length exprs))
-  (generate-errors fn pcontext ctx num-exprs))
+  (generate-errors fn pcontext (context-repr ctx) num-exprs))
 
-(define (batch-errors batch brfs pcontext ctx)
-  (define fn (compile-batch batch brfs ctx))
+(define (batch-errors batch brfs pcontext)
+  (define fn (compile-batch batch brfs))
   (define num-exprs (length brfs))
-  (generate-errors fn pcontext ctx num-exprs))
+  (generate-errors fn pcontext (batch-repr-of (first brfs)) num-exprs))
 
-(define (generate-errors fn pcontext ctx num-exprs)
-  (define repr (context-repr ctx))
+(define (generate-errors fn pcontext repr num-exprs)
   (define ulps (repr-ulps repr))
   (define max-ulps (+ 1 (expt 2 (representation-total-bits repr))))
   (define invalid-bits (real->double-flonum (representation-total-bits repr)))

@@ -14,7 +14,8 @@
          platform-serialize
          register-platform-extensions!
          register-fpcore-operator!
-         (struct-out platform-state))
+         (struct-out platform-state)
+         (struct-out fpcore-extension))
 
 (struct fpcore-extension (name vars output-repr-data var-repr-data body spec) #:prefab)
 (struct platform-state (name extensions) #:prefab)
@@ -46,7 +47,7 @@
      (define fl-proc
        (procedure-reduce-arity (lambda args (core-proc (list->vector args)))
                                (length (context-vars ctx))))
-     (define cost ((platform-cost-proc (*active-platform*)) body* output-repr))
+     (define cost ((platform-cost-proc (*active-platform*)) body*))
      (define fpcore-expr (cons name (context-vars ctx)))
      (define impl
        (create-operator-impl! name
