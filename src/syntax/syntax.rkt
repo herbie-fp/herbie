@@ -11,7 +11,6 @@
 
 (provide (struct-out literal)
          (struct-out approx)
-         (struct-out hole)
          operator-exists?
          operator-info
          all-operators ; return a list of operators names
@@ -77,6 +76,3 @@
 ;; An approximation of a specification by
 ;; a floating-point expression.
 (struct approx (spec impl) #:prefab)
-
-;; An unknown floating-point expression that implements a given spec
-(struct hole (precision spec) #:prefab)

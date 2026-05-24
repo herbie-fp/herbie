@@ -19,8 +19,7 @@
          "regimes.rkt"
          "batch-reduce.rkt")
 
-(provide run-improve!
-         sort-alts)
+(provide run-improve!)
 
 ;; The Herbie main loop goes through a simple iterative process:
 ;;
@@ -80,10 +79,11 @@
   (define all-alts (atab-all-alts (^table^)))
   (define joined-alts (make-regime! (*global-batch*) all-alts (*start-brf*)))
   (define annotated-alts (add-derivations! joined-alts))
-  (define unbatched-alts (unbatchify-alts (*global-batch*) annotated-alts))
-
+  (define scores (batch-errors (*global-batch*) (map alt-expr annotated-alts) (*pcontext*)))
+  (define sorted-alts (map car (sort-alts (*global-batch*) annotated-alts scores)))
+  (define unbatched-alts (unbatchify-alts (*global-batch*) sorted-alts))
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
-  (map car (sort-alts unbatched-alts)))
+  unbatched-alts)
 
 ;; The rest of the file is various helper / glue functions used by
 ;; Herbie. These often wrap other Herbie components, but add logging
@@ -138,6 +138,7 @@
           (list (alt _ `(taylor ,prev-start-expr ,transform ,var ,order) prevs)))
      (car (alt-prevs altn))]
     [_ #f]))
+
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! starting-alts new-alts)
   (timeline-event! 'reconstruct)
@@ -166,7 +167,7 @@
       (define key (cons (get-starting-expr altn) signature))
       (hash-update! groups key (curry best-alt altn) altn))
 
-    (hash-values groups))
+    (sort (hash-values groups) expr<? #:key alt-expr))
 
   (define (compute-referrers parents root)
     (define seen (mutable-seteq))
@@ -303,7 +304,7 @@
                 (critical-subexpression? batch (alt-expr alt) brf))))
        (cond
          [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
-         [use-binary? (combine-alts/binary batch opt start-prog (*context*) (*pcontext*))]
+         [use-binary? (combine-alts/binary batch opt start-prog (*pcontext*))]
          [else (combine-alts batch opt)]))]
     [else
      (define scores (batch-score-alts alts))
@@ -316,12 +317,13 @@
      (add-derivations alts)]
     [else alts]))
 
-(define (sort-alts alts [errss (exprs-errors (map alt-expr alts) (*pcontext*) (*context*))])
+(define (sort-alts batch alts errss)
   ;; sort everything by error + cost
+  (define alt-costs (alt-batch-costs batch))
   (define alts-to-be-sorted (map cons alts errss))
   (sort alts-to-be-sorted
         (lambda (x y)
           (or (< (errors-score (cdr x)) (errors-score (cdr y))) ; sort by error
               (and (equal? (errors-score (cdr x))
                            (errors-score (cdr y))) ; if error is equal sort by cost
-                   (< (alt-cost (car x)) (alt-cost (car y))))))))
+                   (< (alt-costs (alt-expr (car x))) (alt-costs (alt-expr (car y)))))))))

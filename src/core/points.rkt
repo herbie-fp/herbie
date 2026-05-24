@@ -15,7 +15,6 @@
          split-pcontext
          pcontext-length
          errors
-         batchref-errors
          batch-errors
          exprs-errors
          errors-score)
@@ -56,17 +55,11 @@
 ;; Herbie's standard error measure is the average bits of error across
 ;; all points in a pcontext.
 
-(define (average . s)
-  (/ (apply + s) (length s)))
-
 (define (errors-score e)
   (/ (flvector-sum e) (flvector-length e)))
 
 (define (errors expr pcontext ctx)
   (first (exprs-errors (list expr) pcontext ctx)))
-
-(define (batchref-errors brf pcontext)
-  (first (batch-errors (batchref-batch brf) (list brf) pcontext)))
 
 (define (exprs-errors exprs pcontext ctx)
   (define fn (compile-progs exprs ctx))
