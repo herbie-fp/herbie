@@ -123,6 +123,15 @@ unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
     )
 }
 
+fn egraph_run_inner(mut context: Box<Context>, node_limit: usize, iter_limit: usize) -> Box<Context> {
+    context.runner = context.runner
+        .with_node_limit(node_limit)
+        .with_iter_limit(iter_limit)
+        .with_time_limit(Duration::from_secs(u64::MAX))
+        .run(&context.rules);
+    context
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn egraph_run(
     ptr: *mut Context,
@@ -162,17 +171,14 @@ pub unsafe extern "C" fn egraph_run(
 
         context.runner = context
             .runner
-            .with_node_limit(node_limit as usize)
-            .with_iter_limit(iter_limit as usize) // should never hit
-            .with_time_limit(Duration::from_secs(u64::MAX))
             .with_hook(|r| {
                 if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
                     Err("Unsoundness detected".into())
                 } else {
                     Ok(())
                 }
-            })
-            .run(&context.rules);
+            });
+        context = egraph_run_inner(context, node_limit as usize, iter_limit as usize);
     }
 
     // Prune all e-nodes with children where its e-class has a leaf node (with no children). Pruning
