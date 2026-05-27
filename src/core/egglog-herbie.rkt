@@ -135,15 +135,17 @@
 
   ;; 4. Extract using constructor names returned by egglog-add-exprs.
   (define stdout-content
-    (egglog-multi-extract
-     subproc
-     `(multi-extract ,extract
-                     ,@(for/list ([binding (in-list extract-bindings)]
-                                  [repr (in-list reprs)])
-                         (match-define (cons constructor-name datatype) binding)
-                         (match datatype
-                           ['M `(do-lower (,constructor-name) ,(egglog-repr-token repr))]
-                           ['MTy `(,constructor-name)])))))
+    (if (null? extract-bindings)
+        '()
+        (egglog-multi-extract
+         subproc
+         `(multi-extract ,extract
+                         ,@(for/list ([binding (in-list extract-bindings)]
+                                      [repr (in-list reprs)])
+                             (match-define (cons constructor-name datatype) binding)
+                             (match datatype
+                               ['M `(do-lower (,constructor-name) ,(egglog-repr-token repr))]
+                               ['MTy `(,constructor-name)]))))))
 
   ;; Close everything subprocess related
   (egglog-subprocess-close subproc)
