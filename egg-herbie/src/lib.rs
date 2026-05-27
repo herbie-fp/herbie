@@ -1,6 +1,7 @@
 #![allow(clippy::missing_safety_doc)]
 
 pub mod math;
+pub mod detour;
 
 use egg::{BackoffScheduler, FromOp, Id, Language, SimpleScheduler, StopReason};
 use libc::{c_void, strlen};
@@ -12,6 +13,19 @@ use std::mem::{self, ManuallyDrop};
 use std::os::raw::c_char;
 use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
+
+macro_rules! note {
+    ($($arg:tt)*) => {{
+        use std::io::Write;
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open("notes.txt")
+            .expect("Failed to open notes.txt");
+
+        writeln!(file, $($arg)*).expect("Failed to write");
+    }};
+}
 
 pub struct Context {
     runner: Runner,
@@ -124,10 +138,54 @@ unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
 }
 
 fn egraph_run_inner(mut context: Box<Context>, node_limit: usize, iter_limit: usize) -> Box<Context> {
+    if node_limit < u32::MAX as usize {
+        egraph_run_inner_detour(context, node_limit, iter_limit)
+    } else {
+        egraph_run_inner_original(context, node_limit, iter_limit)
+    }
+}
+
+fn egraph_run_inner_detour(mut context: Box<Context>, node_limit: usize, iter_limit: usize) -> Box<Context> {
+    assert_eq!(iter_limit, u32::MAX as usize);
+
+    let hook = Box::new(|eg: &mut EGraph| {
+        if eg.analysis.unsound.load(Ordering::SeqCst) {
+            Err("Unsoundness detected".into())
+        } else {
+            Ok(())
+        }
+    });
+
+    let cf: for<'a> fn(&'a _) -> _ = |_|1;
+    let cfg_offset = 30;
+    let cfg_unreachable_cost = 30_000;
+    crate::detour::detour_run(
+        &*context.runner.roots,
+        &context.rules,
+        &mut context.runner.egraph,
+        &mut [hook],
+        Duration::from_secs(u64::MAX),
+        node_limit as _,
+        cf,
+        cfg_offset,
+        cfg_unreachable_cost
+    );
+
+    context
+}
+
+fn egraph_run_inner_original(mut context: Box<Context>, node_limit: usize, iter_limit: usize) -> Box<Context> {
     context.runner = context.runner
         .with_node_limit(node_limit)
         .with_iter_limit(iter_limit)
         .with_time_limit(Duration::from_secs(u64::MAX))
+        .with_hook(|r| {
+            if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
+                Err("Unsoundness detected".into())
+            } else {
+                Ok(())
+            }
+        })
         .run(&context.rules);
     context
 }
@@ -169,15 +227,6 @@ pub unsafe extern "C" fn egraph_run(
             context.runner.with_scheduler(BackoffScheduler::default())
         };
 
-        context.runner = context
-            .runner
-            .with_hook(|r| {
-                if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
-                    Err("Unsoundness detected".into())
-                } else {
-                    Ok(())
-                }
-            });
         context = egraph_run_inner(context, node_limit as usize, iter_limit as usize);
     }
 
