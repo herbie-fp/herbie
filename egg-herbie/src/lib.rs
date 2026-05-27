@@ -138,43 +138,8 @@ unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
 }
 
 fn egraph_run_inner(mut context: Box<Context>, node_limit: usize, iter_limit: usize) -> Box<Context> {
-    if node_limit < u32::MAX as usize {
-        egraph_run_inner_detour(context, node_limit, iter_limit)
-    } else {
-        egraph_run_inner_original(context, node_limit, iter_limit)
-    }
-}
+    let detour_active = node_limit < u32::MAX as usize;
 
-fn egraph_run_inner_detour(mut context: Box<Context>, node_limit: usize, iter_limit: usize) -> Box<Context> {
-    assert_eq!(iter_limit, u32::MAX as usize);
-
-    let hook = Box::new(|eg: &mut EGraph| {
-        if eg.analysis.unsound.load(Ordering::SeqCst) {
-            Err("Unsoundness detected".into())
-        } else {
-            Ok(())
-        }
-    });
-
-    let cf: for<'a> fn(&'a _) -> _ = |_|1;
-    let cfg_offset = 30;
-    let cfg_unreachable_cost = 30_000;
-    crate::detour::detour_run(
-        &*context.runner.roots,
-        &context.rules,
-        &mut context.runner.egraph,
-        &mut [hook],
-        Duration::from_secs(u64::MAX),
-        node_limit as _,
-        cf,
-        cfg_offset,
-        cfg_unreachable_cost
-    );
-
-    context
-}
-
-fn egraph_run_inner_original(mut context: Box<Context>, node_limit: usize, iter_limit: usize) -> Box<Context> {
     context.runner = context.runner
         .with_node_limit(node_limit)
         .with_iter_limit(iter_limit)
@@ -185,8 +150,28 @@ fn egraph_run_inner_original(mut context: Box<Context>, node_limit: usize, iter_
             } else {
                 Ok(())
             }
-        })
-        .run(&context.rules);
+        });
+
+    context.runner = if detour_active {
+        use crate::detour::*;
+
+        let limits = Limits {
+            node_limit,
+            time_limit: Duration::from_secs(u64::MAX),
+        };
+
+        let cf: for<'a> fn(&'a _) -> _ = |_|1;
+        let cfg = CostConfig {
+            cf,
+            offset: 30,
+            unreachable_cost: 30_000,
+        };
+
+        detour_run(context.runner, &context.rules, limits, cfg)
+    } else {
+        context.runner.run(&context.rules)
+    };
+
     context
 }
 
