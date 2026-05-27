@@ -7,8 +7,8 @@
          "../reports/timeline.rkt"
          "../syntax/read.rkt"
          "../syntax/sugar.rkt"
-         "../syntax/types.rkt"
          "../syntax/platform.rkt"
+         "../syntax/types.rkt"
          "../syntax/load-platform.rkt"
          "../utils/common.rkt"
          "../utils/profile.rkt"
@@ -36,8 +36,7 @@
         (fpcore->spec (table-row-pre row))
         (representation-name repr)
         (for/list ([(k v) (in-dict var-reprs)])
-          (cons k (representation-name v)))
-        (table-row-conversions row)))
+          (cons k (representation-name v)))))
 
 (define (make-report bench-dirs #:dir dir #:threads threads)
   (activate-platform! (*platform-name*))

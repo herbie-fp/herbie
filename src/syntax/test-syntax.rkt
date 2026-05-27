@@ -30,4 +30,9 @@
   (check-equal? (get-impl 'ref '((:precision . binary64)) (list f64x3x3 f64)) 'ref.r3r3.f64)
   (check-equal? (fpcore->spec '(ref A 2 1)) '(ref (ref A 2) 1))
 
+  ; fpcore->spec
+  (check-equal? (fpcore->spec '(log1p x)) '(log (+ 1 x)))
+  (check-equal? (fpcore->spec '(hypot x y)) '(sqrt (+ (* x x) (* y y))))
+  (check-equal? (fpcore->spec '(fma x y z)) '(+ (* x y) z))
+
   (void))

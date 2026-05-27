@@ -1,6 +1,5 @@
 #lang racket
 
-(require (only-in xml write-xexpr xexpr?))
 (require "../utils/common.rkt"
          "../syntax/read.rkt"
          "common.rkt")

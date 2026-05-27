@@ -2,8 +2,7 @@
 
 pub mod math;
 
-use egg::{BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason, Symbol};
-use indexmap::IndexMap;
+use egg::{BackoffScheduler, FromOp, Id, Language, SimpleScheduler, StopReason};
 use libc::{c_void, strlen};
 use math::*;
 
@@ -15,7 +14,6 @@ use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
 
 pub struct Context {
-    iteration: usize,
     runner: Runner,
     rules: Vec<Rewrite>,
 }
@@ -24,7 +22,6 @@ pub struct Context {
 #[no_mangle]
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
     Box::into_raw(Box::new(Context {
-        iteration: 0,
         runner: Runner::new(Default::default()).with_explanations_enabled(),
         rules: vec![],
     }))
@@ -68,24 +65,6 @@ pub struct FFIRule {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char) -> u32 {
-    let _ = env_logger::try_init();
-    // Safety: `ptr` was box allocated by `egraph_create`
-    let mut context = Box::from_raw(ptr);
-
-    assert_eq!(context.iteration, 0);
-    let rec_expr = CStr::from_ptr(expr).to_str().unwrap().parse().unwrap();
-    context.runner = context.runner.with_expr(&rec_expr);
-    let id = usize::from(*context.runner.roots.last().unwrap())
-        .try_into()
-        .unwrap();
-
-    mem::forget(context);
-
-    id
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn egraph_add_root(ptr: *mut Context, id: u32) {
     let mut context = ManuallyDrop::new(Box::from_raw(ptr));
     context.runner.roots.push(Id::from(id as usize));
@@ -124,7 +103,6 @@ pub unsafe extern "C" fn egraph_copy(ptr: *mut Context) -> *mut Context {
     mem::forget(context);
 
     Box::into_raw(Box::new(Context {
-        iteration: 0,
         rules: vec![],
         runner,
     }))
@@ -273,38 +251,6 @@ pub unsafe extern "C" fn egraph_find(ptr: *mut Context, id: usize) -> u32 {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_serialize(ptr: *mut Context) -> *const c_char {
-    // Safety: `ptr` was box allocated by `egraph_create`
-    let context = ManuallyDrop::new(Box::from_raw(ptr));
-    let mut ids: Vec<Id> = context.runner.egraph.classes().map(|c| c.id).collect();
-    ids.sort();
-
-    // Iterate through the eclasses and print each eclass
-    let mut s = String::from("(");
-    for id in ids {
-        let c = &context.runner.egraph[id];
-        s.push_str(&format!("({}", id));
-        for node in &c.nodes {
-            if matches!(node, Math::Symbol(_) | Math::Constant(_)) {
-                s.push_str(&format!(" {}", node));
-            } else {
-                s.push_str(&format!("({}", node));
-                for c in node.children() {
-                    s.push_str(&format!(" {}", c));
-                }
-                s.push(')');
-            }
-        }
-
-        s.push(')');
-    }
-    s.push(')');
-
-    let c_string = ManuallyDrop::new(CString::new(s).unwrap());
-    c_string.as_ptr()
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn egraph_size(ptr: *mut Context) -> u32 {
     let context = ManuallyDrop::new(Box::from_raw(ptr));
     context.runner.egraph.number_of_classes() as u32
@@ -362,20 +308,6 @@ pub unsafe extern "C" fn egraph_get_node(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_get_simplest(
-    ptr: *mut Context,
-    node_id: u32,
-    iter: u32,
-) -> *const c_char {
-    // Safety: `ptr` was box allocated by `egraph_create`
-    let context = ManuallyDrop::new(Box::from_raw(ptr));
-    let ext = find_extracted(&context.runner, node_id, iter);
-    let best_str = ManuallyDrop::new(CString::new(ext.best.to_string()).unwrap());
-
-    best_str.as_ptr()
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn egraph_get_proof(
     ptr: *mut Context,
     expr: *const c_char,
@@ -399,49 +331,6 @@ pub unsafe extern "C" fn egraph_get_proof(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_get_variants(
-    ptr: *mut Context,
-    node_id: u32,
-    orig_expr: *const c_char,
-) -> *const c_char {
-    // Safety: `ptr` was box allocated by `egraph_create`
-    let context = ManuallyDrop::new(Box::from_raw(ptr));
-
-    // root (id, expr)
-    let id = Id::from(node_id as usize);
-    let orig_recexpr: RecExpr = CStr::from_ptr(orig_expr).to_str().unwrap().parse().unwrap();
-    let head_node = &orig_recexpr.as_ref()[orig_recexpr.as_ref().len() - 1];
-
-    // extractor
-    let extractor = Extractor::new(&context.runner.egraph, AltCost::new(&context.runner.egraph));
-    let mut cache: IndexMap<Id, RecExpr> = Default::default();
-
-    // extract variants
-    let mut exprs = vec![];
-    for n in &context.runner.egraph[id].nodes {
-        // assuming same ops in an eclass cannot
-        // have different precisions
-        if !n.matches(head_node) {
-            // extract if not in cache
-            n.for_each(|id| {
-                if cache.get(&id).is_none() {
-                    let (_, best) = extractor.find_best(id);
-                    cache.insert(id, best);
-                }
-            });
-
-            exprs.push(n.join_recexprs(|id| cache.get(&id).unwrap().as_ref()));
-        }
-    }
-
-    // format
-    let expr_strs: Vec<String> = exprs.iter().map(|r| r.to_string()).collect();
-    let best_str = ManuallyDrop::new(CString::new(expr_strs.join(" ")).unwrap());
-
-    best_str.as_ptr()
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn egraph_is_unsound_detected(ptr: *mut Context) -> bool {
     // Safety: `ptr` was box allocated by `egraph_create`
     let context = ManuallyDrop::new(Box::from_raw(ptr));
@@ -455,37 +344,10 @@ pub unsafe extern "C" fn egraph_is_unsound_detected(ptr: *mut Context) -> bool {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_get_times_applied(ptr: *mut Context, name: *const c_char) -> u32 {
-    // Safety: `ptr` was box allocated by `egraph_create`
-    let context = ManuallyDrop::new(Box::from_raw(ptr));
-    let sym = Symbol::from(ptr_to_string(name));
-
-    context
-        .runner
-        .iterations
-        .iter()
-        .map(|iter| *iter.applied.get(&sym).unwrap_or(&0) as u32)
-        .sum()
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn egraph_get_cost(ptr: *mut Context, node_id: u32, iter: u32) -> u32 {
     // Safety: `ptr` was box allocated by `egraph_create`
     let context = ManuallyDrop::new(Box::from_raw(ptr));
     let ext = find_extracted(&context.runner, node_id, iter);
 
     ext.cost as u32
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn egraph_get_size(ptr: *mut Context) -> u32 {
-    // Safety: `ptr` was box allocated by `egraph_create`
-    let context = ManuallyDrop::new(Box::from_raw(ptr));
-
-    context
-        .runner
-        .iterations
-        .last()
-        .map(|iteration| iteration.egraph_nodes as u32)
-        .unwrap_or_default()
 }
