@@ -1,7 +1,7 @@
 #![allow(clippy::missing_safety_doc)]
 
-pub mod math;
 pub mod detour;
+pub mod math;
 
 use egg::{BackoffScheduler, FromOp, Id, Language, SimpleScheduler, StopReason};
 use libc::{c_void, strlen};
@@ -137,10 +137,15 @@ unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
     )
 }
 
-fn egraph_run_inner(mut context: Box<Context>, node_limit: usize, iter_limit: usize) -> Box<Context> {
+fn egraph_run_inner(
+    mut context: Box<Context>,
+    node_limit: usize,
+    iter_limit: usize,
+) -> Box<Context> {
     let detour_active = node_limit < u32::MAX as usize;
 
-    context.runner = context.runner
+    context.runner = context
+        .runner
         .with_node_limit(node_limit)
         .with_iter_limit(iter_limit)
         .with_time_limit(Duration::from_secs(u64::MAX))
@@ -160,7 +165,7 @@ fn egraph_run_inner(mut context: Box<Context>, node_limit: usize, iter_limit: us
             time_limit: Duration::from_secs(u64::MAX),
         };
 
-        let cf: for<'a> fn(&'a _) -> _ = |_|1;
+        let cf: for<'a> fn(&'a _) -> _ = |_| 1;
         let cfg = CostConfig {
             cf,
             offset: 30,
