@@ -206,21 +206,21 @@
   (egglog-send subproc `(datatype M ,@(platform-spec-nodes)))
 
   (egglog-send
-   subproc
-   `(datatype MTy
-              ,@(num-typed-nodes pform)
-              ,@(var-typed-nodes pform)
-              (Approx M MTy)
-              ,@(platform-impl-nodes pform))
-   `(constructor do-lower (M String) MTy :unextractable)
-   `(constructor do-lift (MTy) M :unextractable)
-   `(ruleset lower)
-   `(ruleset lift)
-   `(ruleset unsound)
-   `(function bad-merge? () bool :merge (or old new))
-   `(ruleset bad-merge-rule)
-   `(set (bad-merge?) false)
-   `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule))
+    subproc
+    `(datatype MTy
+               ,@(num-typed-nodes pform)
+               ,@(var-typed-nodes pform)
+               (Approx M MTy)
+               ,@(platform-impl-nodes pform))
+    `(constructor do-lower (M String) MTy :unextractable)
+    `(constructor do-lift (MTy) M :unextractable)
+    `(ruleset lower)
+    `(ruleset lift)
+    `(ruleset unsound)
+    `(function bad-merge? () bool :merge (or old new))
+    `(ruleset bad-merge-rule)
+    `(set (bad-merge?) false)
+    `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule))
 
   (void))
 
@@ -346,8 +346,8 @@
                     (do-lower ,v ,(egglog-repr-token vt)))))
            ((union (do-lower ?root ,(egglog-repr-token (impl-info impl 'otype)))
                    (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
-                    ,@(for/list ([v (in-list (impl-info impl 'vars))])
-                        (string->symbol (string-append "t" (symbol->string v)))))))
+                     ,@(for/list ([v (in-list (impl-info impl 'vars))])
+                         (string->symbol (string-append "t" (symbol->string v)))))))
            :ruleset
            lower)))
 
@@ -356,7 +356,7 @@
     (define spec-expr (impl-info impl 'spec))
     `(rule ((= ?root
                (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
-                ,@(impl-info impl 'vars)))
+                 ,@(impl-info impl 'vars)))
             ,@(for/list ([v (in-list (impl-info impl 'vars))]
                          [vt (in-list (impl-info impl 'itype))])
                 `(= ,(string->symbol (string-append "s" (symbol->string v))) (do-lift ,v))))
@@ -379,7 +379,7 @@
        `(,(if (hash-has-key? (id->e1) op)
               (serialize-spec-op op (length args))
               (hash-ref (id->e2) op))
-         ,@(map loop args))])))
+          ,@(map loop args))])))
 
 (define (serialize-op op)
   (if (hash-has-key? op-string-names op)
@@ -525,9 +525,19 @@
 
   (values (reverse all-bindings) curr-bindings))
 
+;; Count the actual rules (rewrite/rule forms) in a list of egglog commands,
+;; ignoring non-rule forms like (ruleset ...) declarations and (let ...) bindings.
+(define (count-rules cmds)
+  (for/sum ([cmd (in-list cmds)]
+            #:when (and (pair? cmd) (memq (car cmd) '(rewrite rule))))
+    1))
+
 (define (egglog-unsound-detected-subprocess tag subproc)
   (define node-limit (*node-limit*))
   (define iter-limit (*default-egglog-iter-limit*))
+
+  (define rewrite-repeats (add1 (length (egglog-rewrite-rules (*rules*) tag))))
+  (define const-fold-repeats (add1 (count-rules (const-fold-rules))))
 
   ;; Use egglog's :until guard with get-size! to stop when node limit is reached.
   ;; After each iteration, we check for unsound merges via bad-merge-rule.
@@ -539,11 +549,14 @@
 
   (egglog-send subproc
                `(run-schedule
-                 (let-scheduler cbo (capped-back-off :node-cap ,node-limit))
-                 (repeat ,iter-limit
-                         (seq (run-with cbo ,tag :until (<= ,node-limit (get-size!)))
-                              (run-with cbo const-fold :until (<= ,node-limit (get-size!)))
-                              (run bad-merge-rule :until (bad-merge?))))))
+                  (let-scheduler rr1 (round-robin-back-off))
+                  (let-scheduler rr2 (round-robin-back-off))
+                  (repeat ,iter-limit
+                          (seq (repeat ,rewrite-repeats
+                                       (run-with rr1 ,tag :until (<= ,node-limit (get-size!))))
+                               (repeat ,const-fold-repeats
+                                       (run-with rr2 const-fold :until (<= ,node-limit (get-size!))))
+                               (run bad-merge-rule :until (bad-merge?))))))
   (void))
 
 (define (egglog-num? id)
