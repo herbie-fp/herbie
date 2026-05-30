@@ -79,12 +79,10 @@
           (or (< x-score y-score) (and (equal? x-score y-score) (< x-cost y-cost))))))
 
 ;; The main Herbie function
-(define (get-alternatives test search-joint-pcontext report-joint-pcontext cover)
-  (unless search-joint-pcontext
+(define (get-alternatives test train-pcontext test-pcontext cover)
+  (unless train-pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
-  (define-values (train-pcontext search-test-pcontext) (partition-pcontext search-joint-pcontext))
-  (define-values (_ report-test-pcontext) (partition-pcontext report-joint-pcontext))
   (define initial-expr
     (if (equal? (prog->spec (test-input test)) (test-spec test))
         (test-input test)
@@ -94,7 +92,7 @@
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
   (define start-alt (make-alt start-expr))
-  (define start-errs (errors start-expr report-test-pcontext (*context*)))
+  (define start-errs (errors start-expr test-pcontext (*context*)))
   (define start-alt-data (alt-analysis start-alt start-errs))
 
   ;; optionally compute error/cost for input expression
@@ -103,26 +101,16 @@
     (for/list ([(expr is-valid?) (in-dict (test-output test))]
                #:when is-valid?)
       (define target-expr (fpcore->prog expr (*context*)))
-      (define target-errs (errors target-expr report-test-pcontext (*context*)))
+      (define target-errs (errors target-expr test-pcontext (*context*)))
       (alt-analysis (make-alt target-expr) target-errs)))
 
   ;; compute error/cost for output expression
   (define end-data
-    (cond
-      [cover
-       (define search-errs
-         (exprs-errors (map alt-expr alternatives) search-test-pcontext (*context*)))
-       (define search-data (sort-alt-analyses alternatives search-errs))
-       (define sorted-alts (wrap-taylor-zero-alts (map alt-analysis-alt search-data) cover))
-       (define report-errs (exprs-errors (map alt-expr sorted-alts) report-test-pcontext (*context*)))
-       (for/list ([altn (in-list sorted-alts)]
-                  [errs (in-list report-errs)])
-         (alt-analysis altn errs))]
-      [else
-       (define test-errs (exprs-errors (map alt-expr alternatives) report-test-pcontext (*context*)))
-       (sort-alt-analyses alternatives test-errs)]))
+    (let* ([report-alts (wrap-taylor-zero-alts alternatives cover)]
+           [test-errs (exprs-errors (map alt-expr report-alts) test-pcontext (*context*))])
+      (sort-alt-analyses report-alts test-errs)))
 
-  (improve-result report-test-pcontext cover start-alt-data target-alt-data end-data))
+  (improve-result test-pcontext cover start-alt-data target-alt-data end-data))
 
 (define (get-cost test)
   (define cost-proc (platform-cost-proc (*active-platform*)))
@@ -175,8 +163,20 @@
 (define (get-taylor-zero-cover prepared)
   (compute-taylor-zero-cover (prepared-test-spec prepared) (prepared-test-pre prepared) (*context*)))
 
+(define (taylor-zero-outside? pt cover)
+  (define var-repr (taylor-zero-cover-var-repr cover))
+  (define radius (taylor-zero-cover-radius cover))
+  (define x (repr->real (vector-ref pt 0) var-repr))
+  (or (< x (- radius)) (< radius x)))
+
 (define (get-search-sample prepared cover)
-  (sample-test-points prepared (taylor-zero-precondition (prepared-test-pre prepared) cover)))
+  (define pool (sample-test-points prepared (prepared-test-pre prepared)))
+  (define-values (points exacts)
+    (for/lists (points exacts) ([(pt ex) (in-pcontext pool)]
+                                #:when (taylor-zero-outside? pt cover))
+      (values pt ex)))
+  (and (>= (length points) (*num-points*))
+       (mk-pcontext (take points (*num-points*)) (take exacts (*num-points*)))))
 
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility
@@ -226,7 +226,9 @@
         (timeline-event! 'start) ; Prevents the timeline from being empty.
         (define result
           (match command
-            ['alternatives (get-alternatives test pcontext pcontext #f)]
+            ['alternatives
+             (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
+             (get-alternatives test train-pcontext test-pcontext #f)]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['explanations (get-explanations test pcontext)]
@@ -235,11 +237,12 @@
              (define prepared (prepare-test test))
              (define cover (get-taylor-zero-cover prepared))
              (define report-pcontext (sample-test-points prepared (prepared-test-pre prepared)))
-             (define search-pcontext
-               (if cover
-                   (get-search-sample prepared cover)
-                   report-pcontext))
-             (get-alternatives test search-pcontext report-pcontext cover)]
+             (define-values (report-train-pcontext report-test-pcontext)
+               (partition-pcontext report-pcontext))
+             (define search-train-pcontext (and cover (get-search-sample prepared cover)))
+             (define active-cover (and search-train-pcontext cover))
+             (define train-pcontext (or search-train-pcontext report-train-pcontext))
+             (get-alternatives test train-pcontext report-test-pcontext active-cover)]
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (raise-arguments-error 'compute-result "unknown command" "command" command)]))
