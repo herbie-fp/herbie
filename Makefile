@@ -1,4 +1,4 @@
-.PHONY: help install egg-herbie nightly index start-server deploy coverage
+.PHONY: help install egg-herbie egglog-herbie nightly index start-server deploy coverage
 
 help:
 	@echo "Type 'make install' to install Herbie"
