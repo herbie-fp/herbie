@@ -536,7 +536,7 @@
                                            (run-with bo const-fold)
                                            (run bad-merge-rule :until (bad-merge?))))
                               :size-limit
-                              6000))
+                              ,node-limit))
   (void))
 
 (define (egglog-num? id)
