@@ -33,13 +33,16 @@
                    (leaf-reprs (array-representation-elem repr))))
         (list repr)))
   (define (fresh-tree base repr)
-    (if (array-representation? repr)
-        (let-values ([(elems vars reprs) (for/lists (elems vars reprs)
-                                                    ([_ (in-range (array-representation-len repr))])
-                                                    (fresh-tree base
-                                                                (array-representation-elem repr)))])
-          (values `(array ,@elems) (append* vars) (append* reprs)))
-        (let ([v (fresh base)]) (values v (list v) (list repr)))))
+    (cond
+      [(array-representation? repr)
+       (define-values (elems vars reprs)
+         (for/lists (elems vars reprs)
+                    ([_ (in-range (array-representation-len repr))])
+                    (fresh-tree base (array-representation-elem repr))))
+       (values `(array ,@elems) (append* vars) (append* reprs))]
+      [else
+       (define v (fresh base))
+       (values v (list v) (list repr))]))
   (define (flatten-by-repr expr repr)
     (if (array-representation? repr)
         (match-let ([`(array ,elems ...) expr])
