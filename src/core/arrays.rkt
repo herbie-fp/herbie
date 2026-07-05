@@ -22,11 +22,11 @@
   (define (fresh base)
     (let loop ([i 0])
       (define candidate (string->symbol (format "~a_~a" base i)))
-      (if (set-member? taken candidate)
-          (loop (add1 i))
-          (begin
-            (set-add! taken candidate)
-            candidate))))
+      (cond
+        [(set-member? taken candidate) (loop (add1 i))]
+        [else
+         (set-add! taken candidate)
+         candidate])))
   (define (leaf-reprs repr)
     (if (array-representation? repr)
         (append* (for/list ([_ (in-range (array-representation-len repr))])
