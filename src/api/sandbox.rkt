@@ -1,6 +1,7 @@
 #lang racket
 
 (require racket/engine
+         racket/random
          math/flonum
          json)
 
@@ -166,9 +167,18 @@
   (compute-taylor-zero-cover (prepared-test-spec prepared) (prepared-test-pre prepared) (*context*)))
 
 (define (get-search-sample prepared cover)
-  (sample-points/count prepared
-                       (taylor-zero-precondition (prepared-test-pre prepared) cover)
-                       (*num-points*)))
+  (define rng-state (pseudo-random-generator->vector (current-pseudo-random-generator)))
+  (define old-warnings (set-copy (warnings)))
+  (define old-warning-log (warning-log))
+  (with-handlers ([exn:fail:user:herbie:sampling?
+                   (lambda (_)
+                     (current-pseudo-random-generator (vector->pseudo-random-generator rng-state))
+                     (warnings old-warnings)
+                     (warning-log old-warning-log)
+                     #f)])
+    (sample-points/count prepared
+                         (taylor-zero-precondition (prepared-test-pre prepared) cover)
+                         (*num-points*))))
 
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility
@@ -227,10 +237,10 @@
             ['improve
              (random) ;; Tick the random number generator, for backwards compatibility
              (define prepared (prepare-test test))
-             (define cover (get-taylor-zero-cover prepared))
              (define report-pcontext (sample-test-points prepared (prepared-test-pre prepared)))
              (define-values (report-train-pcontext report-test-pcontext)
                (partition-pcontext report-pcontext))
+             (define cover (get-taylor-zero-cover prepared))
              (define search-train-pcontext (and cover (get-search-sample prepared cover)))
              (define active-cover (and search-train-pcontext cover))
              (define train-pcontext (or search-train-pcontext report-train-pcontext))

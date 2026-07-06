@@ -10,6 +10,7 @@
          (struct-out exn:fail:user:herbie:sampling)
          (struct-out exn:fail:user:herbie:missing)
          warn
+         warnings
          warning-log)
 
 (struct exn:fail:user:herbie exn:fail:user (url) #:extra-constructor-name make-exn:fail:user:herbie)
