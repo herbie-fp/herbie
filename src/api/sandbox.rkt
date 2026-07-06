@@ -17,7 +17,6 @@
          "../utils/common.rkt"
          "datafile.rkt"
          "../utils/errors.rkt"
-         "../syntax/float.rkt"
          "../core/sampling.rkt"
          "../core/mainloop.rkt"
          "../syntax/platform.rkt"
@@ -151,32 +150,25 @@
 
   (local-error-as-tree (test-input test) (*context*) pcontext))
 
-(define (sample-test-points prepared precondition)
+(define (sample-points/count prepared precondition count)
   (define sample
-    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+    (parameterize ([*num-points* count])
       (sample-points precondition
                      (prepared-test-batch prepared)
                      (prepared-test-brfs prepared)
                      (list (context-repr (*context*))))))
   (apply mk-pcontext sample))
 
+(define (sample-test-points prepared precondition)
+  (sample-points/count prepared precondition (+ (*num-points*) (*reeval-pts*))))
+
 (define (get-taylor-zero-cover prepared)
   (compute-taylor-zero-cover (prepared-test-spec prepared) (prepared-test-pre prepared) (*context*)))
 
-(define (taylor-zero-outside? pt cover)
-  (define var-repr (taylor-zero-cover-var-repr cover))
-  (define radius (taylor-zero-cover-radius cover))
-  (define x (repr->real (vector-ref pt 0) var-repr))
-  (or (< x (- radius)) (< radius x)))
-
 (define (get-search-sample prepared cover)
-  (define pool (sample-test-points prepared (prepared-test-pre prepared)))
-  (define-values (points exacts)
-    (for/lists (points exacts) ([(pt ex) (in-pcontext pool)]
-                                #:when (taylor-zero-outside? pt cover))
-      (values pt ex)))
-  (and (>= (length points) (*num-points*))
-       (mk-pcontext (take points (*num-points*)) (take exacts (*num-points*)))))
+  (sample-points/count prepared
+                       (taylor-zero-precondition (prepared-test-pre prepared) cover)
+                       (*num-points*)))
 
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility
