@@ -75,8 +75,7 @@
       [(? number?) 0] ; specs
       [(approx _ impl) (recurse impl)]
       [(list (? (negate impl-exists?) _) args ...) 0] ; specs
-      [(list impl args ...)
-       (+ (node-cost brf) (for/sum ([arg (in-list args)]) (recurse arg)))]
+      [(list impl args ...) (+ (node-cost brf) (for/sum ([arg (in-list args)]) (recurse arg)))]
       [_ (node-cost brf)]))
   (batch-recurse batch (if (flag-set? 'reduce 'dag-cost) dag-cost tree-cost)))
 
