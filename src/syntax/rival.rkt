@@ -212,7 +212,10 @@
       (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
                      [*rival-max-iterations* 5])
         (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
-        (values 'valid value))))
+        ; TODO: fix rival 3 invalid stuff
+        (if (member 'invalid value)
+            (values 'invalid #f)
+            (values 'valid value)))))
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"

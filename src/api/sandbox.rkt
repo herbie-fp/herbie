@@ -151,7 +151,7 @@
 
   (local-error-as-tree (test-input test) (*context*) pcontext))
 
-(define (sample-points prepared precondition count)
+(define (sample-points/count prepared precondition count)
   (define sample
     (parameterize ([*num-points* count])
       (sample-points precondition
@@ -161,7 +161,7 @@
   (apply mk-pcontext sample))
 
 (define (sample-test-points prepared precondition)
-  (sample-points prepared precondition (+ (*num-points*) (*reeval-pts*))))
+  (sample-points/count prepared precondition (+ (*num-points*) (*reeval-pts*))))
 
 (define (get-taylor-covers prepared)
   (compute-taylor-covers (prepared-test-spec prepared) (prepared-test-pre prepared) (*context*)))
@@ -176,7 +176,7 @@
                      (warnings old-warnings)
                      (warning-log old-warning-log)
                      #f)])
-    (sample-points prepared precondition (*num-points*))))
+    (sample-points/count prepared precondition (*num-points*))))
 
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility
