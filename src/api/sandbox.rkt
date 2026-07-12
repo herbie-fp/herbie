@@ -23,7 +23,7 @@
          "../syntax/platform.rkt"
          "../core/programs.rkt"
          "../core/points.rkt"
-         "../core/taylor-zero.rkt"
+         "../core/taylor-cover.rkt"
          "../core/explain.rkt"
          "../utils/profile.rkt"
          "../utils/timeline.rkt"
@@ -37,7 +37,7 @@
          (struct-out alt-analysis))
 
 (struct job-result (command test status time timeline profile warnings backend))
-(struct improve-result (pcontext cover start target end))
+(struct improve-result (pcontext start target end))
 (struct alt-analysis (alt errors) #:prefab)
 (struct prepared-test (spec pre batch brfs) #:transparent)
 
@@ -79,7 +79,7 @@
           (or (< x-score y-score) (and (equal? x-score y-score) (< x-cost y-cost))))))
 
 ;; The main Herbie function
-(define (get-alternatives test train-pcontext test-pcontext cover)
+(define (get-alternatives test train-pcontext test-pcontext covers)
   (unless train-pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
@@ -106,11 +106,11 @@
 
   ;; compute error/cost for output expression
   (define end-data
-    (let* ([report-alts (wrap-taylor-zero-alts alternatives cover)]
+    (let* ([report-alts (wrap-taylor-cover-alts alternatives covers)]
            [test-errs (exprs-errors (map alt-expr report-alts) test-pcontext (*context*))])
       (sort-alt-analyses report-alts test-errs)))
 
-  (improve-result test-pcontext cover start-alt-data target-alt-data end-data))
+  (improve-result test-pcontext start-alt-data target-alt-data end-data))
 
 (define (get-cost test)
   (define cost-proc (platform-cost-proc (*active-platform*)))
@@ -151,7 +151,7 @@
 
   (local-error-as-tree (test-input test) (*context*) pcontext))
 
-(define (sample-points/count prepared precondition count)
+(define (sample-points prepared precondition count)
   (define sample
     (parameterize ([*num-points* count])
       (sample-points precondition
@@ -161,12 +161,12 @@
   (apply mk-pcontext sample))
 
 (define (sample-test-points prepared precondition)
-  (sample-points/count prepared precondition (+ (*num-points*) (*reeval-pts*))))
+  (sample-points prepared precondition (+ (*num-points*) (*reeval-pts*))))
 
-(define (get-taylor-zero-cover prepared)
-  (compute-taylor-zero-cover (prepared-test-spec prepared) (prepared-test-pre prepared) (*context*)))
+(define (get-taylor-covers prepared)
+  (compute-taylor-covers (prepared-test-spec prepared) (prepared-test-pre prepared) (*context*)))
 
-(define (get-search-sample prepared cover)
+(define (get-search-sample prepared precondition)
   (define rng-state (pseudo-random-generator->vector (current-pseudo-random-generator)))
   (define old-warnings (set-copy (warnings)))
   (define old-warning-log (warning-log))
@@ -176,9 +176,7 @@
                      (warnings old-warnings)
                      (warning-log old-warning-log)
                      #f)])
-    (sample-points/count prepared
-                         (taylor-zero-precondition (prepared-test-pre prepared) cover)
-                         (*num-points*))))
+    (sample-points prepared precondition (*num-points*))))
 
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility
@@ -230,7 +228,7 @@
           (match command
             ['alternatives
              (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-             (get-alternatives test train-pcontext test-pcontext #f)]
+             (get-alternatives test train-pcontext test-pcontext '())]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['explanations (get-explanations test pcontext)]
@@ -240,11 +238,17 @@
              (define report-pcontext (sample-test-points prepared (prepared-test-pre prepared)))
              (define-values (report-train-pcontext report-test-pcontext)
                (partition-pcontext report-pcontext))
-             (define cover (get-taylor-zero-cover prepared))
-             (define search-train-pcontext (and cover (get-search-sample prepared cover)))
-             (define active-cover (and search-train-pcontext cover))
-             (define train-pcontext (or search-train-pcontext report-train-pcontext))
-             (get-alternatives test train-pcontext report-test-pcontext active-cover)]
+             (define covers (get-taylor-covers prepared))
+             (define search-precondition
+               (taylor-covers-precondition (prepared-test-pre prepared) covers))
+             (define search-train-pcontext
+               (and (pair? covers) (get-search-sample prepared search-precondition)))
+             (get-alternatives test
+                               (or search-train-pcontext report-train-pcontext)
+                               report-test-pcontext
+                               (if search-train-pcontext
+                                   covers
+                                   '()))]
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (raise-arguments-error 'compute-result "unknown command" "command" command)]))

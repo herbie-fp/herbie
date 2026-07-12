@@ -12,6 +12,7 @@
          approximate
          make-taylor-term-generator
          taylor-coefficients
+         taylor-transforms
          reduce
          add)
 
@@ -23,6 +24,17 @@
 
 (define (adder x)
   ((add) x))
+
+(define (invert-x x)
+  `(/ 1 ,x))
+
+(define (negate-invert-x x)
+  `(/ 1 (neg ,x)))
+
+(define taylor-transforms
+  (list (list 0 identity identity)
+        (list 'inf invert-x invert-x)
+        (list '-inf negate-invert-x negate-invert-x)))
 
 (define (taylor-coefficients batch brfs vars transforms-to-try)
   (define expander (expand-taylor! batch))
