@@ -11,6 +11,10 @@
     .showcase.side-by-side { display: flex; gap: 1em; }
     .showcase.side-by-side :nth-child(1) { width: 60%; }
     .showcase.side-by-side :nth-child(2) { flex-grow: 1; hyphens: auto; }
+    #team {
+        display: block; box-sizing: border-box; width: 100%;
+        border-radius: 2em; border: 3px solid black;
+    }
   </style>
 </head>
 <body>
@@ -27,9 +31,8 @@
   </header>
 
   <p>The <a href="../..">Herbie</a> developers are excited to announce
-  Herbie 2.3! This release makes Herbie simplifies the core while
-  improving result quality, improves scalability to large expressions,
-  and continues to refine the retargetable platforms feature.</p>
+  Herbie 2.3! This release simplifies Herbie's core, improves performance
+  on large expressions, and introduces new backends, including Rival 3.</p>
 
   <p><b>What is Herbie?</b> Herbie compiles mathematical expressions
   to fast and accurate floating point programs, avoiding the bugs,
@@ -41,14 +44,14 @@
   <p>Taylor expansion has also been substantially reworked. Herbie can now
   recognize and construct more useful series, including expansions involving
   binary inputs, odd powers, fractional powers, and functions such as
-  <code>fabs</code>. It does a better job both caching duplicate work
-  and skipping unnecessary work. We also added extensive observability
+  <code>fabs</code>. It is better at both caching duplicate work and
+  skipping unnecessary work. We also added extensive observability
   tooling to the Taylor series pass, giving us the confidence to
-  significantly reduce tuning parameters. Taylor series runtime is
+  significantly reduce tuning parameters. Taylor-series runtime is
   thus dramatically reduced.</p>
 
   <p>Several aspects of the Herbie "main loop" were redesigned. Most
-  significantly, the "alt picking" system was entirely removed/ This
+  significantly, the "alt picking" system was entirely removed. This
   moderately increases runtime but also produces better-quality
   results and removes a hard-to-tune hyperparameter from Herbie,
   making the compilation pipeline easier to understand.</p>
@@ -59,8 +62,8 @@
   Reconstruction also now incorporates observable equivalence
   reasoning, allowing Herbie to quickly discard identical candidate
   programs. As a result, Herbie can search through significantly more
-  candidate programs, finding higher-quality results, without it
-  taking more time.</p>
+  candidate programs, finding higher-quality results, without taking
+  more time.</p>
 
   <h2>Faster and More Scalable</h2>
 
@@ -71,8 +74,8 @@
 %3 = (* %2 %2)
 %4 = (- %3 %1)</pre>
     <figcaption>
-      Herbie's "batch" datastructure stores an SSA-style sequence of
-      instructions. It can represent one <em>or multiple</em>
+      Herbie's "batch" data structure stores an SSA-style sequence of
+      instructions. It can represent one <em>or more</em>
       programs, and those programs can share common subexpressions
       among them. Rewrites, analyses, and other operations on batches
       are cached, which is especially valuable when thousands of
@@ -81,7 +84,7 @@
   </figure>
 
   <p><a href="../2.2/release-notes.html">Herbie 2.2</a> introduced the
-  "batch" datastructure to store multiple candidate programs with
+  "batch" data structure to store multiple candidate programs with
   shared subexpressions, and Herbie 2.3 extended that representation
   to all of Herbie's internal subsystems, including evaluation,
   rewriting, pruning, compilation, and report generation. Besides
@@ -104,12 +107,11 @@
   supported. New platforms for Python and Julia have been added.</p>
 
   <p>Herbie 2.3 includes beta support for array-valued expressions.
-  Support is still spotty, but arrays allow Herbie to reason about
-  compound operations (like <code>sincos</code>) and to model new
-  hardware (like matrix accelerators). This opens the door to using
-  Herbie for a broader class of numerical code, including small
-  vector-like computations. That said, arrays are still experimental,
-  with limited usability in the default platforms.</p>
+  Support is still spotty, but arrays set the foundation for Herbie to
+  reason about compound operations (like <code>sincos</code>) and model
+  new hardware (like matrix accelerators) down the line. That said,
+  arrays are still experimental, with limited usability in the default
+  platforms.</p>
 
   <p>Herbie's real arithmetic engine, Rival, was
   <a href="https://crates.io/crates/rival3">ported to Rust</a>. This
@@ -120,13 +122,13 @@
 
   <p>Herbie's <a href="https://github.com/egraphs-good/egglog">egglog</a>
   rewriting backend received significant attention. Egglog is a
-  successor <a href="https://github.com/egraphs-good/egg">egg</a>,
+  successor to <a href="https://github.com/egraphs-good/egg">egg</a>,
   Herbie's default rewrite engine, incorporating a variety of advanced
   features like typed expressions and multiple analyses. The egglog
   backend now produces better results than the default egg backend,
   but is still significantly slower. We are working with the egglog
   developers to improve egglog's performance and hope to switch to it
-  as the default once tha twork is complete.</p>
+  as the default once that work is complete.</p>
 
   <h2>Internal Changes and Improvements</h2>
   
@@ -137,10 +139,10 @@
       filters are applied. Report pages are now smaller on disk.</li>
     <li>Report code has also been substantially simplified, including
       dropping a dependency on Math.js and loading all other
-      dependencies from <a href="https://unpkg.com/">unpkg</a>. This
+      dependencies from <a href="https://www.jsdelivr.com/">jsDelivr</a>. This
       reduces loading time.</li>
     <li>Garbage collection now gets a dedicated section in Herbie's
-      observability tooling, better attributing time spent, and is
+      observability tooling, which better attributes time spent, and is
       also shown in the traces that Herbie can dump. This allowed us
       to debug dozens of over-allocating loops, substantially reducing
       Herbie's memory usage and garbage collection time.</li>
@@ -157,14 +159,14 @@
   agents. Some uses are especially transformative. For example, we
   used coding agents to track down unnecessary allocations and
   optimize hot procedures. This work is time-consuming but rote, and
-  the resulting patches easy to review. Porting was another valuable
+  the resulting patches are easy to review. Porting was another valuable
   use case: the port of Rival to Rust, or on a smaller scale the
   porting of Herbie's Pareto combination code to JavaScript, was made
   much easier by coding agents.</p>
 
   <p>Many capable students graduated last summer, so the Herbie 2.3
   team was on the smaller side. Yet this is one of the bigger
-  releases! It's not clear, that this rate of development will
+  releases! It's not clear that this rate of development will
   continue; we have picked much of the low-hanging fruit. But we are
   excited to see agents improve and, in turn, improve Herbie.</p>
 
