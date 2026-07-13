@@ -49,7 +49,9 @@
       common benchmarks. Garbage collection time drops dramatically,
       from 18.78 to 11.68 minutes, and most other phases get somewhat
       faster. The new <code>reconstruct</code> phase, light blue,
-      handles Herbie 2.3's much larger search space.
+      handles Herbie 2.3's much larger search space. That larger
+      search space results in programs roughly 9% better&mdash;faster
+      or higher accuracy&mdash;than Herbie 2.2.
     </figcaption>
   </figure>
 
@@ -79,9 +81,14 @@
   <h2>Faster and More Scalable</h2>
 
   <figure class="showcase side-by-side">
-    <pre></pre>
+    <img width="100%" src="regime-dominators.svg"
+      alt="SSA expression graph and Lengauer-Tarjan dominator tree for exp(a*x) - 1; a*x dominates both a and x." />
     <figcaption>
-      
+      Herbie's internal representation of <code>exp(a*x) - 1</code>.
+      Next to it, the Lengauer-Tarjan dominator tree used by regime
+      inference in Herbie 2.3, which identifies <code>%2</code>, or
+      <code>a*x</code>, as a branch expression containing all uses of
+      the <code>a</code> and <code>x</code> variables.
     </figcaption>
   </figure>
 
@@ -93,8 +100,8 @@
   are cached, so Herbie can now reuse duplicate computations across
   similar programs.</p>
 
-  <p>Other subsystems leveraged this change to introduce new,
-  including Lengauer-Tarjan for branch expressions and a more complex
+  <p>Other subsystems leveraged this change to introduce new algorithms,
+    including Lengauer-Tarjan for branch expressions and a more complex
   dynamic program for regime inference that replaces multiple calls
   with a single exact solve. These algorithms are not only faster but
   have superior asymptotics, which helps Herbie scale.</p>
