@@ -160,7 +160,7 @@
           ((representation-special-value? repr) input)))
 
       (cond
-        [(and (equal? status 'valid) (not is-bad?))
+        [(and (list? exs) (not is-bad?))
          (define assembled-exs (assemble-output exs))
          (define assembled-pt (assemble-point pt))
          (define next-exactss (map cons assembled-exs exactss))
