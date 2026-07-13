@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Herbie 2.2 Release Notes</title>
+  <title>Herbie 2.3 Release Notes</title>
   <link rel='stylesheet' type='text/css' href="../../main.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -11,15 +11,11 @@
     .showcase.side-by-side { display: flex; gap: 1em; }
     .showcase.side-by-side :nth-child(1) { width: 60%; }
     .showcase.side-by-side :nth-child(2) { flex-grow: 1; hyphens: auto; }
-    #team {
-        display: block; box-sizing: border-box; width: 100%;
-        border-radius: 2em; border: 3px solid black;
-    }
   </style>
 </head>
 <body>
   <header>
-    <h1>Herbie 2.2 Release Notes</h1>
+    <h1>Herbie 2.3 Release Notes</h1>
     <a href="../.."><img class="logo" src="../../logo-car.png" /></a>
     <nav>
       <ul>
@@ -31,236 +27,135 @@
   </header>
 
   <p>The <a href="../..">Herbie</a> developers are excited to announce
-  Herbie 2.2! This release focuses extensible compilation targets
-  using <i>platforms</i>.</p>
+  Herbie 2.3! This release makes Herbie faster and more scalable, while
+  continuing the move toward a numerical compiler that can target many
+  different platforms.</p>
 
   <p><b>What is Herbie?</b> Herbie compiles mathematical expressions
   to fast and accurate floating point programs, avoiding the bugs,
   errors, and surprises of floating point arithmetic.
   Visit <a href="../..">the main page</a> to learn more.</p>
-  
-  <!--<img src="team.png" id="team" alt="The Herbie 2.2 team at UW and U of U" />-->
 
-  <h2>Releasing the Platforms API</h2>
-
-  <figure class="showcase">
-    <pre>(define-operation (cosd [x &lt;binary64&gt;]) &lt;binary64&gt;
-          #:spec (cos (* x (/ (PI) 180)))
-          #:impl (from-rival)
-          #:cost 12.5)</pre>
-
-    <figcaption>
-      Herbie 2.2's <a href="platforms.html">platforms</a> allow you to
-      define custom compilation targets, including novel hardware
-      (CPUs, GPUs, FPGAs, TPUs), programming languages (Julia, Matlab,
-      Fortran), or software libraries (Numpy, Eigen, cuBLAS).
-      Platforms can define new number formats, new floating-point
-      operations on those formats, and new cost models for those
-      operations. Herbie will automatically optimize its results for
-      your platform.
-    </figcaption>
-  </figure>
-
-  <p>
-  Last year, <a href="../2.1/release-notes.html">Herbie 2.1</a>
-  included the beginnings of <i>platforms</i>, Herbie's API for
-  multiple backends. We've simplified and improved this API, and are
-  now ready to release it.</p>
-  
-  <p>In short, platforms allow you define the functions Herbie is
-  allowed to use when compiling floating-point programs. A platform
-  can expose Python's <code>fsum</code>, Julia's <code>cosd</code>, or
-  AVX's <code>rcpps</code> to Herbie, which can then use those
-  functions to produce even faster and more accurate output.
-  Our <a href="../papers.html">recent publications</a> demonstrate
-  dramatic accuracy and performance improvements using platforms.</p>
-
-  <p>Platforms are a large change, and we invite users to try it out.
-  The <a href="platforms.html">platforms documentation</a> explains
-  how to select different built-in platforms, or even how to write
-  your own.</p>
-  
-  <p>Besides the new feature, platforms allow us to deprecate a
-  variety of now-superseded features:</p>
-
-  <ul>
-    <li>The default platform now uses a realistic, auto-tuned cost
-    model which should lead to faster code in practice.</li>
-
-    <li>The Herbie 2.0 and 2.1 cost models are replaced by
-    the <code>herbie20</code> platform.</li>
-
-    <li>The <code>--no-pareto</code> flag is replaced by
-    the <code>herbie10</code> platform.</li>
-
-    <li>Plugins are now replaced by ordinary Racket libraries imported
-    directly by plugins.</li>
-    
-    <li>Preprocessing is now replaced by standard platform-provided
-    functions such
-    as <code>fmin</code>, <code>fmax</code>, <code>fabs</code>,
-    and <code>copysign</code>.</li>
-  </ul>
-
-  <h2>Restructuring the Main Loop</h2>
-  
-  <figure class="showcase">
-    <img src="system-2.2.png"
-         alt="The new Herbie main loop.
-              The simplify step and patch table have been removed,
-              while the compute phase has been added.">
-    <figcaption>
-      The Herbie main loop is dramatically simplified, with no
-      separate simplify or localize phase and a new compute phase that
-      aid with hard-to-compute constants.
-    </figcaption>
-  </figure>
-
-  <p>We've overhauled the Herbie main loop, which is the high-level
-  algorithm that invokes different Herbie sub-systems to generate and
-  filter different candidate programs. This overhaul both introduces
-  new systems, which should make Herbie more capable, and reduce
-  duplicative work, dramatically speeding up Herbie. Specifically:</p>
-
-  <ul>
-    <li>A new compute phase was added, which replaces variable-free
-      subexpressions with constants. The constants are computed using
-      high-precision arithmetic and are guaranteed to be exact.</li>
-    <li>The simplification phase was removed. This phase mostly
-      duplicated work already done by the rewrite phase, so removing it
-      had very little impact on performance and accuracy of generated
-      code, but reduced Herbie runtime significantly.</li>
-    <li>The localize phase was also removed. This phase existed to
-      reduce duplicate work in other phases; batches deduplicate the
-      work automatically so localize is no longer needed. Removing this
-      phase also significantly sped up Herbie.</li>
-    <li>Minor phases like initial and final simplify were removed as
-      well. Most importantly, this allowed replacing the existing,
-      complex "accelerator" API (never fully released) and replace it
-      with the much simpler "platform" API.</li>
-    <li>Herbie more correctly tracks Taylor approximations inside
-      Herbie, and will now avoid making "approximations to
-      approximations" leading to runaway error in rare cases.</li>
-  </ul>
-      
-
-  <h2>Flattening Expressions to Batches</h2>
+  <h2>Faster and More Scalable</h2>
 
   <figure class="showcase side-by-side">
     <pre>%0 = x
 %1 = (literal 1)
 %2 = (+ %0 %1)
 %3 = (* %2 %2)
-%4 = (- %3 %1)
-%5 = (neg %2)
-%6 = (* %5 %5)
-%7 = (- %6 %1))</pre>
+%4 = (- %3 %1)</pre>
     <figcaption>
-      An example of a batch, containing two expressions (and their
-      subexpressions): <code>(x + 1)<sup>2</sup> - 1</code>
-      and <code>(-(x + 1))<sup>2</sup> - 1</code>. Shared
-      subexpressions are only represented once in the batch, and are
-      only processed once by Herbie.
+      Herbie's batch representation stores shared subexpressions once and
+      refers to them by index. This lets several parts of the optimizer work
+      on the same data without repeatedly converting whole expression trees.
     </figcaption>
   </figure>
 
-  <p>We have also changed Herbie's main data structure for
-  representing programs. Until now, Herbie represented programs via
-  their abstract syntax tree. While simple and effective, this
-  representation lead to processing identical subexpressions
-  repeatedly. This was especially problematic for larger programs,
-  which can sometimes have the same subexpression appear exponentially
-  many times.</p>
+  <p>Herbie 2.3 continues the work started in
+  <a href="../2.2/release-notes.html">Herbie 2.2</a> to simplify and speed
+  up its core. Candidate programs are now processed more consistently in a
+  compact <i>batch</i> representation, rather than as separate syntax trees.
+  Batches share subexpressions and can be reused by evaluation, rewriting,
+  pruning, compilation, and report generation.</p>
 
-  <p>The batch data structure instead uses a flat array with
-  back-references to represent programs, which means that duplicate
-  subexpressions appear and are processed just once. This lead to
-  significant speedups throughout Herbie:</p>
+  <p>This change is especially helpful for large expressions and for phases
+  that consider many alternatives. The compiler, Taylor-series code, and
+  e-graph interfaces now make much broader use of batches, reducing copying
+  and repeated work. Herbie also does a better job of grouping related
+  alternatives and reusing intermediate results.</p>
 
-  <ul>
-    <li>Batches automatically deduplicates identical candidate
-      programs, which occur when multiple Herbie phases produce the
-      same output. There were a lot more of these than we thought; in
-      some cases as much as 25&times; deduplication occurs.</li>
-    <li>The series phase, now uses batches internally, allowing Herbie
-      to consider many more series expansions.</li>
-    <li>Herbie's FFI layer for interacting with
-      the <a href="https://egraphs-good.github.io/">egg</a> library now
-      leverages batches to reduce time spent copying data in and out of
-      egg.</li>
-    <li> In some cases, one batch is shared across multiple phases
-      (like evaluation and pruning), reducing duplication even
-      further.</li>
-    <li>The derivations phase was dramatically sped up by caching
-      proof objects across multiple candidate programs. Additionally,
-      a debugging pass called "soundiness" was removed entirely, since
-      the problems it was built to debug no longer occur. Thanks to
-      both changes, derivations take almost no time at all any
-      more.</li>
-  </ul>
+  <p>Regime inference and reconstruction received substantial algorithmic
+  improvements as well. These changes reduce memory use and make difficult
+  expressions more practical, while keeping the generated programs and
+  their accuracy tradeoffs intact. Batch processing is also better integrated
+  with shell and web batch modes, including multi-threaded runs.</p>
 
-  <h2>Sister Projects</h2>
-  
-  <p>
-    The <a href="https://github.com/herbie-fp/odyssey">Odyssey
-      numerics workbench</a> is releasing version 1.2 today, featuring
-      a new "local error" component and various design tweaks and
-      improvements. Odyssey can be tried from
-      its <a href="https://herbie-fp.github.io/odyssey/">online
-      demo</a> or installed locally from
-      the <a href="https://marketplace.visualstudio.com/items?itemName=herbie-fp.odyssey-fp">VS
-      Code Marketplace</a>.
-  </p>
-  
-  <p>
-    The <a href="https://github.com/herbie-fp/rival">Rival
-    real-arithmetic package</a> is releasing version 2.2 today,
-    including various tweaks, optimizations, and improvements. Most
-    significantly, a new "hints" feature significantly speeds up
-    sampling expressions that
-    use <code>fmin</code>, <code>fmax</code>, and <code>if</code>.
-  </p>
+  <h2>Improved Numerical Search</h2>
 
-  <h2>Other improvements</h2>
+  <p>Herbie 2.3 uses <a href="https://docs.racket-lang.org/rival/">Rival 3</a>
+  as its default real-arithmetic engine. Rival 3 improves the evaluation and
+  compilation path used while Herbie samples expressions, with the largest
+  benefits on complicated expressions and nonstandard representations.</p>
 
-  <ul>
-    <li>Herbie now offers a basic <a href="api-endpoints.html">HTTP
-        API</a>, including both synchronous and asynchronous jobs and
-      access to various internal Herbie features. This HTTP API is a
-      work in progress and is primarily built to support Odyssey.
-      However, our work on the API has also enabled the
-      standard <a href="using-web.html">Herbie web interface</a> to
-      support <a href="options.html">threads</a>, which should make
-      Herbie faster in a lot of common use cases.</li>
-    <li>Small quality-of-life changes have been made to the Herbie
-      reports, including hiding duplicate alternatives, updating
-      various dependencies, and generating the reports more
-      quickly.</li>
-    <li>Optional, off-by-default support for
-      the <a href="https://github.com/egraphs-good/egglog">egglog</a>
-      rewriting engine has been added. We are excited about growth and
-      competition among rewrite engines and hope to continue driving
-      forward this research area.</li>
-    <li>Fixing a variety of small bugs, such as nondeterminism due to
-      an incorrect type signature for <code>fma</code> and new rewrite
-      rules to unlock more accurate results.</li>
-    <li>Many general-purpose cleanups, including removing a lot of
-      now-unnecessary nightly infrastructure, adoption of a new
-      formatting guideline, reorganization of the source code, and new
-      debug infrastructure.</li>
-  </ul>
+  <p>Taylor expansion has also been substantially reworked. Herbie can now
+  recognize and construct more useful series, including expansions involving
+  binary inputs, odd powers, fractional powers, and functions such as
+  <code>fabs</code>. It more carefully tracks which approximations survive the
+  search, reducing unhelpful or redundant expansions.</p>
+
+  <p>Preprocessing is now more closely integrated with the main batch-based
+  search. Platform-provided operations can participate in preprocessing and
+  in the specification and implementation sides of a candidate, giving
+  Herbie more opportunities to use operations that are actually available on
+  the selected target.</p>
+
+  <p>Finally, Herbie's search is more reproducible. Alternative ordering and
+  several sources of accidental nondeterminism were cleaned up, so repeated
+  runs with the same seed are more likely to produce the same reports and
+  output.</p>
+
+  <h2>Early Support for Arrays</h2>
+
+  <p>Herbie 2.3 includes beta support for array-valued expressions. Herbie can
+  represent arrays, reason about basic array operations, and compile some
+  array programs through supported platforms. This opens the door to using
+  Herbie for a broader class of numerical code, including small vector-like
+  computations.</p>
+
+  <p>Arrays are still experimental. Support varies by operation and platform,
+  and some parts of the optimizer and report pipeline remain incomplete. We
+  invite users to try the feature, but recommend treating it as a preview
+  rather than as a stable interface.</p>
+
+  <h2>More Capable Platforms and Backends</h2>
+
+  <p>Herbie 2.2 introduced the public
+  <a href="platforms.html">platforms API</a>. Herbie 2.3 expands that API
+  and makes it more useful in real applications. A platform can define its
+  own representations, operations, implementations, and costs, and can
+  provide implementations from an external language or library. Platform
+  state is preserved when work is sent to Herbie's workers, so custom
+  platforms behave more consistently in threaded and batch runs.</p>
+
+  <p>More built-in targets and platform functions are available, including
+  support for additional language and library conventions. The platform
+  documentation now explains how to load external functions, add operations,
+  and use a platform to describe a custom compilation target.</p>
+
+  <p>Herbie also includes a much more capable experimental backend based on
+  <a href="https://github.com/egraphs-good/egglog">egglog</a>. The backend
+  can work with the same batch and platform information as the main search and
+  has improved scheduling, extraction, and handling of target-specific
+  representations. Egglog remains off by default while we continue to test it
+  and compare it with Herbie's standard e-graph backend.</p>
+
+  <h2>Better Reports and Tooling</h2>
+
+  <p>Reports have been updated to handle the larger and more varied searches
+  produced by Herbie 2.3. Pareto comparisons are computed and cached more
+  efficiently, making report pages substantially more responsive on large
+  result sets. The report frontend no longer depends on Math.js, reducing the
+  amount of JavaScript it needs to load.</p>
+
+  <p>Reports also contain more complete alternative data and clearer timeline
+  information for batches, Taylor expansions, garbage collection, and other
+  expensive phases. These additions make it easier to understand both the
+  quality of Herbie's output and the time and memory spent producing it.</p>
+
+  <p>Along the way, we fixed many smaller issues in the web interface, HTTP
+  API, platform loading, output generation, and cross-platform installation.
+  The <a href="options.html">options documentation</a> describes the current
+  defaults, including the new preprocessing controls and the experimental
+  debugging options.</p>
 
   <h2>Try it out!</h2>
 
-  <p>
-    We want Herbie to be more useful to scientists, engineers, and
-    programmers around the world. We've got a lot of features we're
-    excited to work on in the coming months. Please
-    <a href="https://github.com/herbie-fp/herbie/issues">report bugs</a>
-    or <a href="https://github.com/herbie-fp/herbie">contribute</a>.
-  </p>
+  <p>We want Herbie to be more useful to scientists, engineers, and
+  programmers around the world. Please
+  <a href="https://github.com/herbie-fp/herbie/issues">report bugs</a> or
+  <a href="https://github.com/herbie-fp/herbie">contribute</a>.</p>
   <br>
   <p style="font-weight: bold; text-align: center;">If you find Herbie
-  useful, <a href="mailto:herbie@cs.washington.edu">let us know!</p>
+  useful, <a href="mailto:herbie@cs.washington.edu">let us know!</a></p>
 </body>
 </html>
