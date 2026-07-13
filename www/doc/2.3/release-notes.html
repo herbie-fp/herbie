@@ -41,6 +41,24 @@
 
   <h2>Improving the Core</h2>
 
+  <figure class="showcase side-by-side">
+    <pre>(sin (fabs x))
+
+Taylor series around x = 0:
+
+fabs(x) * (1
+  - fabs(x)^2 / 6
+  + fabs(x)^4 / 120
+  - fabs(x)^6 / 5040
+  + ...)</pre>
+    <figcaption>
+      Herbie's Taylor engine factors out <code>fabs(x)</code> and expands
+      the remaining terms as a series in <code>fabs(x)^2</code>. This
+      representation handles the nondifferentiability of <code>fabs</code>
+      at zero while still exposing the useful series structure.
+    </figcaption>
+  </figure>
+
   <p>Taylor expansion has also been substantially reworked. Herbie can now
   recognize and construct more useful series, including expansions involving
   binary inputs, odd powers, fractional powers, and functions such as
@@ -67,19 +85,15 @@
 
   <h2>Faster and More Scalable</h2>
 
-  <figure class="showcase side-by-side">
-    <pre>%0 = x
-%1 = (literal 1)
-%2 = (+ %0 %1)
-%3 = (* %2 %2)
-%4 = (- %3 %1)</pre>
+  <figure class="showcase">
+    <img width="100%" src="timeline-phase-comparison.svg"
+      alt="Aggregate Herbie timeline phases for versions 2.2 and 2.3 across 563 common benchmarks." />
     <figcaption>
-      Herbie's "batch" data structure stores an SSA-style sequence of
-      instructions. It can represent one <em>or more</em>
-      programs, and those programs can share common subexpressions
-      among them. Rewrites, analyses, and other operations on batches
-      are cached, which is especially valuable when thousands of
-      programs reuse a small number of common instructions.
+      Across 563 common benchmarks, total time drops from 44.4 to 41.1
+      minutes. Garbage collection time drops dramatically, from 18.78 to
+      11.68 minutes, and most existing phases improve even as Herbie adds
+      a substantial new <code>reconstruct</code> phase that reflects the
+      much larger search space it can now explore.
     </figcaption>
   </figure>
 
@@ -98,6 +112,19 @@
   inference.</p>
 
   <h2>More Capable Platforms and Backends</h2>
+
+  <figure class="showcase">
+    <pre>%0 = x
+%1 = (sincos %0)       ; [sin(x), cos(x)]
+%2 = (ref %1 0)        ; sin(x)
+%3 = (ref %1 1)        ; cos(x)
+%4 = (+ %2 %3)</pre>
+    <figcaption>
+      A platform-specific <code>sincos</code> operation can provide both
+      sine and cosine to later computations. The faux-SSA form makes the
+      shared intermediate value explicit.
+    </figcaption>
+  </figure>
 
   <p>Herbie's <a href="platforms.html">platforms API</a> allows Herbie
   to tailor its results for a specific language and hardware platform.
