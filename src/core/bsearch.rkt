@@ -38,8 +38,8 @@
       (define lit-brf
         (batch-add! batch
                     (literal (repr->real (sp-point splitpoint) repr) (representation-name repr))))
-      (define cmp-brf (batch-add! batch `(,<=-impl ,(sp-bexpr splitpoint) ,lit-brf)))
-      (batch-add! batch `(,if-impl ,cmp-brf ,(alt-expr (list-ref alts (sp-cidx splitpoint))) ,brf))))
+      (define cmp-brf (batch-add! batch (list <=-impl (sp-bexpr splitpoint) lit-brf)))
+      (batch-add! batch (list if-impl cmp-brf (alt-expr (list-ref alts (sp-cidx splitpoint))) brf))))
 
   ;; We don't want unused alts in our history!
   (define-values (alts* splitpoints**) (remove-unused-alts alts splitpoints*))
