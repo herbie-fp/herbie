@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="680" height="300" viewBox="0 0 680 300" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="356" height="248" viewBox="42 20 356 248" role="img" aria-labelledby="title desc">
   <title id="title">SSA expression and Lengauer-Tarjan dominator tree</title>
   <desc id="desc">The expression exp(a times x) minus 1 is written as top-down SSA. The dominator tree on the left points from values toward their common dominators; the value %2 dominates %0 and %1.</desc>
   <style>

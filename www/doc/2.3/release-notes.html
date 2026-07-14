@@ -8,8 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     .showcase { margin: 1em 0; }
-    .showcase.side-by-side { display: flex; gap: 1em; }
-    .showcase.side-by-side :nth-child(1) { width: 60%; }
+    .showcase.side-by-side :nth-child(1) { width: 200%; }
     .showcase.side-by-side :nth-child(2) { flex-grow: 1; hyphens: auto; }
     #team {
         display: block; box-sizing: border-box; width: 100%;
@@ -45,13 +44,13 @@
     <img width="100%" src="timeline-phase-comparison.svg"
       alt="Aggregate Herbie timeline phases for versions 2.2 and 2.3 across 563 common benchmarks." />
     <figcaption>
-      Herbie 2.3 is roughly 7% faster than Herbie 2.2 across 563
-      common benchmarks. Garbage collection time drops dramatically,
-      from 18.78 to 11.68 minutes, and most other phases get somewhat
-      faster. The new <code>reconstruct</code> phase, light blue,
-      handles Herbie 2.3's much larger search space. That larger
-      search space results in programs roughly 9% better&mdash;faster
-      or higher accuracy&mdash;than Herbie 2.2.
+      Herbie 2.3 is roughly 7% faster than Herbie 2.2. Garbage
+      collection time drops dramatically, from 18.78 to 11.68 minutes,
+      and most other phases get somewhat faster. The
+      new <code>reconstruct</code> phase, light blue, handles Herbie
+      2.3's much larger search space. That larger search space results
+      in programs roughly 9% better&mdash;faster or higher
+      accuracy&mdash;than Herbie 2.2.
     </figcaption>
   </figure>
 
@@ -92,27 +91,32 @@
     </figcaption>
   </figure>
 
-  <p><a href="../2.2/release-notes.html">Herbie 2.2</a> introduced the
-  "batch" data structure that shares subexpressions across related
-  programs, and Herbie 2.3 made it the common representation for all
-  of Herbie's internal subsystems, including evaluation, rewriting,
-  pruning, compilation, and report generation. Operations on batches
-  are cached, so Herbie can now reuse duplicate computations across
-  similar programs.</p>
+  <p><a href="../2.2/release-notes.html">Herbie 2.2</a> introduced a
+  SSA-like "batch" data structure to share subexpressions across
+  multiple candidate programs. Herbie 2.3 makes it the common
+  representation for all of Herbie's internal subsystems, including
+  evaluation, rewriting, pruning, compilation, and report generation.
+  Operations on batches are cached, so Herbie now reuses computations
+  across candidate programs instead of duplicating them.</p>
 
-  <p>Other subsystems leveraged this change to introduce new algorithms,
-    including Lengauer-Tarjan for branch expressions and a more complex
-  dynamic program for regime inference that replaces multiple calls
-  with a single exact solve. These algorithms are not only faster but
-  have superior asymptotics, which helps Herbie scale.</p>
+  <p>Other subsystems leveraged this change to introduce new and
+  faster algorithms, including Lengauer-Tarjan for branch expressions
+  and a more complex dynamic program for regime inference that
+  replaces multiple calls with a single exact solver. These algorithms
+  are not only faster but have superior asymptotics.</p>
+
+  <p>As part of this emphasis on scalability, we've added over a
+  hundred new benchmarks drawn from larger programs, and are looking
+  to add more as Herbie continues to improve. We're excited about
+  applying Herbie to full scientific formulas and kernels.</p>
 
   <h2>More Capable Platforms and Backends</h2>
 
   <figure class="showcase">
     <pre>%0 = x
-%1 = (sincos %0)       ; [sin(x), cos(x)]
-%2 = (ref %1 0)        ; sin(x)
-%3 = (ref %1 1)        ; cos(x)
+%1 = (sincos %0)       ; => [sin(x), cos(x)]
+%2 = (ref %1 0)        ; => sin(x)
+%3 = (ref %1 1)        ; => cos(x)
 %4 = (+ %2 %3)</pre>
     <figcaption>
       Herbie's new arrays feature can model the <code>sincos</code>
@@ -123,31 +127,24 @@
     </figcaption>
   </figure>
 
-  <p>Herbie's <a href="platforms.html">platforms API</a> allows Herbie
-  to tailor its results for a specific language and hardware platform.
-  Herbie 2.3 expands that API, allowing platforms to define new
-  representations and to load operator implementations from external
-  libraries. Helper functions now use the platform API, so are better
-  supported. New platforms for Python and Julia have been added.</p>
+  <p>Herbie 2.3 includes initial support for array-valued expressions.
+  This is the foundation for reasoning about compound operations
+  (like <code>sincos</code>) and new hardware (like vector and matrix
+  accelerators). That said, arrays are still experimental, with usage
+  the default platforms limited to just the <code>sincos</code>
+  operation. We plan to expand that usage in later releases.</p>
 
-  <p>Herbie 2.3 includes beta support for array-valued expressions.
-  Support is still spotty, but arrays set the foundation for Herbie to
-  reason about compound operations (like <code>sincos</code>) and model
-  new hardware (like matrix accelerators) down the line. That said,
-  arrays are still experimental, with limited usability in the default
-  platforms.</p>
-
-  <p>Herbie's real arithmetic engine, Rival, was
-  <a href="https://crates.io/crates/rival3">ported to Rust</a>. This
-  makes it significantly faster, lifting one of the most challenging
-  bottlenecks in Herbie's compilation pipeline. Rival is, to our
-  knowledge, by far the fastest real arithmetic library, and we also
-  hope other projects make use of it.</p>
+  <p>We ported Rival, Herbie's real arithmetic engine,
+  <a href="https://crates.io/crates/rival3">to Rust</a>. Rival was
+  already, to our knowledge, by far the fastest real arithmetic
+  library, and the Rust version is significantly faster. Besides
+  lifting one of Herbie's most challenging performance bottlenecks, we
+  hope this Rust version is also useful to other projects.</p>
 
   <p>Herbie's <a href="https://github.com/egraphs-good/egglog">egglog</a>
   rewriting backend received significant attention. Egglog is a
   successor to <a href="https://github.com/egraphs-good/egg">egg</a>,
-  Herbie's default rewrite engine, incorporating a variety of advanced
+  Herbie's default rewriting backend, and incorporates advanced
   features like typed expressions and multiple analyses. The egglog
   backend now produces better results than the default egg backend,
   but is still significantly slower. We are working with the egglog
@@ -155,44 +152,45 @@
   as the default once that work is complete.</p>
 
   <h2>Internal Changes and Improvements</h2>
-  
+
   <ul>
-    <li>Herbie was made reproducible by sorting hash-dependent
-      sequences.</li>
-    <li>Report pages now dynamically recompute Pareto curves as
-      filters are applied. Report pages are now smaller on disk.</li>
-    <li>Report code has also been substantially simplified, including
-      dropping a dependency on Math.js and loading all other
-      dependencies from <a href="https://www.jsdelivr.com/">jsDelivr</a>. This
-      reduces loading time.</li>
-    <li>Garbage collection now gets a dedicated section in Herbie's
-      observability tooling, which better attributes time spent, and is
-      also shown in the traces that Herbie can dump. This allowed us
-      to debug dozens of over-allocating loops, substantially reducing
-      Herbie's memory usage and garbage collection time.</li>
+    <li><a href="platforms.html">Platforms</a> can now load operator
+      implementations from external libraries.</li>
+    <li>Herbie now ships with platforms for Python and Julia.</li>
+    <li>Herbie sorts hash-dependent sequences to ensure reproducibility.</li>
+    <li>Report page plots are now dynamically recomputed as filters
+      are applied. Report pages data is now smaller on disk.</li>
+    <li>Report pages load dependencies
+      from <a href="https://www.jsdelivr.com/">jsDelivr</a>,
+      and no longer load Math.js, reducing loading time.</li>
+    <li>Garbage collection is now tracked in Herbie's observability
+      and tracing tools. This allowed us to debug dozens of
+      over-allocating loops, substantially reducing Herbie's memory
+      usage and garbage collection time.</li>
     <li>Taylor series now produce significantly richer observability
       information.</li>
     <li>Herbie's preprocessing system can now be disabled with
       flags.</li>
   </ul>
 
-  <h2>On Coding Agents</h2>
+  <h2>Thank You to Coding Agents</h2>
 
   <p>Finally, a note on the impact of coding agents on Herbie. The
   vast majority of new code in this release was written by coding
-  agents. Some uses are especially transformative. For example, we
+  agents, mostly Codex. Some uses were especially transformative. We
   used coding agents to track down unnecessary allocations and
   optimize hot procedures. This work is time-consuming but rote, and
-  the resulting patches are easy to review. Porting was another valuable
-  use case: the port of Rival to Rust, or on a smaller scale the
-  porting of Herbie's Pareto combination code to JavaScript, was made
-  much easier by coding agents.</p>
+  the resulting patches are easy to review. The port of Rival to Rust,
+  or on a smaller scale the porting of Herbie's Pareto combination
+  code to JavaScript, was also done partly by coding agents, though it
+  also required substantial human oversight.</p>
 
   <p>Many capable students graduated last summer, so the Herbie 2.3
   team was on the smaller side. Yet this is one of the bigger
-  releases! It's not clear that this rate of development will
-  continue; we have picked much of the low-hanging fruit. But we are
-  excited to see agents improve and, in turn, improve Herbie.</p>
+  releases, all thanks to coding agents! We don't think this rate of
+  development will continue; we have picked much of the low-hanging
+  fruit. But we are excited to see agents improve and, in turn,
+  improve Herbie.</p>
 
   <h2>Try it out!</h2>
 
