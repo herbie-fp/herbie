@@ -1,5 +1,9 @@
 ; -*- mode: scheme -*-
 
+(FPCore first-element ((v 2))
+ :name "First element from 2-element vector input"
+ (ref v 0))
+
 (FPCore vector-sum ((v 2))
  :name "Sum two-element vector"
  :pre (and (<= (fabs (ref v 0)) 1e150)
@@ -30,11 +34,7 @@
  (+ (* s (ref v 0))
     (* s (ref v 1))))
 
-(FPCore mat-vec-first-row ((v 2))
- :name "Apply fixed 2x2 matrix row to vector"
- :pre (and (<= (fabs (ref v 0)) 1e150)
-           (<= (fabs (ref v 1)) 1e150))
- (let* ([row0 (array 1.5 -0.75)]
-        [row1 (array -0.1 0.3)])
-   (+ (* (ref row0 0) (ref v 0))
-      (* (ref row0 1) (ref v 1)))))
+(FPCore identity-vector ((v 2))
+ :name "Return input vector"
+ :precision binary64
+ v)

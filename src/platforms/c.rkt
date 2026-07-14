@@ -120,12 +120,6 @@
 
 (define-representation <array32> #:cost (* 2 32bit-move-cost))
 
-(define-operation (array.f32 [x <binary32>] [y <binary32>]) <array32>
-  #:spec (array x y)
-  #:impl (lambda (a b) (vector a b))
-  #:fpcore (! :precision binary32 (array x y))
-  #:cost 0.25)
-
 (define-operation (sincos.f32 [x <binary32>]) <array32>
   #:spec (array (sin x) (cos x))
   #:impl sincosf-impl
@@ -226,12 +220,6 @@
   [trunc.f64  #:spec (trunc x)  #:impl (from-libm 'trunc)     #:cost 0.250])
 
 (define-representation <array64> #:cost (* 2 64bit-move-cost))
-
-(define-operation (array.f64 [x <binary64>] [y <binary64>]) <array64>
-  #:spec (array x y)
-  #:impl (lambda (a b) (vector a b))
-  #:fpcore (! :precision binary64 (array x y))
-  #:cost 0.25)
 
 (define-operation (sincos.f64 [x <binary64>]) <array64>
   #:spec (array (sin x) (cos x))
