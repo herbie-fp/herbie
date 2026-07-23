@@ -22,24 +22,27 @@
   (define (fresh base)
     (let loop ([i 0])
       (define candidate (string->symbol (format "~a_~a" base i)))
-      (if (set-member? taken candidate)
-          (loop (add1 i))
-          (begin
-            (set-add! taken candidate)
-            candidate))))
+      (cond
+        [(set-member? taken candidate) (loop (add1 i))]
+        [else
+         (set-add! taken candidate)
+         candidate])))
   (define (leaf-reprs repr)
     (if (array-representation? repr)
         (append* (for/list ([_ (in-range (array-representation-len repr))])
                    (leaf-reprs (array-representation-elem repr))))
         (list repr)))
   (define (fresh-tree base repr)
-    (if (array-representation? repr)
-        (let-values ([(elems vars reprs) (for/lists (elems vars reprs)
-                                                    ([_ (in-range (array-representation-len repr))])
-                                                    (fresh-tree base
-                                                                (array-representation-elem repr)))])
-          (values `(array ,@elems) (append* vars) (append* reprs)))
-        (let ([v (fresh base)]) (values v (list v) (list repr)))))
+    (cond
+      [(array-representation? repr)
+       (define-values (elems vars reprs)
+         (for/lists (elems vars reprs)
+                    ([_ (in-range (array-representation-len repr))])
+                    (fresh-tree base (array-representation-elem repr))))
+       (values `(array ,@elems) (append* vars) (append* reprs))]
+      [else
+       (define v (fresh base))
+       (values v (list v) (list repr))]))
   (define (flatten-by-repr expr repr)
     (if (array-representation? repr)
         (match-let ([`(array ,elems ...) expr])

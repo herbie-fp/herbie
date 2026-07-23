@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1030" height="250" viewBox="0 0 1030 250" role="img" aria-labelledby="title desc">
+  <title id="title">Herbie timeline phase totals: 2.2 versus 2.3</title>
+  <desc id="desc">Horizontal stacked bars compare aggregate phase minutes over 563 common benchmarks. The 2.2 bar totals 44.4 minutes and the 2.3 bar totals 41.1 minutes. GC is shown as its own phase in both bars.</desc>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #333; }
+    .bar-label { font-size: 16px; font-weight: 600; }
+    .total { font-size: 15px; fill: #555; }
+  </style>
+
+  <rect x="64" y="64" width="900" height="54" rx="4" fill="#f1f1f1"/>
+  <rect x="64" y="154" width="900" height="54" rx="4" fill="#f1f1f1"/>
+
+  <text x="24" y="96" class="bar-label">2.2</text>
+  <text x="24" y="186" class="bar-label">2.3</text>
+
+  <!-- 2.2: GC extracted from each phase before stacking. -->
+  <g aria-label="2.2 phase totals">
+    <rect x="64" y="64" width="375.62" height="54" fill="#888a85"><title>gc: 18.78 min</title></rect>
+    <rect x="439.62" y="64" width="197.47" height="54" fill="#edd400"><title>sample: 9.87 min</title></rect>
+    <rect x="637.08" y="64" width="91.99" height="54" fill="#4e9a06"><title>rewrite: 4.60 min</title></rect>
+    <rect x="729.08" y="64" width="47.03" height="54" fill="#204a87"><title>eval: 2.35 min</title></rect>
+    <rect x="776.11" y="64" width="48.19" height="54" fill="#ad7fa8"><title>series: 2.41 min</title></rect>
+    <rect x="824.29" y="64" width="49.22" height="54" fill="#a40000"><title>regimes: 2.46 min</title></rect>
+    <rect x="873.51" y="64" width="17.15" height="54" fill="#8ae234"><title>derivations: 0.86 min</title></rect>
+    <rect x="890.67" y="64" width="15.64" height="54" fill="#5c3566"><title>preprocess: 0.78 min</title></rect>
+    <rect x="906.31" y="64" width="18.79" height="54" fill="#3465a4"><title>prune: 0.94 min</title></rect>
+    <rect x="925.10" y="64" width="15.78" height="54" fill="#fce94f"><title>analyze: 0.79 min</title></rect>
+    <rect x="940.88" y="64" width="10.04" height="54" fill="#cc0000"><title>bsearch: 0.50 min</title></rect>
+    <rect x="950.91" y="64" width="0.02" height="54" fill="#666"><title>start: 0.00 min</title></rect>
+  </g>
+
+  <!-- 2.3: restricted to the same 563 benchmark names. -->
+  <g aria-label="2.3 phase totals">
+    <rect x="64" y="154" width="233.69" height="54" fill="#888a85"><title>gc: 11.68 min</title></rect>
+    <rect x="297.69" y="154" width="163.76" height="54" fill="#edd400"><title>sample: 8.19 min</title></rect>
+    <rect x="461.45" y="154" width="78.70" height="54" fill="#4e9a06"><title>rewrite: 3.93 min</title></rect>
+    <rect x="540.14" y="154" width="51.89" height="54" fill="#204a87"><title>eval: 2.59 min</title></rect>
+    <rect x="592.04" y="154" width="145.68" height="54" fill="#729fcf"><title>reconstruct: 7.28 min</title></rect>
+    <rect x="737.71" y="154" width="36.85" height="54" fill="#ad7fa8"><title>series: 1.84 min</title></rect>
+    <rect x="774.56" y="154" width="40.71" height="54" fill="#a40000"><title>regimes: 2.04 min</title></rect>
+    <rect x="815.28" y="154" width="23.96" height="54" fill="#8ae234"><title>derivations: 1.20 min</title></rect>
+    <rect x="839.23" y="154" width="16.14" height="54" fill="#5c3566"><title>preprocess: 0.81 min</title></rect>
+    <rect x="855.37" y="154" width="13.76" height="54" fill="#3465a4"><title>prune: 0.69 min</title></rect>
+    <rect x="869.13" y="154" width="7.48" height="54" fill="#fce94f"><title>analyze: 0.37 min</title></rect>
+    <rect x="876.61" y="154" width="8.72" height="54" fill="#cc0000"><title>bsearch: 0.44 min</title></rect>
+    <rect x="885.33" y="154" width="0.01" height="54" fill="#666"><title>start: 0.00 min</title></rect>
+    <rect x="885.34" y="154" width="0.00" height="54" fill="#666"><title>end: 0.00 min</title></rect>
+  </g>
+
+  <text x="980" y="96" text-anchor="start" class="total">44.4</text>
+  <text x="980" y="186" text-anchor="start" class="total">41.1</text>
+</svg>

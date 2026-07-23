@@ -48,18 +48,20 @@
       (representation-bf->repr repr)))
 
 (define (make-discretizations reprs)
-  (if (use-rival3?)
-      ;; Rival 3 requires that all discretizations share the target precision for now
-      (let ([target (apply max (map representation-total-bits reprs))])
-        (cons (struct-copy r3:discretization r3:boolean-discretization [target target])
-              (for/list ([repr (in-list reprs)])
-                (r3:discretization (repr->disc-type repr) target (repr->disc-convert repr)))))
-      (cons r2:boolean-discretization
-            (for/list ([repr (in-list reprs)])
-              (define ulps (repr-ulps repr))
-              (r2:discretization (representation-total-bits repr)
-                                 (representation-bf->repr repr)
-                                 (lambda (x y) (- (ulps x y) 1)))))))
+  (cond
+    [(use-rival3?)
+     ;; Rival 3 requires that all discretizations share the target precision for now
+     (define target (apply max (map representation-total-bits reprs)))
+     (cons (struct-copy r3:discretization r3:boolean-discretization [target target])
+           (for/list ([repr (in-list reprs)])
+             (r3:discretization (repr->disc-type repr) target (repr->disc-convert repr))))]
+    [else
+     (cons r2:boolean-discretization
+           (for/list ([repr (in-list reprs)])
+             (define ulps (repr-ulps repr))
+             (r2:discretization (representation-total-bits repr)
+                                (representation-bf->repr repr)
+                                (lambda (x y) (- (ulps x y) 1)))))]))
 
 (define (exn:rival:invalid? e)
   (or (r2:exn:rival:invalid? e) (r3:exn:rival:invalid? e)))
@@ -223,31 +225,32 @@
                              [val (in-vector pt)])
                     (format "~a = ~a" var val))))
   (define-values (iterations mixsample-data)
-    (if (use-rival3?)
-        (match-let ([(list summary _ iters) (rival-profile machine 'summary)])
-          (values iters
-                  (for/list ([entry (in-vector summary)])
-                    (match-define (list name prec-bucket total-time _) entry)
-                    (list total-time name prec-bucket 0))))
-        (let ()
-          (define executions (rival-profile machine 'executions))
-          (when (>= (vector-length executions) (r2:*rival-profile-executions*))
-            (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
-          (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
-          (define mixsample-table (make-hash))
-          (for ([execution (in-vector executions)])
-            (define name (format "~a" (r2:execution-name execution)))
-            (define precision
-              (- (r2:execution-precision execution)
-                 (remainder (r2:execution-precision execution) prec-threshold)))
-            (define key (cons name precision))
-            ;; Uses vectors to avoid allocation; this is really allocation-heavy
-            (define data (hash-ref! mixsample-table key (lambda () (make-vector 2 0))))
-            (vector-set! data 0 (+ (vector-ref data 0) (r2:execution-time execution)))
-            (vector-set! data 1 (+ (vector-ref data 1) (r2:execution-memory execution))))
-          (values (rival-profile machine 'iterations)
-                  (for/list ([(key val) (in-hash mixsample-table)])
-                    (list (vector-ref val 0) (car key) (cdr key) (vector-ref val 1)))))))
+    (cond
+      [(use-rival3?)
+       (match-let ([(list summary _ iters) (rival-profile machine 'summary)])
+         (values iters
+                 (for/list ([entry (in-vector summary)])
+                   (match-define (list name prec-bucket total-time _) entry)
+                   (list total-time name prec-bucket 0))))]
+      [else
+       (define executions (rival-profile machine 'executions))
+       (when (>= (vector-length executions) (r2:*rival-profile-executions*))
+         (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
+       (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
+       (define mixsample-table (make-hash))
+       (for ([execution (in-vector executions)])
+         (define name (format "~a" (r2:execution-name execution)))
+         (define precision
+           (- (r2:execution-precision execution)
+              (remainder (r2:execution-precision execution) prec-threshold)))
+         (define key (cons name precision))
+         ;; Uses vectors to avoid allocation; this is really allocation-heavy
+         (define data (hash-ref! mixsample-table key (lambda () (make-vector 2 0))))
+         (vector-set! data 0 (+ (vector-ref data 0) (r2:execution-time execution)))
+         (vector-set! data 1 (+ (vector-ref data 1) (r2:execution-memory execution))))
+       (values (rival-profile machine 'iterations)
+               (for/list ([(key val) (in-hash mixsample-table)])
+                 (list (vector-ref val 0) (car key) (cdr key) (vector-ref val 1))))]))
   (for ([entry (in-list mixsample-data)])
     (match-define (list time name prec memory) entry)
     (timeline-push!/unsafe 'mixsample time name prec memory))

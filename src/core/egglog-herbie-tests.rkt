@@ -404,8 +404,8 @@
       (egglog-send subproc '(print-size) '(run unsound-rule 1) '(extract (unsound))))
     (define parsed-node-values
       (for/list ([entry (in-list (with-input-from-string (string-join node-values "\n") read))])
-        (match entry
-          [(list relation count) (cons relation count)])))
+        (match-define (list relation count) entry)
+        (cons relation count)))
     (check-equal? (sort parsed-node-values symbol<? #:key car)
                   '((Add . 1) (Var . 2) (const1 . 1) (const2 . 1) (const3 . 1) (unsound . 1)))
 
