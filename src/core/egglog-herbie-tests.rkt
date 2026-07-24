@@ -350,7 +350,7 @@
 
       (define subproc (create-new-egglog-subprocess #f))
       (prelude subproc)
-      (define-values (all-bindings root-constructors) (egglog-add-exprs batch brfs subproc))
+      (define-values (all-bindings root-constructors) (egglog-add-exprs batch brfs ctx subproc))
       (egglog-subprocess-close subproc)
 
       (check-equal? (length root-constructors) 1)

@@ -130,21 +130,21 @@
                    (repr-description first-type)
                    (repr-description t))))
        (array-of first-type (list (+ 1 (length rest-elems))))]
-      [#`(ref #,arr #,idx)
-       (define arr-type (loop arr prop-dict ctx))
-       (define raw (syntax-e idx))
-       (unless (integer? raw)
-         (error! idx "Array index must be a literal integer, got ~a" idx))
-       (match arr-type
-         [(? array-representation?)
-          (define len (array-representation-len arr-type))
-          (define elem (array-representation-elem arr-type))
-          (when (and (integer? raw) (or (< raw 0) (>= raw len)))
-            (error! idx "Array index ~a out of bounds for length ~a" raw len))
-          elem]
-         [_
-          (error! stx "ref expects an array, got ~a" (repr-description arr-type))
-          (get-representation (dict-ref prop-dict ':precision))])]
+      [#`(ref #,arr #,idx #,idxs ...)
+       (for/fold ([arr-type (loop arr prop-dict ctx)]) ([idx (in-list (cons idx idxs))])
+         (define raw (syntax-e idx))
+         (unless (integer? raw)
+           (error! idx "Array index must be a literal integer, got ~a" idx))
+         (match arr-type
+           [(? array-representation?)
+            (define len (array-representation-len arr-type))
+            (define elem (array-representation-elem arr-type))
+            (when (and (integer? raw) (or (< raw 0) (>= raw len)))
+              (error! idx "Array index ~a out of bounds for length ~a" raw len))
+            elem]
+           [_
+            (error! stx "ref expects an array, got ~a" (repr-description arr-type))
+            (get-representation (dict-ref prop-dict ':precision))]))]
       [#`(cast #,arg)
        (define irepr (loop arg prop-dict ctx))
        (define repr (get-representation (dict-ref prop-dict ':precision)))
@@ -252,12 +252,15 @@
     ;; Array-aware typing
     (define vec-type (array-of <b64> '(2)))
     (define vec3-type (array-of <b64> '(3)))
+    (define mat3-type (array-of <b64> '(3 3)))
     (check-types <b64> vec-type #'(array 1 2))
     (check-types <b64> vec3-type #'(array 1 2 3))
     (check-fails <b64> #'(array (array 1) (array 1 2)))
     (check-types <b64> <b64> #'(ref (array 5 6) 0))
     (check-types <b64> <b64> #'(ref A 2) #:env `((A . ,vec3-type)))
+    (check-types <b64> <b64> #'(ref A 2 1) #:env `((A . ,mat3-type)))
     (check-fails <b64> #'(ref A 3) #:env `((A . ,vec3-type)))
+    (check-fails <b64> #'(ref A 2 3) #:env `((A . ,mat3-type)))
     (check-fails <b64> #'(ref x 0) #:env `((x . ,<b64>))))
 
   (check-exn exn:fail?

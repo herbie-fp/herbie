@@ -66,9 +66,11 @@
          (error! stx "Array literal must have at least one element"))
        (for ([elem (in-list elems)])
          (loop elem vars))]
-      [#`(ref #,arr ,idx)
-       (unless (integer? idx)
-         (error! idx "Array index must be a literal integer, got ~a" idx))
+      [#`(ref #,arr #,idx #,idxs ...)
+       (for ([idx (in-list (cons idx idxs))])
+         (define raw (syntax-e idx))
+         (unless (integer? raw)
+           (error! idx "Array index must be a literal integer, got ~a" idx)))
        (loop arr vars)]
       [#`(cast #,arg) (loop arg vars)]
       [#`(cast #,args ...)
@@ -255,5 +257,6 @@
   (check-pred null? (get-errs #'(FPCore (x) (ref (array 1 2) 0))))
   (check-pred null? (get-errs #'(FPCore (x) (array 1 2 3))))
   (check-pred null? (get-errs #'(FPCore (x) (ref (array 1 2) 2))))
+  (check-pred null? (get-errs #'(FPCore (x) (ref (array (array 1 2 3)) 0 2))))
   (check-pred null? (get-errs #'(FPCore ((v 3)) v)))
   (check-pred null? (get-errs #'(FPCore ((v 2 2)) v))))

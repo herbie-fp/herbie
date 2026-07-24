@@ -114,56 +114,15 @@
 
   ;; 2. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
 
-  ;; Overview of the new extraction method:
-  ;;
-  ;; The idea is to wrap the top-level `let` bindings inside a rule, and then
-  ;; execute that rule to perform the computation and store results using constructors.
-  ;;
-  ;; In the original design, we had a sequence of `let` bindings followed by a schedule run and
-  ;; then we perform an extraction of the required bindings.
-  ;;
-  ;; The new design introduces unextractable constructors to hold each intermediate result.
-  ;; These constructors are used in combination with a rule that performs all the bindings
-  ;; and assigns them via `set`
-  ;;
-  ;;   (constructor const1 () Expr :unextractable)
-  ;;   (constructor const2 () Expr :unextractable)
-  ;;   (constructor const3 () Expr :unextractable)
-  ;;   ...
-  ;;
-  ;;   (ruleset init)
-  ;;
-  ;;   (rule () (
-  ;;     (let a1 ...)
-  ;;     (union (const1) a1)
-  ;;
-  ;;     (let a2 ...)
-  ;;     (union (const2) a2)
-  ;;
-  ;;     (let b1 ...)
-  ;;     (union (const3) b1)
-  ;;   )
-  ;;   :ruleset init)
-  ;;
-  ;;   (run init 1)
-  ;;   (extract (const1))
-  ;;   (extract (const2))
-  ;;   (extract (const3))
-  ;;
-  ;;
-  ;; The idea behind this updated design is to prevent egglog from constantly rebuilding which
-  ;; it does after every top level command. Hence, we wrap the top level bindings into the actions
-  ;; of a rule and make them accessible through their unique constructor. Therefore, we must
-  ;; keep track of the mapping between each binding and its corresponding constructor.
-
-  (define-values (all-bindings extract-bindings) (egglog-add-exprs insert-batch insert-brfs subproc))
+  (define-values (all-bindings extract-bindings)
+    (egglog-add-exprs insert-batch insert-brfs (egglog-runner-ctx runner) subproc))
 
   (egglog-send subproc
                `(ruleset run-extract-commands)
                `(rule () (,@all-bindings) :ruleset run-extract-commands)
                `(run-schedule (repeat 1 run-extract-commands)))
 
-  ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
+  ;; 3. Running the schedule : having code inside to emulate egraph-run-rules
 
   (for ([step (in-list schedule)])
     (apply egglog-send subproc (egglog-step-commands step pform))
@@ -174,14 +133,19 @@
       ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
       ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
-  ;; 5. Extract using constructor names returned by egglog-add-exprs.
+  ;; 4. Extract using constructor names returned by egglog-add-exprs.
   (define stdout-content
-    (egglog-multi-extract subproc
-                          `(multi-extract ,extract
-                                          ,@(for/list ([constructor-name (in-list extract-bindings)]
-                                                       [repr (in-list reprs)])
-                                              `(do-lower (,constructor-name)
-                                                         ,(egglog-repr-token repr))))))
+    (if (null? extract-bindings)
+        '()
+        (egglog-multi-extract
+         subproc
+         `(multi-extract ,extract
+                         ,@(for/list ([binding (in-list extract-bindings)]
+                                      [repr (in-list reprs)])
+                             (match-define (cons constructor-name datatype) binding)
+                             (match datatype
+                               ['M `(do-lower (,constructor-name) ,(egglog-repr-token repr))]
+                               ['MTy `(,constructor-name)]))))))
 
   ;; Close everything subprocess related
   (egglog-subprocess-close subproc)
@@ -410,52 +374,87 @@
               :ruleset
               ,tag)))
 
-(define (egglog-add-exprs batch brfs subproc)
+(define (egglog-add-exprs batch brfs ctx subproc)
+  (define mappings (build-vector (batch-length batch) values))
   (define bindings (make-hash))
-  (define (var-binding var)
-    (string->symbol (format "?s~a" var)))
+  (define vars (make-hash))
+  (define (remap x spec?)
+    (cond
+      [(hash-has-key? vars x)
+       (if spec?
+           (string->symbol (format "$herbie_s_~a" (hash-ref vars x)))
+           (string->symbol (format "$herbie_t_~a" (hash-ref vars x))))]
+      [else (vector-ref mappings x)]))
 
   ; node -> egglog node binding
   ; inserts an expression into the e-graph, returning binding variable.
   (define (insert-node! node n root?)
     (define binding
       (if root?
-          (string->symbol (format "?r~a" n))
-          (string->symbol (format "?b~a" n))))
+          (string->symbol (format "$herbie_r_~a" n))
+          (string->symbol (format "$herbie_b_~a" n))))
     (hash-set! bindings binding node)
     binding)
 
+  ; Inserting nodes bottom-up
   (define root-mask (make-vector (batch-length batch) #f))
-  (define reachable-brfs '())
+  (define reachable-mask (make-vector (batch-length batch) #f))
+
+  ;; Batchref -> Boolean
+  (define spec?
+    (batch-recurse batch
+                   (lambda (brf recurse)
+                     (define node (deref brf))
+                     (match node
+                       [(? literal?) #f]
+                       [(? number?) #t]
+                       [(? symbol?) #f]
+                       [(approx _ _) #f]
+                       [`(if ,cond ,ift ,iff) (recurse cond)]
+                       [(list appl args ...) (hash-has-key? (id->e1) appl)]))))
 
   (for ([brf (in-list brfs)])
     (vector-set! root-mask (batchref-idx brf) #t))
-  (define add-to-egglog
+  (define mark-reachable!
     (batch-recurse batch
                    (lambda (brf recurse)
                      (define n (batchref-idx brf))
-                     (define node (deref brf))
-                     (define root? (vector-ref root-mask n))
-                     (define node*
-                       (match node
-                         [(? number?) `(Num ,(real->bigrat node))]
-                         [(? symbol?) #f]
-                         [(list impl args ...)
-                          `(,(hash-ref (id->e1) impl) ,@(for/list ([arg (in-list args)])
-                                                          (recurse arg)))]))
+                     (vector-set! reachable-mask n #t)
+                     (match (deref brf)
+                       [(approx spec impl)
+                        (recurse spec)
+                        (recurse impl)]
+                       [(list _ args ...)
+                        (for ([arg (in-list args)])
+                          (recurse arg))]
+                       [_ (void)]))))
+  (for ([brf (in-list brfs)])
+    (mark-reachable! brf))
+  (for ([node (in-batch batch)]
+        [root? (in-vector root-mask)]
+        [reachable? (in-vector reachable-mask)]
+        [n (in-naturals)]
+        #:when reachable?)
+    (define node*
+      (match node
+        [(literal v repr) `(,(typed-num-id repr) ,(real->bigrat v))]
+        [(? number?) `(Num ,(real->bigrat node))]
+        [(? symbol?) #f]
+        [(approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
+        [(list impl args ...)
+         `(,(if (spec? (batchref batch n))
+                (serialize-spec-op impl (length args))
+                (hash-ref (id->e2) impl))
+           ,@(for/list ([arg (in-list args)])
+               (remap arg (spec? (batchref batch n)))))]))
 
-                     (set! reachable-brfs (cons brf reachable-brfs))
-                     (if node*
-                         (insert-node! node* n root?)
-                         (var-binding node)))))
-
-  (define root-bindings
-    (for/list ([brf (in-list brfs)])
-      (add-to-egglog brf)))
+    (if node*
+        (vector-set! mappings n (insert-node! node* n root?))
+        (hash-set! vars n node)))
 
   ; Var-lowering-rules
-  (for ([var (in-list (batch-vars batch))]
-        [repr (in-list (batch-var-reprs batch))])
+  (for ([var (in-list (context-vars ctx))]
+        [repr (in-list (context-var-reprs ctx))])
     (egglog-send subproc
                  `(rule ((= e (Var ,(symbol->string var))))
                         ((union (do-lower e ,(egglog-repr-token repr))
@@ -464,66 +463,72 @@
                         lower)))
 
   ; Var-lifting-rules
-  (for ([var (in-list (batch-vars batch))]
-        [repr (in-list (batch-var-reprs batch))])
+  (for ([var (in-list (context-vars ctx))]
+        [repr (in-list (context-var-reprs ctx))])
     (egglog-send subproc
                  `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
                         ((union (do-lift e) (Var ,(symbol->string var))))
                         :ruleset
                         lift)))
 
-  (define all-bindings '())
-  (define binding->constructor (make-hash)) ; map from binding name to constructor name
+  (define binding->constructor (make-hash))
+  (define constructor-num 0)
+  (define (constructor-name!)
+    (set! constructor-num (add1 constructor-num))
+    (string->symbol (format "const~a" constructor-num)))
 
-  (define constructor-num 1)
+  (define all-bindings
+    (reap [sow]
+          ; Var-spec-bindings
+          (for ([var (in-list (context-vars ctx))])
+            (define binding-name (string->symbol (format "$herbie_s_~a" var)))
+            (define constructor-name (constructor-name!))
+            (hash-set! binding->constructor binding-name constructor-name)
+            (egglog-send subproc `(constructor ,constructor-name () M :unextractable))
+            (sow `(let ,binding-name (Var ,(symbol->string var))))
+            (sow `(union (,constructor-name) ,binding-name)))
+          ; Var-typed-bindings
+          (for ([var (in-list (context-vars ctx))]
+                [repr (in-list (context-var-reprs ctx))])
+            (define binding-name (string->symbol (format "$herbie_t_~a" var)))
+            (define constructor-name (constructor-name!))
+            (hash-set! binding->constructor binding-name constructor-name)
+            (egglog-send subproc `(constructor ,constructor-name () MTy :unextractable))
+            (sow `(let ,binding-name
+                    (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
+            (sow `(union (,constructor-name) ,binding-name)))
+          ; Binding Exprs
+          (for ([root? (in-vector root-mask)]
+                [reachable? (in-vector reachable-mask)]
+                [n (in-naturals)]
+                #:when reachable?
+                #:when (not (hash-has-key? vars n)))
+            (define datatype (if (spec? (batchref batch n)) 'M 'MTy))
 
-  ; ; Var-spec-bindings
-  (for ([var (in-list (batch-vars batch))])
-    ; Get the binding names for the program
-    (define binding-name (string->symbol (format "?s~a" var)))
-    (define constructor-name (string->symbol (format "const~a" constructor-num)))
-    (hash-set! binding->constructor binding-name constructor-name)
+            (define binding-name
+              (if root?
+                  (string->symbol (format "$herbie_r_~a" n))
+                  (string->symbol (format "$herbie_b_~a" n))))
 
-    ; Define the actual binding
-    (define curr-var-spec-binding `(let ,binding-name (Var ,(symbol->string var))))
-
-    ; Send the constructor definition
-    (egglog-send subproc `(constructor ,constructor-name () M :unextractable))
-
-    ; Add the binding and constructor union to all-bindings for the future rule
-    (set! all-bindings (cons curr-var-spec-binding all-bindings))
-    (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
-
-    (set! constructor-num (add1 constructor-num)))
-
-  ; Binding Exprs
-  (for ([brf (in-list (reverse reachable-brfs))]
-        #:unless (symbol? (deref brf)))
-    (define n (batchref-idx brf))
-
-    (define binding-name
-      (if (vector-ref root-mask n)
-          (string->symbol (format "?r~a" n))
-          (string->symbol (format "?b~a" n))))
-
-    (define constructor-name (string->symbol (format "const~a" constructor-num)))
-    (hash-set! binding->constructor binding-name constructor-name)
-
-    (define actual-binding (hash-ref bindings binding-name))
-    (define curr-binding-exprs `(let ,binding-name ,actual-binding))
-
-    (egglog-send subproc `(constructor ,constructor-name () M :unextractable))
-
-    (set! all-bindings (cons curr-binding-exprs all-bindings))
-    (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
-
-    (set! constructor-num (add1 constructor-num)))
+            (define constructor-name (constructor-name!))
+            (hash-set! binding->constructor binding-name constructor-name)
+            (egglog-send subproc `(constructor ,constructor-name () ,datatype :unextractable))
+            (sow `(let ,binding-name ,(hash-ref bindings binding-name)))
+            (sow `(union (,constructor-name) ,binding-name)))))
 
   (define curr-bindings
-    (for/list ([binding-name (in-list root-bindings)])
-      (hash-ref binding->constructor binding-name)))
+    (for/list ([brf brfs])
+      (define root (batchref-idx brf))
+      (define datatype (if (spec? brf) 'M 'MTy))
+      (define curr-binding-name
+        (if (hash-has-key? vars root)
+            (if (spec? brf)
+                (string->symbol (format "$herbie_s_~a" (hash-ref vars root)))
+                (string->symbol (format "$herbie_t_~a" (hash-ref vars root))))
+            (string->symbol (format "$herbie_r_~a" root))))
+      (cons (hash-ref binding->constructor curr-binding-name) datatype)))
 
-  (values (reverse all-bindings) curr-bindings))
+  (values all-bindings curr-bindings))
 
 (define (egglog-unsound-detected-subprocess tag subproc)
   (define node-limit (*node-limit*))
