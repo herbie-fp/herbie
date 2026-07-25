@@ -1,0 +1,15 @@
+Herbie e-graph debugging notes
+
+Issue: current uncommitted batch/spec-batch changes reportedly emit warnings about `1 == -1` when rerunning `bench/`.
+Baseline commit: b1f493d976db456b4939cfefb9ed5e484158e297
+Current worktree: /Users/pavpan/.codex/worktrees/7066/Herbie
+Initial fixed-seed reproduction attempts:
+- seed 1, threads 2, timeout 120, bench/numerics/great-debate.fpcore: no literal `1 == -1`, `not equal`, or `egraph-prove` diagnostics in either current or baseline stderr/stdout logs.
+- targeted raco tests for src/syntax/platform.rkt, src/core/derivations.rkt, src/core/patch.rkt passed on both; no such diagnostics.
+
+Next: run the current `bench/` directory with seed 1 and capture the process stream; isolate the first benchmark that emits the diagnostic. IDs/log paths will be recorded here before tracing.
+
+Full current bench reproduction:
+- command: `racket src/main.rkt report --seed 1 --threads 2 --timeout 120 bench /private/tmp/herbie-current-bench-7066 > /private/tmp/herbie-current-bench-7066.log 2>&1`
+- first observed diagnostic at progress 78/730 onward: `[WARN egg_math::math] Bad merge detected: 1 != -1`
+- surrounding progress: 78 `clenshaw-final-real`, then 79 `clMeanOscMap-ap`, 80 `clMeanOscMap-d3`, 81 `clMeanOscMap-de`, 82 `clMeanOscMap-de1`; exact emitting job still to isolate because two workers interleave output.

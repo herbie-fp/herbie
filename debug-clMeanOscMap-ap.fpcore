@@ -1,0 +1,17 @@
+(FPCore (a e i omega f sgn J2 req)
+  :name "clMeanOscMap-ap"
+  (let ([eta (sqrt (- 1 (pow e 2)))]
+        [gamma2 (* (/ (* sgn J2) 2)
+                   (pow (/ req a) 2))]
+        [a_r (/ (+ 1 (* e (cos f)))
+                (pow (sqrt (- 1 (pow e 2))) 2))])
+    (+ a
+       (* a
+          (* gamma2
+             (+ (* (- (* 3 (pow (cos i) 2)) 1)
+                   (- (pow a_r 3)
+                      (/ 1 (pow eta 3))))
+                (* (* 3 (- 1 (pow (cos i) 2)))
+                   (* (pow a_r 3)
+                      (cos (+ (* 2 omega)
+                              (* 2 f)))))))))))
