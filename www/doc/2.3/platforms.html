@@ -400,7 +400,7 @@
   implement accurately. In this case, Herbie's <code>from-rival</code>
   helper can provide a slow but correctly-rounded implementation:</p>
 
-  <pre>(define-opertion (dotprod [a &lt;binary64&gt;] [b &lt;binary64&gt;]
+  <pre>(define-operation (dotprod [a &lt;binary64&gt;] [b &lt;binary64&gt;]
                             [c &lt;binary64&gt;] [d &lt;binary64&gt;]) &lt;binary64&gt;
   #:spec (+ (* a b) (* c d)) #:impl (from-rival) #:cost 1.25)</pre>
 

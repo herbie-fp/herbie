@@ -93,7 +93,7 @@
 
   <p>However, how Herbie evaluates these functions, their cost, and
   what additional functions are available depends on
-  the <a href="platforms.rkt">platform</a> you select.</p>
+  the <a href="platforms.html">platform</a> you select.</p>
 
   <h2 id="conditionals">Conditionals</h2>
   
@@ -169,7 +169,7 @@
   (+ (/ 1 x) (/ 1 (* 6 (pow x 3)))))</pre>
 
   <p>Herbie will use the <code>:spec</code> expression to evaluate
-  error, but use body expression as a starting-point for finding
+  error, but use the body expression as a starting point for finding
   more accurate expressions.</p>
 
   <h2 id="preconditions">Preconditions</h2>
@@ -185,7 +185,7 @@
 
   <pre>(FPCore (x) :pre (&lt; 1 x 10) (/ 1 (- x 1)))</pre>
 
-  <p>Herbie is particularly efficient when when the precondition is
+  <p>Herbie is particularly efficient when the precondition is
   an <code>and</code> of ranges for each variable, but more complex
   preconditions also work.</p>
 
