@@ -17,9 +17,14 @@ p, li, dd, blockquote, figcaption, summary {
 }
 dd { margin: .5em 0 1em; }
 
-.showcase { background: #ddd; padding: 1em; margin: 4em 0; clear: both;}
-.showcase > h2 { margin: 0 0 1em; }
-.showcase figcaption {font-size: 15px; line-height: 1.4; margin-top: 1em;}
+.showcase {
+  display: flex; flex-direction: column; gap: 1em;
+  background: #ddd; padding: 1em; margin: 4em 0; clear: both;
+}
+.showcase > h2 { margin: 0; }
+.showcase figcaption {font-size: 15px; line-height: 1.4; margin: 0;}
+.showcase.side-by-side { flex-direction: row; }
+.showcase.side-by-side figcaption { padding-left: 1em; }
 .showcase img { width: 100%; }
 .before-after { font-size: 20px; text-align: center; line-height: 1.5; }
 .before-after code { padding: 0 1ex; font-weight: bold; }

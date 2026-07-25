@@ -8,12 +8,20 @@
          "platform.rkt")
 (provide assert-program!)
 
+(define (known-op? op)
+  (or (operator-exists? op) (impl-exists? op)))
+
+(define (known-op-itype op)
+  (cond
+    [(operator-exists? op) (operator-info op 'itype)]
+    [else (impl-info op 'itype)]))
+
 (define (check-expression* stx vars error!)
   (let loop ([stx stx]
              [vars vars])
     (match stx
       [#`,(? number?) (void)]
-      [#`,(? operator-exists? stx) (void)]
+      [#`,(? known-op? stx) (void)]
       [#`,(? symbol? var)
        (unless (set-member? vars stx)
          (error! stx "Unknown variable ~a" var))]
@@ -96,16 +104,12 @@
       [#`(#,f-syntax #,args ...)
        (define f (syntax->datum f-syntax))
        (cond
-         [(operator-exists? f)
-          (define arity (length (operator-info f 'itype)))
+         [(known-op? f)
+          (define arity (length (known-op-itype f)))
           (unless (= arity (length args))
             (error! stx "Operator ~a given ~a arguments (expects ~a)" f (length args) arity))]
-         [(hash-has-key? (*functions*) f)
-          (match-define (list vars _ _) (hash-ref (*functions*) f))
-          (unless (= (length vars) (length args))
-            (error! stx "Function ~a given ~a arguments (expects ~a)" f (length args) (length vars)))]
          [else (error! stx "Unknown operator ~a" f)])
-       (for ([arg args])
+       (for ([arg (in-list args)])
          (loop arg vars))]
       [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))])))
 

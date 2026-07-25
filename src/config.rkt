@@ -24,7 +24,10 @@
         [rules . (numerics special bools branches)]))
 
 (define debug-flags
-  #hash([generate . (egglog)] [dump . (egg rival egglog trace intermediates)] [setup . (rival2)]))
+  #hash([generate . (egglog)]
+        [reduce . (dag-cost)]
+        [dump . (egg rival egglog trace intermediates)]
+        [setup . (rival2)]))
 
 (define all-flags (hash-union default-flags deprecated-flags debug-flags #:combine set-union))
 
@@ -129,7 +132,7 @@
 (define *proof-max-string-length* (make-parameter 10000))
 
 ;; How long of a Taylor series to generate; too long and we time out
-(define *taylor-order-limit* (make-parameter 4))
+(define *taylor-order-limit* (make-parameter 2))
 
 ;; How accurate to make the binary search
 (define *binary-search-test-points* (make-parameter 16))
@@ -140,6 +143,7 @@
 
 ;; The platform that Herbie will evaluate with.
 (define *platform-name* (make-parameter (if (equal? (system-type 'os) 'windows) "c-windows" "c")))
+(define *platform-state* (make-parameter #f))
 
 ;; Sets the number of total points for Herbie to sample.
 (define *reeval-pts* (make-parameter 8000))

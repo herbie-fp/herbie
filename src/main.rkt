@@ -9,7 +9,7 @@
 
 ;; Define the built-in platforms to force bundling them
 (lazy-require ["api/demo.rkt" (run-demo)]
-              ["api/run.rkt" (make-report rerun-report)]
+              ["api/run.rkt" (make-report)]
               ["api/shell.rkt" (run-shell run-improve)])
 
 (define (string->thread-count th)
@@ -147,10 +147,6 @@
     "Run Herbie on an FPCore file, producing an HTML report"
     #:args (input output)
     (make-report (list input) #:dir output #:threads threads)]
-   [reproduce
-    "Rerun an HTML report"
-    #:args (input output)
-    (rerun-report input #:dir output #:threads threads)]
    #:args files
    (match files
      ['()

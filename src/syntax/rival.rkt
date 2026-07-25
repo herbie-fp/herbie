@@ -48,18 +48,20 @@
       (representation-bf->repr repr)))
 
 (define (make-discretizations reprs)
-  (if (use-rival3?)
-      ;; Rival 3 requires that all discretizations share the target precision for now
-      (let ([target (apply max (map representation-total-bits reprs))])
-        (cons (struct-copy r3:discretization r3:boolean-discretization [target target])
-              (for/list ([repr (in-list reprs)])
-                (r3:discretization (repr->disc-type repr) target (repr->disc-convert repr)))))
-      (cons r2:boolean-discretization
-            (for/list ([repr (in-list reprs)])
-              (define ulps (repr-ulps repr))
-              (r2:discretization (representation-total-bits repr)
-                                 (representation-bf->repr repr)
-                                 (lambda (x y) (- (ulps x y) 1)))))))
+  (cond
+    [(use-rival3?)
+     ;; Rival 3 requires that all discretizations share the target precision for now
+     (define target (apply max (map representation-total-bits reprs)))
+     (cons (struct-copy r3:discretization r3:boolean-discretization [target target])
+           (for/list ([repr (in-list reprs)])
+             (r3:discretization (repr->disc-type repr) target (repr->disc-convert repr))))]
+    [else
+     (cons r2:boolean-discretization
+           (for/list ([repr (in-list reprs)])
+             (define ulps (repr-ulps repr))
+             (r2:discretization (representation-total-bits repr)
+                                (representation-bf->repr repr)
+                                (lambda (x y) (- (ulps x y) 1)))))]))
 
 (define (exn:rival:invalid? e)
   (or (r2:exn:rival:invalid? e) (r3:exn:rival:invalid? e)))
@@ -118,25 +120,16 @@
          ival-hi
          (contract-out
           [make-real-compiler
-           (->i
-            ([batch batch?]
-             [brfs (listof batchref?)]
-             [ctxs (brfs) (and/c unified-contexts? (lambda (ctxs) (= (length brfs) (length ctxs))))])
-            (#:pre [pre any/c])
-            [c real-compiler?])]
+           (->i ([batch batch?] [brfs (listof batchref?)]
+                                [reprs
+                                 (brfs)
+                                 (and/c (listof representation?)
+                                        (lambda (reprs) (= (length brfs) (length reprs))))])
+                (#:pre [pre any/c])
+                [c real-compiler?])]
           [real-apply (->* (real-compiler? vector?) (any/c) (values symbol? any/c))]
           [real-compiler-clear! (-> real-compiler? void?)]
           [real-compiler-analyze (->* (real-compiler? (vectorof ival?)) (any/c) (listof any/c))]))
-
-(define (unified-contexts? ctxs)
-  (cond
-    [((non-empty-listof context?) ctxs)
-     (define ctx0 (car ctxs))
-     (for/and ([ctx (in-list (cdr ctxs))])
-       (and (equal? (context-vars ctx0) (context-vars ctx))
-            (for/and ([var (in-list (context-vars ctx0))])
-              (equal? (context-lookup ctx0 var) (context-lookup ctx var)))))]
-    [else #f]))
 
 (define (expr-size expr)
   (if (list? expr)
@@ -148,15 +141,18 @@
         (pre vars var-reprs exprs reprs machine dump-file assemble-point assemble-output))
 
 ;; Creates a Rival machine.
-(define (make-real-compiler batch brfs ctxs #:pre [pre '(TRUE)])
+(define (make-real-compiler batch brfs output-reprs #:pre [pre '(TRUE)])
   (define specs (map (batch-exprs batch) brfs))
-  (define-values (specs* ctxs* pre* assemble-point assemble-output reprs)
+  (define ctxs
+    (for/list ([repr (in-list output-reprs)])
+      (context (batch-vars batch) repr (batch-var-reprs batch))))
+  (define-values (specs* ctxs* pre* assemble-point assemble-output flattened-reprs)
     (flatten-arrays-for-rival specs ctxs pre))
   (define vars (context-vars (first ctxs*)))
 
   ; create the machine
   (define exprs (cons `(assert ,pre*) specs*))
-  (define discs (make-discretizations reprs))
+  (define discs (make-discretizations flattened-reprs))
   (define machine (rival-compile exprs vars discs))
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre*) (map expr-size specs*))
@@ -186,7 +182,7 @@
                  (list->vector vars)
                  (list->vector (context-var-reprs (first ctxs*)))
                  specs*
-                 (list->vector reprs)
+                 (list->vector flattened-reprs)
                  machine
                  dump-file
                  assemble-point
@@ -226,31 +222,32 @@
                              [val (in-vector pt)])
                     (format "~a = ~a" var val))))
   (define-values (iterations mixsample-data)
-    (if (use-rival3?)
-        (match-let ([(list summary _ iters) (rival-profile machine 'summary)])
-          (values iters
-                  (for/list ([entry (in-vector summary)])
-                    (match-define (list name prec-bucket total-time _) entry)
-                    (list total-time name prec-bucket 0))))
-        (let ()
-          (define executions (rival-profile machine 'executions))
-          (when (>= (vector-length executions) (r2:*rival-profile-executions*))
-            (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
-          (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
-          (define mixsample-table (make-hash))
-          (for ([execution (in-vector executions)])
-            (define name (format "~a" (r2:execution-name execution)))
-            (define precision
-              (- (r2:execution-precision execution)
-                 (remainder (r2:execution-precision execution) prec-threshold)))
-            (define key (cons name precision))
-            ;; Uses vectors to avoid allocation; this is really allocation-heavy
-            (define data (hash-ref! mixsample-table key (lambda () (make-vector 2 0))))
-            (vector-set! data 0 (+ (vector-ref data 0) (r2:execution-time execution)))
-            (vector-set! data 1 (+ (vector-ref data 1) (r2:execution-memory execution))))
-          (values (rival-profile machine 'iterations)
-                  (for/list ([(key val) (in-hash mixsample-table)])
-                    (list (vector-ref val 0) (car key) (cdr key) (vector-ref val 1)))))))
+    (cond
+      [(use-rival3?)
+       (match-let ([(list summary _ iters) (rival-profile machine 'summary)])
+         (values iters
+                 (for/list ([entry (in-vector summary)])
+                   (match-define (list name prec-bucket total-time _) entry)
+                   (list total-time name prec-bucket 0))))]
+      [else
+       (define executions (rival-profile machine 'executions))
+       (when (>= (vector-length executions) (r2:*rival-profile-executions*))
+         (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
+       (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
+       (define mixsample-table (make-hash))
+       (for ([execution (in-vector executions)])
+         (define name (format "~a" (r2:execution-name execution)))
+         (define precision
+           (- (r2:execution-precision execution)
+              (remainder (r2:execution-precision execution) prec-threshold)))
+         (define key (cons name precision))
+         ;; Uses vectors to avoid allocation; this is really allocation-heavy
+         (define data (hash-ref! mixsample-table key (lambda () (make-vector 2 0))))
+         (vector-set! data 0 (+ (vector-ref data 0) (r2:execution-time execution)))
+         (vector-set! data 1 (+ (vector-ref data 1) (r2:execution-memory execution))))
+       (values (rival-profile machine 'iterations)
+               (for/list ([(key val) (in-hash mixsample-table)])
+                 (list (vector-ref val 0) (car key) (cdr key) (vector-ref val 1))))]))
   (for ([entry (in-list mixsample-data)])
     (match-define (list time name prec memory) entry)
     (timeline-push!/unsafe 'mixsample time name prec memory))

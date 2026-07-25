@@ -294,18 +294,20 @@
               (td ,(~r (apply + (map altnum '(new fresh picked done))) #:group-sep " "))))))))
 
 (define (render-phase-taylor-counts records)
-  (define sorted-records
-    (sort (sort (sort records < #:key second) string<? #:key first) > #:key fourth))
+  (define sorted-records (sort records > #:key fifth))
   `((dt "Taylor")
-    (dd (table ((class "times"))
-               (thead (tr (th "Generated") (th "Kept") (th "% Kept") (th "Transform") (th "Order")))
-               (tbody ,@(for/list ([rec (in-list sorted-records)])
-                          (match-define (list transform order generated kept) rec)
-                          `(tr (td ,(~r generated #:group-sep " ") "×")
-                               (td ,(~r kept #:group-sep " ") "×")
-                               (td ,(format-percent kept generated))
-                               (td (code ,transform))
-                               (td ,(~a order)))))))))
+    (dd (table
+         ((class "times"))
+         (thead
+          (tr (th "Generated") (th "Kept") (th "% Kept") (th "# Vars") (th "Transform") (th "Order")))
+         (tbody ,@(for/list ([rec (in-list sorted-records)])
+                    (match-define (list transform order vars generated kept) rec)
+                    `(tr (td ,(~r generated #:group-sep " ") "×")
+                         (td ,(~r kept #:group-sep " ") "×")
+                         (td ,(format-percent kept generated))
+                         (td ,(~a vars))
+                         (td (code ,transform))
+                         (td ,(~a order)))))))))
 
 (define (render-phase-memory mem gc-time)
   (match-define (list live alloc) (car mem))

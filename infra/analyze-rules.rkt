@@ -33,7 +33,7 @@
   (for ([test (in-list tests)]
         [i (in-naturals)])
     (printf "Processing test ~a/~a: ~a\n" (+ i 1) (length tests) (test-name test))
-    (define-values (batch brfs) (progs->batch (list (test-input test))))
+    (define-values (batch brfs) (progs->batch (list (test-spec test)) #:ctx (test-context test)))
 
     (for ([iter (in-range (*iters*))])
       (define-values (initial-size final-size sorted-results)

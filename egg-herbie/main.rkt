@@ -7,21 +7,16 @@
 
 (provide egraph_create
          egraph_destroy
-         egraph_add_expr
          egraph_add_root
          egraph_add_node
          egraph_run
          egraph_copy
          egraph_get_stop_reason
          egraph_find
-         egraph_serialize
          egraph_get_eclasses
          egraph_get_eclass
-         egraph_get_simplest
-         egraph_get_variants
          egraph_get_cost
          egraph_is_unsound_detected
-         egraph_get_times_applied
          egraph_get_proof
          (struct-out iteration-data)
          (struct-out FFIRule)
@@ -110,14 +105,6 @@
               (lambda (x) (and x (string->_rust/string (~a x))))
               (lambda (x) (and x (first (_rust/string->data x))))))
 
-;; FFI type that converts Rust-allocated C-style strings
-;; to multiple Racket datum via reapeated use of `read`,
-;; automatically freeing the Rust-side allocation.
-(define _rust/data
-  (make-ctype _pointer
-              (lambda (_) (error '_rust/data "cannot be used as an input type"))
-              (lambda (x) (and x (_rust/string->data x)))))
-
 ; Egraph iteration data
 ; Not managed by Racket GC.
 ; Must call `destroy_egraphiters` to free.
@@ -168,10 +155,6 @@
 ;; Copies an e-graph instance.
 (define-eggmath egraph_copy (_fun _egraph-pointer -> _egraph-pointer))
 
-;; Adds an expression to the e-graph.
-;; egraph -> expr -> id
-(define-eggmath egraph_add_expr (_fun _egraph-pointer _rust/datum -> _uint))
-
 (define-eggmath egraph_add_root (_fun _egraph-pointer _uint -> _void))
 
 ; egraph -> string -> ids -> bool -> id
@@ -213,9 +196,6 @@
 
 ;; gets the stop reason as an integer
 (define-eggmath egraph_get_stop_reason (_fun _egraph-pointer -> _stop_reason))
-
-;; egraph -> string
-(define-eggmath egraph_serialize (_fun _egraph-pointer -> _rust/datum))
 
 ;; egraph -> uint
 (define-eggmath egraph_size (_fun _egraph-pointer -> _uint))
@@ -260,22 +240,6 @@
 ;; egraph -> id -> id
 (define-eggmath egraph_find (_fun _egraph-pointer _uint -> _uint))
 
-;; egraph -> id -> (listof expr)
-(define-eggmath egraph_get_simplest
-                (_fun _egraph-pointer
-                      _uint ;; node id
-                      _uint ;; iteration
-                      ->
-                      _rust/datum)) ;; expr
-
-;; egraph -> id -> string -> (listof expr)
-(define-eggmath egraph_get_variants
-                (_fun _egraph-pointer
-                      _uint ;; node id
-                      _rust/datum ;; original expr
-                      ->
-                      _rust/data)) ;; listof expr
-
 ;; egraph -> string -> string -> string
 ;; TODO: in Herbie, we bail on converting the proof
 ;; if the string is too big. It would be more efficient
@@ -291,11 +255,5 @@
                 (_fun _egraph-pointer
                       _uint ;; node id
                       _uint ;; iteration
-                      ->
-                      _uint))
-
-(define-eggmath egraph_get_times_applied
-                (_fun _egraph-pointer
-                      _pointer ;; name of the rule
                       ->
                       _uint))

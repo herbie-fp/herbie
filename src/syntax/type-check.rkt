@@ -11,8 +11,7 @@
 (define (repr-description t)
   (match t
     [(? representation?) (representation-name t)]
-    [(? array-representation?)
-     `(array ,(repr-description (array-representation-elem t)) ,(array-representation-len t))]))
+    [_ t]))
 
 (define (repr-compatible-with-precision? repr precision-repr)
   (match repr
@@ -121,20 +120,6 @@
                  (repr-description iff-repr)))
        ift-repr]
       [#`(! #,props ... #,body) (loop body (apply dict-set prop-dict (map syntax->datum props)) ctx)]
-      [#`(,(? (curry hash-has-key? (*functions*)) fname) #,args ...)
-       ; TODO: inline functions expect uniform types, this is clearly wrong
-       (match-define (list vars prec _) (hash-ref (*functions*) fname))
-       (define repr (get-representation prec))
-       (define ireprs (map (lambda (arg) (loop arg prop-dict ctx)) args))
-       (define expected (map (const repr) vars))
-       (unless (andmap equal? ireprs expected)
-         (error! stx
-                 "Invalid arguments to ~a; expects ~a but got ~a"
-                 fname
-                 fname
-                 (application->string fname expected)
-                 (application->string fname ireprs)))
-       repr]
       [#`(array #,first-elem #,rest-elems ...)
        (define first-type (loop first-elem prop-dict ctx))
        (for ([elem (in-list rest-elems)])
@@ -215,6 +200,12 @@
     (define dummy (get-representation 'dummy))
     (check-equal? (representation-name dummy) 'dummy)
     (check-equal? (get-representation 'dummy) dummy)
+
+    (define array2 (make-array-representation #:elem dummy #:len 2))
+    (check-equal? (representation-name array2) '(array dummy 2))
+    (check-equal? (representation-name array2) '(array dummy 2))
+    (check-true (repr-exists? '(array dummy 2)))
+    (check-equal? (representation-name (get-representation '(array dummy 2))) '(array dummy 2))
 
     ;; Context operations
     (define <b64> (get-representation 'binary64))

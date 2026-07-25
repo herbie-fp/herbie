@@ -258,6 +258,12 @@
       expressions, not just variables. This slows Herbie down,
       particularly for large programs. If turned off, Herbie will only
       try to branch on variables.</dd>
+
+    <dt><code>reduce:dag-cost</code></dt>
+    <dd>This option, off by default, uses a more complex algorithm
+    when pruning. It slows Herbie down, particularly for large
+    programs. If turned on, Herbie will use more common subexpressions
+    and make more use of functions that return arrays.</dd>
   </dl>
 
 </body>

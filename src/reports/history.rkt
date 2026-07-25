@@ -44,15 +44,9 @@
         [(approx spec impl)
          (loop spec)
          (loop impl)]
-        [(hole prec spec) (loop spec)]
         [(list op args ...) (for-each loop args)]
         [_ (void)]))
     (k 'Goal #f step)))
-
-(define (altn-errors altn pcontext ctx errcache mask)
-  (define repr (context-repr ctx))
-  (define err (errors-score-masked (hash-ref errcache (alt-expr altn)) mask))
-  (format-accuracy err repr #:unit "%"))
 
 (define (mixed->fpcore expr ctx)
   (define expr*
@@ -62,7 +56,6 @@
         [(? number?) expr]
         [(? literal?) (literal-value expr)]
         [(approx _ impl) (loop impl)]
-        [(hole precision spec) (loop spec)]
         [`(if ,cond ,ift ,iff)
          `(if ,(loop cond)
               ,(loop ift)
@@ -126,10 +119,10 @@
   (make-vector (pcontext-length pcontext) #f))
 
 ;; HTML renderer for derivations
-(define (render-history json ctx)
+(define (render-history json repr)
   (define err
     (match (hash-ref json 'error)
-      [(? number? n) (format-accuracy n (context-repr ctx) #:unit "%")]
+      [(? number? n) (format-accuracy n repr #:unit "%")]
       [other other]))
   (define prog (read (open-input-string (hash-ref json 'program))))
   (match (hash-ref json 'type)
@@ -137,7 +130,7 @@
      (list `(li (p "Initial program " (span ((class "error")) ,err))
                 (div ((class "math")) "\\[" ,(fpcore->tex prog) "\\]")))]
 
-    ["add-preprocessing" `(,@(render-history (hash-ref json 'prev) ctx) (li "Add Preprocessing"))]
+    ["add-preprocessing" `(,@(render-history (hash-ref json 'prev) repr) (li "Add Preprocessing"))]
 
     ["regimes"
      (define prevs (hash-ref json 'prevs))
@@ -146,28 +139,28 @@
                     (for/list ([entry (in-list prevs)]
                                [condition (in-list (hash-ref json 'conditions))])
                       `((h2 (code "if " (span ((class "condition")) ,(string-join condition " or "))))
-                        (ol ,@(render-history entry ctx))))))
+                        (ol ,@(render-history entry repr))))))
        (li ((class "event")) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
     ["taylor"
      (define-values (prev pt var order)
        (apply values (map (curry hash-ref json) '(prev pt var order))))
-     `(,@(render-history prev ctx)
+     `(,@(render-history prev repr)
        (li (p "Taylor expanded in " ,var " around " ,pt " to order " ,(~a order))
            (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]
 
     ["evaluate"
      (define prev (hash-ref json 'prev))
-     `(,@(render-history prev ctx)
+     `(,@(render-history prev repr)
        (li (p "Evaluated real constant" (span ((class "error")) ,err))
            (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]
 
     ["rr"
      (define-values (prev proof) (apply values (map (curry hash-ref json) '(prev proof))))
-     `(,@(render-history prev ctx)
+     `(,@(render-history prev repr)
        (li ,(if (eq? proof (json-null))
                 ""
-                (render-proof proof ctx)))
+                (render-proof proof repr)))
        (li (p "Applied rewrites" (span ((class "error")) ,err))
            (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]))
 
@@ -179,7 +172,7 @@
                   err))
   (errors-score (if (zero? mask-count) errs masked-errs)))
 
-(define (render-proof proof-json ctx)
+(define (render-proof proof-json repr)
   `(div ((class "proof"))
         (details
          (summary "Step-by-step derivation")
@@ -197,7 +190,7 @@
                      `(li (p (code ([title ,dir]) ,rule)
                              (span ((class "error"))
                                    ,(if (number? err)
-                                        (format-accuracy err (context-repr ctx) #:unit "%")
+                                        (format-accuracy err repr #:unit "%")
                                         err)))
                           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]"))))))))
 

@@ -34,5 +34,9 @@
                 '(ref.f64 (sincos.f64 x) #s(literal 0 binary64)))
   (check-equal? (fpcore->prog '(ref (sincos x) 1) ctx)
                 '(ref.f64 (sincos.f64 x) #s(literal 1 binary64)))
+  ; fpcore->spec
+  (check-equal? (fpcore->spec '(log1p x)) '(log (+ 1 x)))
+  (check-equal? (fpcore->spec '(hypot x y)) '(sqrt (+ (* x x) (* y y))))
+  (check-equal? (fpcore->spec '(fma x y z)) '(+ (* x y) z))
 
   (void))

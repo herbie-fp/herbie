@@ -29,12 +29,16 @@
      (fprintf port "#<platform>"))])
 
 (provide *active-platform*
+         platform-copy
+         repr-exists?
          get-representation
          impl-exists?
          impl-info
          prog->spec
          batch-to-spec!
          get-fpcore-impl
+         impl->fpcore
+         reset-fpcore-op-cache!
          (struct-out $platform)
          ;; Platform API
          ;; Operator sets
@@ -52,6 +56,12 @@
 ;; Active platform
 (define *active-platform* (make-parameter #f))
 
+(define (platform-copy platform)
+  (struct-copy $platform
+               platform
+               [representations (hash-copy (platform-representations platform))]
+               [implementations (hash-copy (platform-implementations platform))]))
+
 (define (make-empty-platform)
   (define reprs (make-hash))
   (define repr-costs (make-hash))
@@ -63,12 +73,23 @@
 (define (get-representation name)
   (define platform (*active-platform*))
   (define reprs (platform-representations platform))
-  (or (hash-ref reprs name #f)
-      (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
-                          name
-                          (string-join (map ~s (hash-keys reprs)) ", ")
-                          (*platform-name*))))
+  (match name
+    [(? representation?) name]
+    [`(array ,elem ,len) (make-array-representation #:elem (get-representation elem) #:len len)]
+    [_
+     (or (hash-ref reprs name #f)
+         (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
+                             name
+                             (string-join (map ~s (hash-keys reprs)) ", ")
+                             (*platform-name*)))]))
 
+(define (repr-exists? name)
+  (define platform (*active-platform*))
+  (define reprs (platform-representations platform))
+  (match name
+    [(? representation?) #t]
+    [`(array ,elem ,len) (and (exact-positive-integer? len) (repr-exists? elem))]
+    [_ (hash-has-key? reprs name)]))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> LSpec
 
@@ -88,25 +109,62 @@
      (define env (map cons vars (map prog->spec args)))
      (pattern-substitute spec env)]))
 
-(define (batch-to-spec! batch brfs)
+(define (batch-to-spec! in-batch out-batch brfs)
+  (define (check-output-spec! spec)
+    (unless (equal? (batchref-batch spec) out-batch)
+      (error 'batch-to-spec! "spec reference does not belong to the output batch"))
+    spec)
   (define lower
-    (batch-recurse batch
-                   (lambda (brf recurse)
-                     (define node (deref brf))
-                     (match node
-                       [(? literal?) (batch-push! batch (literal-value node))]
-                       [(? number?) brf]
-                       [(? symbol?) brf]
-                       [(hole _ spec) (recurse spec)]
-                       [(approx spec _) (recurse spec)]
-                       [(list (? impl-exists? impl) args ...)
-                        (define vars (impl-info impl 'vars))
-                        (define spec (impl-info impl 'spec))
-                        (define env (map cons vars (map recurse args)))
-                        (batch-add! batch (pattern-substitute spec env))]
-                       [(list op args ...)
-                        (batch-push! batch (cons op (map (compose batchref-idx recurse) args)))]))))
+    (batch-recurse
+     in-batch
+     (lambda (brf recurse)
+       (define node (deref brf))
+       (match node
+         [(? literal?) (batch-add! out-batch (literal-value node))]
+         [(? number?) (error 'batch-to-spec! "unexpected spec node in input batch: ~a" node)]
+         [(? symbol?) (batch-add! out-batch node)]
+         [(approx spec _) (check-output-spec! spec)]
+         [(list (? impl-exists? impl) args ...)
+          (define vars (impl-info impl 'vars))
+          (define spec (impl-info impl 'spec))
+          (define env (map cons vars (map recurse args)))
+          (batch-add! out-batch (pattern-substitute spec env))]
+         [(list op args ...)
+          (error 'batch-to-spec! "unexpected spec node in input batch: ~a" node)]))))
   (map lower brfs))
+
+(module+ test
+  (require rackunit)
+
+  (define test-empty-ctx (context '() #f '()))
+
+  (let* ([in-batch (batch-empty test-empty-ctx)]
+         [out-batch (batch-empty test-empty-ctx)]
+         [x (batch-add! in-batch 'x)]
+         [x* (first (batch-to-spec! in-batch out-batch (list x)))])
+    (check-equal? (batchref-batch x*) out-batch)
+    (check-equal? (deref x*) 'x))
+
+  (let* ([batch (batch-empty test-empty-ctx)]
+         [spec (batch-add! batch 'x)]
+         [impl (batch-add! batch (literal 1 'binary64))]
+         [approx-brf (batch-add! batch (approx spec impl))])
+    (check-equal? (batch-to-spec! batch batch (list approx-brf)) (list spec)))
+
+  (let* ([in-batch (batch-empty test-empty-ctx)]
+         [out-batch (batch-empty test-empty-ctx)]
+         [spec (batch-add! in-batch 'x)]
+         [impl (batch-add! in-batch (literal 1 'binary64))]
+         [approx-brf (batch-add! in-batch (approx spec impl))])
+    (check-exn #rx"output batch" (λ () (batch-to-spec! in-batch out-batch (list approx-brf)))))
+
+  (let* ([in-batch (batch-empty test-empty-ctx)]
+         [out-batch (batch-empty test-empty-ctx)]
+         [num (batch-add! in-batch 1)]
+         [expr (batch-add! in-batch `(+ ,num ,num))])
+    (parameterize ([*active-platform* (make-empty-platform)])
+      (check-exn #rx"unexpected spec node" (λ () (batch-to-spec! in-batch out-batch (list num))))
+      (check-exn #rx"unexpected spec node" (λ () (batch-to-spec! in-batch out-batch (list expr)))))))
 
 ;; Expression predicates ;;
 
@@ -148,10 +206,10 @@
 
 ; Cost model of a single node by a platform.
 ; Returns a procedure that must be called with the costs of the children.
-(define ((platform-node-cost-proc platform) expr repr)
+(define ((platform-node-cost-proc platform) expr)
   (match expr
-    [(? literal?) (lambda () (platform-repr-cost platform repr))]
-    [(? symbol?) (lambda () (platform-repr-cost platform repr))]
+    [(literal _ precision) (lambda () (platform-repr-cost platform (get-representation precision)))]
+    [(? symbol?) (lambda () 0)]
     [(list impl args ...)
      (define impl-cost (impl-info impl 'cost))
      (define impl-agg (impl-info impl 'aggregate))
@@ -163,26 +221,32 @@
 ; Cost model parameterized by a platform.
 (define (platform-cost-proc platform)
   (define node-cost-proc (platform-node-cost-proc platform))
-  (λ (expr repr)
-    (let loop ([expr expr]
-               [repr repr])
+  (λ (expr)
+    (let loop ([expr expr])
       (match expr
-        [(? literal?) ((node-cost-proc expr repr))]
-        [(? symbol?) ((node-cost-proc expr repr))]
-        [(approx _ impl) (loop impl repr)]
+        [(? literal?) ((node-cost-proc expr))]
+        [(? symbol?) ((node-cost-proc expr))]
+        [(approx _ impl) (loop impl)]
         [(list impl args ...)
-         (define cost-proc (node-cost-proc expr repr))
-         (define itypes (impl-info impl 'itype))
-         (apply cost-proc (map loop args itypes))]))))
+         (define cost-proc (node-cost-proc expr))
+         (apply cost-proc (map loop args))]))))
 
 ;; Extracts the `fpcore` field of an operator implementation
-;; as a property dictionary and expression.
+;; as a property dictionary and operation.
 (define (impl->fpcore impl)
-  (match (impl-info impl 'fpcore)
-    [(list '! props ... body) (values (props->dict props) body)]
-    [body (values '() body)]))
+  (define-values (props body)
+    (match (impl-info impl 'fpcore)
+      [(list '! props ... body) (values (props->dict props) body)]
+      [body (values '() body)]))
+  (values props
+          (if (symbol? body)
+              (list body)
+              body)))
 
 (define/reset op-hash #f)
+
+(define (reset-fpcore-op-cache!)
+  (op-hash #f))
 
 ;; For a given FPCore operator, rounding context, and input representations,
 ;; finds the best operator implementation. Panics if none can be found.
@@ -192,12 +256,8 @@
     (define h (make-hash))
     (for ([impl (in-list (platform-impls (*active-platform*)))])
       (define-values (_ expr) (impl->fpcore impl))
-      (define expr*
-        (if (symbol? expr)
-            (list expr)
-            expr))
-      (when (list? expr*)
-        (hash-update! h (car expr*) (curry cons impl) '())))
+      (when (list? expr)
+        (hash-update! h (car expr) (curry cons impl) '())))
     (op-hash h))
 
   ; gather all implementations that have the same spec, input representations,
@@ -207,12 +267,8 @@
           (for ([impl (in-list (hash-ref (op-hash) op '()))]
                 #:when (equal? ireprs (impl-info impl 'itype)))
             (define-values (prop-dict* expr) (impl->fpcore impl))
-            (define expr*
-              (if (symbol? expr)
-                  (list expr)
-                  expr)) ; Handle named constants
             (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))
-            (when (and (subset? prop-dict* prop-dict) (pattern-match pattern expr*))
+            (when (and (subset? prop-dict* prop-dict) (pattern-match pattern expr))
               (sow impl)))))
   ; check that we have any matching impls
   (cond
