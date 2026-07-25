@@ -2,11 +2,41 @@
 
 ;; C/C++ platform with a full libm
 
-(require math/flonum)
+(require math/flonum
+         ffi/unsafe)
 
 (define 64bit-move-cost   0.125)
 (define 32bit-move-cost   0.125)
 (define boolean-move-cost 0.100)
+
+(define c-libm (ffi-lib #f))
+
+(define (c-libm-symbol name)
+  (if (eq? (system-type 'os) 'macosx)
+      (string->symbol (format "__~a" name))
+      name))
+
+(define sincosf-impl
+  (get-ffi-obj (c-libm-symbol 'sincosf)
+               c-libm
+               (_fun _float
+                     (sin : (_ptr o _float))
+                     (cos : (_ptr o _float))
+                     ->
+                     _void
+                     ->
+                     (vector (flsingle sin) (flsingle cos)))))
+
+(define sincos-impl
+  (get-ffi-obj (c-libm-symbol 'sincos)
+               c-libm
+               (_fun _double
+                     (sin : (_ptr o _double))
+                     (cos : (_ptr o _double))
+                     ->
+                     _void
+                     ->
+                     (vector sin cos))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -97,6 +127,12 @@
   #:impl (lambda (a b) (vector a b))
   #:fpcore (! :precision binary32 (array x y))
   #:cost 0.25)
+
+(define-operation (sincos.f32 [x <binary32>]) <array32>
+  #:spec (array (sin x) (cos x))
+  #:impl sincosf-impl
+  #:fpcore (! :precision binary32 (sincos x))
+  #:cost 4.250)
 
 (define-operation (array3.f32 [x <binary32>] [y <binary32>] [z <binary32>]) <array32r3>
   #:spec (array x y z)
@@ -215,6 +251,12 @@
   #:impl (lambda (a b) (vector a b))
   #:fpcore (! :precision binary64 (array x y))
   #:cost 0.25)
+
+(define-operation (sincos.f64 [x <binary64>]) <array64>
+  #:spec (array (sin x) (cos x))
+  #:impl sincos-impl
+  #:fpcore (! :precision binary64 (sincos x))
+  #:cost 4.200)
 
 (define-operation (array3.f64 [x <binary64>] [y <binary64>] [z <binary64>]) <array64r3>
   #:spec (array x y z)
