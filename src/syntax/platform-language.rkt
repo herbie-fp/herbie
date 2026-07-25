@@ -42,13 +42,14 @@
       [(? number?) 'real]
       [(? symbol? x) (dict-ref env x #f)]
       [(list 'array elems ...)
-       (if (null? elems)
-           #f
-           (let ([elem-ty (infer (first elems))])
-             (and elem-ty
-                  (for/and ([elem (in-list (rest elems))])
-                    (equal? elem-ty (infer elem)))
-                  `(array ,elem-ty ,(length elems)))))]
+       #:when (null? elems)
+       #f]
+      [(list 'array elems ...)
+       (let ([elem-ty (infer (first elems))])
+         (and elem-ty
+              (for/and ([elem (in-list (rest elems))])
+                (equal? elem-ty (infer elem)))
+              `(array ,elem-ty ,(length elems))))]
       [(list 'ref arr idx)
        (match (infer arr)
          [`(array ,elem-ty ,_) elem-ty]
