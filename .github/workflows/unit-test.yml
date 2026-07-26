@@ -61,7 +61,7 @@ jobs:
           racket infra/diff.rkt tmp-0 tmp-1
 
       - name: "Run Herbie on array benchmarks"
-        run: racket -l herbie improve bench/arrays /tmp/out.fpcore
+        run: racket -l herbie improve bench/arrays.fpcore /tmp/out.fpcore
       - name: "Run Herbie with egglog"
         run: racket -y infra/ci.rkt --egglog --precision binary64 --seed 1 bench/tutorial.fpcore
 
