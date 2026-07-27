@@ -165,14 +165,12 @@
            (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]))
 
 (define (errors-score-masked errs mask)
-  (define mask-count (for/sum ([use? (in-vector mask)] #:when use?) 1))
-  (define masked-errs
-    (for/flvector #:length mask-count
-                  ([err (in-flvector errs)] [use? (in-vector mask)] #:when use?)
-                  err))
-  (if (zero? mask-count)
+  (define count (for/sum ([use? (in-vector mask)] #:when use?) 1))
+  (if (zero? count)
       "unsampled"
-      (errors-score masked-errs)))
+      (errors-score (for/flvector #:length count
+                                  ([err (in-flvector errs)] [use? (in-vector mask)] #:when use?)
+                                  err))))
 
 (define (render-proof proof-json repr)
   `(div ((class "proof"))

@@ -13,19 +13,10 @@
 (provide make-points-json
          regime-var
          regime-splitpoints
-         real->ordinal
-         splitpoints->json)
+         real->ordinal)
 
 (define (bits->tenths x)
   (string->number (real->decimal-string x 1)))
-
-(define (splitpoints->json vars alt repr)
-  (for/list ([var (in-list vars)])
-    (define split-var? (equal? var (regime-var alt)))
-    (if split-var?
-        (for/list ([val (regime-splitpoints alt)])
-          (real->ordinal (repr->real val repr) repr))
-        '())))
 
 (define (make-points-json result-hash)
   (define test (load-test (open-input-string (hash-ref result-hash 'test))))

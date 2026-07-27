@@ -1,7 +1,6 @@
 #lang racket
 
 (require racket/engine
-         racket/random
          math/flonum
          json)
 
@@ -62,21 +61,16 @@
 ;; API Functions
 
 (define (prepare-test test)
-  (define specification (test-spec test))
-  (define precondition (test-pre test))
-  (define-values (batch brfs) (progs->batch (list specification) #:ctx (*context*)))
-  (prepared-test specification precondition batch brfs))
+  (define spec (test-spec test))
+  (define-values (batch brfs) (progs->batch (list spec) #:ctx (*context*)))
+  (prepared-test spec (test-pre test) batch brfs))
 
+;; Report the most accurate alternative first, and the cheapest of the equally
+;; accurate ones. `sort` is stable, so sorting by cost first breaks the ties.
 (define (sort-alt-analyses alts errss)
-  (sort (map alt-analysis alts errss)
-        (lambda (x y)
-          (define x-errs (alt-analysis-errors x))
-          (define y-errs (alt-analysis-errors y))
-          (define x-score (errors-score x-errs))
-          (define y-score (errors-score y-errs))
-          (define x-cost (alt-cost (alt-analysis-alt x)))
-          (define y-cost (alt-cost (alt-analysis-alt y)))
-          (or (< x-score y-score) (and (equal? x-score y-score) (< x-cost y-cost))))))
+  (define by-cost
+    (sort (map alt-analysis alts errss) < #:key (compose alt-cost alt-analysis-alt) #:cache-keys? #t))
+  (sort by-cost < #:key (compose errors-score alt-analysis-errors) #:cache-keys? #t))
 
 ;; The main Herbie function
 (define (get-alternatives test train-pcontext test-pcontext covers)
@@ -160,28 +154,43 @@
                      (list (context-repr (*context*))))))
   (apply mk-pcontext sample))
 
-(define (sample-test-points prepared precondition)
-  (sample-points/count prepared precondition (+ (*num-points*) (*reeval-pts*))))
+(define (sample-report-points prepared)
+  (sample-points/count prepared (prepared-test-pre prepared) (+ (*num-points*) (*reeval-pts*))))
 
-(define (get-taylor-covers prepared)
-  (compute-taylor-covers (prepared-test-spec prepared) (prepared-test-pre prepared) (*context*)))
-
-(define (get-search-sample prepared precondition)
+;; Sampling can fail on the region the covers leave behind. Roll the generator
+;; back, so a run that gives up here matches a run that found no covers at all.
+(define (sample-search-points prepared covers)
   (define rng-state (pseudo-random-generator->vector (current-pseudo-random-generator)))
-  (define old-warnings (set-copy (warnings)))
-  (define old-warning-log (warning-log))
   (with-handlers ([exn:fail:user:herbie:sampling?
                    (lambda (_)
                      (current-pseudo-random-generator (vector->pseudo-random-generator rng-state))
-                     (warnings old-warnings)
-                     (warning-log old-warning-log)
+                     (timeline-push! 'stop "no-taylor-cover-sample" 1)
                      #f)])
-    (sample-points/count prepared precondition (*num-points*))))
+    (sample-points/count prepared
+                         (taylor-covers-precondition (prepared-test-pre prepared) covers)
+                         (*num-points*))))
 
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility
+  (sample-report-points (prepare-test test)))
+
+(define (get-improve test)
+  (random) ;; Tick the random number generator, for backwards compatibility
   (define prepared (prepare-test test))
-  (sample-test-points prepared (prepared-test-pre prepared)))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext (sample-report-points prepared)))
+  (define covers
+    (compute-taylor-covers (prepared-test-spec prepared)
+                           (prepared-test-pre prepared)
+                           (test-input test)
+                           train-pcontext
+                           (*context*)))
+  (define search-pcontext (and (pair? covers) (sample-search-points prepared covers)))
+  (get-alternatives test
+                    (or search-pcontext train-pcontext)
+                    test-pcontext
+                    (if search-pcontext
+                        covers
+                        '())))
 
 ;;
 ;;  Public interface
@@ -232,23 +241,7 @@
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['explanations (get-explanations test pcontext)]
-            ['improve
-             (random) ;; Tick the random number generator, for backwards compatibility
-             (define prepared (prepare-test test))
-             (define report-pcontext (sample-test-points prepared (prepared-test-pre prepared)))
-             (define-values (report-train-pcontext report-test-pcontext)
-               (partition-pcontext report-pcontext))
-             (define covers (get-taylor-covers prepared))
-             (define search-precondition
-               (taylor-covers-precondition (prepared-test-pre prepared) covers))
-             (define search-train-pcontext
-               (and (pair? covers) (get-search-sample prepared search-precondition)))
-             (get-alternatives test
-                               (or search-train-pcontext report-train-pcontext)
-                               report-test-pcontext
-                               (if search-train-pcontext
-                                   covers
-                                   '()))]
+            ['improve (get-improve test)]
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (raise-arguments-error 'compute-result "unknown command" "command" command)]))

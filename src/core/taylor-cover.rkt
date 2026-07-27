@@ -1,6 +1,7 @@
 #lang racket
 
 (require math/bigfloat
+         math/flonum
          (only-in fpbench interval range-table-ref condition->range-table))
 (require "../syntax/batch.rkt"
          "../syntax/float.rkt"
@@ -9,8 +10,10 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../syntax/rival.rkt"
+         "../utils/timeline.rkt"
          "alternative.rkt"
          "batch-reduce.rkt"
+         "points.rkt"
          "programs.rkt"
          "taylor.rkt")
 
@@ -18,90 +21,110 @@
          taylor-covers-precondition
          wrap-taylor-cover-alts)
 
-(struct taylor-cover (name var var-repr out-repr boundary boundary-value expr exponent))
+;; A cover replaces the program with `expr` on the closed interval [lo, hi] of
+;; the variable. One endpoint is infinite for the covers at infinity.
+(struct taylor-cover (name var var-repr out-repr lo hi expr exponent))
 
-(define (real-representation? repr)
-  (equal? (representation-type repr) 'real))
+;; How many nonzero series terms to look at: the one the cover keeps, plus the
+;; ones it drops.
+(define terms-considered 3)
 
-(define (unary-real-variable ctx)
-  (match (context-vars ctx)
-    [(list var) (and (real-representation? (context-lookup ctx var)) var)]
-    [_ #f]))
-
+;; Relative error target for dropping the rest of the series: one ulp, the error
+;; that rounding the result can already introduce.
 (define (precision-epsilon repr)
   (match (representation-name repr)
     ['binary64 (expt 2 -53)]
     ['binary32 (expt 2 -24)]
     [_ #f]))
 
-(define (finite-real? x)
-  (and (real? x) (not (nan? x)) (not (infinite? x))))
+;; Covers test the variable against a float boundary, so the variable must be a
+;; format whose values compare with `<=`.
+(define (unary-real-variable ctx)
+  (match (context-vars ctx)
+    [(list var) (and (precision-epsilon (context-lookup ctx var)) var)]
+    [_ #f]))
 
-(define (contains-zero? iv)
-  (match-define (interval lo hi lo? hi?) iv)
-  (and (or (< lo 0) (and (= lo 0) lo?)) (or (< 0 hi) (and (= hi 0) hi?))))
-
-(define (zero-cap intervals)
+;; The bounds of the first precondition interval that a cover on [lo, hi] can
+;; apply to. A cover no sampled point can reach is useless.
+(define (overlapping-bounds intervals lo hi)
   (for/first ([iv (in-list intervals)]
-              #:when (contains-zero? iv))
-    (match-define (interval lo hi _ _) iv)
-    (min (abs lo) (abs hi))))
+              #:do [(match-define (interval iv-lo iv-hi _ _) iv)]
+              #:when (and (< iv-lo hi) (< lo iv-hi)))
+    (cons iv-lo iv-hi)))
 
-(define (tail-present? intervals name threshold)
-  (for/or ([iv (in-list intervals)])
-    (match-define (interval lo hi lo? hi?) iv)
-    (match name
-      ['inf (or (< threshold hi) (and (= threshold hi) hi?))]
-      ['-inf (or (< lo (- threshold)) (and (= lo (- threshold)) lo?))])))
+;; Round an endpoint into the interval, so the covered region never grows past
+;; the radius the series was checked on, or past the precondition.
+(define (round-inward value dir repr)
+  (define rounded
+    (parameterize ([bf-rounding-mode dir])
+      ((representation-bf->repr repr) (bf value))))
+  (and (rational? rounded) rounded))
 
-(define (round-radius-down radius cap repr)
-  (define radius-value
-    (parameterize ([bf-rounding-mode 'down])
-      ((representation-bf->repr repr) (bf (min radius cap)))))
-  (define cap-value
-    (and (finite-real? cap)
-         (>= radius cap)
-         (>= (repr->real radius-value repr) cap)
-         ((representation-ordinal->repr repr)
-          (sub1 ((representation-repr->ordinal repr) radius-value)))))
-  (define value (or cap-value radius-value))
-  (and (finite-real? value) (positive? value) value))
-
-(define (round-threshold-up radius-value repr)
-  (define radius ((representation-repr->bf repr) radius-value))
+;; A cover at infinity starts at 1/radius. Round up, so the covered tail stays
+;; inside the radius.
+(define (reciprocal-up radius repr)
   (define value
     (parameterize ([bf-rounding-mode 'up])
-      ((representation-bf->repr repr) (bf/ 1.bf radius))))
-  (and (finite-real? value) (positive? value) value))
+      ((representation-bf->repr repr) (bf/ 1.bf (bf radius)))))
+  (and (rational? value) (positive? value) value))
 
-(define (constant-value expr repr)
-  (define ctx (context '() repr '()))
-  (define-values (batch brfs) (progs->batch (list expr) #:ctx ctx))
-  (define compiler (make-real-compiler batch brfs (list repr)))
-  (define-values (status values) (real-apply compiler (vector)))
-  (and (equal? status 'valid) (repr->real (first values) repr)))
+(define (predecessor value repr)
+  ((representation-ordinal->repr repr) (sub1 ((representation-repr->ordinal repr) value))))
 
-(define (coefficient-value batch coeff repr)
-  (define expr ((batch-exprs batch) coeff))
-  (and (null? (free-variables expr))
-       (let ([value (constant-value expr repr)]) (and value (finite-real? value) value))))
+;; Dropping every term after the first costs at most `epsilon` relative error
+;; while the transformed variable stays inside this radius. Every dropped term is
+;; checked, not just the first one, because a small next coefficient otherwise
+;; inflates the radius past where the series is accurate.
+(define (cover-radius coeffs exponents epsilon)
+  (define kept (first coeffs))
+  (define kept-exponent (first exponents))
+  (for/fold ([radius #f])
+            ([coeff (in-list (rest coeffs))]
+             [exponent (in-list (rest exponents))])
+    (define candidate
+      (and (not (zero? coeff))
+           (expt (* epsilon (/ (abs kept) (abs coeff))) (/ 1 (- exponent kept-exponent)))))
+    (if (and (rational? candidate) (positive? candidate))
+        (min candidate (or radius candidate))
+        radius)))
 
-(define (taylor-term->spec coeff exponent var)
-  (define monomial
-    (match exponent
-      [0 1]
-      [1 var]
-      [-1 `(/ 1 ,var)]
-      [_ `(pow ,var ,exponent)]))
-  (match* (coeff exponent)
-    [(_ 0) coeff]
-    [(1 _) monomial]
-    [(-1 _) `(neg ,monomial)]
-    [(_ _) `(* ,coeff ,monomial)]))
+;; The interval of inputs the cover applies to, or #f if no sampled point could
+;; land in it.
+(define (cover-interval name radius var-repr intervals)
+  (match name
+    [0
+     (define bounds (overlapping-bounds intervals (- radius) radius))
+     (define lo (and bounds (round-inward (max (- radius) (car bounds)) 'up var-repr)))
+     (define hi (and bounds (round-inward (min radius (cdr bounds)) 'down var-repr)))
+     (and lo hi (< lo hi) (cons lo hi))]
+    ['inf
+     (define threshold (reciprocal-up radius var-repr))
+     (and threshold (overlapping-bounds intervals threshold +inf.0) (cons threshold +inf.0))]
+    ['-inf
+     (define threshold (reciprocal-up radius var-repr))
+     (and threshold
+          (overlapping-bounds intervals -inf.0 (- threshold))
+          (cons -inf.0 (- threshold)))]))
 
+;; Evaluate every coefficient of the series in one Rival machine. A coefficient
+;; that still mentions the variable means the series did not resolve here.
+(define (coefficient-values batch coeffs out-repr)
+  (define exprs (map (batch-exprs batch) coeffs))
+  (cond
+    [(not (andmap (lambda (expr) (null? (free-variables expr))) exprs)) #f]
+    [else
+     (define ctx (context '() out-repr '()))
+     (define-values (const-batch brfs) (progs->batch exprs #:ctx ctx))
+     (define compiler (make-real-compiler const-batch brfs (map (const out-repr) exprs)))
+     (define-values (status outs) (real-apply compiler (vector)))
+     (define nums (and (equal? status 'valid) (map (lambda (out) (repr->real out out-repr)) outs)))
+     (and nums (andmap rational? nums) nums)]))
+
+;; Rewrite the kept term back into the original variable. The covers at infinity
+;; expand in 1/x and -1/x, so the exponent flips and odd powers of -1/x flip sign.
 (define (term-in-input name coeff exponent)
   (match name
-    ['zero (values coeff exponent)]
+    [0 (values coeff exponent)]
     ['inf (values coeff (- exponent))]
     ['-inf
      (values (if (odd? exponent)
@@ -109,148 +132,164 @@
                  coeff)
              (- exponent))]))
 
-(define (build-cover batch series transform ctx var var-repr out-repr epsilon intervals)
-  (match-define (list transform-name forward inverse) transform)
-  (define name (if (equal? transform-name 0) 'zero transform-name))
-  (define next-term
-    (make-taylor-term-generator series batch var #:transform (cons forward inverse) #:iters 8))
-  (define kept (next-term))
-  (define omitted (next-term))
-  (define kept-exponent (taylor-term-exponent kept))
-  (define omitted-exponent (taylor-term-exponent omitted))
-  (cond
-    [(or (not (taylor-term-coeff kept))
-         (not (taylor-term-coeff omitted))
-         (not (exact-integer? kept-exponent))
-         (not (exact-integer? omitted-exponent))
-         (<= omitted-exponent kept-exponent)
-         (and (equal? name 'zero) (negative? kept-exponent)))
-     #f]
-    [else
-     (define kept-value (coefficient-value batch (taylor-term-coeff kept) out-repr))
-     (define omitted-value (coefficient-value batch (taylor-term-coeff omitted) out-repr))
-     (cond
-       [(or (not kept-value) (zero? kept-value) (not omitted-value) (zero? omitted-value)) #f]
-       [else
-        (define delta (- omitted-exponent kept-exponent))
-        (define radius (expt (* epsilon (/ (abs kept-value) (abs omitted-value))) (/ 1 delta)))
-        (define cap
-          (if (equal? name 'zero)
-              (zero-cap intervals)
-              +inf.0))
-        (define radius-value
-          (and cap
-               (positive? cap)
-               (finite-real? radius)
-               (positive? radius)
-               (round-radius-down radius cap var-repr)))
-        (cond
-          [(not radius-value) #f]
-          [else
-           (define boundary-value
-             (match name
-               ['zero radius-value]
-               ['inf (round-threshold-up radius-value var-repr)]
-               ['-inf
-                (define threshold (round-threshold-up radius-value var-repr))
-                (and threshold (- threshold))]))
-           (cond
-             [(not boundary-value) #f]
-             [(and (not (equal? name 'zero))
-                   (not (tail-present? intervals name (abs (repr->real boundary-value var-repr)))))
-              #f]
-             [else
-              (define-values (input-coeff input-exponent)
-                (term-in-input name kept-value kept-exponent))
-              (define spec (taylor-term->spec input-coeff input-exponent var))
-              (define expr (fpcore->prog (prog->fpcore spec ctx) ctx))
-              (taylor-cover name
-                            var
-                            var-repr
-                            out-repr
-                            (repr->real boundary-value var-repr)
-                            boundary-value
-                            expr
-                            kept-exponent)])])])]))
+;; A term with exponent -1 divides rather than multiplying by a reciprocal, so it
+;; costs one rounding instead of two.
+(define (taylor-term->spec coeff exponent var)
+  (define monomial
+    (match exponent
+      [1 var]
+      [_ `(pow ,var ,exponent)]))
+  (match* (coeff exponent)
+    [(_ 0) coeff]
+    [(_ -1) `(/ ,coeff ,var)]
+    [(1 _) monomial]
+    [(-1 _) `(neg ,monomial)]
+    [(_ _) `(* ,coeff ,monomial)]))
 
-(define (compute-taylor-covers spec pre ctx)
+(define (build-cover batch series transform ctx var var-repr epsilon intervals)
+  (match-define (list name forward inverse) transform)
+  (define out-repr (context-repr ctx))
+  (let/ec return
+    (define next-term
+      (make-taylor-term-generator series batch var #:transform (cons forward inverse)))
+    (define terms (build-list terms-considered (lambda (_) (next-term))))
+    (define exponents (map taylor-term-exponent terms))
+    ;; A fractional exponent would raise a negative input to a fractional power,
+    ;; which is undefined, and every cover but the one at +infinity spans
+    ;; negative inputs.
+    (unless (andmap exact-integer? exponents)
+      (return #f))
+    (define coeffs (coefficient-values batch (map taylor-term-coeff terms) out-repr))
+    (unless coeffs
+      (return #f))
+    (define radius (cover-radius coeffs exponents epsilon))
+    (unless radius
+      (return #f))
+    (define bounds (cover-interval name radius var-repr intervals))
+    (unless bounds
+      (return #f))
+    (define-values (coeff exponent) (term-in-input name (first coeffs) (first exponents)))
+    (taylor-cover name
+                  var
+                  var-repr
+                  out-repr
+                  (car bounds)
+                  (cdr bounds)
+                  (fpcore->prog (taylor-term->spec coeff exponent var) ctx)
+                  (first exponents))))
+
+;; The error bound is not rigorous, so a cover is only worth a branch if the one
+;; term it keeps really does beat the program it replaces, on the training points
+;; the cover claims.
+(define (cover-improves? cover expr pcontext ctx)
+  (define lo (taylor-cover-lo cover))
+  (define hi (taylor-cover-hi cover))
+  (match-define (list cover-errs expr-errs)
+    (exprs-errors (list (taylor-cover-expr cover) expr) pcontext ctx))
+  (define-values (cover-total expr-total)
+    (for/fold ([cover-total 0.0]
+               [expr-total 0.0])
+              ([(pt _) (in-pcontext pcontext)]
+               [cover-err (in-flvector cover-errs)]
+               [expr-err (in-flvector expr-errs)]
+               #:when (<= lo (vector-ref pt 0) hi))
+      (values (+ cover-total cover-err) (+ expr-total expr-err))))
+  (< cover-total expr-total))
+
+(define (compute-taylor-covers spec pre expr pcontext ctx)
   (define var (unary-real-variable ctx))
   (define out-repr (context-repr ctx))
-  (define epsilon (and (real-representation? out-repr) (precision-epsilon out-repr)))
+  (define epsilon (precision-epsilon out-repr))
   (cond
     [(not (and var epsilon)) '()]
     [else
+     (timeline-event! 'series)
      (define var-repr (context-lookup ctx var))
      (define intervals (range-table-ref (condition->range-table pre) var))
      (define-values (batch brfs) (progs->batch (list spec) #:ctx ctx))
+     (define (try-cover transform coefficients)
+       (define cover
+         (build-cover batch (first coefficients) transform ctx var var-repr epsilon intervals))
+       (and cover
+            (let ([kept? (cover-improves? cover expr pcontext ctx)])
+              (timeline-push! 'taylor-count
+                              (~a (first transform))
+                              (taylor-cover-exponent cover)
+                              1
+                              1
+                              (if kept? 1 0))
+              (and kept? cover))))
      (parameterize ([reduce (batch-reduce batch)]
                     [add (lambda (x) (batch-add! batch x))])
-       (define coefficientss (taylor-coefficients batch brfs (list var) taylor-transforms))
-       (for/list ([transform (in-list taylor-transforms)]
-                  [coefficients (in-list coefficientss)]
-                  #:do [(define cover
-                          (build-cover batch
-                                       (first coefficients)
-                                       transform
-                                       ctx
-                                       var
-                                       var-repr
-                                       out-repr
-                                       epsilon
-                                       intervals))]
-                  #:when cover)
-         cover))]))
+       (filter-map try-cover
+                   taylor-transforms
+                   (taylor-coefficients batch brfs (list var) taylor-transforms)))]))
 
-(define (outside-cover cover)
+;; The search skips whatever the covers already handle.
+(define (cover-outside cover)
   (define var (taylor-cover-var cover))
-  (define boundary (taylor-cover-boundary cover))
-  (match (taylor-cover-name cover)
-    ['zero `(or (< ,var ,(- boundary)) (< ,boundary ,var))]
-    ['inf `(< ,var ,boundary)]
-    ['-inf `(< ,boundary ,var)]))
+  (define var-repr (taylor-cover-var-repr cover))
+  (define lo (taylor-cover-lo cover))
+  (define hi (taylor-cover-hi cover))
+  (define (bound value)
+    (repr->real value var-repr))
+  (cond
+    [(infinite? lo) `(< ,(bound hi) ,var)]
+    [(infinite? hi) `(< ,var ,(bound lo))]
+    [else `(or (< ,var ,(bound lo)) (< ,(bound hi) ,var))]))
 
 (define (taylor-covers-precondition pre covers)
   (for/fold ([pre pre]) ([cover (in-list covers)])
-    `(and ,pre ,(outside-cover cover))))
+    `(and ,pre ,(cover-outside cover))))
 
-(define (predecessor value repr)
-  ((representation-ordinal->repr repr) (sub1 ((representation-repr->ordinal repr) value))))
-
-(define (wrap-cover altn cover)
-  (define name (taylor-cover-name cover))
+(define (cover-condition cover)
   (define var (taylor-cover-var cover))
   (define var-repr (taylor-cover-var-repr cover))
-  (define out-repr (taylor-cover-out-repr cover))
-  (define boundary (taylor-cover-boundary cover))
-  (define boundary-value (taylor-cover-boundary-value cover))
-  (define boundary-lit (literal boundary (representation-name var-repr)))
+  (define lo (taylor-cover-lo cover))
+  (define hi (taylor-cover-hi cover))
   (define <=-impl (get-fpcore-impl '<= '() (list var-repr var-repr)))
-  (define if-impl (get-fpcore-impl 'if '() (list <bool> out-repr out-repr)))
-  (define condition
-    (match name
-      ['zero
-       (define fabs-impl (get-fpcore-impl 'fabs (repr->prop var-repr) (list var-repr)))
-       `(,<=-impl (,fabs-impl ,var) ,boundary-lit)]
-      ['inf `(,<=-impl ,boundary-lit ,var)]
-      ['-inf `(,<=-impl ,var ,boundary-lit)]))
-  (define taylor-expr (taylor-cover-expr cover))
-  (define taylor-alt
-    (alt taylor-expr
-         `(taylor ,(alt-expr altn) ,name ,var ,(taylor-cover-exponent cover))
-         (list altn)))
-  (define splitpoints
-    (match name
-      ['zero
-       (list (sp 0 var (predecessor (- boundary-value) var-repr))
-             (sp 1 var boundary-value)
-             (sp 0 var +nan.0))]
-      ['inf (list (sp 0 var (predecessor boundary-value var-repr)) (sp 1 var +nan.0))]
-      ['-inf (list (sp 1 var boundary-value) (sp 0 var +nan.0))]))
-  (alt `(,if-impl ,condition ,taylor-expr ,(alt-expr altn))
-       `(regimes ,splitpoints)
-       (list altn taylor-alt)))
+  (define (bound value)
+    (literal (repr->real value var-repr) (representation-name var-repr)))
+  (cond
+    [(infinite? lo) `(,<=-impl ,var ,(bound hi))]
+    [(infinite? hi) `(,<=-impl ,(bound lo) ,var)]
+    [else
+     (define and-impl (get-fpcore-impl 'and '() (list <bool> <bool>)))
+     `(,and-impl (,<=-impl ,(bound lo) ,var) (,<=-impl ,var ,(bound hi)))]))
 
+(define (cover-splitpoints cover)
+  (define var (taylor-cover-var cover))
+  (define var-repr (taylor-cover-var-repr cover))
+  (define lo (taylor-cover-lo cover))
+  (define hi (taylor-cover-hi cover))
+  (cond
+    [(infinite? lo) (list (sp 1 var hi) (sp 0 var +nan.0))]
+    [(infinite? hi) (list (sp 0 var (predecessor lo var-repr)) (sp 1 var +nan.0))]
+    [else (list (sp 0 var (predecessor lo var-repr)) (sp 1 var hi) (sp 0 var +nan.0))]))
+
+(define (wrap-cover altn cover)
+  (define out-repr (taylor-cover-out-repr cover))
+  (define taylor-expr (taylor-cover-expr cover))
+  (define if-impl (get-fpcore-impl 'if '() (list <bool> out-repr out-repr)))
+  (define taylor-altn
+    (alt taylor-expr
+         `(taylor ,(alt-expr altn)
+                  ,(taylor-cover-name cover)
+                  ,(taylor-cover-var cover)
+                  ,(taylor-cover-exponent cover))
+         (list altn)))
+  (alt `(,if-impl ,(cover-condition cover) ,taylor-expr ,(alt-expr altn))
+       `(regimes ,(cover-splitpoints cover))
+       (list altn taylor-altn)))
+
+;; Report the covered and uncovered forms of every alternative. A cover that
+;; turns out to cost more than it saves is then outvoted by the error and cost
+;; sort, instead of being forced on every result.
 (define (wrap-taylor-cover-alts altns covers)
-  (for/fold ([altns altns]) ([cover (in-list covers)])
-    (for/list ([altn (in-list altns)])
-      (wrap-cover altn cover))))
+  (cond
+    [(null? covers) altns]
+    [else
+     (append altns
+             (for/list ([altn (in-list altns)])
+               (for/fold ([altn altn]) ([cover (in-list covers)])
+                 (wrap-cover altn cover))))]))
