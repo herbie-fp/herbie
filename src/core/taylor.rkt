@@ -10,7 +10,6 @@
 
 (provide (struct-out taylor-term)
          approximate
-         make-taylor-term-generator
          taylor-coefficients
          taylor-transforms
          reduce
@@ -25,16 +24,15 @@
 (define (adder x)
   ((add) x))
 
-(define (invert-x x)
-  `(/ 1 ,x))
-
-(define (negate-invert-x x)
-  `(/ 1 (neg ,x)))
-
 (define taylor-transforms
-  (list (list 0 identity identity)
-        (list 'inf invert-x invert-x)
-        (list '-inf negate-invert-x negate-invert-x)))
+  (let ([invert-x (λ (x) `(/ 1 ,x))]
+        [exp-x (λ (x) `(exp ,x))]
+        [log-x (λ (x) `(log ,x))]
+        [ninvert-x (λ (x) `(/ 1 (neg ,x)))])
+    `((0 ,identity ,identity) (inf ,invert-x ,invert-x)
+                              (-inf ,ninvert-x ,ninvert-x)
+                              #;(exp ,exp-x ,log-x)
+                              #;(log ,log-x ,exp-x))))
 
 (define (taylor-coefficients batch brfs vars transforms-to-try)
   (define expander (expand-taylor! batch))
@@ -48,46 +46,33 @@
 
 (struct taylor-term (expr coeff exponent) #:transparent)
 
-(define (make-taylor-term-generator* taylor-approx batch var tform iters replacer)
-  (define offset (series-offset taylor-approx))
-  (define i 0)
-  (define terms '())
-
-  (define (current-approximation)
-    (reducer (make-horner ((cdr tform) var) (reverse terms))))
-
-  (define (next [iter 0])
-    (define coeff (reducer (replacer (series-ref taylor-approx i))))
-    (set! i (+ i 1))
-    (match (deref coeff)
-      [0
-       (if (< iter iters)
-           (next (+ iter 1))
-           (taylor-term (current-approximation) #f #f))]
-      [_
-       (define exponent (- i offset 1))
-       (set! terms (cons (cons coeff exponent) terms))
-       (define expr (current-approximation))
-       (taylor-term expr coeff exponent)]))
-  next)
-
-(define (make-taylor-term-generator taylor-approx
-                                    batch
-                                    var
-                                    #:transform [tform (cons identity identity)]
-                                    #:iters [iters 5])
-  (define replacer (batch-replace-expression! batch var ((cdr tform) var)))
-  (make-taylor-term-generator* taylor-approx batch var tform iters replacer))
-
 (define (approximate taylor-approxs
                      batch
                      var
                      #:transform [tform (cons identity identity)]
                      #:iters [iters 5])
   (define replacer (batch-replace-expression! batch var ((cdr tform) var)))
-  (for/list ([ta (in-list taylor-approxs)])
-    (define next (make-taylor-term-generator* ta batch var tform iters replacer))
-    (lambda () (taylor-term-expr (next)))))
+  (for/list ([ta taylor-approxs])
+    (define offset (series-offset ta))
+    (define i 0)
+    (define terms '())
+
+    (define (horner)
+      (reducer (make-horner ((cdr tform) var) (reverse terms))))
+
+    (define (next [iter 0])
+      (define coeff (reducer (replacer (series-ref ta i))))
+      (set! i (+ i 1))
+      (match (deref coeff)
+        [0
+         (if (< iter iters)
+             (next (+ iter 1))
+             (taylor-term (horner) #f #f))]
+        [_
+         (define exponent (- i offset 1))
+         (set! terms (cons (cons coeff exponent) terms))
+         (taylor-term (horner) coeff exponent)]))
+    next))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
 (define (expand-taylor! input-batch)

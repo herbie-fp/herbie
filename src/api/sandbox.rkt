@@ -38,7 +38,6 @@
 (struct job-result (command test status time timeline profile warnings backend))
 (struct improve-result (pcontext start target end))
 (struct alt-analysis (alt errors) #:prefab)
-(struct prepared-test (spec pre batch brfs) #:transparent)
 
 ;; API users can supply their own, weird set of points, in which case
 ;; the first 256 are training points and everything is test points.
@@ -60,13 +59,16 @@
 
 ;; API Functions
 
-(define (prepare-test test)
-  (define spec (test-spec test))
-  (define-values (batch brfs) (progs->batch (list spec) #:ctx (*context*)))
-  (prepared-test spec (test-pre test) batch brfs))
+;; Sampling a test more than once should reuse its batch.
+(define (make-sampler test)
+  (define-values (batch brfs) (progs->batch (list (test-spec test)) #:ctx (*context*)))
+  (lambda ([precondition (test-pre test)] [count (+ (*num-points*) (*reeval-pts*))])
+    (define sample
+      (parameterize ([*num-points* count])
+        (sample-points precondition batch brfs (list (context-repr (*context*))))))
+    (apply mk-pcontext sample)))
 
-;; Report the most accurate alternative first, and the cheapest of the equally
-;; accurate ones. `sort` is stable, so sorting by cost first breaks the ties.
+;; Sort by cost first to breaks ties.
 (define (sort-alt-analyses alts errss)
   (define by-cost
     (sort (map alt-analysis alts errss) < #:key (compose alt-cost alt-analysis-alt) #:cache-keys? #t))
@@ -145,46 +147,31 @@
 
   (local-error-as-tree (test-input test) (*context*) pcontext))
 
-(define (sample-points/count prepared precondition count)
-  (define sample
-    (parameterize ([*num-points* count])
-      (sample-points precondition
-                     (prepared-test-batch prepared)
-                     (prepared-test-brfs prepared)
-                     (list (context-repr (*context*))))))
-  (apply mk-pcontext sample))
-
-(define (sample-report-points prepared)
-  (sample-points/count prepared (prepared-test-pre prepared) (+ (*num-points*) (*reeval-pts*))))
-
-;; Sampling can fail on the region the covers leave behind. Roll the generator
-;; back, so a run that gives up here matches a run that found no covers at all.
-(define (sample-search-points prepared covers)
+;; If post-covers region is unsamplable, roll the generator back
+(define (sample-search-points sample test covers)
   (define rng-state (pseudo-random-generator->vector (current-pseudo-random-generator)))
   (with-handlers ([exn:fail:user:herbie:sampling?
                    (lambda (_)
                      (current-pseudo-random-generator (vector->pseudo-random-generator rng-state))
                      (timeline-push! 'stop "no-taylor-cover-sample" 1)
                      #f)])
-    (sample-points/count prepared
-                         (taylor-covers-precondition (prepared-test-pre prepared) covers)
-                         (*num-points*))))
+    (sample (taylor-covers-precondition (test-pre test) covers) (*num-points*))))
 
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility
-  (sample-report-points (prepare-test test)))
+  ((make-sampler test)))
 
 (define (get-improve test)
   (random) ;; Tick the random number generator, for backwards compatibility
-  (define prepared (prepare-test test))
-  (define-values (train-pcontext test-pcontext) (partition-pcontext (sample-report-points prepared)))
+  (define sample (make-sampler test))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext (sample)))
   (define covers
-    (compute-taylor-covers (prepared-test-spec prepared)
-                           (prepared-test-pre prepared)
+    (compute-taylor-covers (test-spec test)
+                           (test-pre test)
                            (test-input test)
                            train-pcontext
                            (*context*)))
-  (define search-pcontext (and (pair? covers) (sample-search-points prepared covers)))
+  (define search-pcontext (and (pair? covers) (sample-search-points sample test covers)))
   (get-alternatives test
                     (or search-pcontext train-pcontext)
                     test-pcontext
