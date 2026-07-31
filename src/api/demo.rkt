@@ -153,7 +153,7 @@
     (make-directory (*demo-output*)))
 
   (response/xexpr
-   #:preamble (list #"<!doctype html>")
+   #:preamble #"<!doctype html>"
    #:headers (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (server-count)))))
    (herbie-page
     #:title (if (*demo?*) "Herbie web demo" "Herbie")
@@ -268,7 +268,7 @@
 (define (response/error title body)
   (response/xexpr #:code 400
                   #:message #"Bad Request"
-                  #:preamble (list #"<!doctype html>")
+                  #:preamble #"<!doctype html>"
                   (herbie-page #:title title body)))
 
 (define (get-result req job-id)
