@@ -232,6 +232,7 @@ else {
   <p>This plot makes it clear that Herbie's alternative is almost
   perfectly accurate for positive <code>xre</code>, but still has some
   error for negative <code>xre</code>.
+  </p>
 
   <p>Herbie also found other alternatives, which are less accurate but
   might be faster. You can see a summary in this table:</p>
@@ -285,7 +286,7 @@ else {
   alternative.</p>
 
   <pre>
-// Herbie 2.1 for:
+// Herbie 2.3 for:
 //   0.5 * sqrt(2.0 * (sqrt(xre*xre + xim*xim) + xre))
 var r = Math.hypot(x.re, x.im);
 var re;

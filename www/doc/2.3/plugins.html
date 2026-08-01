@@ -52,8 +52,7 @@
 
   <p>Create representations with <code>make-representation</code>:</p>
 
-  <code>
-  <table>
+  <table class="function-list">
     <tr><td colspan=2>(<b>make-representation</b></td></tr>
     <tr><td></td><td>#:name <var>name</var></td></tr>
     <tr><td></td><td>#:total-bits <var>width</var></td></tr>
@@ -63,7 +62,6 @@
     <tr><td></td><td>#:repr->ordinal <var>repr->ordinal</var></td></tr>
     <tr><td></td><td>#:special-value? <var>special?</var>)</td></tr>
   </table>
-  </code>
 
   <p>The <code>#:name</code> should be either a symbol, or a list
   containing symbols and integers. The <code>#:total-bits</code> value
@@ -120,10 +118,10 @@
 
   <p>To define a generator, use <code>define-generator</code>:</p>
 
-  <code><table>
+  <table class="function-list">
   <tr><td colspan=2>(<b>define-generator</b> ((from-<var>foo</var> <var>args</var> ...) spec ctx)</td></tr>
   <tr><td></td><td><var>body</var> ...)</td></tr>
-  </table></code>
+  </table>
 
   <p>Here, <code>from-<var>foo</var></code> is the name of your
   generator, and <var>args</var> are any additional arguments the

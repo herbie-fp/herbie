@@ -224,11 +224,11 @@
   (define-values (iterations mixsample-data)
     (cond
       [(use-rival3?)
-       (match-let ([(list summary _ iters) (rival-profile machine 'summary)])
-         (values iters
-                 (for/list ([entry (in-vector summary)])
-                   (match-define (list name prec-bucket total-time _) entry)
-                   (list total-time name prec-bucket 0))))]
+       (match-define (list summary _ iters) (rival-profile machine 'summary))
+       (values iters
+               (for/list ([entry (in-vector summary)])
+                 (match-define (list name prec-bucket total-time _) entry)
+                 (list total-time name prec-bucket 0)))]
       [else
        (define executions (rival-profile machine 'executions))
        (when (>= (vector-length executions) (r2:*rival-profile-executions*))

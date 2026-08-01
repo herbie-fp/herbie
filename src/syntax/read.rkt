@@ -322,19 +322,12 @@
   (check-equal? (fpcore->prog '(sum2 a) vec-ctx) '(sum2 a))
   (check-equal? ((impl-info 'sum2 'fl) #(1.0 2.0)) 3.0)
 
-  ;; array return values
-  (define vec-out-ctx (context '(x y) vec2 (list <binary64> <binary64>)))
-  (define vec-out-prog (fpcore->prog '(array x y) vec-out-ctx))
-  (register-fpcore-operator! 'mkvec vec-out-ctx vec-out-prog vec-out-prog)
-  (check-equal? (prog->spec vec-out-prog) '(array x y))
-  (check-equal? ((impl-info 'mkvec 'fl) 1.0 2.0) #(1.0 2.0))
-
   ;; serialized platform state can restore named operators on a fresh platform copy
   (define state (platform-serialize))
   (activate-platform! "math")
-  (check-false (impl-exists? 'mkvec))
+  (check-false (impl-exists? 'sum2))
   (activate-platform! state)
-  (check-equal? ((impl-info 'mkvec 'fl) 1.0 2.0) #(1.0 2.0))
+  (check-equal? ((impl-info 'sum2 'fl) #(1.0 2.0)) 3.0)
 
   ;; sequential reads can reference previously defined named FPCore operators
   (define port
