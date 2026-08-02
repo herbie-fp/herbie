@@ -10,6 +10,7 @@
          "../config.rkt"
          "../syntax/block.rkt"
          "../utils/common.rkt"
+         "../utils/errors.rkt"
          "egglog-subprocess.rkt")
 
 (provide (struct-out egglog-runner)
@@ -40,7 +41,9 @@
   (match repr-name
     [(? representation?) (egglog-repr-token (representation-name repr-name))]
     [(? symbol?) (format "sym_~a" repr-name)]
-    [`(array ,elem ,len) (format "arr_~a_~a" len (egglog-repr-token elem))]))
+    [`(array ,elem ,len) (format "arr_~a_~a" len (egglog-repr-token elem))]
+    [`(tuple ,_ ...)
+     (raise-herbie-error "The egglog backend does not support tuple representations: ~a" repr-name)]))
 
 (define (egglog-repr-name token)
   (cond
