@@ -62,6 +62,7 @@
          "platform.rkt"
          "matcher.rkt"
          "syntax.rkt"
+         "tuples.rkt"
          "types.rkt")
 
 (provide fpcore->spec
@@ -197,6 +198,14 @@
        prop-dict
        (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " "))))
 
+(define (aggregate-index idx)
+  (inexact->exact (round idx)))
+
+(define (tuple-accessor-impl impl)
+  (match (impl-info impl 'fpcore)
+    [(list 'ref _ _) (and (tuple-representation? (first (impl-info impl 'itype))) impl)]
+    [_ #f]))
+
 ;; Translates an FPCore operator application into
 ;; an LImpl operator application.
 (define (fpcore->impl-app op prop-dict args ctx)
@@ -235,14 +244,24 @@
            (fpcore->impl-app 'cast prop-dict (list arg*) ctx))]
       [(list 'ref arr idx)
        (define arr* (loop arr prop-dict))
-       (define idx* (loop idx prop-dict))
        (define arr-repr (repr-of arr* ctx))
-       (define idx-repr (repr-of idx* ctx))
-       (define impl (assert-fpcore-impl 'ref prop-dict (list arr-repr idx-repr)))
-       (define vars (impl-info impl 'vars))
-       (define-values (_ body) (impl->fpcore impl))
-       (define subst (pattern-match body (list 'ref arr* idx*)))
-       (pattern-substitute (cons impl vars) subst)]
+       (cond
+         [(tuple-representation? arr-repr)
+          (list (ensure-tuple-ref-impl! arr-repr (aggregate-index idx)) arr*)]
+         [else
+          (define idx* (loop idx prop-dict))
+          (define idx-repr (repr-of idx* ctx))
+          (define impl (assert-fpcore-impl 'ref prop-dict (list arr-repr idx-repr)))
+          (define vars (impl-info impl 'vars))
+          (define-values (_ body) (impl->fpcore impl))
+          (define subst (pattern-match body (list 'ref arr* idx*)))
+          (pattern-substitute (cons impl vars) subst)])]
+      [(list 'tuple args ...)
+       (define args* (map (lambda (arg) (loop arg prop-dict)) args))
+       (define slots (map (lambda (arg) (repr-of arg ctx)) args*))
+       (define repr (make-tuple-representation #:slots slots))
+       (ensure-tuple-impls! repr)
+       (cons (tuple-impl-name repr) args*)]
       [(list op args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
        (fpcore->impl-app op prop-dict args* ctx)])))
@@ -323,17 +342,18 @@
        ; we check what happens if we inline
        (match-define (cons expr impl) (vector-ref ivec idx))
        (define impl*
-         (match expr
-           [(list '! props ... (or (? symbol? op) (list op _ ...)))
-            ; rounding context updated parent context
-            (define prop-dict*
-              (if (not (null? props))
-                  (apply dict-set prop-dict props)
-                  prop-dict))
-            (assert-fpcore-impl op prop-dict* (impl-info impl 'itype))]
-           ; rounding context inherited from parent context
-           [(or (? symbol? op) (list op _ ...))
-            (assert-fpcore-impl op prop-dict (impl-info impl 'itype))]))
+         (or (tuple-accessor-impl impl)
+             (match expr
+               [(list '! props ... (or (? symbol? op) (list op _ ...)))
+                ; rounding context updated parent context
+                (define prop-dict*
+                  (if (not (null? props))
+                      (apply dict-set prop-dict props)
+                      prop-dict))
+                (assert-fpcore-impl op prop-dict* (impl-info impl 'itype))]
+               ; rounding context inherited from parent context
+               [(or (? symbol? op) (list op _ ...))
+                (assert-fpcore-impl op prop-dict (impl-info impl 'itype))])))
        (cond
          [(equal? impl impl*) ; inlining is safe
           (define expr* (loop expr prop-dict))
