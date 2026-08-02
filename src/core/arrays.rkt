@@ -21,13 +21,17 @@
 (define (array-expression? expr)
   (match expr
     [(list 'array _ ...) #t]
+    [(list 'tuple _ ...) #t]
     [(list 'ref _ ...) #t]
     [(list _ args ...) (ormap array-expression? args)]
     [_ #f]))
 
+(define (aggregate-representation? repr)
+  (or (array-representation? repr) (tuple-representation? repr)))
+
 (define (flatten-arrays-for-rival/no-arrays? specs ctxs pre)
-  (and (not (ormap array-representation? (map context-repr ctxs)))
-       (not (ormap array-representation? (append* (map context-var-reprs ctxs))))
+  (and (not (ormap aggregate-representation? (map context-repr ctxs)))
+       (not (ormap aggregate-representation? (append* (map context-var-reprs ctxs))))
        (not (ormap array-expression? (cons pre specs)))))
 
 (define (flatten-arrays-for-rival/no-arrays specs ctxs pre)
@@ -52,10 +56,12 @@
          (set-add! taken candidate)
          candidate])))
   (define (leaf-reprs repr)
-    (if (array-representation? repr)
-        (append* (for/list ([_ (in-range (array-representation-len repr))])
-                   (leaf-reprs (array-representation-elem repr))))
-        (list repr)))
+    (cond
+      [(array-representation? repr)
+       (append* (for/list ([_ (in-range (array-representation-len repr))])
+                  (leaf-reprs (array-representation-elem repr))))]
+      [(tuple-representation? repr) (append* (map leaf-reprs (tuple-representation-slots repr)))]
+      [else (list repr)]))
   (define (fresh-tree base repr)
     (cond
       [(array-representation? repr)
@@ -64,21 +70,38 @@
                     ([_ (in-range (array-representation-len repr))])
                     (fresh-tree base (array-representation-elem repr))))
        (values `(array ,@elems) (append* vars) (append* reprs))]
+      [(tuple-representation? repr)
+       (define-values (elems vars reprs)
+         (for/lists (elems vars reprs)
+                    ([slot (in-list (tuple-representation-slots repr))])
+                    (fresh-tree base slot)))
+       (values `(tuple ,@elems) (append* vars) (append* reprs))]
       [else
        (define v (fresh base))
        (values v (list v) (list repr))]))
   (define (flatten-by-repr expr repr)
-    (if (array-representation? repr)
-        (match-let ([`(array ,elems ...) expr])
-          (append* (for/list ([elem (in-list elems)])
-                     (flatten-by-repr elem (array-representation-elem repr)))))
-        (list expr)))
+    (cond
+      [(array-representation? repr)
+       (match-let ([`(array ,elems ...) expr])
+         (append* (for/list ([elem (in-list elems)])
+                    (flatten-by-repr elem (array-representation-elem repr)))))]
+      [(tuple-representation? repr)
+       (match-let ([`(tuple ,elems ...) expr])
+         (append* (for/list ([elem (in-list elems)]
+                             [slot (in-list (tuple-representation-slots repr))])
+                    (flatten-by-repr elem slot))))]
+      [else (list expr)]))
   (define (build-value next repr)
-    (if (array-representation? repr)
-        (for/vector #:length (array-representation-len repr)
-                    ([_ (in-range (array-representation-len repr))])
-          (build-value next (array-representation-elem repr)))
-        (next)))
+    (cond
+      [(array-representation? repr)
+       (for/vector #:length (array-representation-len repr)
+                   ([_ (in-range (array-representation-len repr))])
+         (build-value next (array-representation-elem repr)))]
+      [(tuple-representation? repr)
+       (for/vector #:length (length (tuple-representation-slots repr))
+                   ([slot (in-list (tuple-representation-slots repr))])
+         (build-value next slot))]
+      [else (next)]))
 
   (define env (make-hasheq))
   (define new-vars '())
@@ -87,6 +110,12 @@
         [r orig-var-reprs])
     (cond
       [(array-representation? r)
+       (define base (symbol->string v))
+       (define-values (tree vars reprs) (fresh-tree base r))
+       (hash-set! env v tree)
+       (set! new-vars (append new-vars vars))
+       (set! new-var-reprs (append new-var-reprs reprs))]
+      [(tuple-representation? r)
        (define base (symbol->string v))
        (define-values (tree vars reprs) (fresh-tree base r))
        (hash-set! env v tree)
@@ -104,6 +133,7 @@
        (define lowered `(,op ,@(map lower-arr args)))
        (match lowered
          [`(ref (array ,elems ...) ,idx) (list-ref elems idx)]
+         [`(ref (tuple ,elems ...) ,idx) (list-ref elems idx)]
          [_ lowered])]))
 
   (define new-specs '())
@@ -111,15 +141,8 @@
   (for ([spec (in-list specs)]
         [repr (in-list orig-reprs)])
     (define lowered (lower-arr spec))
-    (cond
-      [(array-representation? repr)
-       (define comps (flatten-by-repr lowered repr))
-       (define reprs (leaf-reprs repr))
-       (set! new-specs (append new-specs comps))
-       (set! new-reprs (append new-reprs reprs))]
-      [else
-       (set! new-specs (append new-specs (list lowered)))
-       (set! new-reprs (append new-reprs (list repr)))]))
+    (set! new-specs (append new-specs (flatten-by-repr lowered repr)))
+    (set! new-reprs (append new-reprs (leaf-reprs repr))))
 
   (define new-pre (lower-arr pre))
   (define ctxs*
@@ -150,9 +173,7 @@
       (begin0 (list-ref outputs idx)
         (set! idx (add1 idx))))
     (for/list ([repr (in-list orig-reprs)])
-      (if (array-representation? repr)
-          (build-value next repr)
-          (next))))
+      (build-value next repr)))
 
   (values new-specs ctxs* new-pre assemble-point assemble-output new-reprs))
 
@@ -202,4 +223,13 @@
   (let-values ([(specs* _ctxs* pre* _assemble-point _assemble-output _reprs*)
                 (flatten-arrays-for-rival (list '(+ x 1)) scalar-ctxs '(< (ref (array x x) 0) 2))])
     (check-equal? specs* '((+ x 1)))
-    (check-equal? pre* '(< x 2))))
+    (check-equal? pre* '(< x 2)))
+
+  (define mixed (make-tuple-representation #:slots (list <binary32> <binary64>)))
+  (let-values ([(specs* _ctxs* _pre* _assemble-point assemble-output reprs*)
+                (flatten-arrays-for-rival (list '(tuple (+ x 1) (* x 2)))
+                                          (list (context '(x) mixed (list <binary64>)))
+                                          'TRUE)])
+    (check-equal? specs* '((+ x 1) (* x 2)))
+    (check-equal? reprs* (list <binary32> <binary64>))
+    (check-equal? (assemble-output '(10 11)) (list #(10 11)))))
