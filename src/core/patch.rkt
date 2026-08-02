@@ -185,19 +185,19 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (run-rr altns global-batch)
+(define (run-rr altns global-batch spec-batch)
   (timeline-event! 'rewrite)
 
   ; egg schedule (4-phases for mathematical rewrites, sound-X removal, and implementation selection)
   (define schedule '(rewrite unsound lower))
 
   (define brfs (map alt-expr altns))
-  (define spec-brfs (batch-to-spec! global-batch global-batch brfs))
+  (define spec-brfs (batch-to-spec! global-batch spec-batch brfs))
   (define reprs (map batch-repr-of brfs))
   (define runner
     (cond
-      [(flag-set? 'generate 'egglog) (make-egglog-runner global-batch spec-brfs schedule (*context*))]
-      [else (make-egraph global-batch spec-brfs schedule (*context*))]))
+      [(flag-set? 'generate 'egglog) (make-egglog-runner spec-batch spec-brfs schedule (*context*))]
+      [else (make-egraph spec-batch spec-brfs schedule (*context*))]))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
@@ -245,7 +245,7 @@
   ; Recursive rewrite
   (define rewritten
     (if (flag-set? 'generate 'rr)
-        (run-rr start-altns batch)
+        (run-rr start-altns batch spec-batch)
         '()))
 
   (remove-duplicates (append evaluations rewritten approximations)

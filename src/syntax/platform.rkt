@@ -110,10 +110,12 @@
      (pattern-substitute spec env)]))
 
 (define (batch-to-spec! in-batch out-batch brfs)
-  (define (check-output-spec! spec)
-    (unless (equal? (batchref-batch spec) out-batch)
-      (error 'batch-to-spec! "spec reference does not belong to the output batch"))
-    spec)
+  (define copy-spec-to-output (batch-copy-only! out-batch in-batch))
+  (define (output-spec spec)
+    (cond
+      [(equal? (batchref-batch spec) out-batch) spec]
+      [(equal? (batchref-batch spec) in-batch) (copy-spec-to-output spec)]
+      [else (error 'batch-to-spec! "spec reference does not belong to the input or output batch")]))
   (define lower
     (batch-recurse
      in-batch
@@ -123,7 +125,7 @@
          [(? literal?) (batch-add! out-batch (literal-value node))]
          [(? number?) (error 'batch-to-spec! "unexpected spec node in input batch: ~a" node)]
          [(? symbol?) (batch-add! out-batch node)]
-         [(approx spec _) (check-output-spec! spec)]
+         [(approx spec _) (output-spec spec)]
          [(list (? impl-exists? impl) args ...)
           (define vars (impl-info impl 'vars))
           (define spec (impl-info impl 'spec))
@@ -155,8 +157,10 @@
          [out-batch (batch-empty test-empty-ctx)]
          [spec (batch-add! in-batch 'x)]
          [impl (batch-add! in-batch (literal 1 'binary64))]
-         [approx-brf (batch-add! in-batch (approx spec impl))])
-    (check-exn #rx"output batch" (λ () (batch-to-spec! in-batch out-batch (list approx-brf)))))
+         [approx-brf (batch-add! in-batch (approx spec impl))]
+         [spec* (first (batch-to-spec! in-batch out-batch (list approx-brf)))])
+    (check-equal? (batchref-batch spec*) out-batch)
+    (check-equal? (deref spec*) 'x))
 
   (let* ([in-batch (batch-empty test-empty-ctx)]
          [out-batch (batch-empty test-empty-ctx)]

@@ -24,9 +24,10 @@
     ; recursive rewrite or simplify, both using egg
     ; start-brf and end-brf are batchrefs for the subexpressions that were transformed
     [(alt expr (list 'rr start-brf end-brf (? egg-runner? runner) #f) `(,prev))
-     (define batch (egg-runner-batch runner))
+     (define batch (batchref-batch expr))
+     (define spec-batch (egg-runner-batch runner))
      (define-values (proof-start proof-end)
-       (apply values (batch-to-spec! batch batch (list start-brf end-brf))))
+       (apply values (batch-to-spec! batch spec-batch (list start-brf end-brf))))
      (define proof
        (and (not (flag-set? 'generate 'egglog)) (egraph-prove runner proof-start proof-end)))
      (define proof* (canonicalize-proof batch (alt-expr altn) proof start-brf))
