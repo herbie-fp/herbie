@@ -234,6 +234,7 @@
          (if (equal? elem-precision output-precision)
              (append (list var) dims)
              (append (list '! ':precision elem-precision var) dims))]
+        [(tuple-representation? repr) (list '! ':precision (representation-name repr) var)]
         [else
          (define var-precision (repr->precision-name repr))
          (if (equal? var-precision output-precision)
