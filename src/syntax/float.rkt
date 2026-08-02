@@ -26,6 +26,10 @@
      (define elem-repr (array-representation-elem repr))
      (define elem-ulps (repr-ulps elem-repr))
      (lambda (x y) (for/sum ([x1 (in-vector x)] [y1 (in-vector y)]) (elem-ulps x1 y1)))]
+    [`(tuple ,_ ...)
+     (define slot-ulps (map repr-ulps (tuple-representation-slots repr)))
+     (lambda (x y)
+       (for/sum ([ulps (in-list slot-ulps)] [x1 (in-vector x)] [y1 (in-vector y)]) (ulps x1 y1)))]
     ['bool (lambda (x y) (if (equal? x y) 1 2))]
     ['real
      (define ->ordinal (representation-repr->ordinal repr))
@@ -107,6 +111,11 @@
 (define (value->json x repr)
   (match x
     [(? vector?)
+     #:when (tuple-representation? repr)
+     (for/list ([v (in-vector x)]
+                [slot (in-list (tuple-representation-slots repr))])
+       (value->json v slot))]
+    [(? vector?)
      (define elem-repr (array-representation-elem repr))
      (for/list ([v (in-vector x)])
        (value->json v elem-repr))]
@@ -124,6 +133,11 @@
 
 (define (json->value x repr)
   (match x
+    [(? list?)
+     #:when (tuple-representation? repr)
+     (for/vector ([v (in-list x)]
+                  [slot (in-list (tuple-representation-slots repr))])
+       (json->value v slot))]
     [(? list?)
      (define elem-repr (array-representation-elem repr))
      (for/vector ([v (in-list x)])
@@ -166,6 +180,10 @@
      (define elem-repr (array-representation-elem repr))
      (for/vector ([v (in-vector x)])
        (real->repr v elem-repr))]
+    [`(tuple ,_ ...)
+     (for/vector ([v (in-vector x)]
+                  [slot (in-list (tuple-representation-slots repr))])
+       (real->repr v slot))]
     ['real
      (parameterize ([bf-precision (representation-total-bits repr)])
        ((representation-bf->repr repr) (bf x)))]
@@ -177,5 +195,9 @@
      (define elem-repr (array-representation-elem repr))
      (for/vector ([v (in-vector x)])
        (repr->real v elem-repr))]
+    [`(tuple ,_ ...)
+     (for/vector ([v (in-vector x)]
+                  [slot (in-list (tuple-representation-slots repr))])
+       (repr->real v slot))]
     ['real (bigfloat->real ((representation-repr->bf repr) x))]
     ['bool x]))
