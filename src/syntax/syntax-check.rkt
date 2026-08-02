@@ -66,6 +66,11 @@
          (error! stx "Array literal must have at least one element"))
        (for ([elem (in-list elems)])
          (loop elem vars))]
+      [#`(tuple #,elems ...)
+       (when (null? elems)
+         (error! stx "Tuple must have at least one slot"))
+       (for ([elem (in-list elems)])
+         (loop elem vars))]
       [#`(ref #,arr ,idx)
        (unless (integer? idx)
          (error! idx "Array index must be a literal integer, got ~a" idx))
