@@ -17,6 +17,7 @@
   (match repr
     [(? array-representation?)
      (repr-compatible-with-precision? (array-representation-elem repr) precision-repr)]
+    [(? tuple-representation?) #t]
     [(? representation?)
      (or (equal? (representation-type repr) 'bool) (equal? repr precision-repr))]))
 
@@ -130,6 +131,19 @@
                    (repr-description first-type)
                    (repr-description t))))
        (array-of first-type (list (+ 1 (length rest-elems))))]
+      [#`(tuple #,elems ...)
+       (define slots
+         (for/list ([elem (in-list elems)])
+           (loop elem prop-dict ctx)))
+       (cond
+         [(null? slots)
+          (error! stx "Tuple must have at least one slot")
+          (get-representation (dict-ref prop-dict ':precision))]
+         [(for/or ([slot (in-list slots)])
+            (equal? (representation-type slot) 'bool))
+          (error! stx "Tuple slots must not be boolean")
+          (get-representation (dict-ref prop-dict ':precision))]
+         [else (make-tuple-representation #:slots slots)])]
       [#`(ref #,arr #,idx)
        (define arr-type (loop arr prop-dict ctx))
        (define raw (syntax-e idx))
@@ -142,8 +156,15 @@
           (when (and (integer? raw) (or (< raw 0) (>= raw len)))
             (error! idx "Array index ~a out of bounds for length ~a" raw len))
           elem]
+         [(? tuple-representation?)
+          (define slots (tuple-representation-slots arr-type))
+          (cond
+            [(and (integer? raw) (>= raw 0) (< raw (length slots))) (list-ref slots raw)]
+            [else
+             (error! idx "Tuple index ~a out of bounds for ~a slots" raw (length slots))
+             (get-representation (dict-ref prop-dict ':precision))])]
          [_
-          (error! stx "ref expects an array, got ~a" (repr-description arr-type))
+          (error! stx "ref expects an array or tuple, got ~a" (repr-description arr-type))
           (get-representation (dict-ref prop-dict ':precision))])]
       [#`(cast #,arg)
        (define irepr (loop arg prop-dict ctx))
