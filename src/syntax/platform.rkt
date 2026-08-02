@@ -49,6 +49,8 @@
                        [platform-cost-proc (-> platform? procedure?)])
          ; Platform creation
          make-empty-platform
+         set-tuple-impl-synthesizer!
+         set-tuple-impl-resolvable?!
          display-platform
          make-representation
          (all-from-out "generators.rkt"))
@@ -76,6 +78,7 @@
   (match name
     [(? representation?) name]
     [`(array ,elem ,len) (make-array-representation #:elem (get-representation elem) #:len len)]
+    [`(tuple ,slots ...) (make-tuple-representation #:slots (map get-representation slots))]
     [_
      (or (hash-ref reprs name #f)
          (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
@@ -89,6 +92,7 @@
   (match name
     [(? representation?) #t]
     [`(array ,elem ,len) (and (exact-positive-integer? len) (repr-exists? elem))]
+    [`(tuple ,slots ...) (and (pair? slots) (andmap repr-exists? slots))]
     [_ (hash-has-key? reprs name)]))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> LSpec
@@ -172,10 +176,27 @@
 
 ;; Expression predicates ;;
 
+(define tuple-impl-synthesizer (box #f))
+(define tuple-impl-resolvable? (box #f))
+
+(define (set-tuple-impl-synthesizer! proc)
+  (set-box! tuple-impl-synthesizer proc))
+
+(define (set-tuple-impl-resolvable?! proc)
+  (set-box! tuple-impl-resolvable? proc))
+
+(define (tuple-impl-name? name)
+  (define resolvable? (unbox tuple-impl-resolvable?))
+  (and resolvable? (resolvable? name)))
+
+(define (synthesize-tuple-impl! name)
+  (define synth (unbox tuple-impl-synthesizer))
+  (and synth (synth name)))
+
 (define (impl-exists? op)
   (define platform (*active-platform*))
   (define impls (platform-implementations platform))
-  (hash-has-key? impls op))
+  (or (hash-has-key? impls op) (tuple-impl-name? op)))
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
@@ -183,10 +204,16 @@
   (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost 'aggregate) any/c)
   (define impls (platform-implementations (*active-platform*)))
   (define impl
-    (hash-ref impls
-              impl-name
-              (lambda ()
-                (error 'impl-info "unknown impl '~a in platform ~a" impl-name (*platform-name*)))))
+    (hash-ref
+     impls
+     impl-name
+     (lambda ()
+       (synthesize-tuple-impl! impl-name)
+       (hash-ref
+        impls
+        impl-name
+        (lambda ()
+          (error 'impl-info "unknown impl '~a in platform ~a" impl-name (*platform-name*)))))))
   (case field
     [(vars) (context-vars (operator-impl-ctx impl))]
     [(itype) (context-var-reprs (operator-impl-ctx impl))]
