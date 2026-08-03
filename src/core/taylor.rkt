@@ -8,8 +8,11 @@
          "../syntax/batch.rkt"
          "programs.rkt")
 
-(provide approximate
+(provide (struct-out taylor-term)
+         approximate
+         expand-taylor!
          taylor-coefficients
+         taylor-transforms
          reduce
          add)
 
@@ -22,6 +25,16 @@
 (define (adder x)
   ((add) x))
 
+(define taylor-transforms
+  (let ([invert-x (λ (x) `(/ 1 ,x))]
+        [exp-x (λ (x) `(exp ,x))]
+        [log-x (λ (x) `(log ,x))]
+        [ninvert-x (λ (x) `(/ 1 (neg ,x)))])
+    `((0 ,identity ,identity) (inf ,invert-x ,invert-x)
+                              (-inf ,ninvert-x ,ninvert-x)
+                              #;(exp ,exp-x ,log-x)
+                              #;(log ,log-x ,exp-x))))
+
 (define (taylor-coefficients batch brfs vars transforms-to-try)
   (define expander (expand-taylor! batch))
   (for*/list ([var (in-list vars)]
@@ -31,6 +44,8 @@
     (define replacer (batch-replace-expression! batch var (f var)))
     (for/list ([brf (in-list brfs)])
       (taylorer (expander (reducer (replacer brf)))))))
+
+(struct taylor-term (expr coeff exponent) #:transparent)
 
 (define (approximate taylor-approxs
                      batch
@@ -43,6 +58,9 @@
     (define i 0)
     (define terms '())
 
+    (define (horner)
+      (reducer (make-horner ((cdr tform) var) (reverse terms))))
+
     (define (next [iter 0])
       (define coeff (reducer (replacer (series-ref ta i))))
       (set! i (+ i 1))
@@ -50,10 +68,11 @@
         [0
          (if (< iter iters)
              (next (+ iter 1))
-             (reducer (make-horner ((cdr tform) var) (reverse terms))))]
+             (taylor-term (horner) #f #f))]
         [_
-         (set! terms (cons (cons coeff (- i offset 1)) terms))
-         (reducer (make-horner ((cdr tform) var) (reverse terms)))]))
+         (define exponent (- i offset 1))
+         (set! terms (cons (cons coeff exponent) terms))
+         (taylor-term (horner) coeff exponent)]))
     next))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction

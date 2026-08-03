@@ -20,16 +20,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define transforms-to-try
-  (let ([invert-x (λ (x) `(/ 1 ,x))]
-        [exp-x (λ (x) `(exp ,x))]
-        [log-x (λ (x) `(log ,x))]
-        [ninvert-x (λ (x) `(/ 1 (neg ,x)))])
-    `((0 ,identity ,identity) (inf ,invert-x ,invert-x)
-                              (-inf ,ninvert-x ,ninvert-x)
-                              #;(exp ,exp-x ,log-x)
-                              #;(log ,log-x ,exp-x))))
-
 (struct taylor-approx (spec repr impl-spec name var order prev) #:transparent)
 
 (define (taylor-alts altns global-batch spec-batch reducer)
@@ -62,10 +52,10 @@
 
           ;; Taylor expansions
           ;; List<List<(cons offset coeffs)>>
-          (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs* vars transforms-to-try))
+          (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs* vars taylor-transforms))
           (define idx 0)
           (for* ([var (in-list vars)]
-                 [transform-type transforms-to-try])
+                 [transform-type taylor-transforms])
             (match-define (list name f finv) transform-type)
             (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
             (define taylor-coeffs* (list-ref taylor-coeffs idx))
@@ -78,7 +68,7 @@
                   #:when (set-member? fv var)) ;; check whether var exists in expr at all
               (for ([i (in-range (*taylor-order-limit*))])
                 ;; adding a new expansion to the global batch
-                (define genexpr-brf (copier (genexpr)))
+                (define genexpr-brf (copier (taylor-term-expr (genexpr))))
                 (sow (taylor-approx spec-brf repr genexpr-brf name var i altn))))
             (set! idx (add1 idx))
             (timeline-stop!)))))

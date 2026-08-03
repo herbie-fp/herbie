@@ -113,11 +113,45 @@
     [(r3:ival? iv) (r3:ival-hi iv)]
     [else (r2:ival-hi iv)]))
 
+(define ((lift-ival op) . args)
+  (define out
+    (apply op
+           (for/list ([iv (in-list args)])
+             (r3:ival (ival-lo iv) (ival-hi iv)))))
+  (ival (r3:ival-lo out) (r3:ival-hi out)))
+
+(define ival-neg (lift-ival r3:ival-neg))
+(define ival-sqrt (lift-ival r3:ival-sqrt))
+(define ival-cbrt (lift-ival r3:ival-cbrt))
+(define ival-exp (lift-ival r3:ival-exp))
+(define ival-log (lift-ival r3:ival-log))
+(define ival-sin (lift-ival r3:ival-sin))
+(define ival-cos (lift-ival r3:ival-cos))
+(define ival-add (lift-ival r3:ival-add))
+(define ival-sub (lift-ival r3:ival-sub))
+(define ival-mul (lift-ival r3:ival-mul))
+(define ival-div (lift-ival r3:ival-div))
+(define ival-pi (lift-ival r3:ival-pi))
+(define ival-e (lift-ival r3:ival-e))
+
 (provide (struct-out real-compiler)
          ival
          ival?
          ival-lo
          ival-hi
+         ival-neg
+         ival-sqrt
+         ival-cbrt
+         ival-exp
+         ival-log
+         ival-sin
+         ival-cos
+         ival-add
+         ival-sub
+         ival-mul
+         ival-div
+         ival-pi
+         ival-e
          (contract-out
           [make-real-compiler
            (->i ([batch batch?] [brfs (listof batchref?)]

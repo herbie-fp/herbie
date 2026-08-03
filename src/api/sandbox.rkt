@@ -17,12 +17,12 @@
          "../utils/common.rkt"
          "datafile.rkt"
          "../utils/errors.rkt"
-         "../syntax/float.rkt"
          "../core/sampling.rkt"
          "../core/mainloop.rkt"
          "../syntax/platform.rkt"
          "../core/programs.rkt"
          "../core/points.rkt"
+         "../core/taylor-cover.rkt"
          "../core/explain.rkt"
          "../utils/profile.rkt"
          "../utils/timeline.rkt"
@@ -59,12 +59,26 @@
 
 ;; API Functions
 
+;; Sampling a test more than once should reuse its batch.
+(define (make-sampler test)
+  (define-values (batch brfs) (progs->batch (list (test-spec test)) #:ctx (*context*)))
+  (lambda ([precondition (test-pre test)] [count (+ (*num-points*) (*reeval-pts*))])
+    (define sample
+      (parameterize ([*num-points* count])
+        (sample-points precondition batch brfs (list (context-repr (*context*))))))
+    (apply mk-pcontext sample)))
+
+;; Sort by cost first to breaks ties.
+(define (sort-alt-analyses alts errss)
+  (define by-cost
+    (sort (map alt-analysis alts errss) < #:key (compose alt-cost alt-analysis-alt) #:cache-keys? #t))
+  (sort by-cost < #:key (compose errors-score alt-analysis-errors) #:cache-keys? #t))
+
 ;; The main Herbie function
-(define (get-alternatives test joint-pcontext)
-  (unless joint-pcontext
+(define (get-alternatives test train-pcontext test-pcontext covers)
+  (unless train-pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
-  (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
   (define initial-expr
     (if (equal? (prog->spec (test-input test)) (test-spec test))
         (test-input test)
@@ -87,10 +101,10 @@
       (alt-analysis (make-alt target-expr) target-errs)))
 
   ;; compute error/cost for output expression
-  ;; and sort alternatives by accuracy + cost on testing subset
-  (define end-errs (exprs-errors (map alt-expr alternatives) test-pcontext (*context*)))
-  (define end-exprs (map alt-expr alternatives))
-  (define end-data (map alt-analysis alternatives end-errs))
+  (define end-data
+    (let* ([report-alts (wrap-taylor-cover-alts alternatives covers)]
+           [test-errs (exprs-errors (map alt-expr report-alts) test-pcontext (*context*))])
+      (sort-alt-analyses report-alts test-errs)))
 
   (improve-result test-pcontext start-alt-data target-alt-data end-data))
 
@@ -133,15 +147,37 @@
 
   (local-error-as-tree (test-input test) (*context*) pcontext))
 
+;; If post-covers region is unsamplable, roll the generator back
+(define (sample-search-points sample test covers)
+  (define rng-state (pseudo-random-generator->vector (current-pseudo-random-generator)))
+  (with-handlers ([exn:fail:user:herbie:sampling?
+                   (lambda (_)
+                     (current-pseudo-random-generator (vector->pseudo-random-generator rng-state))
+                     (timeline-push! 'stop "no-taylor-cover-sample" 1)
+                     #f)])
+    (sample (taylor-covers-precondition (test-pre test) covers) (*num-points*))))
+
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility
-  (define specification (test-spec test))
-  (define precondition (test-pre test))
-  (define-values (batch brfs) (progs->batch (list specification) #:ctx (*context*)))
-  (define sample
-    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-points precondition batch brfs (list (context-repr (*context*))))))
-  (apply mk-pcontext sample))
+  ((make-sampler test)))
+
+(define (get-improve test)
+  (random) ;; Tick the random number generator, for backwards compatibility
+  (define sample (make-sampler test))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext (sample)))
+  (define covers
+    (compute-taylor-covers (test-spec test)
+                           (test-pre test)
+                           (test-input test)
+                           train-pcontext
+                           (*context*)))
+  (define search-pcontext (and (pair? covers) (sample-search-points sample test covers)))
+  (get-alternatives test
+                    (or search-pcontext train-pcontext)
+                    test-pcontext
+                    (if search-pcontext
+                        covers
+                        '())))
 
 ;;
 ;;  Public interface
@@ -186,11 +222,13 @@
         (timeline-event! 'start) ; Prevents the timeline from being empty.
         (define result
           (match command
-            ['alternatives (get-alternatives test pcontext)]
+            ['alternatives
+             (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
+             (get-alternatives test train-pcontext test-pcontext '())]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['explanations (get-explanations test pcontext)]
-            ['improve (get-alternatives test (get-sample test))]
+            ['improve (get-improve test)]
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (raise-arguments-error 'compute-result "unknown command" "command" command)]))

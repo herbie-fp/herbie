@@ -116,7 +116,7 @@
   (and a b))
 
 (define (make-mask pcontext)
-  (make-vector (pcontext-length pcontext) #f))
+  (make-vector (pcontext-length pcontext) #t))
 
 ;; HTML renderer for derivations
 (define (render-history json repr)
@@ -165,12 +165,12 @@
            (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]))
 
 (define (errors-score-masked errs mask)
-  (define mask-count (for/sum ([use? (in-vector mask)] #:when use?) 1))
-  (define masked-errs
-    (for/flvector #:length mask-count
-                  ([err (in-flvector errs)] [use? (in-vector mask)] #:when use?)
-                  err))
-  (errors-score (if (zero? mask-count) errs masked-errs)))
+  (define count (for/sum ([use? (in-vector mask)] #:when use?) 1))
+  (if (zero? count)
+      "unsampled"
+      (errors-score (for/flvector #:length count
+                                  ([err (in-flvector errs)] [use? (in-vector mask)] #:when use?)
+                                  err))))
 
 (define (render-proof proof-json repr)
   `(div ((class "proof"))
@@ -198,7 +198,7 @@
                      pcontext
                      ctx
                      errcache
-                     [mask (make-vector (pcontext-length pcontext) #f)]
+                     [mask (make-mask pcontext)]
                      [fpcore-cache (make-hash)])
   (define repr (context-repr ctx))
   (define err
