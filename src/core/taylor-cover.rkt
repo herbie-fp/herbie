@@ -15,7 +15,8 @@
          "batch-reduce.rkt"
          "points.rkt"
          "programs.rkt"
-         "taylor.rkt")
+         "taylor.rkt"
+         "taylor-model.rkt")
 
 (provide compute-taylor-covers
          taylor-covers-precondition
@@ -47,19 +48,47 @@
   (and (rational? rounded) rounded))
 
 (define (reciprocal-up radius repr)
-  (define value (round-inward (bf/ 1.bf (bf radius)) 'up repr))
+  (define value
+    (round-inward (parameterize ([bf-rounding-mode 'up])
+                    (bf/ 1.bf (bf radius)))
+                  'up
+                  repr))
   (and value (positive? value) value))
 
 (define (predecessor value repr)
   ((representation-ordinal->repr repr) (sub1 ((representation-repr->ordinal repr) value))))
 
-(define (cover-radius coeffs exponents epsilon)
+;; Unrigorous starting point for sound interval.
+(define (cover-candidate coeffs exponents epsilon var-repr)
   (match-define (list kept dropped) coeffs)
   (match-define (list kept-exponent dropped-exponent) exponents)
   (define radius
     (and (not (zero? dropped))
          (expt (* epsilon (/ (abs kept) (abs dropped))) (/ 1 (- dropped-exponent kept-exponent)))))
-  (and (rational? radius) (positive? radius) radius))
+  (and (rational? radius)
+       (positive? radius)
+       (let ([rounded (parameterize ([bf-rounding-mode 'up])
+                        ((representation-bf->repr var-repr) (bf radius)))])
+         (and (rational? rounded) (positive? rounded) rounded))))
+
+(define (cover-domain name radius)
+  (if (equal? name 0)
+      (ival (bf (- radius)) (bf radius))
+      (ival (bf 0) (bf radius))))
+
+;; Largest radius <= candidate that the model certifies.
+(define (certified-radius model coeff epsilon candidate var-repr)
+  (define ->radius (representation-ordinal->repr var-repr))
+  (define (fits? ordinal)
+    (taylor-model-fits? model coeff epsilon (->radius ordinal)))
+  (and (fits? 0)
+       (->radius (let loop ([lo 0]
+                            [hi (add1 ((representation-repr->ordinal var-repr) candidate))])
+                   (define mid (quotient (+ lo hi) 2))
+                   (cond
+                     [(= mid lo) lo]
+                     [(fits? mid) (loop mid hi)]
+                     [else (loop lo mid)])))))
 
 (define (cover-interval name radius var-repr intervals)
   (match name
@@ -112,7 +141,12 @@
     [(-1 _) `(neg ,monomial)]
     [(_ _) `(* ,coeff* ,monomial)]))
 
-(define (build-cover batch series transform ctx var var-repr epsilon intervals)
+(define (cover-model batch brf transform var radius)
+  (match-define (list name forward _) transform)
+  (define replaced ((batch-replace-expression! batch var (forward var)) brf))
+  (taylor-model batch ((expand-taylor! batch) ((reduce) replaced)) var (cover-domain name radius)))
+
+(define (build-cover batch brf series transform ctx var var-repr epsilon intervals)
   (match-define (list name forward inverse) transform)
   (define out-repr (context-repr ctx))
   (define next-term (car (approximate (list series) batch var #:transform (cons forward inverse))))
@@ -122,7 +156,12 @@
   (define coeffs
     (and (andmap exact-integer? exponents) ; No fractional exponents, and the series went on
          (coefficient-values batch (map taylor-term-coeff terms) out-repr)))
-  (define radius (and coeffs (cover-radius coeffs exponents epsilon)))
+  (define candidate (and coeffs (cover-candidate coeffs exponents epsilon var-repr)))
+  (define model (and candidate (cover-model batch brf transform var candidate)))
+  (define radius
+    (and model
+         (equal? (tmodel-offset model) (first exponents))
+         (certified-radius model (first coeffs) epsilon candidate var-repr)))
   (define bounds (and radius (cover-interval name radius var-repr intervals)))
   (and bounds
        (taylor-cover name
@@ -164,7 +203,15 @@
      (define-values (batch brfs) (progs->batch (list spec) #:ctx ctx))
      (define (try-cover transform coefficients)
        (define cover
-         (build-cover batch (first coefficients) transform ctx var var-repr epsilon intervals))
+         (build-cover batch
+                      (first brfs)
+                      (first coefficients)
+                      transform
+                      ctx
+                      var
+                      var-repr
+                      epsilon
+                      intervals))
        (and cover
             (let ([kept? (cover-improves? cover expr pcontext ctx)])
               (timeline-push! 'taylor-count

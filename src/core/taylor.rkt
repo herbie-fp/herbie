@@ -10,6 +10,7 @@
 
 (provide (struct-out taylor-term)
          approximate
+         expand-taylor!
          taylor-coefficients
          taylor-transforms
          reduce
