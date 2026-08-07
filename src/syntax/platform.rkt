@@ -112,9 +112,10 @@
 (define (batch-to-spec! in-batch out-batch brfs)
   (define copy-spec-to-output (batch-copy-only! out-batch (if (empty? brfs) out-batch in-batch)))
   (define (output-spec spec)
-    (if (equal? (batchref-batch spec) out-batch)
-        spec
-        (copy-spec-to-output spec)))
+    (cond
+      [(equal? (batchref-batch spec) out-batch) spec]
+      [(equal? (batchref-batch spec) in-batch) (copy-spec-to-output spec)]
+      [else (error 'batch-to-spec! "spec reference does not belong to the input or output batch")]))
   (define lower
     (batch-recurse
      in-batch

@@ -61,12 +61,11 @@
                                     (list (make-fpcore-extension name ctx body* spec*))))]))
 
 (define (register-platform-extension! extension)
-  (match extension
-    [(fpcore-extension name vars output-repr-data var-repr-data body spec)
-     (unless (impl-exists? name)
-       (define ctx
-         (context vars (get-representation output-repr-data) (map get-representation var-repr-data)))
-       (register-fpcore-operator! name ctx body spec))]))
+  (match-define (fpcore-extension name vars output-repr-data var-repr-data body spec) extension)
+  (unless (impl-exists? name)
+    (define ctx
+      (context vars (get-representation output-repr-data) (map get-representation var-repr-data)))
+    (register-fpcore-operator! name ctx body spec)))
 
 (define (register-platform-extensions! extensions)
   (parameterize ([*timeline-disabled* #t])

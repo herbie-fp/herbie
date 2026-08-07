@@ -60,7 +60,7 @@
 
   (define repr (expression->type stx props ctx error!))
   (define expected (context-repr ctx))
-  (when (not (repr-compatible-with-precision? repr expected))
+  (unless (repr-compatible-with-precision? repr expected)
     (error! stx
             "Expected program of type ~a, got type ~a"
             (repr-description expected)
