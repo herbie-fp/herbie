@@ -46,8 +46,11 @@
 (define (run-improve! initial specification context pcontext)
   (parameterize ([*global-batch* (batch-empty context)])
     (define global-spec-batch (batch-empty context))
-    (define initial-brf (batch-add! (*global-batch*) initial))
     (define specification-brf (batch-add! global-spec-batch specification))
+    (define initial-brf
+      (match initial
+        [(approx _ impl) (batch-add! (*global-batch*) (approx specification-brf impl))]
+        [_ (batch-add! (*global-batch*) initial)]))
     (timeline-event! 'preprocess)
     (define preprocessing
       (if (flag-set? 'setup 'preprocess)
