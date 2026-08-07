@@ -147,14 +147,15 @@
     (check-equal? (deref x*) 'x))
 
   (let* ([batch (batch-empty test-empty-ctx)]
-         [spec (batch-add! batch 'x)]
+         [spec-batch (batch-empty test-empty-ctx)]
+         [spec (batch-add! spec-batch 'x)]
          [impl (batch-add! batch (literal 1 'binary64))]
          [approx-brf (batch-add! batch (approx spec impl))])
-    (check-equal? (batch-to-spec! batch batch (list approx-brf)) (list spec)))
+    (check-equal? (batch-to-spec! batch spec-batch (list approx-brf)) (list spec)))
 
   (let* ([in-batch (batch-empty test-empty-ctx)]
          [out-batch (batch-empty test-empty-ctx)]
-         [spec (batch-add! in-batch 'x)]
+         [spec (batch-add! out-batch 'x)]
          [impl (batch-add! in-batch (literal 1 'binary64))]
          [approx-brf (batch-add! in-batch (approx spec impl))]
          [spec* (first (batch-to-spec! in-batch out-batch (list approx-brf)))])

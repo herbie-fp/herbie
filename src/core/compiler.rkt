@@ -65,7 +65,7 @@
 
 (define (batch-tree-size batch brfs)
   (define (tree-size brf recurse)
-    (define args (reap [sow] (expr-recurse-impl (deref brf) sow)))
+    (define args (reap [sow] (expr-recurse (deref brf) sow)))
     (apply + 1 (map recurse args)))
   (apply + (map (batch-recurse batch tree-size) brfs)))
 
