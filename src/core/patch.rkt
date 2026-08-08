@@ -41,13 +41,8 @@
   (define brfs (map alt-expr altns))
   (define reprs (map batch-repr-of brfs))
   ;; Specs
-  (define spec-brfs
-    (batch-to-spec! global-batch global-batch brfs)) ;; These specs will go into (approx spec impl)
-  (define free-vars (map (batch-free-vars global-batch) spec-brfs))
-  (define spec-brfs*
-    (map (batch-copy-only! spec-batch global-batch)
-         spec-brfs)) ;; copy from global-batch to spec-batch
-  (define copier (batch-copy-only! global-batch spec-batch)) ;; copy from spec-batch to global-batch
+  (define spec-brfs (batch-to-spec! global-batch spec-batch brfs))
+  (define free-vars (map (batch-free-vars spec-batch) spec-brfs))
 
   (reap [sow]
         (parameterize ([reduce reducer] ;; reduces over spec-batch
@@ -57,12 +52,12 @@
                 [repr (in-list reprs)]
                 [altn (in-list altns)]
                 #:when (equal? (representation-type repr) 'real))
-            (define genexpr0 (batch-add! global-batch 0))
+            (define genexpr0 (batch-add! spec-batch 0))
             (sow (taylor-approx spec-brf repr genexpr0 'zero 'undef-var -1 altn)))
 
           ;; Taylor expansions
           ;; List<List<(cons offset coeffs)>>
-          (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs* vars transforms-to-try))
+          (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs vars transforms-to-try))
           (define idx 0)
           (for* ([var (in-list vars)]
                  [transform-type transforms-to-try])
@@ -77,9 +72,7 @@
                   [fv (in-list free-vars)]
                   #:when (set-member? fv var)) ;; check whether var exists in expr at all
               (for ([i (in-range (*taylor-order-limit*))])
-                ;; adding a new expansion to the global batch
-                (define genexpr-brf (copier (genexpr)))
-                (sow (taylor-approx spec-brf repr genexpr-brf name var i altn))))
+                (sow (taylor-approx spec-brf repr (genexpr) name var i altn))))
             (set! idx (add1 idx))
             (timeline-stop!)))))
 
@@ -92,14 +85,14 @@
 
   (define approxs
     (remove-duplicates (taylor-alts altns global-batch spec-batch reducer) #:key taylor-key))
-  (define approxs* (remove-duplicates (run-lowering approxs global-batch) #:key approx-key))
-
-  (timeline-push! 'inputs (batch->jsexpr global-batch (map alt-expr altns)))
-  (timeline-push! 'outputs (batch->jsexpr global-batch (map alt-expr approxs*)))
+  (define approxs*
+    (remove-duplicates (run-lowering approxs global-batch spec-batch) #:key approx-key))
+  (timeline-push! 'inputs (batch->jsexpr global-batch spec-batch (map alt-expr altns)))
+  (timeline-push! 'outputs (batch->jsexpr global-batch spec-batch (map alt-expr approxs*)))
   (timeline-push! 'count (length altns) (length approxs*))
   approxs*)
 
-(define (run-lowering taylors global-batch)
+(define (run-lowering taylors global-batch spec-batch)
   (define schedule '(lower))
 
   ; run egg
@@ -116,9 +109,8 @@
 
   (define runner
     (cond
-      [(flag-set? 'generate 'egglog)
-       (make-egglog-runner global-batch impl-specs schedule (*context*))]
-      [else (make-egraph global-batch impl-specs schedule (*context*))]))
+      [(flag-set? 'generate 'egglog) (make-egglog-runner spec-batch impl-specs schedule (*context*))]
+      [else (make-egraph spec-batch impl-specs schedule (*context*))]))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
@@ -138,21 +130,21 @@
             (define taylor-altn (alt brf `(taylor ,name ,var ,order) (list prev)))
             (sow (alt brf (list 'rr runner #f) (list taylor-altn)))))))
 
-(define (run-evaluate altns global-batch)
+(define (run-evaluate altns global-batch spec-batch)
   (timeline-event! 'sample)
   (define all-brfs (map alt-expr altns))
-  (define global-spec-brfs (batch-to-spec! global-batch global-batch all-brfs))
+  (define spec-brfs (batch-to-spec! global-batch spec-batch all-brfs))
   (define constant-batch (batch-empty (context '() #f '())))
-  (define copy-constant (batch-copy-only! constant-batch global-batch))
-  (define spec-brfs (map copy-constant global-spec-brfs))
+  (define copy-constant (batch-copy-only! constant-batch spec-batch))
+  (define constant-brfs (map copy-constant spec-brfs))
   (define free-vars (batch-free-vars constant-batch))
   (define real-pairs
     (for/list ([altn (in-list altns)]
-               [spec-brf (in-list spec-brfs)]
-               #:when (set-empty? (free-vars spec-brf))
+               [constant-brf (in-list constant-brfs)]
+               #:when (set-empty? (free-vars constant-brf))
                #:unless (literal? (deref (alt-expr altn)))
                #:when (equal? (representation-type (batch-repr-of (alt-expr altn))) 'real))
-      (cons altn spec-brf)))
+      (cons altn constant-brf)))
   (define real-altns (map car real-pairs))
   (define real-spec-brfs (map cdr real-pairs))
 
@@ -179,7 +171,7 @@
       (define brf (batch-add! global-batch literal))
       (alt brf '(evaluate) (list altn))))
 
-  (timeline-push! 'inputs (batch->jsexpr constant-batch real-spec-brfs))
+  (timeline-push! 'inputs (batch->jsexpr constant-batch constant-batch real-spec-brfs))
   (timeline-push! 'outputs (map ~a literals))
   final-altns)
 
@@ -212,8 +204,8 @@
             (for ([batchref* (in-list batchrefs)])
               (sow (alt batchref* (list 'rr runner #f) (list altn)))))))
 
-  (timeline-push! 'inputs (batch->jsexpr global-batch (map alt-expr altns)))
-  (timeline-push! 'outputs (batch->jsexpr global-batch (map alt-expr rewritten)))
+  (timeline-push! 'inputs (batch->jsexpr global-batch spec-batch (map alt-expr altns)))
+  (timeline-push! 'outputs (batch->jsexpr global-batch spec-batch (map alt-expr rewritten)))
   (timeline-push! 'count (length altns) (length rewritten))
 
   rewritten)
@@ -233,7 +225,7 @@
 
   (define evaluations
     (if (flag-set? 'generate 'evaluate)
-        (run-evaluate start-altns batch)
+        (run-evaluate start-altns batch spec-batch)
         '()))
 
   ; Series expand

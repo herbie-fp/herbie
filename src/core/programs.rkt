@@ -226,7 +226,7 @@
                        (define impl* (loop impl))
                        (if (= (batchref-idx impl*) (batchref-idx impl))
                            brf
-                           (batch-push! batch (approx (batchref-idx spec) (batchref-idx impl*))))]
+                           (batch-push! batch (approx spec (batchref-idx impl*))))]
                       [node
                        (define unchanged? #t)
                        (define node*

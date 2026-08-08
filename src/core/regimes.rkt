@@ -45,7 +45,7 @@
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
 ;; CONSIDER: move start-prog and the "branch-brfs" computation into caller.
-(define (pareto-regimes batch sorted start-prog pcontext)
+(define (pareto-regimes batch sorted start-prog pcontext spec-batch)
   (timeline-event! 'regimes)
   (define alts-vec (list->vector sorted))
   (define alt-count (vector-length alts-vec))
@@ -62,7 +62,7 @@
   (define pts-vec (pcontext-points pcontext))
 
   ;; For timeline
-  (define batch-jsexpr (batch->jsexpr batch (append (map alt-expr sorted) branch-brfs)))
+  (define batch-jsexpr (batch->jsexpr batch spec-batch (append (map alt-expr sorted) branch-brfs)))
   (timeline-push! 'batch batch-jsexpr)
   (define branch-roots (drop (hash-ref batch-jsexpr 'roots) alt-count))
   (define branch-root-map (make-immutable-hash (map cons branch-brfs branch-roots)))
@@ -70,7 +70,7 @@
   (define option-curves
     (for/list ([brf (in-list branch-brfs)]
                [brf-vals-vec (in-list brf-vals)])
-      (define timeline-stop! (timeline-start! 'times (batch->jsexpr batch (list brf))))
+      (define timeline-stop! (timeline-start! 'times (batch->jsexpr batch spec-batch (list brf))))
       (define repr (batch-repr-of brf))
       (define curve (branch-options batch alts-vec err-cols pts-vec brf brf-vals-vec repr))
       (define last-point (last curve))
@@ -87,10 +87,11 @@
       (pareto-union curve branch-curve #:combine (lambda (old _new) old))))
 
   ;; Timeline
-  (timeline-push! 'inputs (batch->jsexpr batch (map alt-expr sorted)))
+  (timeline-push! 'inputs (batch->jsexpr batch spec-batch (map alt-expr sorted)))
   (timeline-push!
    'outputs
    (batch->jsexpr batch
+                  spec-batch
                   (remove-duplicates
                    (for*/list ([ppt (in-list combined-option-curve)]
                                [sidx (in-list (option-split-indices (pareto-point-data ppt)))])
@@ -132,7 +133,7 @@
                 (loop (dom-parent brf))))))))
 
 (define (build-dominator-tree batch root-brf)
-  (define reachable-brfs (reverse (batch-reachable/impl batch (list root-brf))))
+  (define reachable-brfs (reverse (batch-reachable batch (list root-brf))))
   (define dom-parents (make-vector (batch-length batch) #f))
   (define (dom-parent brf)
     (vector-ref dom-parents (batchref-idx brf)))
@@ -145,7 +146,7 @@
     (vector-set! dom-parents (batchref-idx child-brf) new-parent))
   (vector-set! dom-parents (batchref-idx root-brf) root-brf)
   (for ([brf (in-list reachable-brfs)])
-    (expr-recurse-impl (deref brf) (lambda (child) (update-child! brf child))))
+    (expr-recurse (deref brf) (lambda (child) (update-child! brf child))))
   dom-parent)
 
 (define (dominator-lca brf1 brf2 dom-parent)

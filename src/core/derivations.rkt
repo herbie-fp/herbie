@@ -5,16 +5,23 @@
          "../syntax/platform.rkt"
          "programs.rkt"
          "egg-herbie.rkt"
-         "../config.rkt")
+         "../config.rkt"
+         "../syntax/syntax.rkt")
 
 (provide add-derivations)
 
-(define (canonicalize-proof batch prog-brf proof start-brf)
+(define (copy-proof-specs spec-batch expr)
+  (match expr
+    [(approx spec impl) (approx (batch-add! spec-batch spec) (copy-proof-specs spec-batch impl))]
+    [(list op args ...) (cons op (map (curry copy-proof-specs spec-batch) args))]
+    [_ expr]))
+
+(define (canonicalize-proof batch spec-batch prog-brf proof start-brf)
   ;; Proofs are on subexpressions; lift to full expression
   ;; Returns a list of batchrefs instead of expressions
   (and proof
        (for/list ([step (in-list proof)])
-         (define step-brf (batch-add! batch step))
+         (define step-brf (batch-add! batch (copy-proof-specs spec-batch step)))
          (batch-replace-subexpr batch prog-brf start-brf step-brf))))
 
 ;; Adds proof information to alternatives.
@@ -30,7 +37,7 @@
        (apply values (batch-to-spec! batch spec-batch (list start-brf end-brf))))
      (define proof
        (and (not (flag-set? 'generate 'egglog)) (egraph-prove runner proof-start proof-end)))
-     (define proof* (canonicalize-proof batch (alt-expr altn) proof start-brf))
+     (define proof* (canonicalize-proof batch spec-batch (alt-expr altn) proof start-brf))
      (alt expr `(rr ,start-brf ,end-brf ,runner ,proof*) (list prev))]
 
     ; everything else

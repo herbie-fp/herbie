@@ -46,8 +46,11 @@
 (define (run-improve! initial specification context pcontext)
   (parameterize ([*global-batch* (batch-empty context)])
     (define global-spec-batch (batch-empty context))
-    (define initial-brf (batch-add! (*global-batch*) initial))
     (define specification-brf (batch-add! global-spec-batch specification))
+    (define initial-brf
+      (match initial
+        [(approx _ impl) (batch-add! (*global-batch*) (approx specification-brf impl))]
+        [_ (batch-add! (*global-batch*) initial)]))
     (timeline-event! 'preprocess)
     (define preprocessing
       (if (flag-set? 'setup 'preprocess)
@@ -67,21 +70,21 @@
     (for ([_ (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
       (run-iteration! global-spec-batch spec-reducer))
-    (define alternatives (extract!))
+    (define alternatives (extract! global-spec-batch))
     (timeline-event! 'preprocess)
     (for/list ([altn alternatives])
       (define expr (alt-expr altn))
       (define expr* (compile-useful-preprocessing expr context pcontext (*preprocessing*)))
       (alt expr* 'add-preprocessing (list altn)))))
 
-(define (extract!)
-  (timeline-push-alts! '())
+(define (extract! spec-batch)
+  (timeline-push-alts! '() spec-batch)
   (define all-alts (atab-all-alts (^table^)))
-  (define joined-alts (make-regime! (*global-batch*) all-alts (*start-brf*)))
+  (define joined-alts (make-regime! (*global-batch*) all-alts (*start-brf*) spec-batch))
   (define annotated-alts (add-derivations! joined-alts))
   (define scores (batch-errors (*global-batch*) (map alt-expr annotated-alts) (*pcontext*)))
   (define sorted-alts (map car (sort-alts (*global-batch*) annotated-alts scores)))
-  (define unbatched-alts (unbatchify-alts (*global-batch*) sorted-alts))
+  (define unbatched-alts (unbatchify-alts (*global-batch*) sorted-alts spec-batch))
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   unbatched-alts)
 
@@ -89,7 +92,7 @@
 ;; Herbie. These often wrap other Herbie components, but add logging
 ;; and timeline data.
 
-(define (dump-intermediates! batch altns)
+(define (dump-intermediates! batch altns spec-batch)
   (define dump-dir "dump-intermediates")
   (unless (directory-exists? dump-dir)
     (make-directory dump-dir))
@@ -97,7 +100,8 @@
     (for/first ([i (in-naturals)]
                 #:unless (file-exists? (build-path dump-dir (format "~a.rktd" i))))
       (build-path dump-dir (format "~a.rktd" i))))
-  (define exprs (batch-exprs batch))
+  (define spec-f (batch-exprs spec-batch))
+  (define exprs (batch-exprs batch #:spec-f spec-f))
   (call-with-output-file name
                          #:exists 'replace
                          (lambda (out)
@@ -107,11 +111,11 @@
 (define (batch-score-alts altns)
   (map errors-score (batch-errors (*global-batch*) (map alt-expr altns) (*pcontext*))))
 
-(define (timeline-push-alts! next-alts)
+(define (timeline-push-alts! next-alts spec-batch)
   (define pending-alts (atab-not-done-alts (^table^)))
   (define active-alts (atab-active-alts (^table^)))
   (define scores (batch-score-alts active-alts))
-  (define batch-jsexpr (batch->jsexpr (*global-batch*) (map alt-expr active-alts)))
+  (define batch-jsexpr (batch->jsexpr (*global-batch*) spec-batch (map alt-expr active-alts)))
   (define roots (hash-ref batch-jsexpr 'roots))
   (define repr (context-repr (*context*)))
   (timeline-push! 'batch batch-jsexpr)
@@ -198,11 +202,11 @@
   (define parents (make-vector (batch-length batch) '()))
   (define (walk-body brf recurse)
     (define idx (batchref-idx brf))
-    (expr-recurse-impl (deref brf)
-                       (lambda (child)
-                         (define child-idx (batchref-idx child))
-                         (vector-set! parents child-idx (cons idx (vector-ref parents child-idx)))
-                         (recurse child)))
+    (expr-recurse (deref brf)
+                  (lambda (child)
+                    (define child-idx (batchref-idx child))
+                    (vector-set! parents child-idx (cons idx (vector-ref parents child-idx)))
+                    (recurse child)))
     (void))
   (for-each (batch-recurse batch walk-body) (map alt-expr starting-alts))
   (define new-alts* (group-equivalent-alts new-alts))
@@ -219,9 +223,9 @@
    #:key (compose batchref-idx alt-expr)))
 
 ;; Finish iteration
-(define (finalize-iter! picked-alts patched)
+(define (finalize-iter! picked-alts patched spec-batch)
   (when (flag-set? 'dump 'intermediates)
-    (dump-intermediates! (*global-batch*) patched))
+    (dump-intermediates! (*global-batch*) patched spec-batch))
   (timeline-event! 'eval)
   (define orig-all-alts (atab-active-alts (^table^)))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
@@ -266,7 +270,7 @@
 
 (define (run-iteration! global-spec-batch spec-reducer)
   (define pending-alts (atab-not-done-alts (^table^)))
-  (timeline-push-alts! pending-alts)
+  (timeline-push-alts! pending-alts global-spec-batch)
   (^table^ (atab-set-picked (^table^) pending-alts))
 
   (define brfs (map alt-expr pending-alts))
@@ -274,10 +278,10 @@
 
   (define results (generate-candidates (*global-batch*) brfs* global-spec-batch spec-reducer))
   (define patched (reconstruct! pending-alts results))
-  (finalize-iter! pending-alts patched)
+  (finalize-iter! pending-alts patched global-spec-batch)
   (void))
 
-(define (make-regime! batch alts start-prog)
+(define (make-regime! batch alts start-prog spec-batch)
   (define repr (batch-repr-of start-prog))
   (define alt-costs (alt-batch-costs batch))
 
@@ -292,7 +296,8 @@
        (pareto-regimes batch
                        (sort alts < #:key (compose alt-costs alt-expr))
                        start-prog
-                       (*pcontext*)))
+                       (*pcontext*)
+                       spec-batch))
      (for/list ([opt (in-list opts)])
        (match-define (option splitindices opt-alts _ brf) opt)
        (timeline-event! 'bsearch)

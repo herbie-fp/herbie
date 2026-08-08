@@ -28,8 +28,9 @@
   (f (struct-copy alt altn [prevs (map (curry alt-map f) (alt-prevs altn))])))
 
 ;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
-(define (unbatchify-alts batch altns)
-  (define exprs (batch-exprs batch))
+(define (unbatchify-alts batch altns spec-batch)
+  (define spec-f (batch-exprs spec-batch))
+  (define exprs (batch-exprs batch #:spec-f spec-f))
   (define (unmunge-event event)
     (match event
       [(list 'evaluate (? batchref? start-expr)) (list 'evaluate (exprs start-expr))]
