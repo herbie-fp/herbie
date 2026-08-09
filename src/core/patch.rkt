@@ -68,7 +68,7 @@
                   #:when (set-member? fv var)) ;; check whether var exists in expr at all
               (for ([i (in-range (*taylor-order-limit*))])
                 ;; adding a new expansion to the global batch
-                (define genexpr-brf (copier (taylor-term-expr (genexpr))))
+                (define genexpr-brf (copier (genexpr)))
                 (sow (taylor-approx spec-brf repr genexpr-brf name var i altn))))
             (set! idx (add1 idx))
             (timeline-stop!)))))

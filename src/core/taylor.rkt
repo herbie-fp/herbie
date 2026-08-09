@@ -10,6 +10,7 @@
 
 (provide (struct-out taylor-term)
          approximate
+         taylor-terms
          taylor-coefficients
          taylor-transforms
          reduce
@@ -44,35 +45,41 @@
     (for/list ([brf (in-list brfs)])
       (taylorer (expander (reducer (replacer brf)))))))
 
-(struct taylor-term (expr coeff exponent) #:transparent)
+(struct taylor-term (coeff exponent) #:transparent)
+
+(define (taylor-terms taylor-approx
+                      batch
+                      var
+                      #:transform [tform (cons identity identity)]
+                      #:iters [iters 5])
+  (define replacer (batch-replace-expression! batch var ((cdr tform) var)))
+  (define offset (series-offset taylor-approx))
+  (define i 0)
+
+  (define (next [iter 0])
+    (define coeff (reducer (replacer (series-ref taylor-approx i))))
+    (set! i (+ i 1))
+    (match (deref coeff)
+      [0
+       (if (< iter iters)
+           (next (+ iter 1))
+           (taylor-term #f #f))]
+      [_ (taylor-term coeff (- i offset 1))]))
+  next)
 
 (define (approximate taylor-approxs
                      batch
                      var
                      #:transform [tform (cons identity identity)]
                      #:iters [iters 5])
-  (define replacer (batch-replace-expression! batch var ((cdr tform) var)))
-  (for/list ([ta taylor-approxs])
-    (define offset (series-offset ta))
-    (define i 0)
-    (define terms '())
-
-    (define (horner)
-      (reducer (make-horner ((cdr tform) var) (reverse terms))))
-
-    (define (next [iter 0])
-      (define coeff (reducer (replacer (series-ref ta i))))
-      (set! i (+ i 1))
-      (match (deref coeff)
-        [0
-         (if (< iter iters)
-             (next (+ iter 1))
-             (taylor-term (horner) #f #f))]
-        [_
-         (define exponent (- i offset 1))
-         (set! terms (cons (cons coeff exponent) terms))
-         (taylor-term (horner) coeff exponent)]))
-    next))
+  (for/list ([ta (in-list taylor-approxs)])
+    (define genterm (taylor-terms ta batch var #:transform tform #:iters iters))
+    (define terms '()) ; highest exponent first
+    (lambda ()
+      (match (genterm)
+        [(taylor-term #f _) (void)] ; series exhausted, keep the terms we have
+        [(taylor-term coeff exponent) (set! terms (cons (cons coeff exponent) terms))])
+      (reducer (make-horner ((cdr tform) var) (reverse terms))))))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
 (define (expand-taylor! input-batch)

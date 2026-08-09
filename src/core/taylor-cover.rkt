@@ -115,7 +115,7 @@
 (define (build-cover batch series transform ctx var var-repr epsilon intervals)
   (match-define (list name forward inverse) transform)
   (define out-repr (context-repr ctx))
-  (define next-term (car (approximate (list series) batch var #:transform (cons forward inverse))))
+  (define next-term (taylor-terms series batch var #:transform (cons forward inverse)))
   ;; The term the cover keeps, and the first one it drops
   (define terms (list (next-term) (next-term)))
   (define exponents (map taylor-term-exponent terms))
