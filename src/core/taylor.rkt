@@ -11,6 +11,7 @@
 (provide (struct-out taylor-term)
          approximate
          taylor-terms
+         horner-form
          taylor-coefficients
          taylor-transforms
          reduce
@@ -67,6 +68,9 @@
       [_ (taylor-term coeff (- i offset 1))]))
   next)
 
+(define (horner-form terms var #:transform [tform (cons identity identity)])
+  (reducer (make-horner ((cdr tform) var) terms)))
+
 (define (approximate taylor-approxs
                      batch
                      var
@@ -79,7 +83,7 @@
       (match (genterm)
         [(taylor-term #f _) (void)] ; series exhausted, keep the terms we have
         [(taylor-term coeff exponent) (set! terms (cons (cons coeff exponent) terms))])
-      (reducer (make-horner ((cdr tform) var) (reverse terms))))))
+      (horner-form (reverse terms) var #:transform tform))))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
 (define (expand-taylor! input-batch)
