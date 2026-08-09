@@ -1118,9 +1118,10 @@
         (*node-limit*)))
 
   ; run the schedule
-  (define-values (egg-graph* _rewrite-initial-size)
+  (define egg-graph*
     (for/fold ([egg-graph egg-graph0]
-               [rewrite-initial-size (iteration-data-num-nodes (last rebuild-data))])
+               [rewrite-initial-size (iteration-data-num-nodes (last rebuild-data))]
+               #:result egg-graph)
               ([step (in-list schedule)])
       (define-values (egg-graph* iteration-data)
         (match step
@@ -1138,14 +1139,14 @@
            (egraph-run-rules egg-graph
                              rules
                              #:node-limit (rewrite-node-limit rewrite-initial-size))]))
-
+  
       ; get cost statistics
       (for ([iter (in-list iteration-data)]
             [i (in-naturals)])
         (define cnt (iteration-data-num-nodes iter))
         (define cost (for/sum ([id (in-list root-ids)]) (egraph_get_cost egg-graph* id i)))
         (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
-
+  
       (define rewrite-initial-size*
         (if (empty? iteration-data)
             rewrite-initial-size
