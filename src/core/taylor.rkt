@@ -50,8 +50,8 @@
                       batch
                       var
                       #:transform [tform (cons identity identity)]
-                      #:iters [iters 5])
-  (define replacer (batch-replace-expression! batch var ((cdr tform) var)))
+                      #:iters [iters 5]
+                      #:replacer [replacer (batch-replace-expression! batch var ((cdr tform) var))])
   (define offset (series-offset taylor-approx))
   (define i 0)
 
@@ -71,8 +71,10 @@
                      var
                      #:transform [tform (cons identity identity)]
                      #:iters [iters 5])
+  (define replacer (batch-replace-expression! batch var ((cdr tform) var)))
   (for/list ([ta (in-list taylor-approxs)])
-    (define next-term (taylor-terms ta batch var #:transform tform #:iters iters))
+    (define next-term
+      (taylor-terms ta batch var #:transform tform #:iters iters #:replacer replacer))
     (define terms '()) ; highest exponent first
     (lambda ()
       (define term (next-term))
