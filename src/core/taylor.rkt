@@ -73,8 +73,7 @@
                      #:iters [iters 5])
   (define replacer (batch-replace-expression! batch var ((cdr tform) var)))
   (for/list ([ta (in-list taylor-approxs)])
-    (define next-term
-      (taylor-terms ta batch var #:transform tform #:iters iters #:replacer replacer))
+    (define next-term (taylor-terms ta batch var #:transform tform #:iters iters #:replacer replacer))
     (define terms '()) ; highest exponent first
     (lambda ()
       (define term (next-term))
