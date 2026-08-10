@@ -48,7 +48,7 @@
        [(cons iv-lo iv-hi)
         (define lo (real->repr (max (- radius) iv-lo) var-repr))
         (define hi (real->repr (min radius iv-hi) var-repr))
-        ;; Rational checks to guard against infinities
+        ;; Rational checks to guard against infinities.
         (and (rational? lo) (rational? hi) (< lo hi) (cons lo hi))]
        [#f #f])]
     ['inf
@@ -79,7 +79,7 @@
   (define tform (cons forward inverse))
   (define next-term (taylor-terms series batch var #:transform tform))
   (define terms (list (next-term) (next-term)))
-  ;; Ensure both coefficients are pure constants and then evaluate
+  ;; Ensure both coefficients are pure constants and then evaluate.
   (define coeffs
     (and (andmap (lambda (term) (and term (null? (free-variables ((batch-exprs batch) (car term))))))
                  terms)
@@ -119,7 +119,7 @@
 (define (compute-taylor-covers spec pre expr pcontext ctx)
   (define epsilon (precision-epsilon (context-repr ctx)))
   (match (context-vars ctx)
-    [(list var) ; For now, covers only apply to univariate functions
+    [(list var) ; For now, covers only apply to univariate functions.
      #:when epsilon
      (timeline-event! 'series)
      (define intervals (range-table-ref (condition->range-table pre) var))
@@ -128,6 +128,8 @@
        (define cover (build-cover batch (first coefficients) transform ctx epsilon intervals))
        (cond
          [cover
+          ;; Keep the cover if it improves over the original train-pcontext; if so,
+          ;; sandbox.rkt samples a new train-pcontext with the cover region excluded.
           (define kept? (cover-improves? cover expr pcontext ctx))
           (timeline-push! 'taylor-count
                           (~a (first transform))
@@ -144,6 +146,7 @@
                    (taylor-coefficients batch brfs (list var) taylor-transforms)))]
     [_ '()]))
 
+;; Spec precondition for all points strictly outside the cover.
 (define (cover-outside cover)
   (match-define (taylor-cover _ var var-repr _ lo hi _ _) cover)
   (define (bound value)
@@ -152,11 +155,6 @@
     [(infinite? lo) `(< ,(bound hi) ,var)]
     [(infinite? hi) `(< ,var ,(bound lo))]
     [else `(or (< ,var ,(bound lo)) (< ,(bound hi) ,var))]))
-
-;; Skip whatever the covers already handle.
-(define (taylor-covers-precondition pre covers)
-  (for/fold ([pre pre]) ([cover (in-list covers)])
-    `(and ,pre ,(cover-outside cover))))
 
 (define (cover-condition cover)
   (match-define (taylor-cover _ var var-repr _ lo hi _ _) cover)
@@ -184,6 +182,11 @@
   (alt `(,if-impl ,(cover-condition cover) ,taylor-expr ,(alt-expr altn))
        `(regimes ,(cover-splitpoints cover))
        (list altn taylor-altn)))
+
+;; Skip whatever the covers already handle.
+(define (taylor-covers-precondition pre covers)
+  (for/fold ([pre pre]) ([cover (in-list covers)])
+    `(and ,pre ,(cover-outside cover))))
 
 ;; Report the covered and uncovered forms of every alternative.
 (define (wrap-taylor-cover-alts altns covers)

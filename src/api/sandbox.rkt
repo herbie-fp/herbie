@@ -147,7 +147,7 @@
 
   (local-error-as-tree (test-input test) (*context*) pcontext))
 
-;; If post-covers region is unsamplable, roll the generator back
+;; If post-covers region is unsamplable, rollback RNG to keep Herbie runs reproducible.
 (define (sample-search-points sample test covers)
   (define rng-state (pseudo-random-generator->vector (current-pseudo-random-generator)))
   (with-handlers ([exn:fail:user:herbie:sampling?
