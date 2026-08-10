@@ -30,8 +30,8 @@
 
 (define (overlapping-bounds intervals lo hi)
   (for/or ([iv (in-list intervals)])
-    (match-define (interval iv-lo iv-hi _ _) iv)
-    (and (< iv-lo hi) (< lo iv-hi) (cons iv-lo iv-hi))))
+    (match-define (cons iv-lo iv-hi) iv)
+    (and (< iv-lo hi) (< lo iv-hi) iv)))
 
 (define (predecessor value repr)
   ((representation-ordinal->repr repr) (sub1 ((representation-repr->ordinal repr) value))))
@@ -122,7 +122,10 @@
     [(list var) ; For now, covers only apply to univariate functions.
      #:when epsilon
      (timeline-event! 'series)
-     (define intervals (range-table-ref (condition->range-table pre) var))
+     (define intervals
+       (for/list ([iv (in-list (range-table-ref (condition->range-table pre) var))])
+         (match-define (interval lo hi _ _) iv)
+         (cons lo hi)))
      (define-values (batch brfs) (progs->batch (list spec) #:ctx ctx))
      (define (try-cover transform coefficients)
        (define cover (build-cover batch (first coefficients) transform ctx epsilon intervals))
