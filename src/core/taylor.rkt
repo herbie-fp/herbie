@@ -8,8 +8,7 @@
          "../syntax/batch.rkt"
          "programs.rkt")
 
-(provide (struct-out taylor-term)
-         approximate
+(provide approximate
          taylor-terms
          horner-form
          taylor-coefficients
@@ -46,8 +45,7 @@
     (for/list ([brf (in-list brfs)])
       (taylorer (expander (reducer (replacer brf)))))))
 
-(struct taylor-term (coeff exponent) #:transparent)
-
+;; Returns List<(cons coeff exponent)>
 (define (taylor-terms taylor-approx
                       batch
                       var
@@ -61,11 +59,8 @@
     (define coeff (reducer (replacer (series-ref taylor-approx i))))
     (set! i (+ i 1))
     (match (deref coeff)
-      [0
-       (if (< iter iters)
-           (next (+ iter 1))
-           (taylor-term #f #f))]
-      [_ (taylor-term coeff (- i offset 1))]))
+      [0 (and (< iter iters) (next (+ iter 1)))]
+      [_ (cons coeff (- i offset 1))]))
   next)
 
 (define (horner-form terms var #:transform [tform (cons identity identity)])
@@ -77,12 +72,12 @@
                      #:transform [tform (cons identity identity)]
                      #:iters [iters 5])
   (for/list ([ta (in-list taylor-approxs)])
-    (define genterm (taylor-terms ta batch var #:transform tform #:iters iters))
+    (define next-term (taylor-terms ta batch var #:transform tform #:iters iters))
     (define terms '()) ; highest exponent first
     (lambda ()
-      (match (genterm)
-        [(taylor-term #f _) (void)] ; series exhausted, keep the terms we have
-        [(taylor-term coeff exponent) (set! terms (cons (cons coeff exponent) terms))])
+      (define term (next-term))
+      (when term
+        (set! terms (cons term terms)))
       (horner-form (reverse terms) var #:transform tform))))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction

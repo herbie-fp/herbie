@@ -39,10 +39,7 @@
 (define (cover-radius coeffs exponents epsilon)
   (match-define (list kept dropped) coeffs)
   (match-define (list kept-exponent dropped-exponent) exponents)
-  (and (not (zero? dropped))
-       (let ([radius (expt (* epsilon (/ (abs kept) (abs dropped)))
-                           (/ 1 (- dropped-exponent kept-exponent)))])
-         (and (positive? radius) radius))))
+  (expt (* epsilon (/ (abs kept) (abs dropped))) (/ 1 (- dropped-exponent kept-exponent))))
 
 (define (cover-interval name radius var-repr intervals)
   (match name
@@ -69,40 +66,38 @@
 
 (define (coefficient-values batch coeffs out-repr)
   (define exprs (map (batch-exprs batch) coeffs))
-  (cond
-    [(not (andmap (lambda (expr) (null? (free-variables expr))) exprs)) #f]
-    [else
-     (define ctx (context '() out-repr '()))
-     (define-values (const-batch brfs) (progs->batch exprs #:ctx ctx))
-     (define compiler (make-real-compiler const-batch brfs (map (const out-repr) exprs)))
-     (define-values (status outs) (real-apply compiler (vector)))
-     (define nums (and (equal? status 'valid) (map (lambda (out) (repr->real out out-repr)) outs)))
-     (and nums (andmap rational? nums) nums)]))
+  (define ctx (context '() out-repr '()))
+  (define-values (const-batch brfs) (progs->batch exprs #:ctx ctx))
+  (define compiler (make-real-compiler const-batch brfs (map (const out-repr) exprs)))
+  (define-values (status outs) (real-apply compiler (vector)))
+  (define nums (and (equal? status 'valid) (map (lambda (out) (repr->real out out-repr)) outs)))
+  (and nums (andmap (lambda (n) (and (rational? n) (not (zero? n)))) nums) nums))
 
 (define (build-cover batch series transform ctx epsilon intervals)
   (match-define (list name forward inverse) transform)
   (match-define (context (list var) out-repr (list var-repr)) ctx)
   (define tform (cons forward inverse))
   (define next-term (taylor-terms series batch var #:transform tform))
-  ;; The term the cover keeps, and the first one it drops
   (define terms (list (next-term) (next-term)))
-  (define exponents (map taylor-term-exponent terms))
+  ;; Ensure both coefficients are pure constants and then evaluate
   (define coeffs
-    (and (andmap exact-integer? exponents) ; No fractional exponents, and the series went on
-         (coefficient-values batch (map taylor-term-coeff terms) out-repr)))
-  (define kept-term (and coeffs (cons (first coeffs) (first exponents))))
-  (define radius (and kept-term (cover-radius coeffs exponents epsilon)))
+    (and (andmap (lambda (term) (and term (null? (free-variables ((batch-exprs batch) (car term))))))
+                 terms)
+         (coefficient-values batch (map car terms) out-repr)))
+  (define radius (and coeffs (cover-radius coeffs (map cdr terms) epsilon)))
   (define bounds (and radius (cover-interval name radius var-repr intervals)))
   (and bounds
-       (taylor-cover
-        name
-        var
-        var-repr
-        out-repr
-        (car bounds)
-        (cdr bounds)
-        (fpcore->prog ((batch-exprs batch) (horner-form (list kept-term) var #:transform tform)) ctx)
-        (cdr kept-term))))
+       (let ([kept-term (cons (first coeffs) (cdr (first terms)))])
+         (taylor-cover
+          name
+          var
+          var-repr
+          out-repr
+          (car bounds)
+          (cdr bounds)
+          (fpcore->prog ((batch-exprs batch) (horner-form (list kept-term) var #:transform tform))
+                        ctx)
+          (cdr kept-term)))))
 
 ;; A cover is likely only worth a branch if it beats the original program on
 ;; the initial sample of training points.
@@ -124,22 +119,24 @@
 (define (compute-taylor-covers spec pre expr pcontext ctx)
   (define epsilon (precision-epsilon (context-repr ctx)))
   (match (context-vars ctx)
-    [(list var)
+    [(list var) ; For now, covers only apply to univariate functions
      #:when epsilon
      (timeline-event! 'series)
      (define intervals (range-table-ref (condition->range-table pre) var))
      (define-values (batch brfs) (progs->batch (list spec) #:ctx ctx))
      (define (try-cover transform coefficients)
        (define cover (build-cover batch (first coefficients) transform ctx epsilon intervals))
-       (and cover
-            (let ([kept? (cover-improves? cover expr pcontext ctx)])
-              (timeline-push! 'taylor-count
-                              (~a (first transform))
-                              (taylor-cover-exponent cover)
-                              1
-                              1
-                              (if kept? 1 0))
-              (and kept? cover))))
+       (cond
+         [cover
+          (define kept? (cover-improves? cover expr pcontext ctx))
+          (timeline-push! 'taylor-count
+                          (~a (first transform))
+                          (taylor-cover-exponent cover)
+                          1
+                          1
+                          (if kept? 1 0))
+          (and kept? cover)]
+         [else #f]))
      (parameterize ([reduce (batch-reduce batch)]
                     [add (lambda (x) (batch-add! batch x))])
        (filter-map try-cover
