@@ -28,11 +28,11 @@
 
 ;; Checks if an operator has been registered.
 (define (operator-exists? op)
-  (or (hash-has-key? rival-functions op) (equal? op 'ref) (equal? op 'array)))
+  (or (hash-has-key? rival-functions op) (equal? op 'ref) (equal? op 'array) (equal? op 'periodic)))
 
 ;; Returns all operators.
 (define (all-operators)
-  (sort (append (hash-keys rival-functions) (list 'array 'ref)) symbol<?))
+  (sort (append (hash-keys rival-functions) (list 'array 'ref 'periodic)) symbol<?))
 
 ;; Looks up a property `field` of a real operator `op`.
 ;; Panics if the operator is not found.
@@ -42,6 +42,7 @@
     (cond
       [(equal? op 'ref) '(real array real)]
       [(equal? op 'array) '(array real real)]
+      [(equal? op 'periodic) '(real real real)]
       [else
        (hash-ref rival-functions
                  op
