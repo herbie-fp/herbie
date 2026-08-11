@@ -7,6 +7,8 @@ var compareAgainstURL = ""
 var diffAgainstFields = {}
 var otherJsonData = null
 var resultsJsonData = null
+var countsJsonData = null
+var costsJsonData = null
 
 function update() {
     const bodyNode = document.querySelector("body");
@@ -678,6 +680,9 @@ function buildBody(jsonData, otherJsonData) {
                 buildTableHeader("name"),
                 buildTableHeader("start"),
                 buildTableHeader("end", resultHelpText),
+                buildTableHeader("score"),
+                buildTableHeader("cost"),
+                buildTableHeader("count"),
                 buildTableHeader("target", targetHelpText),
                 buildTableHeader("time"),
             ]),
@@ -692,6 +697,10 @@ function compareTests(l, r) {
     let cmp;
     if (sortState.key == "name") {
         cmp = l.name.localeCompare(r.name);
+    } else if (sortState.key == "score") {
+        const lv = getScore(l);
+        const rv = getScore(r);
+        cmp = lv - rv;
     } else {
         if (l[sortState.key] === false) {
             cmp = 1;
@@ -785,6 +794,9 @@ function buildDiffFooter(jsonData, otherJsonData) {
         Element("th", {}, ["Total"]),
         radioState == "startAcc" ? Element("td", { classList: color }, [text]) : Element("td", {}, []),
         radioState == "endAcc" ? Element("td", { classList: color }, [text]) : Element("td", {}, []),
+
+        Element("td", {}, []),
+
         radioState == "targetAcc" ? Element("td", { classList: color }, [text]) : Element("td", {}, []),
         radioState == "time" ? Element("td", { classList: color }, [text]) : Element("td", {}, []),
         Element("td", {}, []),
@@ -805,7 +817,30 @@ function getMinimum(target) {
     }, Infinity);
 }
 
-// Builds either a normal run row or a comparison row when `other` is present.
+function getCountForTestName(name) {
+    if (!countsJsonData) return 0;
+    const raw = countsJsonData[name];
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function getCostForTestName(name) {
+    if (!costsJsonData) return 0;
+    const raw = costsJsonData[name];
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function getScore(test) {
+    const count = getCountForTestName(test.name);
+    const cost = getCostForTestName(test.name);
+    if (cost === 0)
+        return 0 
+    const endVal = (test && typeof test.end === "number") ? test.end : 0;
+    return ((endVal * count) / (cost / 1000)) * 1000;
+}
+
+// HACK I kinda hate this split lambda function, Zane
 function buildRow(test, other) {
     var smallestTarget = getMinimum(test.target)
 
@@ -826,6 +861,9 @@ function buildRow(test, other) {
             Element("td", {}, [test.name]),
             Element("td", {}, [startAccuracy]),
             Element("td", {}, [resultAccuracy]),
+            Element("td", {}, [String(Math.floor(getScore(test)))]),
+            Element("td", {}, [String(Math.floor(getCostForTestName(test.name)))]),
+            Element("td", {}, [String(Math.floor(getCountForTestName(test.name)))]),
             Element("td", {}, [targetAccuracy]),
             Element("td", {}, [formatTime(test.time)]),
             Element("td", {}, [
@@ -906,6 +944,9 @@ function buildRow(test, other) {
             Element("td", { title: testTitle }, [test.name]),
             tdStartAccuracy,
             tdResultAccuracy,
+            Element("td", {}, [String(Math.floor(getScore(test)))]),
+            Element("td", {}, [String(Math.floor(getCostForTestName(test.name)))]),
+            Element("td", {}, [String(Math.floor(getCountForTestName(test.name)))]),
             tdTargetAccuracy,
             tdTime,
             Element("td", {}, [
@@ -1198,4 +1239,51 @@ async function getResultsJson() {
     }
 }
 
-getResultsJson()
+async function getCountsJson() {
+    if (countsJsonData != null) return;
+    let response;
+    try {
+        response = await fetch("../counts.json", {
+            headers: { "content-type": "application/json" },
+        });
+    } catch (err) {
+        return showGetJsonError(err);
+    }
+    countsJsonData = await response.json();
+    update();
+}
+
+async function getCostsJson() {
+    if (costsJsonData != null) return;
+    let response;
+    try {
+        response = await fetch("../costs.json", {
+            headers: { "content-type": "application/json" },
+        });
+    } catch (err) {
+        return showGetJsonError(err);
+    }
+    costsJsonData = await response.json();
+    update();
+}
+
+function storeBenchmarks(tests) {
+    var tempDir = {}
+    var tempAllWarnings = {}
+    for (let test of tests) {
+        const linkComponents = test.link.split("/")
+        if (linkComponents.length > 1) {
+            tempDir[linkComponents[0]] = linkComponents[0]
+        }
+        for (let warning of test.warnings)  {
+            tempAllWarnings[warning] = warning
+        }
+    }
+    allSuites = Object.keys(tempDir);
+    allWarnings = Object.keys(tempAllWarnings);
+    update();
+}
+
+getCountsJson();
+getCostsJson();
+getResultsJson();
