@@ -7,11 +7,11 @@
          "../syntax/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "searchreals.rkt"
          "../syntax/rival.rkt")
 
-(provide batch-prepare-points
+(provide block-prepare-points
          sample-points)
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
@@ -120,7 +120,7 @@
 ;; Returns an evaluator for a list of expressions.
 ;; Part 3: compute exact values using Rival's algorithm
 
-(define (batch-prepare-points compiler sampler)
+(define (block-prepare-points compiler sampler)
   ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
   (define vars (real-compiler-vars compiler))
@@ -180,12 +180,12 @@
   (for/fold ([t1 (hash-remove (hash-remove t1 'unknown) 'valid)]) ([(k v) (in-hash t2)])
     (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
 
-(define (sample-points pre batch brfs reprs)
+(define (sample-points pre block vs reprs)
   (timeline-event! 'analyze)
-  (define compiler (make-real-compiler batch brfs reprs #:pre pre))
+  (define compiler (make-real-compiler block vs reprs #:pre pre))
   (define-values (sampler table) (make-sampler compiler))
   (timeline-event! 'sample)
-  (define-values (results table2) (batch-prepare-points compiler sampler))
+  (define-values (results table2) (block-prepare-points compiler sampler))
   (define total (apply + (hash-values table2)))
   (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
     (warn 'inf-points

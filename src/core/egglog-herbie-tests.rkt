@@ -320,7 +320,7 @@
            "egglog-herbie.rkt"
            "programs.rkt"
            "../syntax/types.rkt"
-           "../syntax/batch.rkt"
+           "../syntax/block.rkt"
            "rules.rkt"
            "../config.rkt"
            "../syntax/platform.rkt"
@@ -329,28 +329,28 @@
   (activate-platform! "c")
   (define ctx (context '(x eps) <binary64> (make-list 2 <binary64>)))
 
-  (define-values (batch brfs)
-    (progs->batch (list '(- (sin (+ x eps)) (sin x)) '(sin (+ x eps)) '(+ x eps) 'x 'eps '(sin x))
+  (define-values (block vs)
+    (progs->block (list '(- (sin (+ x eps)) (sin x)) '(sin (+ x eps)) '(+ x eps) 'x 'eps '(sin x))
                   #:ctx ctx))
 
-  (define reprs (make-list (length brfs) <binary64>))
+  (define reprs (make-list (length vs) <binary64>))
 
   (define schedule '(rewrite lower))
 
   (when (find-executable-path "egglog")
-    (void (run-egglog (make-egglog-runner batch brfs schedule ctx) batch reprs #:extract 1000000))))
+    (void (run-egglog (make-egglog-runner block vs schedule ctx) block reprs #:extract 1000000))))
 
 (module+ test
   (require rackunit)
   (when (find-executable-path "egglog")
     (let ()
       (define ctx (context '(x y) <binary64> (make-list 2 <binary64>)))
-      (define-values (batch brfs) (progs->batch (list '(+ x y)) #:ctx ctx))
-      (batch-add! batch '(* x y))
+      (define-values (block vs) (progs->block (list '(+ x y)) #:ctx ctx))
+      (block-add! block '(* x y))
 
       (define subproc (create-new-egglog-subprocess #f))
       (prelude subproc)
-      (define-values (all-bindings root-constructors) (egglog-add-exprs batch brfs subproc))
+      (define-values (all-bindings root-constructors) (egglog-add-exprs block vs subproc))
       (egglog-subprocess-close subproc)
 
       (check-equal? (length root-constructors) 1)

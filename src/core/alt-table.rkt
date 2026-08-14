@@ -8,20 +8,20 @@
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
          "../syntax/platform.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "points.rkt"
          "programs.rkt")
 
-(provide (contract-out (make-alt-table (batch? pcontext? alt? . -> . alt-table?))
+(provide (contract-out (make-alt-table (block? pcontext? alt? . -> . alt-table?))
                        (atab-active-alts (alt-table? . -> . (listof alt?)))
                        (atab-all-alts (alt-table? . -> . (listof alt?)))
                        (atab-not-done-alts (alt-table? . -> . (listof alt?)))
-                       (atab-eval-altns (alt-table? batch? (listof alt?) . -> . (values any/c any/c)))
+                       (atab-eval-altns (alt-table? block? (listof alt?) . -> . (values any/c any/c)))
                        (atab-add-altns (alt-table? (listof alt?) any/c any/c . -> . alt-table?))
                        (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
                        (atab-completed? (alt-table? . -> . boolean?))
                        (atab-min-errors (alt-table? . -> . flvector?))
-                       (alt-batch-costs (batch? . -> . (batchref? . -> . real?)))))
+                       (alt-block-costs (block? . -> . (val? . -> . real?)))))
 
 ;; Public API
 
@@ -37,21 +37,21 @@
        [(< x y) (cons y (sorted-index-union xs ys*))]
        [else (cons x (sorted-index-union xs* ys*))])]))
 
-(define (alt-batch-costs batch)
+(define (alt-block-costs block)
   (define active-platform (*active-platform*))
-  (define (node-cost brf)
-    (match (deref brf)
-      [(? literal?) (platform-repr-cost active-platform (batch-repr-of brf))]
+  (define (node-cost v)
+    (match (val-def v)
+      [(? literal?) (platform-repr-cost active-platform (block-repr-of v))]
       [(? symbol?) 0]
       [(? number?) 0] ; specs
       [(approx _ _) 0]
       [(list (? (negate impl-exists?) _) args ...) 0] ; specs
       [(list impl args ...) (impl-info impl 'cost)]))
   (define (sum-set nodes)
-    (for/sum ([idx (in-list nodes)]) (node-cost (batchref batch idx))))
-  (define (node-reachable-mask brf recurse)
-    (define node (deref brf))
-    (define idx (batchref-idx brf))
+    (for/sum ([idx (in-list nodes)]) (node-cost (val block idx))))
+  (define (node-reachable-mask v recurse)
+    (define node (val-def v))
+    (define idx (val-idx v))
     (define self-set (list idx))
     (match node
       [(? number?) '()] ; specs
@@ -61,27 +61,27 @@
        (for/fold ([nodes self-set]) ([arg (in-list args)])
          (sorted-index-union nodes (recurse arg)))]
       [_ self-set]))
-  (define reachable-mask (batch-recurse batch node-reachable-mask))
-  (define (dag-cost brf recurse)
-    (define node (deref brf))
+  (define reachable-mask (block-recurse block node-reachable-mask))
+  (define (dag-cost v recurse)
+    (define node (val-def v))
     (match node
       [(? number?) 0] ; specs
       [(approx _ impl) (recurse impl)]
       [(list (? (negate impl-exists?) _) args ...) 0] ; specs
-      [(list impl args ...) (sum-set (reachable-mask brf))]
-      [_ (node-cost brf)]))
-  (define (tree-cost brf recurse)
-    (match (deref brf)
+      [(list impl args ...) (sum-set (reachable-mask v))]
+      [_ (node-cost v)]))
+  (define (tree-cost v recurse)
+    (match (val-def v)
       [(? number?) 0] ; specs
       [(approx _ impl) (recurse impl)]
       [(list (? (negate impl-exists?) _) args ...) 0] ; specs
-      [(list impl args ...) (+ (node-cost brf) (for/sum ([arg (in-list args)]) (recurse arg)))]
-      [_ (node-cost brf)]))
-  (batch-recurse batch (if (flag-set? 'reduce 'dag-cost) dag-cost tree-cost)))
+      [(list impl args ...) (+ (node-cost v) (for/sum ([arg (in-list args)]) (recurse arg)))]
+      [_ (node-cost v)]))
+  (block-recurse block (if (flag-set? 'reduce 'dag-cost) dag-cost tree-cost)))
 
-(define (make-alt-table batch pcontext initial-alt)
-  (define cost ((alt-batch-costs batch) (alt-expr initial-alt)))
-  (define errs (first (batch-errors batch (list (alt-expr initial-alt)) pcontext)))
+(define (make-alt-table block pcontext initial-alt)
+  (define cost ((alt-block-costs block) (alt-expr initial-alt)))
+  (define errs (first (block-errors block (list (alt-expr initial-alt)) pcontext)))
   (alt-table (for/vector #:length (pcontext-length pcontext)
                          ([err (in-flvector errs)])
                (list (pareto-point cost err (list initial-alt))))
@@ -209,10 +209,10 @@
                [alt->done? (hash-remove* alt->done? altns)]
                [alt->cost (hash-remove* alt->cost altns)]))
 
-(define (atab-eval-altns atab batch altns)
-  (define brfs (map alt-expr altns))
-  (define errss (batch-errors batch brfs (alt-table-pcontext atab)))
-  (define costs (map (alt-batch-costs batch) brfs))
+(define (atab-eval-altns atab block altns)
+  (define vs (map alt-expr altns))
+  (define errss (block-errors block vs (alt-table-pcontext atab)))
+  (define costs (map (alt-block-costs block) vs))
   (values errss costs))
 
 (define (atab-add-altns atab altns errss costs)
@@ -245,8 +245,8 @@
   ;; Check  whether altn is already inserted into atab
   (match (hash-has-key? alt->point-idxs altn)
     [#f
-     (define brf (alt-expr altn))
-     (define max-valid-bits (representation-total-bits (batch-repr-of brf)))
+     (define v (alt-expr altn))
+     (define max-valid-bits (representation-total-bits (block-repr-of v)))
      (define point-idx->alts*
        (for/vector #:length (vector-length point-idx->alts)
                    ([pcurve (in-vector point-idx->alts)]

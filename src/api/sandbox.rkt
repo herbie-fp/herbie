@@ -10,7 +10,7 @@
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
          "../syntax/load-platform.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "../core/localize.rkt"
          "../core/alternative.rkt"
          "../core/compiler.rkt"
@@ -137,10 +137,10 @@
   (random) ;; Tick the random number generator, for backwards compatibility
   (define specification (test-spec test))
   (define precondition (test-pre test))
-  (define-values (batch brfs) (progs->batch (list specification) #:ctx (*context*)))
+  (define-values (block vs) (progs->block (list specification) #:ctx (*context*)))
   (define sample
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-points precondition batch brfs (list (context-repr (*context*))))))
+      (sample-points precondition block vs (list (context-repr (*context*))))))
   (apply mk-pcontext sample))
 
 ;;

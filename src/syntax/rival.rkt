@@ -17,7 +17,7 @@
          "../syntax/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
-         "../syntax/batch.rkt")
+         "../syntax/block.rkt")
 
 (define (use-rival3?)
   (not (flag-set? 'setup 'rival2)))
@@ -120,11 +120,11 @@
          ival-hi
          (contract-out
           [make-real-compiler
-           (->i ([batch batch?] [brfs (listof batchref?)]
+           (->i ([block block?] [vs (listof val?)]
                                 [reprs
-                                 (brfs)
+                                 (vs)
                                  (and/c (listof representation?)
-                                        (lambda (reprs) (= (length brfs) (length reprs))))])
+                                        (lambda (reprs) (= (length vs) (length reprs))))])
                 (#:pre [pre any/c])
                 [c real-compiler?])]
           [real-apply (->* (real-compiler? vector?) (any/c) (values symbol? any/c))]
@@ -141,11 +141,11 @@
         (pre vars var-reprs exprs reprs machine dump-file assemble-point assemble-output))
 
 ;; Creates a Rival machine.
-(define (make-real-compiler batch brfs output-reprs #:pre [pre '(TRUE)])
-  (define specs (map (batch-exprs batch) brfs))
+(define (make-real-compiler block vs output-reprs #:pre [pre '(TRUE)])
+  (define specs (map (block-exprs block) vs))
   (define ctxs
     (for/list ([repr (in-list output-reprs)])
-      (context (batch-vars batch) repr (batch-var-reprs batch))))
+      (context (block-vars block) repr (block-var-reprs block))))
   (define-values (specs* ctxs* pre* assemble-point assemble-output flattened-reprs)
     (flatten-arrays-for-rival specs ctxs pre))
   (define vars (context-vars (first ctxs*)))

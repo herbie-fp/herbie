@@ -9,7 +9,7 @@
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
          "../syntax/platform.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "localize.rkt"
          "points.rkt"
          "programs.rkt"
@@ -72,10 +72,10 @@
 
   (define repr-hash (make-immutable-hash (map cons subexprs reprs)))
 
-  (define-values (batch brfs) (progs->batch spec-list #:ctx ctx))
+  (define-values (block vs) (progs->block spec-list #:ctx ctx))
   (define subexprs-fn
     (parameterize ([*max-mpfr-prec* 128])
-      (eval-progs-real batch brfs reprs)))
+      (eval-progs-real block vs reprs)))
   (values subexprs repr-hash subexprs-fn))
 
 (define (predict-errors ctx pctx subexprs-list repr-hash subexprs-fn)

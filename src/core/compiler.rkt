@@ -7,10 +7,10 @@
          "../utils/timeline.rkt"
          "../utils/common.rkt"
          "../utils/dvector.rkt"
-         "../syntax/batch.rkt")
+         "../syntax/block.rkt")
 
 (provide compile-progs
-         compile-batch
+         compile-block
          compile-prog)
 
 ;; Interpreter taking a narrow IR
@@ -46,12 +46,12 @@
                 (vector-ref regs arg))))]))
 
 ;; This function:
-;;   1) copies only nodes associated with provided brfs - so, gets rid of useless nodes
+;;   1) copies only nodes associated with provided vs - so, gets rid of useless nodes
 ;;   2) rewrites these nodes as fl-instructions
-(define (batch-for-compiler batch brfs vars args vregs)
-  (define out (make-dvector (batch-length batch)))
-  (define (compile-node brf recurse)
-    (match (deref brf)
+(define (block-for-compiler block vs vars args vregs)
+  (define out (make-dvector (block-length block)))
+  (define (compile-node v recurse)
+    (match (val-def v)
       [(approx _ impl) (recurse impl)] ;; do not push, it is already compiled
       [(? symbol? n)
        (define idx (index-of vars n))
@@ -60,30 +60,30 @@
        (dvector-add! out (make-thunk (const (real->repr value repr)) '() vregs))]
       [(list op args ...)
        (dvector-add! out (make-thunk (impl-info op 'fl) (map recurse args) vregs))]))
-  (define roots (map (batch-recurse batch compile-node) brfs))
+  (define roots (map (block-recurse block compile-node) vs))
   (values (dvector->vector out) roots))
 
-(define (batch-tree-size batch brfs)
-  (define (tree-size brf recurse)
-    (define args (reap [sow] (expr-recurse (deref brf) sow)))
+(define (block-tree-size block vs)
+  (define (tree-size v recurse)
+    (define args (reap [sow] (expr-recurse (val-def v) sow)))
     (apply + 1 (map recurse args)))
-  (apply + (map (batch-recurse batch tree-size) brfs)))
+  (apply + (map (block-recurse block tree-size) vs)))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values
 ;; returning representation values.
 ;; Translates a Herbie IR into a vector of thunks.
 (define (compile-progs exprs ctx)
-  (define-values (batch brfs) (progs->batch exprs #:ctx ctx))
-  (compile-batch batch brfs))
+  (define-values (block vs) (progs->block exprs #:ctx ctx))
+  (compile-block block vs))
 
-(define (compile-batch batch brfs)
-  (define vars (batch-vars batch))
+(define (compile-block block vs)
+  (define vars (block-vars block))
   (define args (make-vector (length vars)))
-  (define vregs (make-vector (batch-length batch)))
-  (define-values (thunks roots) (batch-for-compiler batch brfs vars args vregs))
+  (define vregs (make-vector (block-length block)))
+  (define-values (thunks roots) (block-for-compiler block vs vars args vregs))
   (define rootvec (list->vector roots))
-  (timeline-push! 'compiler (batch-tree-size batch brfs) (vector-length thunks))
+  (timeline-push! 'compiler (block-tree-size block vs) (vector-length thunks))
   (make-progs-interpreter thunks rootvec args vregs))
 
 ;; Like `compile-progs`, but a single prog.

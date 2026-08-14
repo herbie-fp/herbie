@@ -5,7 +5,7 @@
          "../utils/dvector.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "programs.rkt")
 
 (provide approximate
@@ -22,22 +22,22 @@
 (define (adder x)
   ((add) x))
 
-(define (taylor-coefficients batch brfs vars transforms-to-try)
-  (define expander (expand-taylor! batch))
+(define (taylor-coefficients block vs vars transforms-to-try)
+  (define expander (expand-taylor! block))
   (for*/list ([var (in-list vars)]
-              #:do [(define taylorer (taylor var batch))]
+              #:do [(define taylorer (taylor var block))]
               [transform-type transforms-to-try])
     (match-define (list name f finv) transform-type)
-    (define replacer (batch-replace-expression! batch var (f var)))
-    (for/list ([brf (in-list brfs)])
-      (taylorer (expander (reducer (replacer brf)))))))
+    (define replacer (block-replace-expression! block var (f var)))
+    (for/list ([v (in-list vs)])
+      (taylorer (expander (reducer (replacer v)))))))
 
 (define (approximate taylor-approxs
-                     batch
+                     block
                      var
                      #:transform [tform (cons identity identity)]
                      #:iters [iters 5])
-  (define replacer (batch-replace-expression! batch var ((cdr tform) var)))
+  (define replacer (block-replace-expression! block var ((cdr tform) var)))
   (for/list ([ta taylor-approxs])
     (define offset (series-offset ta))
     (define i 0)
@@ -46,7 +46,7 @@
     (define (next [iter 0])
       (define coeff (reducer (replacer (series-ref ta i))))
       (set! i (+ i 1))
-      (match (deref coeff)
+      (match (val-def coeff)
         [0
          (if (< iter iters)
              (next (+ iter 1))
@@ -57,15 +57,15 @@
     next))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
-(define (expand-taylor! input-batch)
+(define (expand-taylor! input-block)
   (define (f node)
     (match node
       [(list '- ref1 ref2) `(+ ,ref1 (neg ,ref2))]
-      [(list 'pow base (app deref 1/2)) `(sqrt ,base)]
-      [(list 'pow base (app deref 1/3)) `(cbrt ,base)]
-      [(list 'pow base (app deref 2/3)) `(cbrt (* ,base ,base))]
+      [(list 'pow base (app val-def 1/2)) `(sqrt ,base)]
+      [(list 'pow base (app val-def 1/3)) `(cbrt ,base)]
+      [(list 'pow base (app val-def 2/3)) `(cbrt (* ,base ,base))]
       [(list 'pow base power)
-       #:when (exact-integer? (deref power))
+       #:when (exact-integer? (val-def power))
        `(pow ,base ,power)]
       [(list 'pow base power) `(exp (* ,power (log ,base)))]
       [(list 'tan arg) `(/ (sin ,arg) (cos ,arg))]
@@ -76,15 +76,14 @@
       [(list 'acosh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) -1))))]
       [(list 'atanh arg) `(* 1/2 (log (/ (+ 1 ,arg) (+ 1 (neg ,arg)))))]
       [_ node]))
-  (batch-recurse
-   input-batch
-   (λ (brf recurse)
-     (define node (deref brf))
-     (define node* (f node))
-     (let loop ([node* node*])
-       (match node*
-         [(? batchref? brf) (recurse brf)]
-         [_ (batch-push! input-batch (expr-recurse node* (compose batchref-idx loop)))])))))
+  (block-recurse input-block
+                 (λ (v recurse)
+                   (define node (val-def v))
+                   (define node* (f node))
+                   (let loop ([node* node*])
+                     (match node*
+                       [(? val? v) (recurse v)]
+                       [_ (block-push! input-block (expr-recurse node* (compose val-idx loop)))])))))
 
 ; Tests for expand-taylor
 (module+ test
@@ -92,9 +91,9 @@
   (define taylor-test-ctx (context '(x) <binary64> (list <binary64>)))
 
   (define (test-expand-taylor expr)
-    (define-values (batch brfs) (progs->batch (list expr) #:ctx taylor-test-ctx))
-    (define brf* ((expand-taylor! batch) (car brfs)))
-    ((batch-exprs batch) brf*))
+    (define-values (block vs) (progs->block (list expr) #:ctx taylor-test-ctx))
+    (define v* ((expand-taylor! block) (car vs)))
+    ((block-exprs block) v*))
 
   (check-equal? '(* 1/2 (log (/ (+ 1 x) (+ 1 (neg x))))) (test-expand-taylor '(atanh x)))
   (check-equal? '(log (+ x (sqrt (+ (* x x) -1)))) (test-expand-taylor '(acosh x)))
@@ -154,36 +153,36 @@
                               [v (in-list (map (curry cons i) (n-sum-to (- n 1) (- k i))))])
                     v)]))))
 
-(define (taylor var expr-batch)
+(define (taylor var expr-block)
   "Return a pair (e, n), such that expr ~= e var^n"
-  (batch-recurse
-   expr-batch
-   (lambda (brf recurse)
-     (define node (deref brf))
+  (block-recurse
+   expr-block
+   (lambda (v recurse)
+     (define node (val-def v))
      (match node
        [(? (curry equal? var)) (taylor-exact (adder 0) (adder 1))]
-       [(? number?) (taylor-exact brf)]
-       [(? symbol?) (taylor-exact brf)]
-       [`(,const) (taylor-exact brf)]
+       [(? number?) (taylor-exact v)]
+       [(? symbol?) (taylor-exact v)]
+       [`(,const) (taylor-exact v)]
        [`(+ ,arg1 ,arg2) (taylor-add (recurse arg1) (recurse arg2))]
        [`(neg ,arg) (taylor-negate (recurse arg))]
        [`(* ,left ,right) (taylor-mult (recurse left) (recurse right))]
        [`(/ ,num ,den)
-        #:when (equal? (deref num) 1)
+        #:when (equal? (val-def num) 1)
         (taylor-invert (recurse den))]
        [`(/ ,num ,den) (taylor-quotient (recurse num) (recurse den))]
        [`(sqrt ,arg) (taylor-sqrt var (recurse arg))]
        [`(cbrt ,arg) (taylor-cbrt var (recurse arg))]
-       [`(fabs ,arg) (or (taylor-fabs var (recurse arg)) (taylor-exact brf))]
+       [`(fabs ,arg) (or (taylor-fabs var (recurse arg)) (taylor-exact v))]
        [`(exp ,arg)
         (define arg* (normalize-series (recurse arg)))
         (if (positive? (series-offset arg*))
-            (taylor-exact brf)
+            (taylor-exact v)
             (taylor-exp (zero-series arg*)))]
        [`(sin ,arg)
         (define arg* (normalize-series (recurse arg)))
         (cond
-          [(positive? (series-offset arg*)) (taylor-exact brf)]
+          [(positive? (series-offset arg*)) (taylor-exact v)]
           [(= (series-offset arg*) 0)
            ; Our taylor-sin function assumes that a0 is 0,
            ; because that way it is especially simple. We correct for this here
@@ -196,7 +195,7 @@
        [`(cos ,arg)
         (define arg* (normalize-series (recurse arg)))
         (cond
-          [(positive? (series-offset arg*)) (taylor-exact brf)]
+          [(positive? (series-offset arg*)) (taylor-exact v)]
           [(= (series-offset arg*) 0)
            ; Our taylor-cos function assumes that a0 is 0,
            ; because that way it is especially simple. We correct for this here
@@ -208,9 +207,9 @@
           [else (taylor-cos (zero-series arg*))])]
        [`(log ,arg) (taylor-log var (recurse arg))]
        [`(pow ,base ,power)
-        #:when (exact-integer? (deref power))
-        (taylor-pow (normalize-series (recurse base)) (deref power))]
-       [_ (taylor-exact brf)]))))
+        #:when (exact-integer? (val-def power))
+        (taylor-pow (normalize-series (recurse base)) (val-def power))]
+       [_ (taylor-exact v)]))))
 
 ; A taylor series is represented by a struct containing a coefficient builder,
 ; a cache of computed coefficients, and an integer offset to the exponent
@@ -220,20 +219,20 @@
 (struct series (offset f cache) #:transparent)
 
 (define (taylor-exact . terms)
-  ;(->* () #:rest (listof batchref?) term?)
+  ;(->* () #:rest (listof val?) term?)
   (define items (list->vector (map reducer terms)))
   (define len (vector-length items))
   (make-series 0
                (λ (f n)
                  (if (< n len)
-                     (deref (vector-ref items n))
+                     (val-def (vector-ref items n))
                      0))))
 
 (define (first-nonzero-exp f)
-  ;(-> (-> number? batchref?) number?)
+  ;(-> (-> number? val?) number?)
   "Returns n, where (series n) != 0, but (series n) = 0 for all smaller n"
   (let loop ([n 0])
-    (if (and (equal? (deref (f n)) 0) (< n 20))
+    (if (and (equal? (val-def (f n)) 0) (< n 20))
         (loop (+ n 1))
         n)))
 
@@ -281,8 +280,8 @@
   (make-series (+ (series-offset left) (series-offset right))
                (λ (f n)
                  (make-sum (for/list ([i (in-range (+ n 1))]
-                                      #:unless (or (equal? (deref (series-ref left i)) 0)
-                                                   (equal? (deref (series-ref right (- n i))) 0)))
+                                      #:unless (or (equal? (val-def (series-ref left i)) 0)
+                                                   (equal? (val-def (series-ref right (- n i))) 0)))
                              (list '* (series-ref left i) (series-ref right (- n i))))))))
 
 (define (normalize-series s)
@@ -294,10 +293,10 @@
   (define slack (first-nonzero-exp coeffs))
   (if (zero? slack)
       s
-      (make-series (- offset slack) (λ (f n) (deref (series-ref s (+ n slack)))))))
+      (make-series (- offset slack) (λ (f n) (val-def (series-ref s (+ n slack)))))))
 
 (define ((zero-series s) n)
-  ;(-> series? (-> number? batchref?))
+  ;(-> series? (-> number? val?))
   (if (< n (- (series-offset s)))
       (adder 0)
       (series-ref s (+ n (series-offset s)))))
@@ -359,7 +358,7 @@
              [_ (coeffs (+ (- i n) (modulo offset n)))]))
          (dvector-set! cache i res))
        (dvector-ref cache i))
-     (make-series offset* (λ (f i) (deref (coeffs* i))))]))
+     (make-series offset* (λ (f i) (val-def (coeffs* i))))]))
 
 (define (taylor-sqrt var num)
   ;(-> symbol? term? term?)
@@ -406,7 +405,7 @@
 (define (taylor-fabs var term)
   (define normalized (normalize-series term))
   (define offset (series-offset normalized))
-  (define a0 (deref (series-ref normalized 0)))
+  (define a0 (val-def (series-ref normalized 0)))
   (cond
     [(or (not (number? a0)) (zero? a0)) #f]
     [(and (even? offset) (negative? a0)) (taylor-negate normalized)]
@@ -450,7 +449,7 @@
                    (sow (cons head pt))))))]))
 
 (define (taylor-exp coeffs)
-  ;(-> (-> number? batchref?) term?)
+  ;(-> (-> number? val?) term?)
   (make-series 0
                (λ (f n)
                  (cond
@@ -460,7 +459,7 @@
                     (define nums
                       (for/list ([i (in-range 1 (+ n 1))]
                                  [coeff (in-vector coeffs*)]
-                                 #:unless (equal? (deref coeff) 0))
+                                 #:unless (equal? (val-def coeff) 0))
                         i))
                     `(* (exp ,(coeffs 0))
                         (+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
@@ -469,7 +468,7 @@
                                            ,(factorial count)))))))]))))
 
 (define (taylor-sin coeffs)
-  ;(-> (-> number? batchref?) term?)
+  ;(-> (-> number? val?) term?)
   (make-series 0
                (λ (f n)
                  (cond
@@ -479,7 +478,7 @@
                     (define nums
                       (for/list ([i (in-range 1 (+ n 1))]
                                  [coeff (in-vector coeffs*)]
-                                 #:unless (equal? (deref coeff) 0))
+                                 #:unless (equal? (val-def coeff) 0))
                         i))
                     `(+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
                             (if (= (modulo (apply + (map car p)) 2) 1)
@@ -490,7 +489,7 @@
                                 0)))]))))
 
 (define (taylor-cos coeffs)
-  ;(-> (-> number? batchref?) term?)
+  ;(-> (-> number? val?) term?)
   (make-series 0
                (λ (f n)
                  (cond
@@ -500,7 +499,7 @@
                     (define nums
                       (for/list ([i (in-range 1 (+ n 1))]
                                  [coeff (in-vector coeffs*)]
-                                 #:unless (equal? (deref coeff) 0))
+                                 #:unless (equal? (val-def coeff) 0))
                         i))
                     `(+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
                             (if (= (modulo (apply + (map car p)) 2) 0)
@@ -549,7 +548,7 @@
   (define normalized (normalize-series arg))
   (define shift (series-offset normalized))
   (define coeffs (series-function normalized))
-  (define negate? (and (number? (deref (coeffs 0))) (not (positive? (deref (coeffs 0))))))
+  (define negate? (and (number? (val-def (coeffs 0))) (not (positive? (val-def (coeffs 0))))))
   (define (maybe-negate x)
     (if negate?
         `(neg ,x)
@@ -569,7 +568,7 @@
                                    #:unless (for/or ([i (in-naturals 1)]
                                                      [p (in-list ps)]
                                                      #:when (not (= p 0)))
-                                              (equal? (deref (vector-ref coeffs* (sub1 i))) 0)))
+                                              (equal? (val-def (vector-ref coeffs* (sub1 i))) 0)))
                           `(* ,coeff
                               (/ (* ,@(for/list ([i (in-naturals 1)]
                                                  [p (in-list ps)])
@@ -591,23 +590,23 @@
 
 (module+ test
   (require rackunit)
-  (define-values (batch brfs) (progs->batch (list '(pow x 1.0)) #:ctx taylor-test-ctx))
-  (parameterize ([reduce (batch-reduce batch)]
-                 [add (λ (x) (batch-add! batch x))])
-    (define brfs* (map (expand-taylor! batch) brfs))
-    (define brf (car brfs*))
-    (check-pred exact-integer? (series-offset ((taylor 'x batch) brf)))))
+  (define-values (block vs) (progs->block (list '(pow x 1.0)) #:ctx taylor-test-ctx))
+  (parameterize ([reduce (block-reduce block)]
+                 [add (λ (x) (block-add! block x))])
+    (define vs* (map (expand-taylor! block) vs))
+    (define v (car vs*))
+    (check-pred exact-integer? (series-offset ((taylor 'x block) v)))))
 
 (module+ test
-  (require "batch-reduce.rkt")
+  (require "reduce.rkt")
   (define (coeffs expr #:n [n 7])
-    (define-values (batch brfs) (progs->batch (list expr) #:ctx taylor-test-ctx))
-    (parameterize ([reduce (batch-reduce batch)]
-                   [add (λ (x) (batch-add! batch x))])
-      (define brfs* (map (expand-taylor! batch) brfs))
-      (define brf (car brfs*))
-      (define fn (zero-series ((taylor 'x batch) brf)))
-      (map (batch-exprs batch) (build-list n fn))))
+    (define-values (block vs) (progs->block (list expr) #:ctx taylor-test-ctx))
+    (parameterize ([reduce (block-reduce block)]
+                   [add (λ (x) (block-add! block x))])
+      (define vs* (map (expand-taylor! block) vs))
+      (define v (car vs*))
+      (define fn (zero-series ((taylor 'x block) v)))
+      (map (block-exprs block) (build-list n fn))))
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))

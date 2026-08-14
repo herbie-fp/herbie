@@ -8,7 +8,7 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../config.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "../utils/common.rkt"
          "egglog-subprocess.rkt")
 
@@ -71,7 +71,7 @@
 
 ;; Herbie's version of an egglog runner.
 ;; Defines parameters for running rewrite rules with egglog
-(struct egglog-runner (batch brfs schedule ctx)
+(struct egglog-runner (block vs schedule ctx)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -84,7 +84,7 @@
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
 ;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
 ;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
-(define (make-egglog-runner batch brfs schedule ctx)
+(define (make-egglog-runner block vs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -93,16 +93,16 @@
       (oops! "unknown schedule step `~a`" step)))
 
   ; make the runner
-  (egglog-runner batch brfs schedule ctx))
+  (egglog-runner block vs schedule ctx))
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
 (define (run-egglog runner
-                    output-batch
+                    output-block
                     reprs
                     [label #f]
                     #:extract extract) ; multi expression extraction
-  (define insert-batch (egglog-runner-batch runner))
-  (define insert-brfs (egglog-runner-brfs runner))
+  (define insert-block (egglog-runner-block runner))
+  (define insert-vs (egglog-runner-vs runner))
   (define schedule (egglog-runner-schedule runner))
   (define pform (*active-platform*))
 
@@ -156,7 +156,7 @@
   ;; of a rule and make them accessible through their unique constructor. Therefore, we must
   ;; keep track of the mapping between each binding and its corresponding constructor.
 
-  (define-values (all-bindings extract-bindings) (egglog-add-exprs insert-batch insert-brfs subproc))
+  (define-values (all-bindings extract-bindings) (egglog-add-exprs insert-block insert-vs subproc))
 
   (egglog-send subproc
                `(ruleset run-extract-commands)
@@ -193,7 +193,7 @@
 
   (for/list ([variants (in-list herbie-exprss)])
     (for/list ([v (in-list variants)])
-      (batch-add! output-batch v))))
+      (block-add! output-block v))))
 
 ;; Egglog requires integer costs, but Herbie uses floating-point costs.
 ;; Scale by 1000 to convert Herbie's float costs to Egglog's integer costs.
@@ -410,7 +410,7 @@
               :ruleset
               ,tag)))
 
-(define (egglog-add-exprs batch brfs subproc)
+(define (egglog-add-exprs block vs subproc)
   (define bindings (make-hash))
   (define (var-binding var)
     (string->symbol (format "?s~a" var)))
@@ -425,16 +425,16 @@
     (hash-set! bindings binding node)
     binding)
 
-  (define root-mask (make-vector (batch-length batch) #f))
-  (define reachable-brfs '())
+  (define root-mask (make-vector (block-length block) #f))
+  (define reachable-vs '())
 
-  (for ([brf (in-list brfs)])
-    (vector-set! root-mask (batchref-idx brf) #t))
+  (for ([v (in-list vs)])
+    (vector-set! root-mask (val-idx v) #t))
   (define add-to-egglog
-    (batch-recurse batch
-                   (lambda (brf recurse)
-                     (define n (batchref-idx brf))
-                     (define node (deref brf))
+    (block-recurse block
+                   (lambda (v recurse)
+                     (define n (val-idx v))
+                     (define node (val-def v))
                      (define root? (vector-ref root-mask n))
                      (define node*
                        (match node
@@ -444,18 +444,18 @@
                           `(,(hash-ref (id->e1) impl) ,@(for/list ([arg (in-list args)])
                                                           (recurse arg)))]))
 
-                     (set! reachable-brfs (cons brf reachable-brfs))
+                     (set! reachable-vs (cons v reachable-vs))
                      (if node*
                          (insert-node! node* n root?)
                          (var-binding node)))))
 
   (define root-bindings
-    (for/list ([brf (in-list brfs)])
-      (add-to-egglog brf)))
+    (for/list ([v (in-list vs)])
+      (add-to-egglog v)))
 
   ; Var-lowering-rules
-  (for ([var (in-list (batch-vars batch))]
-        [repr (in-list (batch-var-reprs batch))])
+  (for ([var (in-list (block-vars block))]
+        [repr (in-list (block-var-reprs block))])
     (egglog-send subproc
                  `(rule ((= e (Var ,(symbol->string var))))
                         ((union (do-lower e ,(egglog-repr-token repr))
@@ -464,8 +464,8 @@
                         lower)))
 
   ; Var-lifting-rules
-  (for ([var (in-list (batch-vars batch))]
-        [repr (in-list (batch-var-reprs batch))])
+  (for ([var (in-list (block-vars block))]
+        [repr (in-list (block-var-reprs block))])
     (egglog-send subproc
                  `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
                         ((union (do-lift e) (Var ,(symbol->string var))))
@@ -478,7 +478,7 @@
   (define constructor-num 1)
 
   ; ; Var-spec-bindings
-  (for ([var (in-list (batch-vars batch))])
+  (for ([var (in-list (block-vars block))])
     ; Get the binding names for the program
     (define binding-name (string->symbol (format "?s~a" var)))
     (define constructor-name (string->symbol (format "const~a" constructor-num)))
@@ -497,9 +497,9 @@
     (set! constructor-num (add1 constructor-num)))
 
   ; Binding Exprs
-  (for ([brf (in-list (reverse reachable-brfs))]
-        #:unless (symbol? (deref brf)))
-    (define n (batchref-idx brf))
+  (for ([v (in-list (reverse reachable-vs))]
+        #:unless (symbol? (val-def v)))
+    (define n (val-idx v))
 
     (define binding-name
       (if (vector-ref root-mask n)

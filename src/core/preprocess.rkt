@@ -7,7 +7,7 @@
          "../utils/common.rkt"
          "../syntax/float.rkt"
          "../utils/timeline.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "egg-herbie.rkt"
          "points.rkt"
          "programs.rkt"
@@ -30,66 +30,65 @@
   (and (get-fpcore-impl '* (repr->prop repr) (list repr repr))
        (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr))))
 
-(define (batch-replace-vars! batch replacements)
-  (batch-recurse
-   batch
-   (lambda (brf recurse)
-     (dict-ref replacements
-               brf
-               (lambda ()
-                 (batch-push! batch (expr-recurse (deref brf) (compose batchref-idx recurse))))))))
+(define (block-replace-vars! block replacements)
+  (block-recurse block
+                 (lambda (v recurse)
+                   (dict-ref replacements
+                             v
+                             (lambda ()
+                               (block-push! block
+                                            (expr-recurse (val-def v) (compose val-idx recurse))))))))
 
 ;; The even identities: f(x) = f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
-(define (make-even-identities batch spec-brf output-repr)
-  (for/list ([var (in-list (batch-vars batch))]
-             [repr (in-list (batch-var-reprs batch))]
+(define (make-even-identities block spec-v output-repr)
+  (for/list ([var (in-list (block-vars block))]
+             [repr (in-list (block-var-reprs block))]
              #:when (has-fabs-impl? repr))
-    (define var-brf (batch-add! batch var))
-    (define neg-var-brf (batch-add! batch `(neg ,var-brf)))
-    (define replace-neg ((batch-replace-vars! batch `((,var-brf . ,neg-var-brf))) spec-brf))
+    (define var-v (block-add! block var))
+    (define neg-var-v (block-add! block `(neg ,var-v)))
+    (define replace-neg ((block-replace-vars! block `((,var-v . ,neg-var-v))) spec-v))
     (cons `(abs ,var) replace-neg)))
 
 ;; The odd identities: f(x) = -f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
-(define (make-odd-identities batch spec-brf output-repr)
-  (for/list ([var (in-list (batch-vars batch))]
-             [repr (in-list (batch-var-reprs batch))]
+(define (make-odd-identities block spec-v output-repr)
+  (for/list ([var (in-list (block-vars block))]
+             [repr (in-list (block-var-reprs block))]
              #:when (and (has-fabs-impl? repr) (has-copysign-impl? output-repr)))
-    (define neg-spec-brf (batch-add! batch `(neg ,spec-brf)))
-    (define var-brf (batch-add! batch var))
-    (define neg-var-brf (batch-add! batch `(neg ,var-brf)))
-    (define replace-neg ((batch-replace-vars! batch `((,var-brf . ,neg-var-brf))) neg-spec-brf))
+    (define neg-spec-v (block-add! block `(neg ,spec-v)))
+    (define var-v (block-add! block var))
+    (define neg-var-v (block-add! block `(neg ,var-v)))
+    (define replace-neg ((block-replace-vars! block `((,var-v . ,neg-var-v))) neg-spec-v))
     (cons `(negabs ,var) replace-neg)))
 
 ;; Sort identities: f(a, b) = f(b, a)
-(define (make-sort-identities batch spec-brf output-repr)
-  (define pairs (combinations (batch-vars batch) 2))
-  (define reprs (map cons (batch-vars batch) (batch-var-reprs batch)))
+(define (make-sort-identities block spec-v output-repr)
+  (define pairs (combinations (block-vars block) 2))
+  (define reprs (map cons (block-vars block) (block-var-reprs block)))
   (for/list ([pair (in-list pairs)]
              ;; Can only sort same-repr variables
              #:when (equal? (dict-ref reprs (first pair)) (dict-ref reprs (second pair)))
              #:when (has-fmin-fmax-impl? (dict-ref reprs (first pair))))
     (match-define (list a b) pair)
-    (define a-brf (batch-add! batch a))
-    (define b-brf (batch-add! batch b))
-    (define sorted-spec-brf
-      ((batch-replace-vars! batch `((,a-brf . ,b-brf) (,b-brf . ,a-brf))) spec-brf))
-    (cons `(sort ,a ,b) sorted-spec-brf)))
+    (define a-v (block-add! block a))
+    (define b-v (block-add! block b))
+    (define sorted-spec-v ((block-replace-vars! block `((,a-v . ,b-v) (,b-v . ,a-v))) spec-v))
+    (cons `(sort ,a ,b) sorted-spec-v)))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
-(define (find-preprocessing batch spec-brf ctx)
+(define (find-preprocessing block spec-v ctx)
   (define repr (context-repr ctx))
 
   ;; identities
   (define identities
-    (append (make-even-identities batch spec-brf repr)
-            (make-odd-identities batch spec-brf repr)
-            (make-sort-identities batch spec-brf repr)))
+    (append (make-even-identities block spec-v repr)
+            (make-odd-identities block spec-v repr)
+            (make-sort-identities block spec-v repr)))
 
   ;; make egg runner
-  (define brfs (cons spec-brf (map cdr identities)))
-  (define runner (make-egraph batch brfs '(rewrite) ctx))
+  (define vs (cons spec-v (map cdr identities)))
+  (define runner (make-egraph block vs '(rewrite) ctx))
 
   ;; collect equalities
   (for/list ([(ident _) (in-dict identities)]

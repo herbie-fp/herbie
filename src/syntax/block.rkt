@@ -5,46 +5,46 @@
          "../utils/common.rkt"
          "../utils/dvector.rkt")
 
-(provide progs->batch ; List<Expr> -> (Batch, List<Batchref>)
+(provide progs->block ; List<Expr> -> (Block, List<Val>)
 
          expr-recurse
          expr-recurse-spec
-         (struct-out batch)
-         batch-empty ; Batch
-         batch-empty-extend
-         batch-push!
-         batch-add! ; Batch -> (or Expr Batchref Expr<Batchref>) -> Batchref
-         batch-copy-only!
-         batch-length ; Batch -> Integer
-         batch-free-vars ; Batch -> (Batchref -> Set<Var>)
-         in-batch ; Batch -> Sequence<Node>
-         batch-reachable ; Batch -> List<Batchref> -> (Node -> Boolean) -> List<Batchref>
-         batch-exprs
-         batch-recurse
-         batch->jsexpr
-         jsexpr->batch-exprs
+         (struct-out block)
+         block-empty ; Block
+         block-empty-extend
+         block-push!
+         block-add! ; Block -> (or Expr Val Expr<Val>) -> Val
+         block-copy-only!
+         block-length ; Block -> Integer
+         block-free-vars ; Block -> (Val -> Set<Var>)
+         in-block ; Block -> Sequence<Node>
+         block-reachable ; Block -> List<Val> -> (Node -> Boolean) -> List<Val>
+         block-exprs
+         block-recurse
+         block->jsexpr
+         jsexpr->block-exprs
 
-         (struct-out batchref)
-         deref) ; Batchref -> Expr
+         (struct-out val)
+         val-def) ; Val -> Expr
 
-;; Batches store these recursive structures, flattened
-(struct batch ([nodes #:mutable] [index #:mutable] vars var-reprs))
+;; Blocks store these recursive structures, flattened
+(struct block ([nodes #:mutable] [index #:mutable] vars var-reprs))
 
-(struct batchref (batch idx) #:transparent)
+(struct val (block idx) #:transparent)
 
-;; --------------------------------- CORE BATCH FUNCTION ------------------------------------
+;; --------------------------------- CORE BLOCK FUNCTION ------------------------------------
 
-(define (batch-empty ctx)
+(define (block-empty ctx)
   (match-define (context vars _ var-reprs) ctx)
-  (batch (make-dvector) (make-hash) vars var-reprs))
+  (block (make-dvector) (make-hash) vars var-reprs))
 
-(define (batch-empty-extend b var repr)
+(define (block-empty-extend b var repr)
   (define out
-    (batch (make-dvector) (make-hash) (cons var (batch-vars b)) (cons repr (batch-var-reprs b))))
-  (values out (batch-push! out var)))
+    (block (make-dvector) (make-hash) (cons var (block-vars b)) (cons repr (block-var-reprs b))))
+  (values out (block-push! out var)))
 
-(define (in-batch batch [start 0] [end #f] [step 1])
-  (in-dvector (batch-nodes batch) start end step))
+(define (in-block block [start 0] [end #f] [step 1])
+  (in-dvector (block-nodes block) start end step))
 
 ;; This function recurses through implementation children of expressions.
 (define (expr-recurse expr f)
@@ -63,94 +63,93 @@
     [(approx spec impl) (approx (f spec) impl)]
     [_ expr]))
 
-(define (batch-length b)
-  (dvector-length (batch-nodes b)))
+(define (block-length b)
+  (dvector-length (block-nodes b)))
 
-(define (batch-push! b term)
-  (define hashcons (batch-index b))
-  (batchref b (hash-ref! hashcons term (lambda () (dvector-add! (batch-nodes b) term)))))
+(define (block-push! b term)
+  (define hashcons (block-index b))
+  (val b (hash-ref! hashcons term (lambda () (dvector-add! (block-nodes b) term)))))
 
-(define (batch-add! b expr)
+(define (block-add! b expr)
   (define (munge prog)
     (match prog
-      [(batchref b* idx*)
-       (assert-batch-brf! b prog)
+      [(val b* idx*)
+       (assert-block-v! b prog)
        idx*]
-      [_ (batchref-idx (batch-push! b (expr-recurse prog munge)))]))
-  (batchref b (munge expr)))
+      [_ (val-idx (block-push! b (expr-recurse prog munge)))]))
+  (val b (munge expr)))
 
-(define (deref x)
-  (match-define (batchref b idx) x)
-  (expr-recurse (dvector-ref (batch-nodes b) idx) (lambda (ref) (batchref b ref))))
+(define (val-def x)
+  (match-define (val b idx) x)
+  (expr-recurse (dvector-ref (block-nodes b) idx) (lambda (ref) (val b ref))))
 
-(define (progs->batch exprs #:ctx ctx)
-  (define out (batch-empty ctx))
+(define (progs->block exprs #:ctx ctx)
+  (define out (block-empty ctx))
   (for ([var (in-list (context-vars ctx))])
-    (batch-push! out var))
-  (define brfs
+    (block-push! out var))
+  (define vs
     (for/list ([expr (in-list exprs)])
-      (batch-add! out expr)))
-  (values out brfs))
+      (block-add! out expr)))
+  (values out vs))
 
-;; batch-recurse iterates only over its children
+;; block-recurse iterates only over its children
 ;; A lot of parts of Herbie rely on that
-(define (batch-recurse batch f)
-  (define out (make-dvector (batch-length batch)))
-  (define visited (make-dvector (batch-length batch) #f))
-  (λ (brf)
-    (assert-batch-brf! batch brf)
-    (let loop ([brf brf])
-      (define idx (batchref-idx brf))
+(define (block-recurse block f)
+  (define out (make-dvector (block-length block)))
+  (define visited (make-dvector (block-length block) #f))
+  (λ (v)
+    (assert-block-v! block v)
+    (let loop ([v v])
+      (define idx (val-idx v))
       (cond
         [(and (> (dvector-capacity visited) idx) (dvector-ref visited idx)) (dvector-ref out idx)]
         [else
-         (define res (f brf loop))
+         (define res (f v loop))
          (dvector-set! out idx res)
          (dvector-set! visited idx #t)
          res]))))
 
-(define (assert-batch-brf! batch . brfs)
-  (unless (andmap (compose (curry equal? batch) batchref-batch) brfs)
-    (error 'assert-batch-brf! "One of batchrefs does not belong to the provided batch")))
+(define (assert-block-v! block . vs)
+  (unless (andmap (compose (curry equal? block) val-block) vs)
+    (error 'assert-block-v! "One of vals does not belong to the provided block")))
 
-;; Function returns indices of children nodes within a batch for given roots,
+;; Function returns indices of children nodes within a block for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
-(define (batch-reachable batch brfs #:condition [condition (const #t)])
+(define (block-reachable block vs #:condition [condition (const #t)])
   ; Little check
-  (apply assert-batch-brf! batch brfs)
-  (define len (batch-length batch))
+  (apply assert-block-v! block vs)
+  (define len (block-length block))
   (define child-mask (make-vector len #f))
-  (for ([brf (in-list brfs)])
-    (vector-set! child-mask (batchref-idx brf) #t))
+  (for ([v (in-list vs)])
+    (vector-set! child-mask (val-idx v) #t))
   (for ([i (in-range (sub1 len) -1 -1)]
-        [node (in-batch batch (sub1 len) -1 -1)]
+        [node (in-block block (sub1 len) -1 -1)]
         [child (in-vector child-mask (sub1 len) -1 -1)]
         #:when child)
     (cond
       [(condition node) (expr-recurse node (λ (n) (vector-set! child-mask n #t)))]
       [else (vector-set! child-mask i #f)]))
-  ; Return batchrefs of children nodes in ascending order
+  ; Return vals of children nodes in ascending order
   (for/list ([child (in-vector child-mask)]
              [i (in-naturals)]
              #:when child)
-    (batchref batch i)))
+    (val block i)))
 
-;; Function constructs a vector of expressions for the given nodes of a batch
-(define (batch-exprs batch #:spec-f [spec-f void])
-  (batch-recurse batch
-                 (lambda (brf recurse)
-                   (expr-recurse-spec spec-f (expr-recurse (deref brf) recurse)))))
+;; Function constructs a vector of expressions for the given nodes of a block
+(define (block-exprs block #:spec-f [spec-f void])
+  (block-recurse block
+                 (lambda (v recurse) (expr-recurse-spec spec-f (expr-recurse (val-def v) recurse)))))
 
-;; Function constructs a vector of expressions for the given nodes of a batch
-(define (batch-copy-only! batch batch*)
-  (batch-recurse batch*
-                 (lambda (brf recurse)
-                   (batch-push! batch (expr-recurse (deref brf) (compose batchref-idx recurse))))))
+;; Function constructs a vector of expressions for the given nodes of a block
+(define (block-copy-only! block block*)
+  (block-recurse block*
+                 (lambda (v recurse)
+                   (block-push! block (expr-recurse (val-def v) (compose val-idx recurse))))))
 
-(define (batch-free-vars batch)
-  (batch-recurse batch
-                 (lambda (brf recurse)
-                   (define node (deref brf))
+(define (block-free-vars block)
+  (block-recurse block
+                 (lambda (v recurse)
+                   (define node (val-def v))
                    (cond
                      [(symbol? node) (set node)]
                      [else
@@ -158,32 +157,32 @@
                       (expr-recurse node (lambda (i) (set-union! arg-free-vars (recurse i))))
                       arg-free-vars]))))
 
-;; Converts a batch + roots to a JSON-compatible structure
+;; Converts a block + roots to a JSON-compatible structure
 ;; Returns: (hash 'nodes [...] 'roots [idx1 idx2 ...])
 ;; Nodes are: atoms (symbols->strings, numbers) or [op-string idx1 idx2 ...]
-(define (batch->jsexpr b spec-batch brfs)
-  (define batch* (batch-empty (context (batch-vars b) #f (batch-var-reprs b))))
-  (for ([var (in-list (batch-vars b))])
-    (batch-push! batch* var))
+(define (block->jsexpr b spec-block vs)
+  (define block* (block-empty (context (block-vars b) #f (block-var-reprs b))))
+  (for ([var (in-list (block-vars b))])
+    (block-push! block* var))
   (define (add-expr expr)
-    (batch-push! batch*
-                 (expr-recurse-spec (compose batchref-idx add-expr)
-                                    (expr-recurse expr (compose batchref-idx add-expr)))))
-  (define spec-f (batch-exprs spec-batch))
-  (define exprs (batch-exprs b #:spec-f spec-f))
-  (define brfs* (map add-expr (map exprs brfs)))
+    (block-push! block*
+                 (expr-recurse-spec (compose val-idx add-expr)
+                                    (expr-recurse expr (compose val-idx add-expr)))))
+  (define spec-f (block-exprs spec-block))
+  (define exprs (block-exprs b #:spec-f spec-f))
+  (define vs* (map add-expr (map exprs vs)))
   (define nodes
-    (for/list ([node (in-batch batch*)])
+    (for/list ([node (in-block block*)])
       (match node
         [(? symbol?) (~a node)]
         [(? number?) (~a node)]
         [(approx spec impl) (list "approx" spec impl)]
         [(list op args ...) (cons (~a op) args)]
         [_ (~a node)])))
-  (hash 'nodes nodes 'roots (map batchref-idx brfs*)))
+  (hash 'nodes nodes 'roots (map val-idx vs*)))
 
-;; Converts a jsexpr batch to a single SSA-style string with O(n) size
-(define (jsexpr->batch-exprs jsexpr)
+;; Converts a jsexpr block to a single SSA-style string with O(n) size
+(define (jsexpr->block-exprs jsexpr)
   (define nodes (hash-ref jsexpr 'nodes))
   (define roots (hash-ref jsexpr 'roots))
   (define node-vec (list->vector nodes))
@@ -249,13 +248,13 @@
   (string-join (append bindings return-exprs) "\n"))
 ;; --------------------------------- TESTS ---------------------------------------
 
-; Tests for progs->batch and batch-exprs
+; Tests for progs->block and block-exprs
 (module+ test
   (require rackunit)
   (define test-empty-ctx (context '() #f '()))
   (define (test-munge-unmunge expr [expected expr] #:spec-f [spec-f (void)])
-    (define-values (batch brfs) (progs->batch (list expr) #:ctx test-empty-ctx))
-    (check-equal? (list expected) (map (batch-exprs batch #:spec-f spec-f) brfs)))
+    (define-values (block vs) (progs->block (list expr) #:ctx test-empty-ctx))
+    (check-equal? (list expected) (map (block-exprs block #:spec-f spec-f) vs)))
 
   (define (f64 x)
     (literal x 'binary64))
@@ -266,37 +265,36 @@
   (test-munge-unmunge '(cbrt x))
   (test-munge-unmunge (list 'x))
   (define spec-expr '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))))
-  (define-values (spec-batch spec-brfs) (progs->batch (list spec-expr) #:ctx test-empty-ctx))
+  (define-values (spec-block spec-vs) (progs->block (list spec-expr) #:ctx test-empty-ctx))
   (define approx-expr
-    `(+.f64 (sin.f64 ,(approx (first spec-brfs)
-                              '(+.f64 ,(f64 3) (*.f64 ,(f64 25) (sin.f64 ,(f64 6))))))
+    `(+.f64 (sin.f64 ,(approx (first spec-vs) '(+.f64 ,(f64 3) (*.f64 ,(f64 25) (sin.f64 ,(f64 6))))))
             ,(f64 4)))
   (define expected-approx
     `(+.f64 (sin.f64 ,(approx spec-expr '(+.f64 ,(f64 3) (*.f64 ,(f64 25) (sin.f64 ,(f64 6))))))
             ,(f64 4)))
-  (test-munge-unmunge approx-expr expected-approx #:spec-f (batch-exprs spec-batch)))
+  (test-munge-unmunge approx-expr expected-approx #:spec-f (block-exprs spec-block)))
 
 ; Tests for remove-zombie-nodes
 (module+ test
   (require rackunit)
   (define (zombie-test #:specs [specs '()] #:nodes nodes #:expected expected #:roots roots)
-    (define spec-batch (batch-empty test-empty-ctx))
-    (define spec-brfs (map (curry batch-add! spec-batch) specs))
+    (define spec-block (block-empty test-empty-ctx))
+    (define spec-vs (map (curry block-add! spec-block) specs))
     (define (segregate nodes)
       (apply create-dvector
              (for/list ([node (in-dvector nodes)])
                (match node
-                 [(approx spec impl) (approx (list-ref spec-brfs spec) impl)]
+                 [(approx spec impl) (approx (list-ref spec-vs spec) impl)]
                  [_ node]))))
-    (define in-batch (batch (segregate nodes) (make-hash) '() '()))
-    (define brfs (map (curry batchref in-batch) roots))
-    (define out-batch (batch-empty test-empty-ctx))
-    (define copy-f (batch-copy-only! out-batch in-batch))
-    (define brfs* (map copy-f brfs))
-    (define spec-f (batch-exprs spec-batch))
-    (check-equal? (map (batch-exprs out-batch #:spec-f spec-f) brfs*)
-                  (map (batch-exprs in-batch #:spec-f spec-f) brfs))
-    (check-equal? (dvector->vector (batch-nodes out-batch)) (dvector->vector (segregate expected))))
+    (define in-block (block (segregate nodes) (make-hash) '() '()))
+    (define vs (map (curry val in-block) roots))
+    (define out-block (block-empty test-empty-ctx))
+    (define copy-f (block-copy-only! out-block in-block))
+    (define vs* (map copy-f vs))
+    (define spec-f (block-exprs spec-block))
+    (check-equal? (map (block-exprs out-block #:spec-f spec-f) vs*)
+                  (map (block-exprs in-block #:spec-f spec-f) vs))
+    (check-equal? (dvector->vector (block-nodes out-block)) (dvector->vector (segregate expected))))
 
   (zombie-test #:expected (create-dvector 2 0 '(sqrt 1) '(pow 0 2))
                #:nodes (create-dvector 0 1 '(sqrt 0) 2 '(pow 3 2))
@@ -321,13 +319,13 @@
                #:nodes (create-dvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 0 1) '(pow 2 6))
                #:roots (list 7 3)))
 
-; Tests for batch->jsexpr and jsexpr->batch-exprs
+; Tests for block->jsexpr and jsexpr->block-exprs
 (module+ test
   (require rackunit)
   (define (test-json-tostring expr expected)
-    (define-values (batch brfs) (progs->batch (list expr) #:ctx test-empty-ctx))
-    (define jsexpr (batch->jsexpr batch batch brfs))
-    (define str (jsexpr->batch-exprs jsexpr))
+    (define-values (block vs) (progs->block (list expr) #:ctx test-empty-ctx))
+    (define jsexpr (block->jsexpr block block vs))
+    (define str (jsexpr->block-exprs jsexpr))
     (check-equal? str expected))
 
   ; No sharing - just the expression
