@@ -13,6 +13,7 @@
          define-operations
          create-operator-impl!
          platform-register-implementation!
+         platform-register-representation!
          fpcore-context
          if-impl
          if-cost
@@ -50,9 +51,17 @@
             (for/and ([elem (in-list (rest elems))])
               (equal? elem-ty (infer elem)))
             `(array ,elem-ty ,(length elems)))]
+      [(list 'tuple elems ...)
+       #:when (null? elems)
+       #f]
+      [(list 'tuple elems ...)
+       (define tys (map infer elems))
+       (and (andmap values tys) `(tuple ,@tys))]
       [(list 'ref arr idx)
        (match (infer arr)
          [`(array ,elem-ty ,_) elem-ty]
+         [`(tuple ,tys ...)
+          (and (exact-nonnegative-integer? idx) (< idx (length tys)) (list-ref tys idx))]
          [_ #f])]
       [(list op args ...)
        (define arg-types (map infer args))

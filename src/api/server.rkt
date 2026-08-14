@@ -622,7 +622,10 @@
 
 (define (alt->fpcore test altn)
   (define out-repr (test-output-repr test))
-  (define out-base-repr (array-representation-base out-repr))
+  (define out-base-repr
+    (if (tuple-representation? out-repr)
+        (get-representation (dict-ref (repr->prop out-repr) ':precision))
+        (array-representation-base out-repr)))
   `(FPCore ,@(filter identity (list (test-identifier test)))
            ,(for/list ([var (in-list (test-vars test))]
                        [repr (in-list (test-var-reprs test))])

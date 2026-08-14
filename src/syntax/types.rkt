@@ -7,6 +7,7 @@
 
 (provide (struct-out representation)
          (struct-out array-representation)
+         (struct-out tuple-representation)
          repr->prop
          array-representation-base
          array-representation-shape
@@ -21,7 +22,8 @@
          context-lookup
          contexts-union
          make-representation
-         make-array-representation)
+         make-array-representation
+         make-tuple-representation)
 
 ;; Representations
 
@@ -33,6 +35,8 @@
      (fprintf port "#<representation ~a>" (representation-name repr)))])
 
 (struct array-representation representation (elem len) #:transparent)
+
+(struct tuple-representation representation (slots) #:transparent)
 
 (define (array-representation-base repr)
   (if (array-representation? repr)
@@ -49,6 +53,7 @@
 (define (repr->prop repr)
   (match repr
     [(? array-representation?) (repr->prop (array-representation-elem repr))]
+    [(? tuple-representation?) (repr->prop (first (tuple-representation-slots repr)))]
     [(? representation?)
      (match (representation-type repr)
        ['bool '()]
@@ -72,6 +77,15 @@
   ;; These should not be called for arrays; we'll clean up the hierarchy later.
   (define total-bits (* len (representation-total-bits elem-repr)))
   (array-representation name array-ty void void void void total-bits void elem-repr len))
+
+(define (make-tuple-representation #:slots slots)
+  (unless (and (list? slots) (pair? slots) (andmap representation? slots))
+    (raise-herbie-error "Tuples require a non-empty list of representations, got ~a" slots))
+  (define tuple-ty `(tuple ,@(map representation-type slots)))
+  (define name `(tuple ,@(map representation-name slots)))
+  ;; TODO: like arrays, tuples inherit unused scalar conversion slots.
+  (define total-bits (apply + (map representation-total-bits slots)))
+  (tuple-representation name tuple-ty void void void void total-bits void slots))
 
 (module hairy racket/base
   (require (only-in math/private/bigfloat/mpfr get-mpfr-fun _mpfr-pointer _rnd_t bf-rounding-mode))
