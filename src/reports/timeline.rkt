@@ -9,7 +9,7 @@
          "../syntax/types.rkt"
          "../syntax/float.rkt"
          "../config.rkt"
-         "../syntax/batch.rkt")
+         "../syntax/block.rkt")
 (provide make-timeline)
 
 (define timeline-phase? (hash/c symbol? any/c))
@@ -68,12 +68,12 @@
             ,@(dict-call curr render-phase-egraph 'egraph)
             ,@(dict-call curr render-phase-stop 'stop)
             ,@(dict-call curr render-phase-counts 'count)
-            ,@(dict-call curr render-phase-alts/shared 'alts 'batch)
+            ,@(dict-call curr render-phase-alts/shared 'alts 'block)
             ,@(dict-call curr render-phase-inputs 'inputs 'outputs)
             ,@(dict-call curr render-phase-times 'times)
             ,@(dict-call curr render-phase-series 'series)
             ,@(dict-call curr render-phase-bstep 'bstep)
-            ,@(dict-call curr render-phase-branches 'branch 'batch)
+            ,@(dict-call curr render-phase-branches 'branch 'block)
             ,@(dict-call curr render-phase-sampling 'sampling)
             ,@(dict-call curr (curryr simple-render-phase "Symmetry") 'symmetry)
             ,@(dict-call curr render-phase-outcomes 'outcomes)
@@ -328,9 +328,9 @@
                       (match-define (list inputs outputs) rec)
                       `(dd ,(~r inputs #:group-sep " ") " → " ,(~r outputs #:group-sep " ")))))
 
-(define (render-phase-alts/shared alts shared-batch)
-  (match-define (list (? hash? shared-batch*)) shared-batch)
-  (define nodes (hash-ref shared-batch* 'nodes))
+(define (render-phase-alts/shared alts shared-block)
+  (match-define (list (? hash? shared-block*)) shared-block)
+  (define nodes (hash-ref shared-block* 'nodes))
   (define (single-root-jsexpr root)
     (hash 'nodes nodes 'roots (list root)))
   `((dt "Alt Table")
@@ -346,7 +346,7 @@
                                   ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
                                   ["fresh" `(td)])
                                (td ,(format-accuracy score repr #:unit "%") "")
-                               (td (pre ,(jsexpr->batch-exprs (single-root-jsexpr root)))))))))))
+                               (td (pre ,(jsexpr->block-exprs (single-root-jsexpr root)))))))))))
 
 (define (render-phase-times times)
   (define hist-id (make-id))
@@ -359,8 +359,8 @@
         (table ((class "times"))
                ,@(for/list ([rec (in-list (sort times > #:key first))]
                             [_ (in-range 5)])
-                   (match-define (list time batch-jsexpr) rec)
-                   `(tr (td ,(format-time time)) (td (pre ,(jsexpr->batch-exprs batch-jsexpr)))))))))
+                   (match-define (list time block-jsexpr) rec)
+                   `(tr (td ,(format-time time)) (td (pre ,(jsexpr->block-exprs block-jsexpr)))))))))
 
 (define (render-phase-series times)
   (define hist-id (make-id))
@@ -390,10 +390,10 @@
                            ,(format-percent (- size compiled) size)
                            " saved)"))))
 
-(define (render-phase-branches branches shared-batch)
-  (match-define (list (? hash? shared-batch*)) shared-batch)
+(define (render-phase-branches branches shared-block)
+  (match-define (list (? hash? shared-block*)) shared-block)
   (define (single-root-jsexpr root)
-    (hash 'nodes (hash-ref shared-batch* 'nodes) 'roots (list root)))
+    (hash 'nodes (hash-ref shared-block* 'nodes) 'roots (list root)))
   `((dt "Results")
     (dd (table ((class "times"))
                (thead (tr (th "Accuracy") (th "Segments") (th "Branch")))
@@ -402,7 +402,7 @@
                    (define repr (get-representation (read (open-input-string repr-name))))
                    `(tr (td ,(format-accuracy score repr #:unit "%") "")
                         (td ,(~a splits))
-                        (td (pre ,(jsexpr->batch-exprs (single-root-jsexpr branch-root))))))))))
+                        (td (pre ,(jsexpr->block-exprs (single-root-jsexpr branch-root))))))))))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Samples") (dd (table ((class "times"))
@@ -413,12 +413,12 @@
                                        (td ,(~a precision))
                                        (td ,(~a category))))))))
 
-(define (batch-jsexpr? x)
+(define (block-jsexpr? x)
   (and (hash? x) (hash-has-key? x 'nodes)))
 
 (define (jsexpr->exprs x)
-  (if (batch-jsexpr? x)
-      (jsexpr->batch-exprs x)
+  (if (block-jsexpr? x)
+      (jsexpr->block-exprs x)
       (string-join (map ~a x) "\n")))
 
 (define (render-phase-inputs inputs outputs)

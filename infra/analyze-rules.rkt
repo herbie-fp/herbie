@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../src/core/egg-herbie.rkt"
-         "../src/syntax/batch.rkt"
+         "../src/syntax/block.rkt"
          "../src/syntax/types.rkt"
          "../src/syntax/load-platform.rkt"
          "../src/syntax/platform.rkt"
@@ -33,11 +33,11 @@
   (for ([test (in-list tests)]
         [i (in-naturals)])
     (printf "Processing test ~a/~a: ~a\n" (+ i 1) (length tests) (test-name test))
-    (define-values (batch brfs) (progs->batch (list (test-spec test)) #:ctx (test-context test)))
+    (define-values (block vs) (progs->block (list (test-spec test)) #:ctx (test-context test)))
 
     (for ([iter (in-range (*iters*))])
       (define-values (initial-size final-size sorted-results)
-        (egraph-analyze-rewrite-impact batch brfs (test-context test) iter))
+        (egraph-analyze-rewrite-impact block vs (test-context test) iter))
 
       (vector-set! iter-sizes iter (cons final-size (vector-ref iter-sizes iter)))
       (for ([(rule delta) (in-dict sorted-results)])

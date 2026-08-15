@@ -7,7 +7,7 @@
          "../utils/common.rkt"
          "../syntax/float.rkt"
          "../utils/timeline.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "egg-herbie.rkt"
          "egglog-herbie.rkt"
          "programs.rkt"
@@ -32,67 +32,67 @@
 
 (struct taylor-approx (spec repr impl-spec name var order prev) #:transparent)
 
-(define (taylor-alts altns global-batch spec-batch reducer)
+(define (taylor-alts altns global-block spec-block reducer)
   (define vars
-    (for/list ([var (in-list (batch-vars global-batch))]
-               [repr (in-list (batch-var-reprs global-batch))]
+    (for/list ([var (in-list (block-vars global-block))]
+               [repr (in-list (block-var-reprs global-block))]
                #:when (equal? (representation-type repr) 'real))
       var))
-  (define brfs (map alt-expr altns))
-  (define reprs (map batch-repr-of brfs))
+  (define vs (map alt-expr altns))
+  (define reprs (map block-repr-of vs))
   ;; Specs
-  (define spec-brfs (batch-to-spec! global-batch spec-batch brfs))
-  (define free-vars (map (batch-free-vars spec-batch) spec-brfs))
+  (define spec-vs (block-to-spec! global-block spec-block vs))
+  (define free-vars (map (block-free-vars spec-block) spec-vs))
 
   (reap [sow]
-        (parameterize ([reduce reducer] ;; reduces over spec-batch
-                       [add (λ (x) (batch-add! spec-batch x))]) ;; adds to spec-batch
+        (parameterize ([reduce reducer] ;; reduces over spec-block
+                       [add (λ (x) (block-add! spec-block x))]) ;; adds to spec-block
           ;; Zero expansion
-          (for ([spec-brf (in-list spec-brfs)]
+          (for ([spec-v (in-list spec-vs)]
                 [repr (in-list reprs)]
                 [altn (in-list altns)]
                 #:when (equal? (representation-type repr) 'real))
-            (define genexpr0 (batch-add! spec-batch 0))
-            (sow (taylor-approx spec-brf repr genexpr0 'zero 'undef-var -1 altn)))
+            (define genexpr0 (block-add! spec-block 0))
+            (sow (taylor-approx spec-v repr genexpr0 'zero 'undef-var -1 altn)))
 
           ;; Taylor expansions
           ;; List<List<(cons offset coeffs)>>
-          (define taylor-coeffs (taylor-coefficients spec-batch spec-brfs vars transforms-to-try))
+          (define taylor-coeffs (taylor-coefficients spec-block spec-vs vars transforms-to-try))
           (define idx 0)
           (for* ([var (in-list vars)]
                  [transform-type transforms-to-try])
             (match-define (list name f finv) transform-type)
             (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
             (define taylor-coeffs* (list-ref taylor-coeffs idx))
-            (define genexprs (approximate taylor-coeffs* spec-batch var #:transform (cons f finv)))
+            (define genexprs (approximate taylor-coeffs* spec-block var #:transform (cons f finv)))
             (for ([genexpr (in-list genexprs)]
-                  [spec-brf (in-list spec-brfs)]
+                  [spec-v (in-list spec-vs)]
                   [repr (in-list reprs)]
                   [altn (in-list altns)]
                   [fv (in-list free-vars)]
                   #:when (set-member? fv var)) ;; check whether var exists in expr at all
               (for ([i (in-range (*taylor-order-limit*))])
-                (sow (taylor-approx spec-brf repr (genexpr) name var i altn))))
+                (sow (taylor-approx spec-v repr (genexpr) name var i altn))))
             (set! idx (add1 idx))
             (timeline-stop!)))))
 
-(define (run-taylor altns global-batch spec-batch reducer)
+(define (run-taylor altns global-block spec-block reducer)
   (timeline-event! 'series)
   (define (taylor-key x)
     (taylor-approx-impl-spec x))
   (define (approx-key x)
-    (approx-impl (deref (alt-expr x))))
+    (approx-impl (val-def (alt-expr x))))
 
   (define approxs
-    (remove-duplicates (taylor-alts altns global-batch spec-batch reducer) #:key taylor-key))
+    (remove-duplicates (taylor-alts altns global-block spec-block reducer) #:key taylor-key))
   (define approxs*
-    (remove-duplicates (run-lowering approxs global-batch spec-batch) #:key approx-key))
-  (timeline-push! 'inputs (batch->jsexpr global-batch spec-batch (map alt-expr altns)))
-  (timeline-push! 'outputs (batch->jsexpr global-batch spec-batch (map alt-expr approxs*)))
+    (remove-duplicates (run-lowering approxs global-block spec-block) #:key approx-key))
+  (timeline-push! 'inputs (block->jsexpr global-block spec-block (map alt-expr altns)))
+  (timeline-push! 'outputs (block->jsexpr global-block spec-block (map alt-expr approxs*)))
   (timeline-push! 'count (length altns) (length approxs*))
   approxs*)
 
-(define (run-lowering taylors global-batch spec-batch)
+(define (run-lowering taylors global-block spec-block)
   (define schedule '(lower))
 
   ; run egg
@@ -109,52 +109,52 @@
 
   (define runner
     (cond
-      [(flag-set? 'generate 'egglog) (make-egglog-runner spec-batch impl-specs schedule (*context*))]
-      [else (make-egraph spec-batch impl-specs schedule (*context*))]))
+      [(flag-set? 'generate 'egglog) (make-egglog-runner spec-block impl-specs schedule (*context*))]
+      [else (make-egraph spec-block impl-specs schedule (*context*))]))
 
-  (define batchrefss
+  (define valss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog runner global-batch reprs 'taylor #:extract 1)
-        (egraph-best runner global-batch reprs)))
+        (run-egglog runner global-block reprs 'taylor #:extract 1)
+        (egraph-best runner global-block reprs)))
 
   ; apply changelists
   (reap [sow]
-        (for ([batchrefs (in-list batchrefss)]
+        (for ([vals (in-list valss)]
               [spec (in-list specs)]
               [name (in-list names)]
               [var (in-list vars)]
               [order (in-list orders)]
               [prev (in-list prevs)])
-          (for ([batchref* (in-list batchrefs)])
-            (define brf (batch-add! global-batch (approx spec batchref*)))
-            (define taylor-altn (alt brf `(taylor ,name ,var ,order) (list prev)))
-            (sow (alt brf (list 'rr runner #f) (list taylor-altn)))))))
+          (for ([val* (in-list vals)])
+            (define v (block-add! global-block (approx spec val*)))
+            (define taylor-altn (alt v `(taylor ,name ,var ,order) (list prev)))
+            (sow (alt v (list 'rr runner #f) (list taylor-altn)))))))
 
-(define (run-evaluate altns global-batch spec-batch)
+(define (run-evaluate altns global-block spec-block)
   (timeline-event! 'sample)
-  (define all-brfs (map alt-expr altns))
-  (define spec-brfs (batch-to-spec! global-batch spec-batch all-brfs))
-  (define constant-batch (batch-empty (context '() #f '())))
-  (define copy-constant (batch-copy-only! constant-batch spec-batch))
-  (define constant-brfs (map copy-constant spec-brfs))
-  (define free-vars (batch-free-vars constant-batch))
+  (define all-vs (map alt-expr altns))
+  (define spec-vs (block-to-spec! global-block spec-block all-vs))
+  (define constant-block (block-empty (context '() #f '())))
+  (define copy-constant (block-copy-only! constant-block spec-block))
+  (define constant-vs (map copy-constant spec-vs))
+  (define free-vars (block-free-vars constant-block))
   (define real-pairs
     (for/list ([altn (in-list altns)]
-               [constant-brf (in-list constant-brfs)]
-               #:when (set-empty? (free-vars constant-brf))
-               #:unless (literal? (deref (alt-expr altn)))
-               #:when (equal? (representation-type (batch-repr-of (alt-expr altn))) 'real))
-      (cons altn constant-brf)))
+               [constant-v (in-list constant-vs)]
+               #:when (set-empty? (free-vars constant-v))
+               #:unless (literal? (val-def (alt-expr altn)))
+               #:when (equal? (representation-type (block-repr-of (alt-expr altn))) 'real))
+      (cons altn constant-v)))
   (define real-altns (map car real-pairs))
-  (define real-spec-brfs (map cdr real-pairs))
+  (define real-spec-vs (map cdr real-pairs))
 
-  (define brfs (map alt-expr real-altns))
-  (define reprs (map batch-repr-of brfs))
+  (define vs (map alt-expr real-altns))
+  (define reprs (map block-repr-of vs))
 
   (define-values (status pts)
-    (if (null? real-spec-brfs)
+    (if (null? real-spec-vs)
         (values 'invalid #f)
-        (let ([real-compiler (make-real-compiler constant-batch real-spec-brfs reprs)])
+        (let ([real-compiler (make-real-compiler constant-block real-spec-vs reprs)])
           (real-apply real-compiler (vector)))))
   (define literals
     (for/list ([pt (in-list (if (equal? status 'valid)
@@ -168,44 +168,44 @@
     (for/list ([literal (in-list literals)]
                [altn (in-list real-altns)]
                #:when (equal? status 'valid))
-      (define brf (batch-add! global-batch literal))
-      (alt brf '(evaluate) (list altn))))
+      (define v (block-add! global-block literal))
+      (alt v '(evaluate) (list altn))))
 
-  (timeline-push! 'inputs (batch->jsexpr constant-batch constant-batch real-spec-brfs))
+  (timeline-push! 'inputs (block->jsexpr constant-block constant-block real-spec-vs))
   (timeline-push! 'outputs (map ~a literals))
   final-altns)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (run-rr altns global-batch spec-batch)
+(define (run-rr altns global-block spec-block)
   (timeline-event! 'rewrite)
 
   ; egg schedule (4-phases for mathematical rewrites, sound-X removal, and implementation selection)
   (define schedule '(rewrite unsound lower))
 
-  (define brfs (map alt-expr altns))
-  (define spec-brfs (batch-to-spec! global-batch spec-batch brfs))
-  (define reprs (map batch-repr-of brfs))
+  (define vs (map alt-expr altns))
+  (define spec-vs (block-to-spec! global-block spec-block vs))
+  (define reprs (map block-repr-of vs))
   (define runner
     (cond
-      [(flag-set? 'generate 'egglog) (make-egglog-runner spec-batch spec-brfs schedule (*context*))]
-      [else (make-egraph spec-batch spec-brfs schedule (*context*))]))
+      [(flag-set? 'generate 'egglog) (make-egglog-runner spec-block spec-vs schedule (*context*))]
+      [else (make-egraph spec-block spec-vs schedule (*context*))]))
 
-  (define batchrefss
+  (define valss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog runner global-batch reprs 'rewrite #:extract 1000000) ; "infinity"
-        (egraph-variations runner global-batch reprs)))
+        (run-egglog runner global-block reprs 'rewrite #:extract 1000000) ; "infinity"
+        (egraph-variations runner global-block reprs)))
 
   ; apply changelists
   (define rewritten
     (reap [sow]
-          (for ([batchrefs (in-list batchrefss)]
+          (for ([vals (in-list valss)]
                 [altn (in-list altns)])
-            (for ([batchref* (in-list batchrefs)])
-              (sow (alt batchref* (list 'rr runner #f) (list altn)))))))
+            (for ([val* (in-list vals)])
+              (sow (alt val* (list 'rr runner #f) (list altn)))))))
 
-  (timeline-push! 'inputs (batch->jsexpr global-batch spec-batch (map alt-expr altns)))
-  (timeline-push! 'outputs (batch->jsexpr global-batch spec-batch (map alt-expr rewritten)))
+  (timeline-push! 'inputs (block->jsexpr global-block spec-block (map alt-expr altns)))
+  (timeline-push! 'outputs (block->jsexpr global-block spec-block (map alt-expr rewritten)))
   (timeline-push! 'count (length altns) (length rewritten))
 
   rewritten)
@@ -217,27 +217,27 @@
     [(list) (alt-expr altn)]
     [(list prev) (get-starting-expr prev)]))
 
-(define (generate-candidates batch brfs spec-batch reducer)
+(define (generate-candidates block vs spec-block reducer)
   ; Starting alternatives
   (define start-altns
-    (for/list ([brf brfs])
-      (alt brf 'patch '())))
+    (for/list ([v vs])
+      (alt v 'patch '())))
 
   (define evaluations
     (if (flag-set? 'generate 'evaluate)
-        (run-evaluate start-altns batch spec-batch)
+        (run-evaluate start-altns block spec-block)
         '()))
 
   ; Series expand
   (define approximations
     (if (flag-set? 'generate 'taylor)
-        (run-taylor start-altns batch spec-batch reducer)
+        (run-taylor start-altns block spec-block reducer)
         '()))
 
   ; Recursive rewrite
   (define rewritten
     (if (flag-set? 'generate 'rr)
-        (run-rr start-altns batch spec-batch)
+        (run-rr start-altns block spec-block)
         '()))
 
   (remove-duplicates (append evaluations rewritten approximations)

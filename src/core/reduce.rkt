@@ -1,19 +1,19 @@
 #lang racket
 
 (require "../syntax/types.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "../utils/common.rkt"
          "programs.rkt")
 
-(provide batch-reduce)
+(provide block-reduce)
 
-(define global-batch (make-parameter #f))
+(define global-block (make-parameter #f))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
-(define (batch-eval-application batch)
+(define (block-eval-application block)
   (define exact-value? (conjoin number? exact?))
-  (define (eval-application brf recurse)
-    (match (deref brf)
+  (define (eval-application v recurse)
+    (match (val-def v)
       [(? exact-value? val)
        val] ;; this part is not naive in rewriting. should be considered for the future
       [(list '+ (app recurse (? exact-value? as)) ...) (apply + as)]
@@ -49,119 +49,119 @@
       [(list 'exp (app recurse 0)) 1]
       [(list 'log (app recurse 1)) 0]
       [_ #f]))
-  (batch-recurse batch eval-application))
+  (block-recurse block eval-application))
 
-(define (batch-reduce batch)
+(define (block-reduce block)
   ;; Dependencies
-  (define eval-application (batch-eval-application batch))
-  (define gather-multiplicative-terms (batch-gather-multiplicative-terms batch eval-application))
+  (define eval-application (block-eval-application block))
+  (define gather-multiplicative-terms (block-gather-multiplicative-terms block eval-application))
 
   (letrec ([reduce-node
-            (batch-recurse
-             batch
-             (lambda (brf recurse)
-               (define brf* (reduce-evaluation brf))
-               (match (deref brf*)
-                 [(? number?) brf*]
-                 [(? symbol?) brf*]
+            (block-recurse
+             block
+             (lambda (v recurse)
+               (define v* (reduce-evaluation v))
+               (match (val-def v*)
+                 [(? number?) v*]
+                 [(? symbol?) v*]
                  [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
-                  (make-addition-node (combine-aterms (gather-additive-terms brf*)))]
+                  (make-addition-node (combine-aterms (gather-additive-terms v*)))]
                  [(or `(* ,_ ...)
                       `(/ ,_ ...)
                       `(cbrt ,_)
-                      `(pow ,_ ,(app deref (? (conjoin rational? (negate even-denominator?))))))
-                  (make-multiplication-node (combine-mterms (gather-multiplicative-terms brf*)))]
-                 [(list 'exp (app deref (list '* c (app deref (list 'log x)))))
-                  (define rewrite (batch-add! batch `(pow ,x ,c)))
+                      `(pow ,_ ,(app val-def (? (conjoin rational? (negate even-denominator?))))))
+                  (make-multiplication-node (combine-mterms (gather-multiplicative-terms v*)))]
+                 [(list 'exp (app val-def (list '* c (app val-def (list 'log x)))))
+                  (define rewrite (block-add! block `(pow ,x ,c)))
                   (recurse rewrite)]
-                 [else (reduce-inverses brf*)])))]
+                 [else (reduce-inverses v*)])))]
            [gather-additive-terms
-            (batch-recurse
-             batch
-             (lambda (brf recurse)
-               (match (deref brf)
-                 [(? number? n) `((,n ,(batch-push! batch 1)))]
-                 [(? symbol?) `((1 ,brf))]
+            (block-recurse
+             block
+             (lambda (v recurse)
+               (match (val-def v)
+                 [(? number? n) `((,n ,(block-push! block 1)))]
+                 [(? symbol?) `((1 ,v))]
                  [`(+ ,args ...) (append-map recurse args)]
                  [`(neg ,arg) (map negate-term (recurse arg))]
                  [`(- ,arg ,args ...)
                   (append (recurse arg) (map negate-term (append-map recurse args)))]
                  ; Prevent fall-through to the next case
-                 [`(/ ,arg) `((1 ,brf))]
+                 [`(/ ,arg) `((1 ,v))]
                  [`(/ ,arg ,args ...)
                   (for/list ([term (recurse arg)])
-                    (list (car term) (reduce-node (batch-add! batch (list* '/ (cadr term) args)))))]
-                 [else `((1 ,brf))])))])
+                    (list (car term) (reduce-node (block-add! block (list* '/ (cadr term) args)))))]
+                 [else `((1 ,v))])))])
 
     ;; Actual code
-    (define (reduce brf recurse)
-      (parameterize ([global-batch batch])
-        (define node (deref brf))
+    (define (reduce v recurse)
+      (parameterize ([global-block block])
+        (define node (val-def v))
         (match node
-          [(? number?) brf]
-          [(? symbol?) brf]
+          [(? number?) v]
+          [(? symbol?) v]
           [`(,op ,args ...)
            (define args* (map recurse args))
-           (define brf* (batch-add! batch (list* op args*)))
-           (define val (eval-application brf*))
-           (when val ;; convert to batchref if result is not #f
-             (set! val (batch-push! batch val)))
-           (or val (reduce-node brf*))])))
-    (batch-recurse batch reduce)))
+           (define v* (block-add! block (list* op args*)))
+           (define val (eval-application v*))
+           (when val ;; convert to val if result is not #f
+             (set! val (block-push! block val)))
+           (or val (reduce-node v*))])))
+    (block-recurse block reduce)))
 
-(define (reduce-evaluation brf)
-  (define batch (batchref-batch brf))
+(define (reduce-evaluation v)
+  (define block (val-block v))
   (define (pi-multiple expr)
     (match expr
       [`(PI) 1]
-      [`(* ,(app deref (? rational? coeff)) ,(app deref '(PI))) coeff]
-      [`(* ,(app deref '(PI)) ,(app deref (? rational? coeff))) coeff]
-      [`(/ ,(app deref '(PI)) ,(app deref (? rational? denom))) (/ denom)]
+      [`(* ,(app val-def (? rational? coeff)) ,(app val-def '(PI))) coeff]
+      [`(* ,(app val-def '(PI)) ,(app val-def (? rational? coeff))) coeff]
+      [`(/ ,(app val-def '(PI)) ,(app val-def (? rational? denom))) (/ denom)]
       [_ #f]))
   (define node*
-    (match (deref brf)
-      [(list 'sin (app deref 0)) 0]
-      [(list 'cos (app deref 0)) 1]
-      [(list 'sin (app deref (app pi-multiple 1))) 0]
-      [(list 'cos (app deref (app pi-multiple 1))) -1]
-      [(list 'exp (app deref 1)) '(E)]
-      [(list 'tan (app deref 0)) 0]
-      [(list 'sinh (app deref 0)) 0]
-      [(list 'log (app deref (list 'E))) 1]
-      [(list 'exp (app deref 0)) 1]
-      [(list 'tan (app deref (app pi-multiple 1))) 0]
-      [(list 'cosh (app deref 0)) 1]
-      [(list 'cos (app deref (app pi-multiple 1/6))) '(/ (sqrt 3) 2)]
-      [(list 'tan (app deref (app pi-multiple 1/3))) '(sqrt 3)]
-      [(list 'tan (app deref (app pi-multiple 1/4))) 1]
-      [(list 'cos (app deref (app pi-multiple 1/2))) 0]
-      [(list 'tan (app deref (app pi-multiple 1/6))) '(/ 1 (sqrt 3))]
-      [(list 'sin (app deref (app pi-multiple 1/3))) '(/ (sqrt 3) 2)]
-      [(list 'sin (app deref (app pi-multiple 1/6))) 1/2]
-      [(list 'sin (app deref (app pi-multiple 1/4))) '(/ (sqrt 2) 2)]
-      [(list 'sin (app deref (app pi-multiple 1/2))) 1]
-      [(list 'cos (app deref (app pi-multiple 1/3))) 1/2]
-      [(list 'cos (app deref (app pi-multiple 1/4))) '(/ (sqrt 2) 2)]
+    (match (val-def v)
+      [(list 'sin (app val-def 0)) 0]
+      [(list 'cos (app val-def 0)) 1]
+      [(list 'sin (app val-def (app pi-multiple 1))) 0]
+      [(list 'cos (app val-def (app pi-multiple 1))) -1]
+      [(list 'exp (app val-def 1)) '(E)]
+      [(list 'tan (app val-def 0)) 0]
+      [(list 'sinh (app val-def 0)) 0]
+      [(list 'log (app val-def (list 'E))) 1]
+      [(list 'exp (app val-def 0)) 1]
+      [(list 'tan (app val-def (app pi-multiple 1))) 0]
+      [(list 'cosh (app val-def 0)) 1]
+      [(list 'cos (app val-def (app pi-multiple 1/6))) '(/ (sqrt 3) 2)]
+      [(list 'tan (app val-def (app pi-multiple 1/3))) '(sqrt 3)]
+      [(list 'tan (app val-def (app pi-multiple 1/4))) 1]
+      [(list 'cos (app val-def (app pi-multiple 1/2))) 0]
+      [(list 'tan (app val-def (app pi-multiple 1/6))) '(/ 1 (sqrt 3))]
+      [(list 'sin (app val-def (app pi-multiple 1/3))) '(/ (sqrt 3) 2)]
+      [(list 'sin (app val-def (app pi-multiple 1/6))) 1/2]
+      [(list 'sin (app val-def (app pi-multiple 1/4))) '(/ (sqrt 2) 2)]
+      [(list 'sin (app val-def (app pi-multiple 1/2))) 1]
+      [(list 'cos (app val-def (app pi-multiple 1/3))) 1/2]
+      [(list 'cos (app val-def (app pi-multiple 1/4))) '(/ (sqrt 2) 2)]
       [node node]))
-  (batch-add! batch node*))
+  (block-add! block node*))
 
-(define (reduce-inverses brf)
-  (match (deref brf)
-    [(list 'tanh (app deref (list 'atanh x))) x]
-    [(list 'cosh (app deref (list 'acosh x))) x]
-    [(list 'sinh (app deref (list 'asinh x))) x]
-    [(list 'acos (app deref (list 'cos x))) x]
-    [(list 'asin (app deref (list 'sin x))) x]
-    [(list 'atan (app deref (list 'tan x))) x]
-    [(list 'tan (app deref (list 'atan x))) x]
-    [(list 'cos (app deref (list 'acos x))) x]
-    [(list 'sin (app deref (list 'asin x))) x]
-    [(list 'pow x (app deref 1)) x]
-    [(list 'log (app deref (list 'exp x))) x]
-    [(list 'exp (app deref (list 'log x))) x]
-    [(list 'cbrt (app deref (list 'pow x (app deref 3)))) x]
-    [(list 'pow (app deref (list 'cbrt x)) (app deref 3)) x]
-    [_ brf]))
+(define (reduce-inverses v)
+  (match (val-def v)
+    [(list 'tanh (app val-def (list 'atanh x))) x]
+    [(list 'cosh (app val-def (list 'acosh x))) x]
+    [(list 'sinh (app val-def (list 'asinh x))) x]
+    [(list 'acos (app val-def (list 'cos x))) x]
+    [(list 'asin (app val-def (list 'sin x))) x]
+    [(list 'atan (app val-def (list 'tan x))) x]
+    [(list 'tan (app val-def (list 'atan x))) x]
+    [(list 'cos (app val-def (list 'acos x))) x]
+    [(list 'sin (app val-def (list 'asin x))) x]
+    [(list 'pow x (app val-def 1)) x]
+    [(list 'log (app val-def (list 'exp x))) x]
+    [(list 'exp (app val-def (list 'log x))) x]
+    [(list 'cbrt (app val-def (list 'pow x (app val-def 3)))) x]
+    [(list 'pow (app val-def (list 'cbrt x)) (app val-def 3)) x]
+    [_ v]))
 
 (define (negate-term term)
   (cons (- (car term)) (cdr term)))
@@ -169,14 +169,14 @@
 (define (even-denominator? x)
   (even? (denominator x)))
 
-(define (batch-gather-multiplicative-terms batch eval-application)
+(define (block-gather-multiplicative-terms block eval-application)
   (define (nan-term)
-    `(+nan.0 . ((1 . ,(batch-push! batch 1)))))
-  (define (gather-multiplicative-terms brf recurse)
-    (match (deref brf)
+    `(+nan.0 . ((1 . ,(block-push! block 1)))))
+  (define (gather-multiplicative-terms v recurse)
+    (match (val-def v)
       [+nan.0 (nan-term)]
       [(? number? n) (list n)]
-      [(? symbol?) `(1 . ((1 . ,brf)))]
+      [(? symbol?) `(1 . ((1 . ,v)))]
       [`(neg ,arg)
        (define terms (recurse arg))
        (if (eq? (car terms) +nan.0)
@@ -204,36 +204,36 @@
        (cond
          [(equal? (car terms) +nan.0) (nan-term)]
          [else
-          (define exact-cbrt (eval-application (batch-add! batch (list 'cbrt (car terms)))))
+          (define exact-cbrt (eval-application (block-add! block (list 'cbrt (car terms)))))
           (if exact-cbrt
               (cons exact-cbrt
                     (for/list ([term (cdr terms)])
                       (cons (/ (car term) 3) (cdr term))))
               (list* 1
-                     (cons 1 (batch-add! batch `(cbrt ,(car terms))))
+                     (cons 1 (block-add! block `(cbrt ,(car terms))))
                      (for/list ([term (cdr terms)])
                        (cons (/ (car term) 3) (cdr term)))))])]
-      [`(pow ,arg ,(app deref 0))
+      [`(pow ,arg ,(app val-def 0))
        (define terms (recurse arg))
        (if (equal? (car terms) +nan.0)
            (nan-term)
            `(1 . ()))]
-      [`(pow ,arg ,(app deref (? (conjoin rational? (negate even-denominator?)) a)))
+      [`(pow ,arg ,(app val-def (? (conjoin rational? (negate even-denominator?)) a)))
        (define terms (recurse arg))
        (define exact-pow
          (match (car terms)
            [+nan.0 +nan.0]
-           [x (eval-application (batch-add! batch (list 'pow x a)))]))
+           [x (eval-application (block-add! block (list 'pow x a)))]))
        (if exact-pow
            (cons exact-pow
                  (for/list ([term (cdr terms)])
                    (cons (* a (car term)) (cdr term))))
            (list* 1
-                  (cons a (batch-push! batch (car terms)))
+                  (cons a (block-push! block (car terms)))
                   (for/list ([term (cdr terms)])
                     (cons (* a (car term)) (cdr term)))))]
-      [_ `(1 . ((1 . ,brf)))]))
-  (batch-recurse batch gather-multiplicative-terms))
+      [_ `(1 . ((1 . ,v)))]))
+  (block-recurse block gather-multiplicative-terms))
 
 (define (combine-aterms terms)
   (define h (make-hash))
@@ -261,37 +261,38 @@
 (define (aterm->expr term)
   (match term
     [`(1 . ,x) x]
-    [`(,x . ,(app deref 1)) (batch-push! (global-batch) x)]
-    [`(-1 . ,x) (batch-add! (global-batch) `(neg ,x))]
-    [`(,coeff . ,x) (batch-add! (global-batch) `(* ,coeff ,x))]))
+    [`(,x . ,(app val-def 1)) (block-push! (global-block) x)]
+    [`(-1 . ,x) (block-add! (global-block) `(neg ,x))]
+    [`(,coeff . ,x) (block-add! (global-block) `(* ,coeff ,x))]))
 
 (define (make-addition-node terms)
   (define-values (pos neg) (partition (λ (x) (and (real? (car x)) (positive? (car x)))) terms))
   (cond
-    [(and (null? pos) (null? neg)) (batch-push! (global-batch) 0)]
-    [(null? pos) (batch-add! (global-batch) `(neg ,(make-addition-node* (map negate-term neg))))]
+    [(and (null? pos) (null? neg)) (block-push! (global-block) 0)]
+    [(null? pos) (block-add! (global-block) `(neg ,(make-addition-node* (map negate-term neg))))]
     [(null? neg) (make-addition-node* pos)]
     [else
-     (batch-add! (global-batch)
+     (block-add! (global-block)
                  `(- ,(make-addition-node* pos) ,(make-addition-node* (map negate-term neg))))]))
 
 (define (make-addition-node* terms)
   (match terms
-    ['() (batch-push! (global-batch) 0)]
+    ['() (block-push! (global-block) 0)]
     [`(,term) (aterm->expr term)]
     [`(,term ,terms ...)
-     (batch-add! (global-batch) `(+ ,(aterm->expr term) ,(make-addition-node terms)))]))
+     (block-add! (global-block) `(+ ,(aterm->expr term) ,(make-addition-node terms)))]))
 
 (define (make-multiplication-node term)
   (match (cons (car term) (make-multiplication-subnode (cdr term)))
-    [(cons +nan.0 e) (batch-push! (global-batch) '(NAN))]
-    [(cons 0 e) (batch-push! (global-batch) 0)]
-    [(cons 1 '()) (batch-push! (global-batch) 1)]
+    [(cons +nan.0 e) (block-push! (global-block) '(NAN))]
+    [(cons 0 e) (block-push! (global-block) 0)]
+    [(cons 1 '()) (block-push! (global-block) 1)]
     [(cons 1 e) e]
-    [(cons a (app deref 1)) (batch-push! (global-batch) a)]
-    [(cons a (app deref (list '/ (app deref 1) denom))) (batch-add! (global-batch) `(/ ,a ,denom))]
-    [(cons a '()) (batch-push! (global-batch) a)]
-    [(cons a e) (batch-add! (global-batch) `(* ,a ,e))]))
+    [(cons a (app val-def 1)) (block-push! (global-block) a)]
+    [(cons a (app val-def (list '/ (app val-def 1) denom)))
+     (block-add! (global-block) `(/ ,a ,denom))]
+    [(cons a '()) (block-push! (global-block) a)]
+    [(cons a e) (block-add! (global-block) `(* ,a ,e))]))
 
 (define (make-multiplication-subnode terms)
   (make-multiplication-subsubsubnode
@@ -300,49 +301,49 @@
 (define (make-multiplication-subsubnode terms)
   (define-values (pos neg) (partition (compose positive? car) terms))
   (cond
-    [(and (null? pos) (null? neg)) (batch-push! (global-batch) 1)]
+    [(and (null? pos) (null? neg)) (block-push! (global-block) 1)]
     [(null? pos)
-     (batch-add! (global-batch) `(/ 1 ,(make-multiplication-subsubsubnode (map negate-term neg))))]
+     (block-add! (global-block) `(/ 1 ,(make-multiplication-subsubsubnode (map negate-term neg))))]
     [(null? neg) (make-multiplication-subsubsubnode pos)]
     [else
-     (batch-add! (global-batch)
+     (block-add! (global-block)
                  `(/ ,(make-multiplication-subsubsubnode pos)
                      ,(make-multiplication-subsubsubnode (map negate-term neg))))]))
 
 (define (make-multiplication-subsubsubnode terms)
   (match terms
-    ['() (batch-push! (global-batch) 1)]
+    ['() (block-push! (global-block) 1)]
     [`(,term) (mterm->expr term)]
     [`(,term ,terms ...)
-     (batch-add! (global-batch)
+     (block-add! (global-block)
                  `(* ,(mterm->expr term) ,(make-multiplication-subsubsubnode terms)))]))
 
 (define (mterm->expr term)
   (match term
     [(cons (? exact-integer? power) x)
      (cond
-       [(zero? power) (batch-push! (global-batch) 1)]
+       [(zero? power) (block-push! (global-block) 1)]
        [(= power 1) x]
-       [(negative? power) (batch-add! (global-batch) `(/ 1 ,(mterm->expr (cons (- power) x))))]
+       [(negative? power) (block-add! (global-block) `(/ 1 ,(mterm->expr (cons (- power) x))))]
        [(even? power)
         (define factor (mterm->expr (cons (/ power 2) x)))
-        (batch-add! (global-batch) `(* ,factor ,factor))]
-       [else (batch-add! (global-batch) `(* ,x ,(mterm->expr (cons (sub1 power) x))))])]
+        (block-add! (global-block) `(* ,factor ,factor))]
+       [else (block-add! (global-block) `(* ,x ,(mterm->expr (cons (sub1 power) x))))])]
     [(cons (? rational? power) x)
      (match (denominator power)
-       [2 (mterm->expr (cons (numerator power) (batch-add! (global-batch) `(sqrt ,x))))]
-       [3 (mterm->expr (cons (numerator power) (batch-add! (global-batch) `(cbrt ,x))))]
-       [_ (batch-add! (global-batch) `(pow ,x ,power))])]
-    [(cons power x) (batch-add! (global-batch) `(pow ,x ,power))]))
+       [2 (mterm->expr (cons (numerator power) (block-add! (global-block) `(sqrt ,x))))]
+       [3 (mterm->expr (cons (numerator power) (block-add! (global-block) `(cbrt ,x))))]
+       [_ (block-add! (global-block) `(pow ,x ,power))])]
+    [(cons power x) (block-add! (global-block) `(pow ,x ,power))]))
 
 (module+ test
   (require rackunit)
-  (define batch (batch-empty (context '() #f '())))
-  (define evaluator (batch-eval-application batch))
+  (define block (block-empty (context '() #f '())))
+  (define evaluator (block-eval-application block))
   (define (evaluator-results expr)
-    (evaluator (batch-add! batch expr)))
+    (evaluator (block-add! block expr)))
 
-  ;; Checks for batch-eval-application
+  ;; Checks for block-eval-application
   (check-equal? (evaluator-results '(+ 1 1)) 2)
   (check-equal? (evaluator-results '(+)) 0)
   (check-equal? (evaluator-results '(/ 1 0)) #f) ; Not valid
@@ -350,17 +351,17 @@
   (check-equal? (evaluator-results '(log 1)) 0)
   (check-equal? (evaluator-results '(exp 2)) #f) ; Not exact
 
-  ;; Checks for batch-reduce-evaluation
+  ;; Checks for block-reduce-evaluation
   (define (reducer-results expr)
-    ((batch-exprs batch) (reduce-evaluation (batch-add! batch expr))))
+    ((block-exprs block) (reduce-evaluation (block-add! block expr))))
   (check-equal? (reducer-results '(cos (/ (PI) 6))) '(/ (sqrt 3) 2))
   (check-equal? (reducer-results '(sin (/ (PI) 4))) '(/ (sqrt 2) 2))
   (check-equal? (reducer-results '(cos (PI))) -1)
   (check-equal? (reducer-results '(exp 1)) '(E))
 
-  ;; Checks for batch-reduce-inverses
+  ;; Checks for block-reduce-inverses
   (define (inverse-reducer-results expr)
-    ((batch-exprs batch) (reduce-inverses (batch-add! batch expr))))
+    ((block-exprs block) (reduce-inverses (block-add! block expr))))
   (check-equal? (inverse-reducer-results '(cosh (acosh x))) 'x)
   (check-equal? (inverse-reducer-results '(tanh (atanh x))) 'x)
   (check-equal? (inverse-reducer-results '(sinh (asinh x))) 'x)
@@ -377,10 +378,10 @@
   (check-equal? (inverse-reducer-results '(cbrt (pow x 3))) 'x)
   (check-equal? (inverse-reducer-results '(pow (cbrt x) 3)) 'x)
 
-  ;; Checks for batch-reduce
-  (define reduce (batch-reduce batch))
+  ;; Checks for block-reduce
+  (define reduce (block-reduce block))
   (define (reduce-results expr)
-    ((batch-exprs batch) (reduce (batch-add! batch expr))))
+    ((block-exprs block) (reduce (block-add! block expr))))
   (check-equal? '(- (* (+ 1 x) (+ 1 x)) 1) (reduce-results '(- (* (+ x 1) (+ x 1)) 1)))
   (check-equal? '(neg (* 2 (/ 1 x))) (reduce-results '(+ (/ 1 (neg x)) (/ 1 (neg x)))))
   (check-equal? '(- (* (- 1 (/ 1 x)) (- 1 (/ 1 x))) 1)

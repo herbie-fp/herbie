@@ -4,7 +4,7 @@
 (require "../utils/common.rkt"
          "../syntax/float.rkt"
          "../syntax/types.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "../syntax/rival.rkt"
          "rules.rkt"
          "programs.rkt"
@@ -37,11 +37,11 @@
   (define ctx (env->ctx p1 p2))
   (define ulps (repr-ulps double-repr))
 
-  (define-values (batch brfs) (progs->batch (list p1 (drop-sound p2)) #:ctx ctx))
+  (define-values (block vs) (progs->block (list p1 (drop-sound p2)) #:ctx ctx))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
                    [*max-find-range-depth* 0])
-      (sample-points '(TRUE) batch brfs (make-list 2 double-repr))))
+      (sample-points '(TRUE) block vs (make-list 2 double-repr))))
 
   (for ([pt (in-list pts)]
         [v1 (in-list exs1)]

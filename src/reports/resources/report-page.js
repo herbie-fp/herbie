@@ -282,7 +282,7 @@ function paretoUnionBalanced(curves) {
     return level[0] || [];
 }
 
-// Merge shifted frontiers in small balanced batches. This keeps the
+// Merge shifted frontiers in small balanced blockes. This keeps the
 // large-large unions that are fast for JS without retaining every
 // shifted frontier at once.
 function paretoCombineTwo(combined, frontier) {
