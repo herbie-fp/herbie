@@ -200,7 +200,7 @@
 (define-timeline accuracy [accuracy] [oracle] [baseline])
 (define-timeline count [input +] [output +])
 (define-timeline alts #:unmergable)
-(define-timeline batch #:unmergable)
+(define-timeline block #:unmergable)
 (define-timeline inputs #:unmergable)
 (define-timeline outputs #:unmergable)
 (define-timeline sampling #:custom merge-sampling-tables)

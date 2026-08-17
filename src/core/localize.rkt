@@ -9,7 +9,7 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../syntax/platform.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "compiler.rkt"
          "points.rkt"
          "programs.rkt"
@@ -24,8 +24,8 @@
          eval-progs-real
          local-error-as-tree)
 
-(define (eval-progs-real batch brfs reprs)
-  (define compiler (make-real-compiler batch brfs reprs))
+(define (eval-progs-real block vs reprs)
+  (define compiler (make-real-compiler block vs reprs))
   (define bad-pt
     (for/list ([repr (in-list reprs)])
       ((representation-bf->repr repr) +nan.bf)))
@@ -65,25 +65,25 @@
   (define exprs-list (append* subexprss)) ; unroll subexprss
   (define reprs-list (map (curryr repr-of ctx) exprs-list))
   (define ulps-list (map repr-ulps reprs-list))
-  (define-values (expr-batch brfs) (progs->batch exprs-list #:ctx ctx))
-  (define roots (list->vector (map batchref-idx brfs)))
+  (define-values (expr-block vs) (progs->block exprs-list #:ctx ctx))
+  (define roots (list->vector (map val-idx vs)))
 
-  (define-values (spec-batch spec-brfs) (progs->batch (map prog->spec exprs-list) #:ctx ctx))
-  (define subexprs-fn (eval-progs-real spec-batch spec-brfs reprs-list))
+  (define-values (spec-block spec-vs) (progs->block (map prog->spec exprs-list) #:ctx ctx))
+  (define subexprs-fn (eval-progs-real spec-block spec-vs reprs-list))
 
   (define errs (make-matrix roots pcontext))
 
   (for ([(pt ex) (in-pcontext pcontext)]
         [pt-idx (in-naturals)])
     (define exacts (list->vector (subexprs-fn pt)))
-    (define (get-exact brf)
-      (vector-ref exacts (vector-member (batchref-idx brf) roots)))
+    (define (get-exact v)
+      (vector-ref exacts (vector-member (val-idx v) roots)))
     (for ([expr (in-list exprs-list)]
-          [brf brfs]
+          [v vs]
           [ulps (in-list ulps-list)]
           [exact (in-vector exacts)]
           [expr-idx (in-naturals)])
-      (define err (local-error exact (deref brf) ulps get-exact))
+      (define err (local-error exact (val-def v) ulps get-exact))
       (vector-set! (vector-ref errs expr-idx) pt-idx err)))
 
   (define n 0)
@@ -115,8 +115,8 @@
   (define spec-list (map prog->spec exprs-list))
   (define reprs-list (map (curryr repr-of ctx) exprs-list))
   (define ulps-list (map repr-ulps reprs-list))
-  (define-values (spec-batch spec-brfs) (progs->batch spec-list #:ctx ctx))
-  (define subexprs-fn (eval-progs-real spec-batch spec-brfs reprs-list))
+  (define-values (spec-block spec-vs) (progs->block spec-list #:ctx ctx))
+  (define subexprs-fn (eval-progs-real spec-block spec-vs reprs-list))
 
   ;; And the absolute difference between the two
   (define exact-var-names
@@ -135,12 +135,11 @@
         ['bool 0] ; We can't subtract booleans so ignore them
         ['real `(fabs (- ,spec ,var))]
         [_ 0])))
-  (define-values (compare-batch compare-brfs) (progs->batch compare-specs #:ctx delta-ctx))
-  (define delta-fn
-    (eval-progs-real compare-batch compare-brfs (map (const <binary64>) compare-specs)))
+  (define-values (compare-block compare-vs) (progs->block compare-specs #:ctx delta-ctx))
+  (define delta-fn (eval-progs-real compare-block compare-vs (map (const <binary64>) compare-specs)))
 
-  (define-values (expr-batch brfs) (progs->batch exprs-list #:ctx ctx))
-  (define roots (list->vector (map batchref-idx brfs)))
+  (define-values (expr-block vs) (progs->block exprs-list #:ctx ctx))
+  (define roots (list->vector (map val-idx vs)))
 
   (define ulp-errs (make-matrix roots pcontext))
   (define exacts-out (make-matrix roots pcontext))
@@ -151,20 +150,20 @@
         [pt-idx (in-naturals)])
 
     (define exacts (list->vector (subexprs-fn pt)))
-    (define (get-exact brf)
-      (vector-ref exacts (vector-member (batchref-idx brf) roots)))
+    (define (get-exact v)
+      (vector-ref exacts (vector-member (val-idx v) roots)))
 
     (define actuals (actual-value-fn pt))
     (define pt* (vector-append pt (remove-infinities actuals reprs-list)))
     (define deltas (list->vector (delta-fn pt*)))
 
     (for ([ulps (in-list ulps-list)]
-          [brf brfs]
+          [v vs]
           [exact (in-vector exacts)]
           [actual (in-vector actuals)]
           [delta (in-vector deltas)]
           [expr-idx (in-naturals)])
-      (define ulp-err (local-error exact (deref brf) ulps get-exact))
+      (define ulp-err (local-error exact (val-def v) ulps get-exact))
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref approx-out expr-idx) pt-idx actual)
       (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)

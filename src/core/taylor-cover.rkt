@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/flonum)
-(require "../syntax/batch.rkt"
+(require "../syntax/block.rkt"
          "../syntax/float.rkt"
          "../syntax/platform.rkt"
          "../syntax/sugar.rkt"
@@ -11,8 +11,8 @@
          "../utils/timeline.rkt"
          "../utils/common.rkt"
          "alternative.rkt"
-         "batch-reduce.rkt"
          "points.rkt"
+         "reduce.rkt"
          "taylor.rkt")
 
 (provide compute-taylor-covers
@@ -44,14 +44,14 @@
     ['inf (cons bound +inf.0)]
     ['-inf (cons -inf.0 (- bound))]))
 
-(define (evaluate-term batch term out-repr)
-  (define constant-batch (batch-empty (context '() #f '())))
-  (define brf (and term ((batch-copy-only! constant-batch batch) (car term))))
-  (define free-vars (batch-free-vars constant-batch))
+(define (evaluate-term block term out-repr)
+  (define constant-block (block-empty (context '() #f '())))
+  (define v (and term ((block-copy-only! constant-block block) (car term))))
+  (define free-vars (block-free-vars constant-block))
   ;; Ensure both coefficients are pure constants before evaluating.
   (cond
-    [(and brf (set-empty? (free-vars brf)))
-     (define compiler (make-real-compiler constant-batch (list brf) (list out-repr)))
+    [(and v (set-empty? (free-vars v)))
+     (define compiler (make-real-compiler constant-block (list v) (list out-repr)))
      (define-values (status outs) (real-apply compiler (vector)))
      (define num (and (equal? status 'valid) (repr->real (first outs) out-repr)))
      (and num (rational? num) (not (zero? num)) (cons num (cdr term)))]
@@ -59,26 +59,25 @@
 
 (define (build-covers spec var var-repr ctx)
   (define out-repr (context-repr ctx))
-  (define-values (batch brfs) (progs->batch (list spec) #:ctx ctx))
+  (define-values (block vs) (progs->block (list spec) #:ctx ctx))
   (reap [sow]
-        (parameterize ([reduce (batch-reduce batch)]
-                       [add (lambda (x) (batch-add! batch x))])
-          (define batch->expr (batch-exprs batch))
-          (define all-series
-            (map first (taylor-coefficients batch brfs (list var) taylor-transforms)))
+        (parameterize ([reduce (block-reduce block)]
+                       [add (lambda (x) (block-add! block x))])
+          (define block->expr (block-exprs block))
+          (define all-series (map first (taylor-coefficients block vs (list var) taylor-transforms)))
           (for ([series (in-list all-series)]
                 [transform (in-list taylor-transforms)])
             (match-define (list name forward inverse) transform)
             (define tform (cons forward inverse))
-            (define next-term (taylor-terms series batch var #:transform tform))
+            (define next-term (taylor-terms series block var #:transform tform))
             ;; Evaluate term coefficients.
-            (define kept-term (evaluate-term batch (next-term) out-repr))
-            (define dropped-term (evaluate-term batch (next-term) out-repr))
+            (define kept-term (evaluate-term block (next-term) out-repr))
+            (define dropped-term (evaluate-term block (next-term) out-repr))
             (when (and kept-term dropped-term)
               (define radius (cover-radius kept-term dropped-term out-repr))
               (match-define (cons lo hi) (cover-interval name radius var-repr))
               (define cover-expr
-                (fpcore->prog (batch->expr (horner-form (list kept-term) var #:transform tform)) ctx))
+                (fpcore->prog (block->expr (horner-form (list kept-term) var #:transform tform)) ctx))
               (sow (taylor-cover name var var-repr out-repr lo hi cover-expr (cdr kept-term))))))))
 
 ;; A cover is likely only worth a branch if it beats the original program on

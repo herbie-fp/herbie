@@ -10,7 +10,7 @@
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
          "../syntax/load-platform.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "../core/localize.rkt"
          "../core/alternative.rkt"
          "../core/compiler.rkt"
@@ -59,13 +59,13 @@
 
 ;; API Functions
 
-;; Sampling a test more than once should reuse its batch.
+;; Sampling a test more than once should reuse its block.
 (define (make-sampler test)
-  (define-values (batch brfs) (progs->batch (list (test-spec test)) #:ctx (*context*)))
+  (define-values (block vs) (progs->block (list (test-spec test)) #:ctx (*context*)))
   (lambda ([precondition (test-pre test)] [count (+ (*num-points*) (*reeval-pts*))])
     (define sample
       (parameterize ([*num-points* count])
-        (sample-points precondition batch brfs (list (context-repr (*context*))))))
+        (sample-points precondition block vs (list (context-repr (*context*))))))
     (apply mk-pcontext sample)))
 
 ;; Sort by cost first to breaks ties.

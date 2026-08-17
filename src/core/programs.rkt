@@ -4,7 +4,7 @@
          "../syntax/syntax.rkt"
          "../syntax/platform.rkt"
          "../syntax/types.rkt"
-         "../syntax/batch.rkt")
+         "../syntax/block.rkt")
 
 (provide expr?
          expr<?
@@ -14,12 +14,12 @@
          impl-prog?
          node-is-impl?
          repr-of
-         batch-repr-of
+         block-repr-of
          get-locations
          free-variables
          replace-expression
-         batch-replace-expression!
-         batch-replace-subexpr
+         block-replace-expression!
+         block-replace-subexpr
          replace-vars)
 
 ;; Programs are just lisp lists plus atoms
@@ -41,11 +41,11 @@
     [(approx _ impl) (repr-of impl ctx)]
     [(list op args ...) (impl-info op 'otype)]))
 
-(define (batch-repr-of brf)
-  (define batch (batchref-batch brf))
-  (define var-reprs (map cons (batch-vars batch) (batch-var-reprs batch)))
-  (let loop ([brf brf])
-    (match (deref brf)
+(define (block-repr-of v)
+  (define block (val-block v))
+  (define var-reprs (map cons (block-vars block) (block-var-reprs block)))
+  (let loop ([v v])
+    (match (val-def v)
       [(literal val precision) (get-representation precision)]
       [(? symbol? node) (dict-ref var-reprs node)]
       [(approx _ impl) (loop impl)]
@@ -97,9 +97,9 @@
 
 (define (expr-cmp a b)
   (match* (a b)
-    [((? batchref?) (? batchref?)) (expr-cmp (deref a) (deref b))]
-    [((? batchref?) _) (expr-cmp (deref a) b)]
-    [(_ (? batchref?)) (expr-cmp a (deref b))]
+    [((? val?) (? val?)) (expr-cmp (val-def a) (val-def b))]
+    [((? val?) _) (expr-cmp (val-def a) b)]
+    [(_ (? val?)) (expr-cmp a (val-def b))]
     [((? list?) (? list?))
      (define len-a (length a))
      (define len-b (length b))
@@ -187,8 +187,8 @@
       [(approx spec impl) (approx (loop spec) (loop impl))]
       [(list op args ...) (cons op (map loop args))])))
 
-(define (batch-replace-expression! batch from to)
-  (define from* (deref (batch-add! batch from))) ;; a hack on how not to use deref for "from"
+(define (block-replace-expression! block from to)
+  (define from* (val-def (block-add! block from))) ;; a hack on how not to use val-def for "from"
   (define (f node)
     (match node
       [(== from*) to]
@@ -197,48 +197,48 @@
       [(? symbol?) node]
       [(approx spec impl) (approx spec impl)]
       [(list op args ...) (cons op args)]))
-  (batch-recurse batch
-                 (λ (brf recurse)
-                   (define node (deref brf))
+  (block-recurse block
+                 (λ (v recurse)
+                   (define node (val-def v))
                    (define node* (f node))
                    (let loop ([node* node*])
                      (match node*
-                       [(? batchref? brf) (recurse brf)]
-                       [_ (batch-push! batch (expr-recurse node* (compose batchref-idx loop)))])))))
+                       [(? val? v) (recurse v)]
+                       [_ (block-push! block (expr-recurse node* (compose val-idx loop)))])))))
 
-;; Replace all occurrences of `from` with `to` in expression `expr`, returning a new batchref
+;; Replace all occurrences of `from` with `to` in expression `expr`, returning a new val
 ;; Only recurses into impl parts, not specs
-(define (batch-replace-subexpr batch expr from to [can-refer #f])
+(define (block-replace-subexpr block expr from to [can-refer #f])
   (define cache (make-hasheq))
-  (define from-idx (batchref-idx from))
-  (let loop ([brf expr])
-    (define idx (batchref-idx brf))
+  (define from-idx (val-idx from))
+  (let loop ([v expr])
+    (define idx (val-idx v))
     (cond
-      [(< idx from-idx) brf]
+      [(< idx from-idx) v]
       [(= idx from-idx) to]
-      [(and can-refer (not (set-member? can-refer idx))) brf]
+      [(and can-refer (not (set-member? can-refer idx))) v]
       [else
        (hash-ref! cache
                   idx
                   (lambda ()
-                    (match (deref brf)
+                    (match (val-def v)
                       [(approx spec impl)
                        (define impl* (loop impl))
-                       (if (= (batchref-idx impl*) (batchref-idx impl))
-                           brf
-                           (batch-push! batch (approx (batchref-idx spec) (batchref-idx impl*))))]
+                       (if (= (val-idx impl*) (val-idx impl))
+                           v
+                           (block-push! block (approx spec (val-idx impl*))))]
                       [node
                        (define unchanged? #t)
                        (define node*
                          (expr-recurse node
                                        (lambda (arg)
                                          (define arg* (loop arg))
-                                         (unless (= (batchref-idx arg*) (batchref-idx arg))
+                                         (unless (= (val-idx arg*) (val-idx arg))
                                            (set! unchanged? #f))
-                                         (batchref-idx arg*))))
+                                         (val-idx arg*))))
                        (if unchanged?
-                           brf
-                           (batch-push! batch node*))])))])))
+                           v
+                           (block-push! block node*))])))])))
 
 (module+ test
   (require rackunit)

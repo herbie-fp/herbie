@@ -16,7 +16,7 @@
          "../syntax/syntax.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "compiler.rkt"
          "points.rkt"
          "programs.rkt")
@@ -35,8 +35,8 @@
       (context (free-variables expr)
                <binary64>
                (make-list (length (free-variables expr)) <binary64>)))
-    (define-values (batch brfs) (progs->batch (list expr) #:ctx ctx))
-    (critical-subexpression? batch (first brfs) (batch-add! batch subexpr))))
+    (define-values (block vs) (progs->block (list expr) #:ctx ctx))
+    (critical-subexpression? block (first vs) (block-add! block subexpr))))
 
 (struct option (split-indices alts pts expr)
   #:transparent
@@ -44,39 +44,39 @@
   [(define (write-proc opt port mode)
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
-;; CONSIDER: move start-prog and the "branch-brfs" computation into caller.
-(define (pareto-regimes batch sorted start-prog pcontext)
+;; CONSIDER: move start-prog and the "branch-vs" computation into caller.
+(define (pareto-regimes block sorted start-prog pcontext spec-block)
   (timeline-event! 'regimes)
   (define alts-vec (list->vector sorted))
   (define alt-count (vector-length alts-vec))
-  (define err-cols (batch-errors batch (map alt-expr sorted) pcontext))
-  (define (real-brf? brf)
-    (equal? (representation-type (batch-repr-of brf)) 'real))
-  (define branch-brfs
-    (filter real-brf?
+  (define err-cols (block-errors block (map alt-expr sorted) pcontext))
+  (define (real-v? v)
+    (equal? (representation-type (block-repr-of v)) 'real))
+  (define branch-vs
+    (filter real-v?
             (if (flag-set? 'reduce 'branch-expressions)
-                (critical-subexpressions batch start-prog)
-                (map (curry batch-add! batch) (batch-vars batch)))))
+                (critical-subexpressions block start-prog)
+                (map (curry block-add! block) (block-vars block)))))
 
-  (define brf-vals (brf-values* batch branch-brfs pcontext))
+  (define v-vals (v-values* block branch-vs pcontext))
   (define pts-vec (pcontext-points pcontext))
 
   ;; For timeline
-  (define batch-jsexpr (batch->jsexpr batch (append (map alt-expr sorted) branch-brfs)))
-  (timeline-push! 'batch batch-jsexpr)
-  (define branch-roots (drop (hash-ref batch-jsexpr 'roots) alt-count))
-  (define branch-root-map (make-immutable-hash (map cons branch-brfs branch-roots)))
+  (define block-jsexpr (block->jsexpr block spec-block (append (map alt-expr sorted) branch-vs)))
+  (timeline-push! 'block block-jsexpr)
+  (define branch-roots (drop (hash-ref block-jsexpr 'roots) alt-count))
+  (define branch-root-map (make-immutable-hash (map cons branch-vs branch-roots)))
 
   (define option-curves
-    (for/list ([brf (in-list branch-brfs)]
-               [brf-vals-vec (in-list brf-vals)])
-      (define timeline-stop! (timeline-start! 'times (batch->jsexpr batch (list brf))))
-      (define repr (batch-repr-of brf))
-      (define curve (branch-options batch alts-vec err-cols pts-vec brf brf-vals-vec repr))
+    (for/list ([v (in-list branch-vs)]
+               [v-vals-vec (in-list v-vals)])
+      (define timeline-stop! (timeline-start! 'times (block->jsexpr block spec-block (list v))))
+      (define repr (block-repr-of v))
+      (define curve (branch-options block alts-vec err-cols pts-vec v v-vals-vec repr))
       (define last-point (last curve))
       (timeline-stop!)
       (timeline-push! 'branch
-                      (hash-ref branch-root-map brf)
+                      (hash-ref branch-root-map v)
                       (- (pareto-point-error last-point)
                          (length (option-split-indices (pareto-point-data last-point))))
                       (length (option-split-indices (pareto-point-data last-point)))
@@ -87,10 +87,11 @@
       (pareto-union curve branch-curve #:combine (lambda (old _new) old))))
 
   ;; Timeline
-  (timeline-push! 'inputs (batch->jsexpr batch (map alt-expr sorted)))
+  (timeline-push! 'inputs (block->jsexpr block spec-block (map alt-expr sorted)))
   (timeline-push!
    'outputs
-   (batch->jsexpr batch
+   (block->jsexpr block
+                  spec-block
                   (remove-duplicates
                    (for*/list ([ppt (in-list combined-option-curve)]
                                [sidx (in-list (option-split-indices (pareto-point-data ppt)))])
@@ -104,59 +105,59 @@
                     (baseline-errors-score err-cols (pareto-point-cost ppt)))
     opt))
 
-(define (critical-subexpression? batch root-brf sub-brf)
-  (set-member? (critical-subexpressions batch root-brf) sub-brf))
+(define (critical-subexpression? block root-v sub-v)
+  (set-member? (critical-subexpressions block root-v) sub-v))
 
-(define (critical-subexpressions batch root-brf)
-  (define var-brfs (map (curry batch-add! batch) (batch-vars batch)))
-  (define free-vars (batch-free-vars batch))
-  (define dom-parent (build-dominator-tree batch root-brf))
-  (define (dominates? parent-brf child-brf)
+(define (critical-subexpressions block root-v)
+  (define var-vs (map (curry block-add! block) (block-vars block)))
+  (define free-vars (block-free-vars block))
+  (define dom-parent (build-dominator-tree block root-v))
+  (define (dominates? parent-v child-v)
     (cond
-      [(equal? parent-brf child-brf) #t]
-      [(equal? child-brf root-brf) #f]
-      [else (dominates? parent-brf (dom-parent child-brf))]))
-  (define (extractable? brf)
-    (for/and ([var (in-set (free-vars brf))])
-      (dominates? brf (batch-add! batch var))))
+      [(equal? parent-v child-v) #t]
+      [(equal? child-v root-v) #f]
+      [else (dominates? parent-v (dom-parent child-v))]))
+  (define (extractable? v)
+    (for/and ([var (in-set (free-vars v))])
+      (dominates? v (block-add! block var))))
   (reap [sow]
-        (define seen-brfs (mutable-set root-brf))
-        (sow root-brf)
-        (for ([brf (in-list var-brfs)])
-          (when (dom-parent brf)
-            (let loop ([brf brf])
-              (unless (set-member? seen-brfs brf)
-                (set-add! seen-brfs brf)
-                (when (extractable? brf)
-                  (sow brf))
-                (loop (dom-parent brf))))))))
+        (define seen-vs (mutable-set root-v))
+        (sow root-v)
+        (for ([v (in-list var-vs)])
+          (when (dom-parent v)
+            (let loop ([v v])
+              (unless (set-member? seen-vs v)
+                (set-add! seen-vs v)
+                (when (extractable? v)
+                  (sow v))
+                (loop (dom-parent v))))))))
 
-(define (build-dominator-tree batch root-brf)
-  (define reachable-brfs (reverse (batch-reachable/impl batch (list root-brf))))
-  (define dom-parents (make-vector (batch-length batch) #f))
-  (define (dom-parent brf)
-    (vector-ref dom-parents (batchref-idx brf)))
-  (define (update-child! brf child-brf)
-    (define old-parent (dom-parent child-brf))
+(define (build-dominator-tree block root-v)
+  (define reachable-vs (reverse (block-reachable block (list root-v))))
+  (define dom-parents (make-vector (block-length block) #f))
+  (define (dom-parent v)
+    (vector-ref dom-parents (val-idx v)))
+  (define (update-child! v child-v)
+    (define old-parent (dom-parent child-v))
     (define new-parent
       (if old-parent
-          (dominator-lca brf old-parent dom-parent)
-          brf))
-    (vector-set! dom-parents (batchref-idx child-brf) new-parent))
-  (vector-set! dom-parents (batchref-idx root-brf) root-brf)
-  (for ([brf (in-list reachable-brfs)])
-    (expr-recurse-impl (deref brf) (lambda (child) (update-child! brf child))))
+          (dominator-lca v old-parent dom-parent)
+          v))
+    (vector-set! dom-parents (val-idx child-v) new-parent))
+  (vector-set! dom-parents (val-idx root-v) root-v)
+  (for ([v (in-list reachable-vs)])
+    (expr-recurse (val-def v) (lambda (child) (update-child! v child))))
   dom-parent)
 
-(define (dominator-lca brf1 brf2 dom-parent)
-  (let loop ([brf1 brf1]
-             [brf2 brf2])
-    (define idx1 (batchref-idx brf1))
-    (define idx2 (batchref-idx brf2))
+(define (dominator-lca v1 v2 dom-parent)
+  (let loop ([v1 v1]
+             [v2 v2])
+    (define idx1 (val-idx v1))
+    (define idx2 (val-idx v2))
     (cond
-      [(= idx1 idx2) brf1]
-      [(< idx1 idx2) (loop (dom-parent brf1) brf2)]
-      [else (loop brf1 (dom-parent brf2))])))
+      [(= idx1 idx2) v1]
+      [(< idx1 idx2) (loop (dom-parent v1) v2)]
+      [else (loop v1 (dom-parent v2))])))
 
 (define (baseline-errors-score err-cols count)
   (for/fold ([best +inf.0]) ([err-col (in-list (take err-cols count))])
@@ -169,9 +170,9 @@
                 (min best-err (flvector-ref err-col point-idx))))
      num-points))
 
-(define (brf-values* batch brfs pcontext)
-  (define count (length brfs))
-  (define fn (compile-batch batch brfs))
+(define (v-values* block vs pcontext)
+  (define count (length vs))
+  (define fn (compile-block block vs))
   (define num-points (pcontext-length pcontext))
   (define vals (build-vector count (lambda (_) (make-vector num-points))))
   (for ([pt (in-vector (pcontext-points pcontext))]
@@ -181,11 +182,10 @@
       (vector-set! (vector-ref vals i) p out)))
   (vector->list vals))
 
-(define (branch-options batch alts-vec err-cols pts-vec brf brf-vals-vec repr)
+(define (branch-options block alts-vec err-cols pts-vec v v-vals-vec repr)
   (define sorted-indices
-    (vector-sort (build-vector (vector-length brf-vals-vec) values)
-                 (lambda (i j)
-                   (</total (vector-ref brf-vals-vec i) (vector-ref brf-vals-vec j) repr))))
+    (vector-sort (build-vector (vector-length v-vals-vec) values)
+                 (lambda (i j) (</total (vector-ref v-vals-vec i) (vector-ref v-vals-vec j) repr))))
   (define pts*
     (for/list ([i (in-vector sorted-indices)])
       (vector-ref pts-vec i)))
@@ -193,7 +193,7 @@
     (cons #f
           (for/list ([idx (in-vector sorted-indices 1)]
                      [prev-idx (in-vector sorted-indices 0)])
-            (</total (vector-ref brf-vals-vec prev-idx) (vector-ref brf-vals-vec idx) repr))))
+            (</total (vector-ref v-vals-vec prev-idx) (vector-ref v-vals-vec idx) repr))))
 
   (define-values (splitss scores) (infer-option-prefixes err-cols sorted-indices can-split?))
 
@@ -202,7 +202,7 @@
       (define split-indices (vector-ref splitss (sub1 count)))
       (define alts (vector->list (vector-take alts-vec count)))
       (define error (+ (/ (flvector-ref scores (sub1 count)) (vector-length sorted-indices)) 1))
-      (pareto-point count error (option split-indices alts pts* brf))))
+      (pareto-point count error (option split-indices alts pts* v))))
   (for/fold ([curve '()]) ([point (in-list points)])
     (pareto-union curve (list point) #:combine (lambda (old _new) old))))
 
@@ -217,29 +217,23 @@
   (define pts-vec (pcontext-points pctx))
 
   (define (test-regimes expr goal)
-    (define-values (batch brfs) (progs->batch (list expr) #:ctx ctx))
-    (define brf (car brfs))
-    (define brf-vals (car (brf-values* batch (list brf) pctx)))
+    (define-values (block vs) (progs->block (list expr) #:ctx ctx))
+    (define v (car vs))
+    (define v-vals (car (v-values* block (list v) pctx)))
     (check
      (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
      (pareto-point-data
-      (first
-       (branch-options batch (list->vector alts) err-cols pts-vec brf brf-vals (batch-repr-of brf))))
+      (first (branch-options block (list->vector alts) err-cols pts-vec v v-vals (block-repr-of v))))
      goal))
 
   (define (test-regimes/prefixes expr goals)
-    (define-values (batch brfs) (progs->batch (list expr) #:ctx ctx))
-    (define brf (car brfs))
-    (define brf-vals (car (brf-values* batch (list brf) pctx)))
+    (define-values (block vs) (progs->block (list expr) #:ctx ctx))
+    (define v (car vs))
+    (define v-vals (car (v-values* block (list v) pctx)))
     (define options
       (map pareto-point-data
-           (reverse (branch-options batch
-                                    (list->vector alts)
-                                    err-cols
-                                    pts-vec
-                                    brf
-                                    brf-vals
-                                    (batch-repr-of brf)))))
+           (reverse
+            (branch-options block (list->vector alts) err-cols pts-vec v v-vals (block-repr-of v)))))
     (for ([goal (in-list goals)]
           [opt (in-list options)])
       (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y)) opt goal)))
@@ -266,14 +260,14 @@
 
   (let ()
     (define xy-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
-    (define-values (batch brfs) (progs->batch (list 'x) #:ctx xy-ctx))
-    (check-true (critical-subexpression? batch (first brfs) (batch-add! batch 'x)))
-    (check-false (critical-subexpression? batch (first brfs) (batch-add! batch 'y))))
+    (define-values (block vs) (progs->block (list 'x) #:ctx xy-ctx))
+    (check-true (critical-subexpression? block (first vs) (block-add! block 'x)))
+    (check-false (critical-subexpression? block (first vs) (block-add! block 'y))))
 
   (let ()
     (define xyz-ctx (context '(x y z) <binary64> (list <binary64> <binary64> <binary64>)))
-    (define-values (batch brfs) (progs->batch (list '(* (+ x y) (/ x z))) #:ctx xyz-ctx))
-    (check-false (critical-subexpression? batch (first brfs) (batch-add! batch '(+ x y)))))
+    (define-values (block vs) (progs->block (list '(* (+ x y) (/ x z))) #:ctx xyz-ctx))
+    (check-false (critical-subexpression? block (first vs) (block-add! block '(+ x y)))))
 
   (let ()
     (define vec2-ctx
@@ -284,8 +278,8 @@
     (define dot-product
       '(+.f64 (*.f64 (ref.f64 a #s(literal 0 binary64)) (ref.f64 b #s(literal 0 binary64)))
               (*.f64 (ref.f64 a #s(literal 1 binary64)) (ref.f64 b #s(literal 1 binary64)))))
-    (define-values (batch brfs) (progs->batch (list dot-product) #:ctx vec2-ctx))
-    (check-true (set-member? (critical-subexpressions batch (first brfs)) (first brfs)))))
+    (define-values (block vs) (progs->block (list dot-product) #:ctx vec2-ctx))
+    (check-true (set-member? (critical-subexpressions block (first vs)) (first vs)))))
 
 (define (valid-splitindices? can-split? split-indices)
   (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])

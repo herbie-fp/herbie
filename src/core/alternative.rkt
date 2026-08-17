@@ -1,13 +1,13 @@
 #lang racket
 
 (require "../syntax/platform.rkt"
-         "../syntax/batch.rkt")
+         "../syntax/block.rkt")
 (provide (struct-out alt)
          (struct-out sp)
          make-alt
          alt-cost
          alt-map
-         unbatchify-alts)
+         unblockify-alts)
 
 ;; A splitpoint (sp a b pt) means we should use alt a if b < pt
 ;; The last splitpoint uses +nan.0 for pt and represents the "else"
@@ -27,15 +27,16 @@
 (define (alt-map f altn)
   (f (struct-copy alt altn [prevs (map (curry alt-map f) (alt-prevs altn))])))
 
-;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
-(define (unbatchify-alts batch altns)
-  (define exprs (batch-exprs batch))
+;; Converts vals of altns into expressions, assuming that vals refer to block
+(define (unblockify-alts block altns spec-block)
+  (define spec-f (block-exprs spec-block))
+  (define exprs (block-exprs block #:spec-f spec-f))
   (define (unmunge-event event)
     (match event
-      [(list 'evaluate (? batchref? start-expr)) (list 'evaluate (exprs start-expr))]
-      [(list 'taylor (? batchref? start-expr) name var order)
+      [(list 'evaluate (? val? start-expr)) (list 'evaluate (exprs start-expr))]
+      [(list 'taylor (? val? start-expr) name var order)
        (list 'taylor (exprs start-expr) name var order)]
-      [(list 'rr (? batchref? start-expr) (? batchref? end-expr) input proof)
+      [(list 'rr (? val? start-expr) (? val? end-expr) input proof)
        (define proof* (and proof (map exprs proof)))
        (list 'rr (exprs start-expr) (exprs end-expr) input proof*)]
       [(list 'regimes splitpoints)
@@ -46,7 +47,7 @@
   (define (unmunge altn)
     (define expr (alt-expr altn))
     (define expr*
-      (if (batchref? expr)
+      (if (val? expr)
           (exprs expr)
           expr))
     (define event* (unmunge-event (alt-event altn)))
