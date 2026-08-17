@@ -12,7 +12,6 @@
          "alternative.rkt"
          "batch-reduce.rkt"
          "points.rkt"
-         "programs.rkt"
          "taylor.rkt")
 
 (provide compute-taylor-covers
@@ -27,10 +26,10 @@
 (define (predecessor value repr)
   ((representation-ordinal->repr repr) (sub1 ((representation-repr->ordinal repr) value))))
 
-(define (cover-radius coeffs exponents out-repr)
-  (match-define (list kept dropped) coeffs)
-  (match-define (list kept-exponent dropped-exponent) exponents)
-  (expt (* (precision-epsilon out-repr) (/ (abs kept) (abs dropped)))
+(define (cover-radius kept dropped out-repr)
+  (match-define (cons kept-coeff kept-exponent) kept)
+  (match-define (cons dropped-coeff dropped-exponent) dropped)
+  (expt (* (precision-epsilon out-repr) (/ (abs kept-coeff) (abs dropped-coeff)))
         (/ 1 (- dropped-exponent kept-exponent))))
 
 (define (cover-interval name radius var-repr)
@@ -39,47 +38,47 @@
                     radius
                     (/ 1 radius))
                 var-repr))
-  (and (rational? bound) ; Guard against infinities.
-       (positive? bound)
-       (match name
-         [0 (cons (- bound) bound)]
-         ['inf (cons bound +inf.0)]
-         ['-inf (cons -inf.0 (- bound))])))
+  (match name
+    [0 (cons (- bound) bound)]
+    ['inf (cons bound +inf.0)]
+    ['-inf (cons -inf.0 (- bound))]))
 
-(define (coefficient-values batch coeffs out-repr)
-  (define exprs (map (batch-exprs batch) coeffs))
-  (define ctx (context '() out-repr '()))
-  (define-values (const-batch brfs) (progs->batch exprs #:ctx ctx))
-  (define compiler (make-real-compiler const-batch brfs (map (const out-repr) exprs)))
-  (define-values (status outs) (real-apply compiler (vector)))
-  (define nums (and (equal? status 'valid) (map (lambda (out) (repr->real out out-repr)) outs)))
-  (and nums (andmap (lambda (n) (and (rational? n) (not (zero? n)))) nums) nums))
+(define (evaluate-coefficient batch term out-repr)
+  (define constant-batch (batch-empty (context '() #f '())))
+  (define brf ((batch-copy-only! constant-batch batch) (car term)))
+  (define free-vars (batch-free-vars constant-batch))
+  ;; Ensure both coefficients are pure constants before evaluating.
+  (cond
+    [(set-empty? (free-vars brf))
+     (define compiler (make-real-compiler constant-batch (list brf) (list out-repr)))
+     (define-values (status outs) (real-apply compiler (vector)))
+     (define num (and (equal? status 'valid) (repr->real (first outs) out-repr)))
+     (and num (rational? num) (not (zero? num)) (cons num (cdr term)))]
+    [else #f]))
 
-(define (build-cover batch series transform ctx)
+(define (build-cover batch series transform var var-repr ctx)
   (match-define (list name forward inverse) transform)
-  (match-define (context (list var) out-repr (list var-repr)) ctx)
+  (define out-repr (context-repr ctx))
   (define tform (cons forward inverse))
   (define next-term (taylor-terms series batch var #:transform tform))
-  (define terms (list (next-term) (next-term)))
-  ;; Ensure both coefficients are pure constants and then evaluate.
-  (define coeffs
-    (and (andmap (lambda (term) (and term (null? (free-variables ((batch-exprs batch) (car term))))))
-                 terms)
-         (coefficient-values batch (map car terms) out-repr)))
-  (define radius (and coeffs (cover-radius coeffs (map cdr terms) out-repr)))
-  (define bounds (and radius (cover-interval name radius var-repr)))
-  (and bounds
-       (let ([kept-term (cons (first coeffs) (cdr (first terms)))])
-         (taylor-cover
-          name
-          var
-          var-repr
-          out-repr
-          (car bounds)
-          (cdr bounds)
-          (fpcore->prog ((batch-exprs batch) (horner-form (list kept-term) var #:transform tform))
-                        ctx)
-          (cdr kept-term)))))
+  (define kept-term (next-term))
+  (define dropped-term (next-term))
+  (define kept (and kept-term (evaluate-coefficient batch kept-term out-repr)))
+  (define dropped (and dropped-term (evaluate-coefficient batch dropped-term out-repr)))
+  (cond
+    [(and kept dropped)
+     (define radius (cover-radius kept dropped out-repr))
+     (match-define (cons lo hi) (cover-interval name radius var-repr))
+     (taylor-cover name
+                   var
+                   var-repr
+                   out-repr
+                   lo
+                   hi
+                   (fpcore->prog ((batch-exprs batch) (horner-form (list kept) var #:transform tform))
+                                 ctx)
+                   (cdr kept))]
+    [else #f]))
 
 ;; A cover is likely only worth a branch if it beats the original program on
 ;; the initial sample of training points.
@@ -99,8 +98,8 @@
   (< cover-total expr-total))
 
 (define (compute-taylor-covers spec expr pcontext ctx)
-  (match (context-vars ctx)
-    [(list var) ; For now, covers only apply to univariate functions.
+  (match ctx
+    [(context (list var) _ (list var-repr)) ; For now, covers only apply to univariate functions.
      (timeline-event! 'series)
      (define-values (batch brfs) (progs->batch (list spec) #:ctx ctx))
      (parameterize ([reduce (batch-reduce batch)]
@@ -110,7 +109,7 @@
          (filter values
                  (for/list ([series (in-list all-series)]
                             [transform (in-list taylor-transforms)])
-                   (build-cover batch series transform ctx))))
+                   (build-cover batch series transform var var-repr ctx))))
        ;; Keep the covers that improve over the original train-pcontext; if any do,
        ;; sandbox.rkt samples a new train-pcontext with their regions excluded.
        (define covers (filter (curryr cover-improves? expr pcontext ctx) candidates))
