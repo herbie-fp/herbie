@@ -1,7 +1,6 @@
 #lang racket
 
-(require math/flonum
-         (only-in fpbench interval range-table-ref condition->range-table))
+(require math/flonum)
 (require "../syntax/batch.rkt"
          "../syntax/float.rkt"
          "../syntax/platform.rkt"
@@ -23,46 +22,29 @@
 (struct taylor-cover (name var var-repr out-repr lo hi expr exponent))
 
 (define (precision-epsilon repr)
-  (match (representation-name repr)
-    ['binary64 (expt 2 -53)]
-    ['binary32 (expt 2 -24)]
-    [_ #f]))
-
-(define (overlapping-bounds intervals lo hi)
-  (for/or ([iv (in-list intervals)])
-    (match-define (cons iv-lo iv-hi) iv)
-    (and (< iv-lo hi) (< lo iv-hi) iv)))
+  (- 1 (repr->real (predecessor (real->repr 1 repr) repr) repr)))
 
 (define (predecessor value repr)
   ((representation-ordinal->repr repr) (sub1 ((representation-repr->ordinal repr) value))))
 
-(define (cover-radius coeffs exponents epsilon)
+(define (cover-radius coeffs exponents out-repr)
   (match-define (list kept dropped) coeffs)
   (match-define (list kept-exponent dropped-exponent) exponents)
-  (expt (* epsilon (/ (abs kept) (abs dropped))) (/ 1 (- dropped-exponent kept-exponent))))
+  (expt (* (precision-epsilon out-repr) (/ (abs kept) (abs dropped)))
+        (/ 1 (- dropped-exponent kept-exponent))))
 
-(define (cover-interval name radius var-repr intervals)
-  (match name
-    [0
-     (match (overlapping-bounds intervals (- radius) radius)
-       [(cons iv-lo iv-hi)
-        (define lo (real->repr (max (- radius) iv-lo) var-repr))
-        (define hi (real->repr (min radius iv-hi) var-repr))
-        ;; Rational checks to guard against infinities.
-        (and (rational? lo) (rational? hi) (< lo hi) (cons lo hi))]
-       [#f #f])]
-    ['inf
-     (define threshold (real->repr (/ 1 radius) var-repr))
-     (and (rational? threshold)
-          (positive? threshold)
-          (overlapping-bounds intervals threshold +inf.0)
-          (cons threshold +inf.0))]
-    ['-inf
-     (define threshold (real->repr (/ 1 radius) var-repr))
-     (and (rational? threshold)
-          (positive? threshold)
-          (overlapping-bounds intervals -inf.0 (- threshold))
-          (cons -inf.0 (- threshold)))]))
+(define (cover-interval name radius var-repr)
+  (define bound
+    (real->repr (if (equal? name 0)
+                    radius
+                    (/ 1 radius))
+                var-repr))
+  (and (rational? bound) ; Guard against infinities.
+       (positive? bound)
+       (match name
+         [0 (cons (- bound) bound)]
+         ['inf (cons bound +inf.0)]
+         ['-inf (cons -inf.0 (- bound))])))
 
 (define (coefficient-values batch coeffs out-repr)
   (define exprs (map (batch-exprs batch) coeffs))
@@ -73,7 +55,7 @@
   (define nums (and (equal? status 'valid) (map (lambda (out) (repr->real out out-repr)) outs)))
   (and nums (andmap (lambda (n) (and (rational? n) (not (zero? n)))) nums) nums))
 
-(define (build-cover batch series transform ctx epsilon intervals)
+(define (build-cover batch series transform ctx)
   (match-define (list name forward inverse) transform)
   (match-define (context (list var) out-repr (list var-repr)) ctx)
   (define tform (cons forward inverse))
@@ -84,8 +66,8 @@
     (and (andmap (lambda (term) (and term (null? (free-variables ((batch-exprs batch) (car term))))))
                  terms)
          (coefficient-values batch (map car terms) out-repr)))
-  (define radius (and coeffs (cover-radius coeffs (map cdr terms) epsilon)))
-  (define bounds (and radius (cover-interval name radius var-repr intervals)))
+  (define radius (and coeffs (cover-radius coeffs (map cdr terms) out-repr)))
+  (define bounds (and radius (cover-interval name radius var-repr)))
   (and bounds
        (let ([kept-term (cons (first coeffs) (cdr (first terms)))])
          (taylor-cover
@@ -116,37 +98,30 @@
       (values (+ cover-total cover-err) (+ expr-total expr-err))))
   (< cover-total expr-total))
 
-(define (compute-taylor-covers spec pre expr pcontext ctx)
-  (define epsilon (precision-epsilon (context-repr ctx)))
+(define (compute-taylor-covers spec expr pcontext ctx)
   (match (context-vars ctx)
     [(list var) ; For now, covers only apply to univariate functions.
-     #:when epsilon
      (timeline-event! 'series)
-     (define intervals
-       (for/list ([iv (in-list (range-table-ref (condition->range-table pre) var))])
-         (match-define (interval lo hi _ _) iv)
-         (cons lo hi)))
      (define-values (batch brfs) (progs->batch (list spec) #:ctx ctx))
-     (define (try-cover transform coefficients)
-       (define cover (build-cover batch (first coefficients) transform ctx epsilon intervals))
-       (cond
-         [cover
-          ;; Keep the cover if it improves over the original train-pcontext; if so,
-          ;; sandbox.rkt samples a new train-pcontext with the cover region excluded.
-          (define kept? (cover-improves? cover expr pcontext ctx))
-          (timeline-push! 'taylor-count
-                          (~a (first transform))
-                          (taylor-cover-exponent cover)
-                          1
-                          1
-                          (if kept? 1 0))
-          (and kept? cover)]
-         [else #f]))
      (parameterize ([reduce (batch-reduce batch)]
                     [add (lambda (x) (batch-add! batch x))])
-       (filter-map try-cover
-                   taylor-transforms
-                   (taylor-coefficients batch brfs (list var) taylor-transforms)))]
+       (define all-series (map first (taylor-coefficients batch brfs (list var) taylor-transforms)))
+       (define candidates
+         (filter values
+                 (for/list ([series (in-list all-series)]
+                            [transform (in-list taylor-transforms)])
+                   (build-cover batch series transform ctx))))
+       ;; Keep the covers that improve over the original train-pcontext; if any do,
+       ;; sandbox.rkt samples a new train-pcontext with their regions excluded.
+       (define covers (filter (curryr cover-improves? expr pcontext ctx) candidates))
+       (for ([cover (in-list candidates)])
+         (timeline-push! 'taylor-count
+                         (~a (taylor-cover-name cover))
+                         (taylor-cover-exponent cover)
+                         1
+                         1
+                         (if (memq cover covers) 1 0)))
+       covers)]
     [_ '()]))
 
 ;; Spec precondition for all points strictly outside the cover.

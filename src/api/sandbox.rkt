@@ -166,11 +166,7 @@
   (define sample (make-sampler test))
   (define-values (train-pcontext test-pcontext) (partition-pcontext (sample)))
   (define covers
-    (compute-taylor-covers (test-spec test)
-                           (test-pre test)
-                           (test-input test)
-                           train-pcontext
-                           (*context*)))
+    (compute-taylor-covers (test-spec test) (test-input test) train-pcontext (*context*)))
   (define search-pcontext (and (pair? covers) (sample-search-points sample test covers)))
   (get-alternatives test
                     (or search-pcontext train-pcontext)
