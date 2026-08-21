@@ -22,7 +22,6 @@
          "../syntax/platform.rkt"
          "../core/programs.rkt"
          "../core/points.rkt"
-         "../core/taylor-cover.rkt"
          "../core/explain.rkt"
          "../utils/profile.rkt"
          "../utils/timeline.rkt"
@@ -68,14 +67,8 @@
         (sample-points precondition block vs (list (context-repr (*context*))))))
     (apply mk-pcontext sample)))
 
-;; Sort by cost first to breaks ties.
-(define (sort-alt-analyses alts errss)
-  (define by-cost
-    (sort (map alt-analysis alts errss) < #:key (compose alt-cost alt-analysis-alt) #:cache-keys? #t))
-  (sort by-cost < #:key (compose errors-score alt-analysis-errors) #:cache-keys? #t))
-
 ;; The main Herbie function
-(define (get-alternatives test train-pcontext test-pcontext covers)
+(define (get-alternatives test train-pcontext test-pcontext sampler)
   (unless train-pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
@@ -83,7 +76,8 @@
     (if (equal? (prog->spec (test-input test)) (test-spec test))
         (test-input test)
         (approx (test-spec test) (test-input test))))
-  (define alternatives (run-improve! initial-expr (test-spec test) (*context*) train-pcontext))
+  (define alternatives
+    (run-improve! initial-expr (test-spec test) (*context*) train-pcontext #:sampler sampler))
 
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
@@ -101,10 +95,8 @@
       (alt-analysis (make-alt target-expr) target-errs)))
 
   ;; compute error/cost for output expression
-  (define end-data
-    (let* ([report-alts (wrap-taylor-cover-alts alternatives covers)]
-           [test-errs (exprs-errors (map alt-expr report-alts) test-pcontext (*context*))])
-      (sort-alt-analyses report-alts test-errs)))
+  (define end-errs (exprs-errors (map alt-expr alternatives) test-pcontext (*context*)))
+  (define end-data (map alt-analysis alternatives end-errs))
 
   (improve-result test-pcontext start-alt-data target-alt-data end-data))
 
@@ -147,15 +139,16 @@
 
   (local-error-as-tree (test-input test) (*context*) pcontext))
 
-;; If post-covers region is unsamplable, rollback RNG to keep Herbie runs reproducible.
-(define (sample-search-points sample test covers)
-  (define rng-state (pseudo-random-generator->vector (current-pseudo-random-generator)))
-  (with-handlers ([exn:fail:user:herbie:sampling?
-                   (lambda (_)
-                     (current-pseudo-random-generator (vector->pseudo-random-generator rng-state))
-                     (timeline-push! 'stop "no-taylor-cover-sample" 1)
-                     #f)])
-    (sample (taylor-covers-precondition (test-pre test) covers) (*num-points*))))
+;; If the post-preprocessing region is unsamplable, rollback RNG to keep Herbie runs reproducible.
+(define (make-search-sampler test sample)
+  (lambda (precondition)
+    (define rng-state (pseudo-random-generator->vector (current-pseudo-random-generator)))
+    (with-handlers ([exn:fail:user:herbie:sampling?
+                     (lambda (_)
+                       (current-pseudo-random-generator (vector->pseudo-random-generator rng-state))
+                       (timeline-push! 'stop "no-search-sample" 1)
+                       #f)])
+      (sample `(and ,(test-pre test) ,precondition) (*num-points*)))))
 
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility
@@ -165,15 +158,7 @@
   (random) ;; Tick the random number generator, for backwards compatibility
   (define sample (make-sampler test))
   (define-values (train-pcontext test-pcontext) (partition-pcontext (sample)))
-  (define covers
-    (compute-taylor-covers (test-spec test) (test-input test) train-pcontext (*context*)))
-  (define search-pcontext (and (pair? covers) (sample-search-points sample test covers)))
-  (get-alternatives test
-                    (or search-pcontext train-pcontext)
-                    test-pcontext
-                    (if search-pcontext
-                        covers
-                        '())))
+  (get-alternatives test train-pcontext test-pcontext (make-search-sampler test sample)))
 
 ;;
 ;;  Public interface
@@ -220,7 +205,7 @@
           (match command
             ['alternatives
              (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-             (get-alternatives test train-pcontext test-pcontext '())]
+             (get-alternatives test train-pcontext test-pcontext #f)]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['explanations (get-explanations test pcontext)]

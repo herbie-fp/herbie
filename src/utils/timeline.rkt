@@ -205,7 +205,7 @@
 (define-timeline outputs #:unmergable)
 (define-timeline sampling #:custom merge-sampling-tables)
 (define-timeline bogosity #:custom (λ (x y) (list (hash-union (car x) (car y) #:combine +))))
-(define-timeline symmetry #:unmergable)
+(define-timeline preprocessing #:unmergable)
 (define-timeline bstep #:unmergable)
 (define-timeline kept #:unmergable)
 (define-timeline taylor-count [transform false] [order false] [vars false] [generated +] [kept +])

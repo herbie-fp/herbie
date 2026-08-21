@@ -43,7 +43,7 @@
 ;; - the loop: choose some alts, localize, run the patch table, and finalize
 ;; - Final steps: regimes, derivations, and remove preprocessing
 
-(define (run-improve! initial specification context pcontext)
+(define (run-improve! initial specification context pcontext #:sampler [sampler #f])
   (parameterize ([*global-block* (block-empty context)])
     (define global-spec-block (block-empty context))
     (define specification-v (block-add! global-spec-block specification))
@@ -56,8 +56,11 @@
       (if (flag-set? 'setup 'preprocess)
           (find-preprocessing global-spec-block specification-v context)
           '()))
-    (timeline-push! 'symmetry (map ~a preprocessing))
-    (define pcontext* (preprocess-pcontext context pcontext preprocessing))
+    (define-values (cover-sample pcontext*)
+      (preprocess-pcontext context pcontext preprocessing #:sampler sampler))
+    ;; If no covers were selected, the sample isn't modified; thus, use the original pcontext.
+    (define train-pcontext (or cover-sample pcontext))
+    (timeline-push! 'preprocessing (map ~a preprocessing))
     (*pcontext* pcontext*)
 
     (define spec-reducer (block-reduce global-spec-block))
@@ -65,16 +68,21 @@
     (*preprocessing* preprocessing)
     (*start-v* initial-v)
     (define start-alt (alt initial-v 'start '()))
-    (^table^ (make-alt-table (*global-block*) pcontext start-alt))
+    (^table^ (make-alt-table (*global-block*) train-pcontext start-alt))
 
     (for ([_ (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
       (run-iteration! global-spec-block spec-reducer))
     (define alternatives (extract! global-spec-block))
     (timeline-event! 'preprocess)
+    ;; Combine the original and the taylor cover sample.
+    (define validation-pcontext
+      (if cover-sample
+          (pcontext-append pcontext cover-sample)
+          pcontext))
     (for/list ([altn alternatives])
       (define expr (alt-expr altn))
-      (define expr* (compile-useful-preprocessing expr context pcontext (*preprocessing*)))
+      (define expr* (compile-useful-preprocessing expr context validation-pcontext (*preprocessing*)))
       (alt expr* 'add-preprocessing (list altn)))))
 
 (define (extract! spec-block)

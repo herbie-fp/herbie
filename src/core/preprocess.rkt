@@ -11,12 +11,11 @@
          "egg-herbie.rkt"
          "points.rkt"
          "programs.rkt"
-         "rules.rkt")
+         "rules.rkt"
+         "taylor-cover.rkt")
 
 (provide find-preprocessing
          preprocess-pcontext
-         remove-unnecessary-preprocessing
-         compile-preprocessing
          compile-useful-preprocessing)
 
 (define (has-fabs-impl? repr)
@@ -80,6 +79,9 @@
 (define (find-preprocessing block spec-v ctx)
   (define repr (context-repr ctx))
 
+  ;; covers
+  (define covers (compute-taylor-covers block spec-v ctx))
+
   ;; identities
   (define identities
     (append (make-even-identities block spec-v repr)
@@ -90,19 +92,24 @@
   (define vs (cons spec-v (map cdr identities)))
   (define runner (make-egraph block vs '(rewrite) ctx))
 
-  ;; collect equalities
-  (for/list ([(ident _) (in-dict identities)]
-             [idx (in-naturals 1)]
-             #:when (egraph-roots-equal? runner 0 idx))
-    ident))
+  ;; join covers and collected equalities
+  (append covers
+          (for/list ([(ident _) (in-dict identities)]
+                     [idx (in-naturals 1)]
+                     #:when (egraph-roots-equal? runner 0 idx))
+            ident)))
 
-(define (preprocess-pcontext context pcontext preprocessing)
+(define (preprocess-pcontext context pcontext preprocessing #:sampler sampler)
+  (define covers (filter taylor-cover? preprocessing))
+  ;; No sampler is provided when the pcontext is given by the user.
+  (define cover-sample (and sampler (pair? covers) (sampler (covers-constraint covers))))
+  (define sample (or cover-sample pcontext))
   (define preprocess
     (apply compose
            (map (curry instruction->operator context)
                 ;; Function composition applies the rightmost function first
-                (reverse preprocessing))))
-  (for/pcontext ([(x y) pcontext]) (preprocess x y)))
+                (reverse (filter-not taylor-cover? preprocessing)))))
+  (values cover-sample (for/pcontext ([(x y) sample]) (preprocess x y))))
 
 (define (vector-update v i f)
   (define copy (make-vector (vector-length v)))
@@ -163,18 +170,18 @@
     [(< (length result) (length preprocessing))
      (remove-unnecessary-preprocessing expression context pcontext result #:removed newly-removed)]
     [else
-     (timeline-push! 'symmetry (map ~a result))
+     (timeline-push! 'preprocessing (map ~a result))
      result]))
 
 (define (preprocessing-<=? expression context pcontext preprocessing1 preprocessing2)
-  (define pcontext1 (preprocess-pcontext context pcontext preprocessing1))
-  (define pcontext2 (preprocess-pcontext context pcontext preprocessing2))
-  (<= (errors-score (errors expression pcontext1 context))
-      (errors-score (errors expression pcontext2 context))))
+  (define expr1 (compile-preprocessings expression context preprocessing1))
+  (define expr2 (compile-preprocessings expression context preprocessing2))
+  (match-define (list errs1 errs2) (exprs-errors (list expr1 expr2) pcontext context))
+  (<= (errors-score errs1) (errors-score errs2)))
 
 (define (compile-preprocessing expression context preprocessing)
   (match preprocessing
-    ; Not handled yet
+    [(? taylor-cover? cover) (cover-wrap cover expression context)]
     [(list 'sort a b)
      (define repr (context-lookup context a))
      (define fmin (get-fpcore-impl 'fmin (repr->prop repr) (list repr repr)))
@@ -194,8 +201,12 @@
      `(,mul (,copysign ,(literal 1 (representation-name repr)) ,var)
             ,(replace-expression expression var replacement))]))
 
-(define (compile-useful-preprocessing expression context pcontext preprocessing)
-  (define useful-preprocessing
-    (remove-unnecessary-preprocessing expression context pcontext preprocessing))
-  (for/fold ([expr expression]) ([prep (in-list (reverse useful-preprocessing))])
+(define (compile-preprocessings expression context preprocessing)
+  (for/fold ([expr expression]) ([prep (in-list (reverse preprocessing))])
     (compile-preprocessing expr context prep)))
+
+(define (compile-useful-preprocessing expression context pcontext preprocessing)
+  (compile-preprocessings
+   expression
+   context
+   (remove-unnecessary-preprocessing expression context pcontext preprocessing)))
