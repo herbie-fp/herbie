@@ -17,7 +17,6 @@
          "../utils/common.rkt"
          "datafile.rkt"
          "../utils/errors.rkt"
-         "../syntax/float.rkt"
          "../core/sampling.rkt"
          "../core/mainloop.rkt"
          "../syntax/platform.rkt"
@@ -59,17 +58,26 @@
 
 ;; API Functions
 
+;; Sampling a test more than once should reuse its block.
+(define (make-sampler test)
+  (define-values (block vs) (progs->block (list (test-spec test)) #:ctx (*context*)))
+  (lambda ([precondition (test-pre test)] [count (+ (*num-points*) (*reeval-pts*))])
+    (define sample
+      (parameterize ([*num-points* count])
+        (sample-points precondition block vs (list (context-repr (*context*))))))
+    (apply mk-pcontext sample)))
+
 ;; The main Herbie function
-(define (get-alternatives test joint-pcontext)
-  (unless joint-pcontext
+(define (get-alternatives test train-pcontext test-pcontext #:sampler [sampler #f])
+  (unless train-pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
-  (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
   (define initial-expr
     (if (equal? (prog->spec (test-input test)) (test-spec test))
         (test-input test)
         (approx (test-spec test) (test-input test))))
-  (define alternatives (run-improve! initial-expr (test-spec test) (*context*) train-pcontext))
+  (define alternatives
+    (run-improve! initial-expr (test-spec test) (*context*) train-pcontext #:sampler sampler))
 
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
@@ -87,9 +95,7 @@
       (alt-analysis (make-alt target-expr) target-errs)))
 
   ;; compute error/cost for output expression
-  ;; and sort alternatives by accuracy + cost on testing subset
   (define end-errs (exprs-errors (map alt-expr alternatives) test-pcontext (*context*)))
-  (define end-exprs (map alt-expr alternatives))
   (define end-data (map alt-analysis alternatives end-errs))
 
   (improve-result test-pcontext start-alt-data target-alt-data end-data))
@@ -133,15 +139,26 @@
 
   (local-error-as-tree (test-input test) (*context*) pcontext))
 
+;; If the post-preprocessing region is unsamplable, rollback RNG to keep Herbie runs reproducible.
+(define (make-search-sampler test sample)
+  (lambda (precondition)
+    (define rng-state (pseudo-random-generator->vector (current-pseudo-random-generator)))
+    (with-handlers ([exn:fail:user:herbie:sampling?
+                     (lambda (_)
+                       (current-pseudo-random-generator (vector->pseudo-random-generator rng-state))
+                       (timeline-push! 'stop "no-search-sample" 1)
+                       #f)])
+      (sample `(and ,(test-pre test) ,precondition) (*num-points*)))))
+
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility
-  (define specification (test-spec test))
-  (define precondition (test-pre test))
-  (define-values (block vs) (progs->block (list specification) #:ctx (*context*)))
-  (define sample
-    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-points precondition block vs (list (context-repr (*context*))))))
-  (apply mk-pcontext sample))
+  ((make-sampler test)))
+
+(define (get-improve test)
+  (random) ;; Tick the random number generator, for backwards compatibility
+  (define sample (make-sampler test))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext (sample)))
+  (get-alternatives test train-pcontext test-pcontext #:sampler (make-search-sampler test sample)))
 
 ;;
 ;;  Public interface
@@ -186,11 +203,13 @@
         (timeline-event! 'start) ; Prevents the timeline from being empty.
         (define result
           (match command
-            ['alternatives (get-alternatives test pcontext)]
+            ['alternatives
+             (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
+             (get-alternatives test train-pcontext test-pcontext)]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['explanations (get-explanations test pcontext)]
-            ['improve (get-alternatives test (get-sample test))]
+            ['improve (get-improve test)]
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (raise-arguments-error 'compute-result "unknown command" "command" command)]))

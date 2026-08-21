@@ -75,7 +75,7 @@
             ,@(dict-call curr render-phase-bstep 'bstep)
             ,@(dict-call curr render-phase-branches 'branch 'block)
             ,@(dict-call curr render-phase-sampling 'sampling)
-            ,@(dict-call curr (curryr simple-render-phase "Symmetry") 'symmetry)
+            ,@(dict-call curr (curryr simple-render-phase "Preprocessing") 'preprocessing)
             ,@(dict-call curr render-phase-outcomes 'outcomes)
             ,@(dict-call curr render-phase-compiler 'compiler)
             ,@(dict-call curr render-phase-mixed-sampling 'mixsample)
