@@ -13,11 +13,9 @@
 (provide compute-taylor-covers
          covers-constraint
          cover-wrap
-         taylor-cover?
-         taylor-cover-name
-         taylor-cover-var)
+         taylor-cover?)
 
-(struct taylor-cover (name var var-repr out-repr bound expr)
+(struct taylor-cover (name var bound expr)
   #:methods gen:custom-write
   [(define (write-proc cover port mode)
      (fprintf port "(cover ~a ~a)" (taylor-cover-name cover) (taylor-cover-var cover)))])
@@ -36,24 +34,23 @@
 
 (define (evaluate-term block term out-repr)
   (define constant-block (block-empty (context '() #f '())))
-  (define v (and term ((block-copy-only! constant-block block) (car term))))
+  (define v ((block-copy-only! constant-block block) (car term)))
   (define free-vars (block-free-vars constant-block))
-  ;; Ensure both coefficients are pure constants before evaluating.
   (cond
-    [(and v (set-empty? (free-vars v)))
+    [(set-empty? (free-vars v))
      (define compiler (make-real-compiler constant-block (list v) (list out-repr)))
      (define-values (status outs) (real-apply compiler (vector)))
      (define num (and (equal? status 'valid) (repr->real (first outs) out-repr)))
      (and num (rational? num) (not (zero? num)) (cons num (cdr term)))]
     [else #f]))
 
-(define (cover-lowerable? name var-repr out-repr)
-  (and (get-fpcore-impl 'if '() (list <bool> out-repr out-repr))
-       (get-fpcore-impl '<= '() (list var-repr var-repr))
-       ;; fabs is not used for -inf/+inf covers
-       (or (not (equal? name 0)) (get-fpcore-impl 'fabs (repr->prop var-repr) (list var-repr)))))
+(define (cover-lowerable? name repr)
+  (and (get-fpcore-impl 'if '() (list <bool> repr repr))
+       (get-fpcore-impl '<= '() (list repr repr))
+       ;; fabs is not used for -inf/+inf covers.
+       (or (not (equal? name 0)) (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))))
 
-(define (build-covers block spec-v var var-repr ctx)
+(define (build-covers block spec-v var ctx)
   (define out-repr (context-repr ctx))
   (define taylor-block (block-empty ctx))
   (define v ((block-copy-only! taylor-block block) spec-v))
@@ -65,44 +62,47 @@
             (map first (taylor-coefficients taylor-block (list v) (list var) taylor-transforms)))
           (for ([series (in-list all-series)]
                 [transform (in-list taylor-transforms)]
-                #:when (cover-lowerable? (first transform) var-repr out-repr))
+                #:when (cover-lowerable? (first transform) out-repr))
             (match-define (list name forward inverse) transform)
             (define tform (cons forward inverse))
             (define next-term (taylor-terms series taylor-block var #:transform tform))
-            ;; Evaluate term coefficients.
-            (define kept-term (evaluate-term taylor-block (next-term) out-repr))
-            (define dropped-term (evaluate-term taylor-block (next-term) out-repr))
-            (when (and kept-term dropped-term)
-              (define radius (cover-radius kept-term dropped-term out-repr))
-              (define bound
-                (if (equal? name 0)
-                    radius
-                    (/ 1 radius)))
-              (define cover-expr (block->expr (horner-form (list kept-term) var #:transform tform)))
-              (sow (taylor-cover name var var-repr out-repr bound cover-expr)))))))
+            (define kept (next-term))
+            (define dropped (next-term))
+            (when (and kept dropped)
+              (define kept-term (evaluate-term taylor-block kept out-repr))
+              (define dropped-term (evaluate-term taylor-block dropped out-repr))
+              (when (and kept-term dropped-term)
+                (define radius (cover-radius kept-term dropped-term out-repr))
+                (define bound
+                  (if (equal? name 0)
+                      radius
+                      (/ 1 radius)))
+                (define cover-expr (block->expr (horner-form (list kept-term) var #:transform tform)))
+                (sow (taylor-cover name var bound cover-expr))))))))
 
 (define (compute-taylor-covers block spec-v ctx)
   (match ctx
-    ;; For now, covers only apply to univariate functions.
-    [(context (list var) _ (list var-repr)) (build-covers block spec-v var var-repr ctx)]
+    ;; For now, covers only apply to univariate, scalar functions with the using only one repr.
+    [(context (list var) repr (list var-repr))
+     #:when (and (equal? var-repr repr) (not (array-representation? repr)))
+     (build-covers block spec-v var ctx)]
     [_ '()]))
 
 (define (cover-condition cover)
-  (match-define (taylor-cover name var _ _ bound _) cover)
+  (match-define (taylor-cover name var bound _) cover)
   (match name
     [0 `(<= (fabs ,var) ,bound)]
     ['inf `(<= ,bound ,var)]
     ['-inf `(<= ,var ,(- bound))]))
 
 (define (covers-constraint covers)
-  (define outsides
-    (for/list ([cover (in-list covers)])
-      `(not ,(cover-condition cover))))
-  (foldl (lambda (outside constraint) `(and ,constraint ,outside)) (first outsides) (rest outsides)))
+  (match (for/list ([cover (in-list covers)])
+           `(not ,(cover-condition cover)))
+    [(list outside) outside]
+    [outsides `(and ,@outsides)]))
 
 (define (cover-wrap cover expression ctx)
-  (match-define (taylor-cover _ var var-repr out-repr _ arm) cover)
-  (define if-impl (get-fpcore-impl 'if '() (list <bool> out-repr out-repr)))
-  (define condition
-    (spec->prog (cover-condition cover) (context (list var) var-repr (list var-repr))))
-  `(,if-impl ,condition ,(spec->prog arm ctx) ,expression))
+  (match-define (taylor-cover _ _ _ arm) cover)
+  (define repr (context-repr ctx))
+  (define if-impl (get-fpcore-impl 'if '() (list <bool> repr repr)))
+  `(,if-impl ,(spec->prog (cover-condition cover) ctx) ,(spec->prog arm ctx) ,expression))

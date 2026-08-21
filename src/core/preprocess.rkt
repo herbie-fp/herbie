@@ -15,6 +15,7 @@
          "taylor-cover.rkt")
 
 (provide find-preprocessing
+         cover-pcontexts
          preprocess-pcontext
          compile-useful-preprocessing)
 
@@ -99,17 +100,21 @@
                      #:when (egraph-roots-equal? runner 0 idx))
             ident)))
 
-(define (preprocess-pcontext context pcontext preprocessing #:sampler sampler)
+(define (cover-pcontexts pcontext preprocessing sampler)
   (define covers (filter taylor-cover? preprocessing))
   ;; No sampler is provided when the pcontext is given by the user.
-  (define cover-sample (and sampler (pair? covers) (sampler (covers-constraint covers))))
-  (define sample (or cover-sample pcontext))
+  (define sample (and sampler (pair? covers) (sampler (covers-constraint covers))))
+  (if sample
+      (values sample (pcontext-append pcontext sample))
+      (values pcontext pcontext)))
+
+(define (preprocess-pcontext context pcontext preprocessing)
   (define preprocess
     (apply compose
            (map (curry instruction->operator context)
                 ;; Function composition applies the rightmost function first
                 (reverse (filter-not taylor-cover? preprocessing)))))
-  (values cover-sample (for/pcontext ([(x y) sample]) (preprocess x y))))
+  (for/pcontext ([(x y) pcontext]) (preprocess x y)))
 
 (define (vector-update v i f)
   (define copy (make-vector (vector-length v)))

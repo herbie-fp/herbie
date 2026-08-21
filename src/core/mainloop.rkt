@@ -56,12 +56,10 @@
       (if (flag-set? 'setup 'preprocess)
           (find-preprocessing global-spec-block specification-v context)
           '()))
-    (define-values (cover-sample pcontext*)
-      (preprocess-pcontext context pcontext preprocessing #:sampler sampler))
-    ;; If no covers were selected, the sample isn't modified; thus, use the original pcontext.
-    (define train-pcontext (or cover-sample pcontext))
+    (define-values (train-pcontext validation-pcontext)
+      (cover-pcontexts pcontext preprocessing sampler))
     (timeline-push! 'preprocessing (map ~a preprocessing))
-    (*pcontext* pcontext*)
+    (*pcontext* (preprocess-pcontext context train-pcontext preprocessing))
 
     (define spec-reducer (block-reduce global-spec-block))
 
@@ -75,11 +73,6 @@
       (run-iteration! global-spec-block spec-reducer))
     (define alternatives (extract! global-spec-block))
     (timeline-event! 'preprocess)
-    ;; Combine the original and the taylor cover sample.
-    (define validation-pcontext
-      (if cover-sample
-          (pcontext-append pcontext cover-sample)
-          pcontext))
     (for/list ([altn alternatives])
       (define expr (alt-expr altn))
       (define expr* (compile-useful-preprocessing expr context validation-pcontext (*preprocessing*)))
