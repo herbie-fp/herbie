@@ -47,6 +47,12 @@
      (and num (rational? num) (not (zero? num)) (cons num (cdr term)))]
     [else #f]))
 
+(define (cover-lowerable? name var-repr out-repr)
+  (and (get-fpcore-impl 'if '() (list <bool> out-repr out-repr))
+       (get-fpcore-impl '<= '() (list var-repr var-repr))
+       ;; fabs is not used for -inf/+inf covers
+       (or (not (equal? name 0)) (get-fpcore-impl 'fabs (repr->prop var-repr) (list var-repr)))))
+
 (define (build-covers block spec-v var var-repr ctx)
   (define out-repr (context-repr ctx))
   (define taylor-block (block-empty ctx))
@@ -58,7 +64,8 @@
           (define all-series
             (map first (taylor-coefficients taylor-block (list v) (list var) taylor-transforms)))
           (for ([series (in-list all-series)]
-                [transform (in-list taylor-transforms)])
+                [transform (in-list taylor-transforms)]
+                #:when (cover-lowerable? (first transform) var-repr out-repr))
             (match-define (list name forward inverse) transform)
             (define tform (cons forward inverse))
             (define next-term (taylor-terms series taylor-block var #:transform tform))
