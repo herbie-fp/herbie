@@ -1207,11 +1207,11 @@
     (define egg-graph (egg-runner-egg-graph runner))
     (define eclasses (u32vector->list (egraph_get_eclasses egg-graph)))
 
-    (check-false (for/or ([id (in-list eclasses)])
-                   (for/or ([enode (in-vector (egraph-get-eclass egg-graph id))])
-                     (match enode
-                       [(list '/ _ ...) #t]
-                       [_ #f]))))))
+    (check-false (for*/or ([id (in-list eclasses)]
+                           [enode (in-vector (egraph-get-eclass egg-graph id))])
+                   (match enode
+                     [(list '/ _ ...) #t]
+                     [_ #f])))))
 
 (define (regraph-dump regraph root-ids reprs)
   (define dump-dir "dump-egg")
