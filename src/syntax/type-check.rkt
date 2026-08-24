@@ -17,6 +17,10 @@
   (match repr
     [(? array-representation?)
      (repr-compatible-with-precision? (array-representation-elem repr) precision-repr)]
+    ;; A tuple-typed program is compatible with any ambient precision: unless a
+    ;; slot is explicitly annotated with `!`, it already types at the ambient
+    ;; precision, so a differing slot can only come from a deliberate annotation
+    ;; (mixed-precision tuples are the point of the type).
     [(? tuple-representation?) #t]
     [(? representation?)
      (or (equal? (representation-type repr) 'bool) (equal? repr precision-repr))]))
@@ -132,15 +136,16 @@
                    (repr-description t))))
        (array-of first-type (list (+ 1 (length rest-elems))))]
       [#`(tuple #,elems ...)
+       ;; Empty tuples are rejected in syntax-check.rkt.
        (define slots
          (for/list ([elem (in-list elems)])
            (loop elem prop-dict ctx)))
        (cond
-         [(null? slots)
-          (error! stx "Tuple must have at least one slot")
-          (get-representation (dict-ref prop-dict ':precision))]
          [(for/or ([slot (in-list slots)])
             (equal? (representation-type slot) 'bool))
+          ;; Tuple slots are typed `real` in the spec language (see
+          ;; `spec-arg-types` in egg-herbie.rkt), so a boolean slot would be
+          ;; mistyped during rewriting.
           (error! stx "Tuple slots must not be boolean")
           (get-representation (dict-ref prop-dict ':precision))]
          [else (make-tuple-representation #:slots slots)])]
@@ -159,7 +164,7 @@
          [(? tuple-representation?)
           (define slots (tuple-representation-slots arr-type))
           (cond
-            [(and (integer? raw) (>= raw 0) (< raw (length slots))) (list-ref slots raw)]
+            [(and (exact-nonnegative-integer? raw) (< raw (length slots))) (list-ref slots raw)]
             [else
              (error! idx "Tuple index ~a out of bounds for ~a slots" raw (length slots))
              (get-representation (dict-ref prop-dict ':precision))])]

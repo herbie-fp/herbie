@@ -12,6 +12,8 @@
          define-operation
          define-operations
          create-operator-impl!
+         ;; The procedural registration API: tuples.rkt uses it to register
+         ;; generated representations and impls outside a platform definition
          platform-register-implementation!
          platform-register-representation!
          fpcore-context
@@ -51,9 +53,8 @@
             (for/and ([elem (in-list (rest elems))])
               (equal? elem-ty (infer elem)))
             `(array ,elem-ty ,(length elems)))]
-      [(list 'tuple elems ...)
-       #:when (null? elems)
-       #f]
+      ;; An empty tuple has no slot to take its rounding context from
+      [(list 'tuple) #f]
       [(list 'tuple elems ...)
        (define tys (map infer elems))
        (and (andmap values tys) `(tuple ,@tys))]

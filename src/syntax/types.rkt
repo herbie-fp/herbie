@@ -80,8 +80,10 @@
   (array-representation name array-ty void void void void total-bits void elem-repr len))
 
 (define (make-tuple-representation #:slots slots)
-  (unless (and (list? slots) (pair? slots) (andmap representation? slots))
-    (raise-herbie-error "Tuples require a non-empty list of representations, got ~a" slots))
+  ;; A tuple needs at least one slot: its first slot decides the rounding
+  ;; context of the whole value (see `repr->prop`).
+  (when (null? slots)
+    (raise-herbie-error "Tuples require at least one slot"))
   (define tuple-ty `(tuple ,@(map representation-type slots)))
   (define name `(tuple ,@(map representation-name slots)))
   ;; TODO: like arrays, tuples inherit unused scalar conversion slots.
