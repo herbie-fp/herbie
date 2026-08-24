@@ -3,7 +3,7 @@
 (require math/flonum
          "../syntax/float.rkt"
          "../syntax/types.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "programs.rkt"
          "compiler.rkt")
 
@@ -15,7 +15,7 @@
          split-pcontext
          pcontext-length
          errors
-         batch-errors
+         block-errors
          exprs-errors
          errors-score)
 
@@ -66,10 +66,10 @@
   (define num-exprs (length exprs))
   (generate-errors fn pcontext (context-repr ctx) num-exprs))
 
-(define (batch-errors batch brfs pcontext)
-  (define fn (compile-batch batch brfs))
-  (define num-exprs (length brfs))
-  (generate-errors fn pcontext (batch-repr-of (first brfs)) num-exprs))
+(define (block-errors block vs pcontext)
+  (define fn (compile-block block vs))
+  (define num-exprs (length vs))
+  (generate-errors fn pcontext (block-repr-of (first vs)) num-exprs))
 
 (define (generate-errors fn pcontext repr num-exprs)
   (define ulps (repr-ulps repr))

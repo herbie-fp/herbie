@@ -9,7 +9,7 @@
          "syntax.rkt"
          "../syntax/float.rkt"
          "generators.rkt"
-         "batch.rkt")
+         "block.rkt")
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
@@ -35,7 +35,7 @@
          impl-exists?
          impl-info
          prog->spec
-         batch-to-spec!
+         block-to-spec!
          get-fpcore-impl
          impl->fpcore
          reset-fpcore-op-cache!
@@ -109,61 +109,61 @@
      (define env (map cons vars (map prog->spec args)))
      (pattern-substitute spec env)]))
 
-(define (batch-to-spec! in-batch out-batch brfs)
+(define (block-to-spec! in-block out-block vs)
   (define lower
-    (batch-recurse
-     in-batch
-     (lambda (brf recurse)
-       (define node (deref brf))
+    (block-recurse
+     in-block
+     (lambda (v recurse)
+       (define node (val-def v))
        (match node
-         [(? literal?) (batch-add! out-batch (literal-value node))]
-         [(? number?) (error 'batch-to-spec! "unexpected spec node in input batch: ~a" node)]
-         [(? symbol?) (batch-add! out-batch node)]
+         [(? literal?) (block-add! out-block (literal-value node))]
+         [(? number?) (error 'block-to-spec! "unexpected spec node in input block: ~a" node)]
+         [(? symbol?) (block-add! out-block node)]
          [(approx spec _) spec]
          [(list (? impl-exists? impl) args ...)
           (define vars (impl-info impl 'vars))
           (define spec (impl-info impl 'spec))
           (define env (map cons vars (map recurse args)))
-          (batch-add! out-batch (pattern-substitute spec env))]
+          (block-add! out-block (pattern-substitute spec env))]
          [(list op args ...)
-          (error 'batch-to-spec! "unexpected spec node in input batch: ~a" node)]))))
-  (map lower brfs))
+          (error 'block-to-spec! "unexpected spec node in input block: ~a" node)]))))
+  (map lower vs))
 
 (module+ test
   (require rackunit)
 
   (define test-empty-ctx (context '() #f '()))
 
-  (let* ([in-batch (batch-empty test-empty-ctx)]
-         [out-batch (batch-empty test-empty-ctx)]
-         [x (batch-add! in-batch 'x)]
-         [x* (first (batch-to-spec! in-batch out-batch (list x)))])
-    (check-equal? (batchref-batch x*) out-batch)
-    (check-equal? (deref x*) 'x))
+  (let* ([in-block (block-empty test-empty-ctx)]
+         [out-block (block-empty test-empty-ctx)]
+         [x (block-add! in-block 'x)]
+         [x* (first (block-to-spec! in-block out-block (list x)))])
+    (check-equal? (val-block x*) out-block)
+    (check-equal? (val-def x*) 'x))
 
-  (let* ([batch (batch-empty test-empty-ctx)]
-         [spec-batch (batch-empty test-empty-ctx)]
-         [spec (batch-add! spec-batch 'x)]
-         [impl (batch-add! batch (literal 1 'binary64))]
-         [approx-brf (batch-add! batch (approx spec impl))])
-    (check-equal? (batch-to-spec! batch spec-batch (list approx-brf)) (list spec)))
+  (let* ([block (block-empty test-empty-ctx)]
+         [spec-block (block-empty test-empty-ctx)]
+         [spec (block-add! spec-block 'x)]
+         [impl (block-add! block (literal 1 'binary64))]
+         [approx-v (block-add! block (approx spec impl))])
+    (check-equal? (block-to-spec! block spec-block (list approx-v)) (list spec)))
 
-  (let* ([in-batch (batch-empty test-empty-ctx)]
-         [out-batch (batch-empty test-empty-ctx)]
-         [spec (batch-add! out-batch 'x)]
-         [impl (batch-add! in-batch (literal 1 'binary64))]
-         [approx-brf (batch-add! in-batch (approx spec impl))]
-         [spec* (first (batch-to-spec! in-batch out-batch (list approx-brf)))])
-    (check-equal? (batchref-batch spec*) out-batch)
-    (check-equal? (deref spec*) 'x))
+  (let* ([in-block (block-empty test-empty-ctx)]
+         [out-block (block-empty test-empty-ctx)]
+         [spec (block-add! out-block 'x)]
+         [impl (block-add! in-block (literal 1 'binary64))]
+         [approx-v (block-add! in-block (approx spec impl))]
+         [spec* (first (block-to-spec! in-block out-block (list approx-v)))])
+    (check-equal? (val-block spec*) out-block)
+    (check-equal? (val-def spec*) 'x))
 
-  (let* ([in-batch (batch-empty test-empty-ctx)]
-         [out-batch (batch-empty test-empty-ctx)]
-         [num (batch-add! in-batch 1)]
-         [expr (batch-add! in-batch `(+ ,num ,num))])
+  (let* ([in-block (block-empty test-empty-ctx)]
+         [out-block (block-empty test-empty-ctx)]
+         [num (block-add! in-block 1)]
+         [expr (block-add! in-block `(+ ,num ,num))])
     (parameterize ([*active-platform* (make-empty-platform)])
-      (check-exn #rx"unexpected spec node" (λ () (batch-to-spec! in-batch out-batch (list num))))
-      (check-exn #rx"unexpected spec node" (λ () (batch-to-spec! in-batch out-batch (list expr)))))))
+      (check-exn #rx"unexpected spec node" (λ () (block-to-spec! in-block out-block (list num))))
+      (check-exn #rx"unexpected spec node" (λ () (block-to-spec! in-block out-block (list expr)))))))
 
 ;; Expression predicates ;;
 
