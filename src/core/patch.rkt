@@ -193,7 +193,7 @@
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog runner global-batch reprs 'rewrite #:extract 1000000) ; "infinity"
+        (run-egglog runner global-batch reprs 'rewrite #:extract (*egglog-variants-limit*))
         (egraph-variations runner global-batch reprs)))
 
   ; apply changelists

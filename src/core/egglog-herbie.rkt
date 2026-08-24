@@ -107,10 +107,19 @@
   (define pform (*active-platform*))
 
   ;;;; SUBPROCESS START ;;;;
-  (define subproc (create-new-egglog-subprocess label))
-
-  ;; 1. Add the prelude - send directly to egglog.
-  (prelude subproc #:mixed-egraph? #t)
+  ;; Without dump:egglog, reuse a long-lived subprocess whose prelude and rule
+  ;; declarations are already loaded (see static-egglog-commands), and isolate
+  ;; this call with push/pop. With dump:egglog, spawn a fresh subprocess so
+  ;; every dump file is a complete, replayable session.
+  (define use-persistent? (not (flag-set? 'dump 'egglog)))
+  (define subproc
+    (cond
+      [use-persistent? (get-persistent-subprocess (static-egglog-commands pform))]
+      [else
+       (define fresh (create-new-egglog-subprocess label))
+       ;; 1. Add the prelude - send directly to egglog.
+       (prelude fresh #:mixed-egraph? #t)
+       fresh]))
 
   ;; 2. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
 
@@ -156,73 +165,188 @@
   ;; of a rule and make them accessible through their unique constructor. Therefore, we must
   ;; keep track of the mapping between each binding and its corresponding constructor.
 
-  (define-values (all-bindings extract-bindings) (egglog-add-exprs insert-batch insert-brfs subproc))
+  ;; If anything fails mid-call, the subprocess protocol state is unknown:
+  ;; discard the persistent subprocess so the next call starts fresh.
+  (with-handlers ([exn:fail? (lambda (e)
+                               (when use-persistent?
+                                 (discard-persistent-subprocess!))
+                               (raise e))])
+    (when use-persistent?
+      (egglog-send subproc '(push)))
 
-  (egglog-send subproc
-               `(ruleset run-extract-commands)
-               `(rule () (,@all-bindings) :ruleset run-extract-commands)
-               `(run-schedule (repeat 1 run-extract-commands)))
+    (define-values (all-bindings extract-bindings)
+      (egglog-add-exprs insert-batch insert-brfs subproc))
 
-  ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
+    (egglog-send subproc
+                 `(ruleset run-extract-commands)
+                 `(rule () (,@all-bindings) :ruleset run-extract-commands)
+                 `(run-schedule (repeat 1 run-extract-commands)))
 
-  (for ([step (in-list schedule)])
-    (apply egglog-send subproc (egglog-step-commands step pform))
-    (match step
-      ['lift (egglog-send subproc '(run-schedule (saturate lift)))]
-      ['lower (egglog-send subproc '(run-schedule (saturate lower)))]
-      ['unsound (egglog-send subproc '(run-schedule (saturate unsound)))]
-      ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
-      ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
+    ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
 
-  ;; 5. Extract using constructor names returned by egglog-add-exprs.
-  (define stdout-content
-    (egglog-multi-extract subproc
-                          `(multi-extract ,extract
-                                          ,@(for/list ([constructor-name (in-list extract-bindings)]
-                                                       [repr (in-list reprs)])
-                                              `(do-lower (,constructor-name)
-                                                         ,(egglog-repr-token repr))))))
+    (for ([step (in-list schedule)])
+      ;; The persistent subprocess already has every step's rules declared.
+      (unless use-persistent?
+        (apply egglog-send subproc (egglog-step-commands step pform)))
+      (match step
+        ['lift (egglog-send subproc '(run-schedule (saturate lift)))]
+        ['lower (egglog-send subproc '(run-schedule (saturate lower)))]
+        ['unsound (egglog-send subproc '(run-schedule (saturate unsound)))]
+        ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
+        ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
-  ;; Close everything subprocess related
-  (egglog-subprocess-close subproc)
+    ;; 5. Extract using constructor names returned by egglog-add-exprs. With
+    ;; :dag, subterms shared across variants arrive let-bound once instead of
+    ;; expanded at every use (responses shrink by an order of magnitude).
+    (define stdout-content
+      (egglog-multi-extract subproc
+                            `(multi-extract ,extract
+                                            :dag
+                                            ,@(for/list ([constructor-name
+                                                          (in-list extract-bindings)]
+                                                         [repr (in-list reprs)])
+                                                `(do-lower (,constructor-name)
+                                                           ,(egglog-repr-token repr))))))
 
-  ;; (Listof (Listof exprs))
-  (define herbie-exprss
-    (for/list ([next-expr (in-list stdout-content)])
-      (map e2->expr next-expr)))
+    ;; Roll the persistent subprocess back to its post-prelude state, or close
+    ;; everything subprocess related
+    (cond
+      [use-persistent?
+       (egglog-send subproc '(pop))
+       (set! persistent-call-in-progress? #f)]
+      [else (egglog-subprocess-close subproc)])
 
-  (for/list ([variants (in-list herbie-exprss)])
+    (match-define `(let ,dag-bindings ,dag-body) stdout-content)
+    (egglog-dag->batchrefs dag-bindings dag-body output-batch)))
+
+;; Convert the (let ((name def) ...) ((variant ...) ...)) response of
+;; (multi-extract :dag ...) into batchrefs. Shared subterms arrive as ?tN
+;; binding references; each is resolved, converted, and interned exactly
+;; once, so the total work is proportional to the response DAG rather than
+;; to the expanded variant trees.
+(define (egglog-dag->batchrefs bindings body output-batch)
+  ;; Binding name -> its definition with references resolved. Reusing the
+  ;; same pair object at every reference preserves sharing, which the
+  ;; eq?-keyed memo tables below rely on.
+  (define env (make-hasheq))
+  (define (resolve expr)
+    (match expr
+      [(? symbol?) (hash-ref env expr)]
+      [(list head args ...) (cons head (map resolve args))]
+      [_ expr]))
+  (for ([binding (in-list bindings)])
+    (match-define (list name def) binding)
+    (hash-set! env name (resolve def)))
+
+  ;; eq?-memoized counterparts of e1->expr and e2->expr: a shared node is
+  ;; converted once. Impl (MTy) terms are interned eagerly and referenced as
+  ;; batchrefs, which batch-add! accepts as children; spec (M) terms stay
+  ;; plain expressions since approx nodes store their spec unmunged.
+  (define spec-memo (make-hasheq))
+  (define impl-memo (make-hasheq))
+  (define (spec->expr expr)
+    (hash-ref! spec-memo
+               expr
+               (lambda ()
+                 (match expr
+                   [`(Num (bigrat (from-string ,n) (from-string ,d)))
+                    (/ (string->number n) (string->number d))]
+                   [`(Var ,v) (string->symbol v)]
+                   [`(,op ,args ...) `(,(hash-ref (e1->id) op) ,@(map spec->expr args))]))))
+  (define (add-impl! expr)
+    (hash-ref!
+     impl-memo
+     expr
+     (lambda ()
+       (match expr
+         [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
+          (batch-add! output-batch
+                      (literal (/ (string->number n) (string->number d)) (egglog-num-repr num)))]
+         [`(,(? egglog-var? var) ,v) (batch-add! output-batch (string->symbol v))]
+         ; Approx stores a spec expression in E1/M and an implementation in E2/MTy.
+         [`(Approx ,spec ,impl)
+          (batch-add! output-batch (approx (spec->expr spec) (add-impl! impl)))]
+         [`(,impl ,args ...)
+          (batch-add! output-batch `(,(hash-ref (e2->id) impl) ,@(map add-impl! args)))]))))
+
+  (for/list ([variants (in-list body)])
     (for/list ([v (in-list variants)])
-      (batch-add! output-batch v))))
+      (add-impl! (resolve v)))))
 
 ;; Egglog requires integer costs, but Herbie uses floating-point costs.
 ;; Scale by 1000 to convert Herbie's float costs to Egglog's integer costs.
 (define (normalize-cost c)
   (exact-round (* c 1000)))
 
+(define (prelude-commands pform)
+  (list `(datatype M ,@(platform-spec-nodes))
+        `(datatype MTy
+                   ,@(num-typed-nodes pform)
+                   ,@(var-typed-nodes pform)
+                   (Approx M MTy)
+                   ,@(platform-impl-nodes pform))
+        `(constructor do-lower (M String) MTy :unextractable)
+        `(constructor do-lift (MTy) M :unextractable)
+        `(ruleset lower)
+        `(ruleset lift)
+        `(ruleset unsound)
+        `(function bad-merge? () bool :merge (or old new))
+        `(ruleset bad-merge-rule)
+        `(set (bad-merge?) false)
+        `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule)))
+
 (define (prelude subproc #:mixed-egraph? [mixed-egraph? #t])
-  (define pform (*active-platform*))
-
-  (egglog-send subproc `(datatype M ,@(platform-spec-nodes)))
-
-  (egglog-send
-   subproc
-   `(datatype MTy
-              ,@(num-typed-nodes pform)
-              ,@(var-typed-nodes pform)
-              (Approx M MTy)
-              ,@(platform-impl-nodes pform))
-   `(constructor do-lower (M String) MTy :unextractable)
-   `(constructor do-lift (MTy) M :unextractable)
-   `(ruleset lower)
-   `(ruleset lift)
-   `(ruleset unsound)
-   `(function bad-merge? () bool :merge (or old new))
-   `(ruleset bad-merge-rule)
-   `(set (bad-merge?) false)
-   `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule))
-
+  (apply egglog-send subproc (prelude-commands (*active-platform*)))
   (void))
+
+;; The prelude and every step's rule declarations are identical for all calls
+;; within a run, so they can be declared once in a long-lived subprocess and
+;; each call isolated with push/pop. Rules of steps a call never runs are
+;; inert. The command list doubles as the cache key, so any change in
+;; platform or rules respawns the subprocess.
+(define (static-egglog-commands pform)
+  (append (prelude-commands pform)
+          (egglog-step-commands 'lift pform)
+          (egglog-step-commands 'lower pform)
+          (egglog-step-commands 'unsound pform)
+          (egglog-step-commands 'rewrite pform)))
+
+(define persistent-subprocess #f)
+(define persistent-subprocess-key #f)
+;; Owns the subprocess and its ports, so per-test custodians (e.g. timeouts)
+;; cannot reclaim them between calls.
+(define persistent-custodian (make-custodian))
+;; Set while a call is using the subprocess. If it is still set when the next
+;; call starts, the previous call was interrupted mid-protocol (e.g. its
+;; thread was killed by a timeout), so the subprocess state is unknown and it
+;; must be discarded.
+(define persistent-call-in-progress? #f)
+
+(define (discard-persistent-subprocess!)
+  (when persistent-subprocess
+    (with-handlers ([exn:fail? void])
+      (egglog-subprocess-close persistent-subprocess))
+    (set! persistent-subprocess #f)
+    (set! persistent-subprocess-key #f)))
+
+(define (persistent-subprocess-usable? static-commands)
+  (and persistent-subprocess
+       (not persistent-call-in-progress?)
+       (not (port-closed? (egglog-subprocess-input persistent-subprocess)))
+       (eq? (subprocess-status (egglog-subprocess-process persistent-subprocess)) 'running)
+       (equal? persistent-subprocess-key static-commands)))
+
+(define (get-persistent-subprocess static-commands)
+  (unless (persistent-subprocess-usable? static-commands)
+    (discard-persistent-subprocess!)
+    (define subproc
+      (parameterize ([current-custodian persistent-custodian])
+        (create-new-egglog-subprocess #f)))
+    (apply egglog-send subproc static-commands)
+    (set! persistent-subprocess subproc)
+    (set! persistent-subprocess-key static-commands))
+  (set! persistent-call-in-progress? #t)
+  persistent-subprocess)
 
 (define (egglog-step-commands step pform)
   (match step
@@ -529,20 +653,23 @@
   (define node-limit (*node-limit*))
   (define iter-limit (*default-egglog-iter-limit*))
 
-  ;; Use egglog's :until guard with get-size! to stop when node limit is reached.
-  ;; After each iteration, we check for unsound merges via bad-merge-rule.
-  ;; The schedule runs until:
-  ;;   1. Node limit is reached (get-size! >= node-limit)
+  ;; The back-off scheduler's :node-limit keeps the e-graph within the node
+  ;; limit as it chooses matches; the :until guards with get-node-size! stop
+  ;; the schedule once the limit is reached. Both measure e-nodes (rows of
+  ;; eq-sort tables), matching what egg counts, rather than get-size!'s total
+  ;; table size. After each iteration, we check for unsound merges via
+  ;; bad-merge-rule. The schedule runs until:
+  ;;   1. Node limit is reached (get-node-size! >= node-limit)
   ;;   2. Saturation (no more progress)
   ;;   3. Iter limit is reached
   ;;   4. Unsoundness is detected (bad-merge? becomes true)
 
   (egglog-send subproc
                `(run-schedule
-                 (let-scheduler bo (back-off))
+                 (let-scheduler bo (back-off :node-limit ,node-limit :eager-apply 1))
                  (repeat ,iter-limit
-                         (seq (run-with bo ,tag :until (<= ,node-limit (get-size!)))
-                              (run-with bo const-fold :until (<= ,node-limit (get-size!)))
+                         (seq (run-with bo ,tag :until (<= ,node-limit (get-node-size!)))
+                              (run-with bo const-fold :until (<= ,node-limit (get-node-size!)))
                               (run bad-merge-rule :until (bad-merge?))))))
   (void))
 
