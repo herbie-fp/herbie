@@ -17,6 +17,7 @@
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
          "../syntax/block.rkt"
+         "branches.rkt"
          "compiler.rkt"
          "points.rkt"
          "programs.rkt")
@@ -52,11 +53,13 @@
   (define err-cols (block-errors block (map alt-expr sorted) pcontext))
   (define (real-v? v)
     (equal? (representation-type (block-repr-of v)) 'real))
-  (define branch-vs
+  ;; The dominating subexpressions always stay in the vocabulary.
+  (define classic-vs
     (filter real-v?
             (if (flag-set? 'reduce 'branch-expressions)
                 (critical-subexpressions block start-prog)
                 (map (curry block-add! block) (block-vars block)))))
+  (define branch-vs (branch-candidates block sorted start-prog err-cols pcontext classic-vs))
 
   (define v-vals (v-values* block branch-vs pcontext))
   (define pts-vec (pcontext-points pcontext))
@@ -169,18 +172,6 @@
               (for/fold ([best-err +inf.0]) ([err-col (in-list (take err-cols count))])
                 (min best-err (flvector-ref err-col point-idx))))
      num-points))
-
-(define (v-values* block vs pcontext)
-  (define count (length vs))
-  (define fn (compile-block block vs))
-  (define num-points (pcontext-length pcontext))
-  (define vals (build-vector count (lambda (_) (make-vector num-points))))
-  (for ([pt (in-vector (pcontext-points pcontext))]
-        [p (in-naturals)])
-    (for ([out (in-vector (fn pt))]
-          [i (in-naturals)])
-      (vector-set! (vector-ref vals i) p out)))
-  (vector->list vals))
 
 (define (branch-options block alts-vec err-cols pts-vec v v-vals-vec repr)
   (define sorted-indices

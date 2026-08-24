@@ -159,6 +159,11 @@
   [flip-+ (+ (sqrt a) (sqrt b)) (sound-/ (- a b) (- (sqrt a) (sqrt b)) (+ (sqrt a) (sqrt b)))]
   [flip-- (- (sqrt a) (sqrt b)) (sound-/ (- a b) (+ (sqrt a) (sqrt b)) (- (sqrt a) (sqrt b)))])
 
+; Rationalize a term against a root: (a + sqrt b) * (a - sqrt b) = a * a - b for all real a.
+(define-rules polynomials
+  [flip-sqrt-+ (+ a (sqrt b)) (sound-/ (- (* a a) b) (- a (sqrt b)) (+ a (sqrt b)))]
+  [flip-sqrt-- (- a (sqrt b)) (sound-/ (- (* a a) b) (+ a (sqrt b)) (- a (sqrt b)))])
+
 ; Difference of cubes
 (define-rules polynomials
   [sum-cubes (+ (pow a 3) (pow b 3)) (* (+ (* a a) (- (* b b) (* a b))) (+ a b))]
