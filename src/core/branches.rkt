@@ -51,12 +51,6 @@
         (min best (+ (flvector-ref best-prefix k) (flvector-ref best-suffix k)))
         best)))
 
-;; Evenly spaced indices that cover n, at most want of them.
-(define (stride-indices n want)
-  (define step (max 1 (quotient n (max 1 want))))
-  (for/list ([i (in-range 0 n step)])
-    i))
-
 ;; Chooses the branch expressions for the regimes DP; the keep list always stays.
 (define (branch-candidates block alts start-prog err-cols pcontext keep)
   (define free-vars (block-free-vars block))
@@ -80,41 +74,16 @@
   (cond
     [(null? pool) kept]
     [else
-     ;; The pool can hold thousands of expressions, so ranking, not the dynamic program,
-     ;; is what costs the time on a large program: one candidate costs a pass over every
-     ;; alt's error column. Score everything exactly when that fits in the budget, and
-     ;; subsample only when it does not -- always ranking every candidate against the same
-     ;; points and alts, so the comparison stays fair. Ranking on a fixed subsample instead
-     ;; measured worse on both probes, so the fidelity is worth keeping where it is free.
-     ;; Only the ranking degrades; the DP still sees every point and every alt.
-     (define n-pts (pcontext-length pcontext))
-     (define n-alts (length err-cols))
-     (define work (* (length pool) n-alts n-pts))
-     (define budget (*branch-score-budget*))
-     (define scale
-       (if (<= work budget)
-           1.0
-           (sqrt (/ (exact->inexact budget) work))))
-     ;; Below these floors the ranking is noise, so they outrank the budget.
-     (define pt-idxs (stride-indices n-pts (max 32 (inexact->exact (floor (* scale n-pts))))))
-     (define alt-idxs (stride-indices n-alts (max 8 (inexact->exact (floor (* scale n-alts))))))
-     (define err-cols*
-       (for/list ([col (in-list err-cols)]
-                  [i (in-naturals)]
-                  #:when (memv i alt-idxs))
-         (for/flvector #:length (length pt-idxs) ([p (in-list pt-idxs)]) (flvector-ref col p))))
-
+     ;; Score every candidate against every alt on every point. No subsampling.
      (define vals (v-values* block pool pcontext))
      (define scored
        (for/list ([v (in-list pool)]
                   [vs (in-list vals)])
-         (define vs* (for/vector #:length (length pt-idxs) ([p (in-list pt-idxs)]) (vector-ref vs p)))
-         (cons (branch-separability err-cols* vs* (block-repr-of v)) v)))
+         (cons (branch-separability err-cols vs (block-repr-of v)) v)))
      ;; The sort is stable, so equal scores keep block order and the choice is deterministic.
      (define ranked (sort scored < #:key car))
      (append kept (map cdr (take ranked (min (*branch-expr-limit*) (length ranked)))))]))
 
-;; Values of each expression in vs at every point, as one vector per expression.
 (define (v-values* block vs pcontext)
   (define count (length vs))
   (define fn (compile-block block vs))

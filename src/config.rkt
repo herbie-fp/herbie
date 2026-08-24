@@ -142,12 +142,6 @@
 ;; each one is more capacity to overfit the training points
 (define *branch-expr-limit* (make-parameter 4))
 
-;; Soft cap on the work spent ranking branch expressions, in candidate x alt x point
-;; units. Ranking scans the whole candidate pool, so it is what costs the time on a large
-;; program. Under the cap the ranking is exact; over it, points and alts are subsampled,
-;; but never below the floors in branches.rkt, so the floors can outrank this
-(define *branch-score-budget* (make-parameter 16000000))
-
 ;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))
 
