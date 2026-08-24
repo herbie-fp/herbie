@@ -6,7 +6,7 @@
 ;; FPCore: the input/output language
 ;;
 ;; - standardized interchange format with other tools
-;; - using a loopless subset with array literals
+;; - using a loopless subset with tuple literals
 ;; - operators denote real computations while rounding contexts decide format
 ;;
 ;;  <FPCore> ::= (FPCore (<var> ...) <props> ... <expr>)
@@ -156,6 +156,8 @@
                (list 'and out (list '!= term term2))
                (list '!= term term2))))
        (or out '(TRUE))]
+      ; array literals are homogeneous tuples
+      [`(array ,elems ...) `(tuple ,@(map (curryr loop env) elems))]
       ; applications
       [`(,op ,args ...) `(,op ,@(map (curryr loop env) args))]
       ; constants
@@ -245,17 +247,10 @@
       [(list 'ref arr idx)
        (define arr* (loop arr prop-dict))
        (define arr-repr (repr-of arr* ctx))
-       (cond
-         [(tuple-representation? arr-repr)
-          (list (ensure-tuple-ref-impl! arr-repr (aggregate-index idx)) arr*)]
-         [else
-          (define idx* (loop idx prop-dict))
-          (define idx-repr (repr-of idx* ctx))
-          (define impl (assert-fpcore-impl 'ref prop-dict (list arr-repr idx-repr)))
-          (define vars (impl-info impl 'vars))
-          (define-values (_ body) (impl->fpcore impl))
-          (define subst (pattern-match body (list 'ref arr* idx*)))
-          (pattern-substitute (cons impl vars) subst)])]
+       (unless (tuple-representation? arr-repr)
+         (raise-herbie-missing-error "No implementation for `ref` over `~a`"
+                                     (representation-name arr-repr)))
+       (list (ensure-tuple-ref-impl! arr-repr (aggregate-index idx)) arr*)]
       [(list 'tuple args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
        (define slots (map (lambda (arg) (repr-of arg ctx)) args*))

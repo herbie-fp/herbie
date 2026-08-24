@@ -61,12 +61,8 @@
       [#`(! #,props ... #,body)
        (check-properties* props '() error!)
        (loop body vars)]
-      [#`(array #,elems ...)
-       (when (null? elems)
-         (error! stx "Array literal must have at least one element"))
-       (for ([elem (in-list elems)])
-         (loop elem vars))]
-      [#`(tuple #,elems ...)
+      ;; An `array` literal is a homogeneous tuple
+      [(or #`(array #,elems ...) #`(tuple #,elems ...))
        (when (null? elems)
          (error! stx "Tuple must have at least one slot"))
        (for ([elem (in-list elems)])

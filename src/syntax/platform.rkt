@@ -77,7 +77,6 @@
   (define reprs (platform-representations platform))
   (match name
     [(? representation?) name]
-    [`(array ,elem ,len) (make-array-representation #:elem (get-representation elem) #:len len)]
     [`(tuple ,slots ...) (make-tuple-representation #:slots (map get-representation slots))]
     [_
      (or (hash-ref reprs name #f)
@@ -91,7 +90,6 @@
   (define reprs (platform-representations platform))
   (match name
     [(? representation?) #t]
-    [`(array ,elem ,len) (and (exact-positive-integer? len) (repr-exists? elem))]
     [`(tuple ,slots ...) (and (pair? slots) (andmap repr-exists? slots))]
     [_ (hash-has-key? reprs name)]))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

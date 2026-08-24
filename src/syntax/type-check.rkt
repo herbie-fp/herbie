@@ -15,8 +15,6 @@
 
 (define (repr-compatible-with-precision? repr precision-repr)
   (match repr
-    [(? array-representation?)
-     (repr-compatible-with-precision? (array-representation-elem repr) precision-repr)]
     ;; A tuple-typed program is compatible with any ambient precision: unless a
     ;; slot is explicitly annotated with `!`, it already types at the ambient
     ;; precision, so a differing slot can only come from a deliberate annotation
@@ -25,9 +23,12 @@
     [(? representation?)
      (or (equal? (representation-type repr) 'bool) (equal? repr precision-repr))]))
 
-(define (array-of elem dims)
+;; A dimensioned argument such as (x 2 3) is a homogeneous tuple tree.
+(define (tuple-of elem dims)
   (for/fold ([out elem]) ([d (in-list (reverse dims))])
-    (make-array-representation #:elem out #:len d)))
+    (unless (exact-positive-integer? d)
+      (raise-herbie-error "Argument dimensions must be positive integers, got ~a" d))
+    (make-tuple-representation #:slots (make-list d out))))
 
 (define (assert-program-typed! stx)
   (define-values (vars props body)
@@ -50,8 +51,8 @@
                   (define prop-dict (props->dict props))
                   (define arg-prec (dict-ref prop-dict ':precision prec))
                   (define arg-repr (get-representation arg-prec))
-                  (values name (array-of arg-repr dims))]
-                 [(list (? symbol? name) dims ...) (values name (array-of program-repr dims))]
+                  (values name (tuple-of arg-repr dims))]
+                 [(list (? symbol? name) dims ...) (values name (tuple-of program-repr dims))]
                  [(? symbol? name) (values name program-repr)])))
 
   (define ctx (context var-names program-repr var-types))
@@ -125,17 +126,8 @@
                  (repr-description iff-repr)))
        ift-repr]
       [#`(! #,props ... #,body) (loop body (apply dict-set prop-dict (map syntax->datum props)) ctx)]
-      [#`(array #,first-elem #,rest-elems ...)
-       (define first-type (loop first-elem prop-dict ctx))
-       (for ([elem (in-list rest-elems)])
-         (define t (loop elem prop-dict ctx))
-         (unless (equal? t first-type)
-           (error! stx
-                   "Array elements have mismatched types: ~a vs ~a"
-                   (repr-description first-type)
-                   (repr-description t))))
-       (array-of first-type (list (+ 1 (length rest-elems))))]
-      [#`(tuple #,elems ...)
+      ;; An `array` literal is a homogeneous tuple
+      [(or #`(array #,elems ...) #`(tuple #,elems ...))
        ;; Empty tuples are rejected in syntax-check.rkt.
        (define slots
          (for/list ([elem (in-list elems)])
@@ -152,24 +144,19 @@
       [#`(ref #,arr #,idx)
        (define arr-type (loop arr prop-dict ctx))
        (define raw (syntax-e idx))
-       (unless (integer? raw)
-         (error! idx "Array index must be a literal integer, got ~a" idx))
        (match arr-type
-         [(? array-representation?)
-          (define len (array-representation-len arr-type))
-          (define elem (array-representation-elem arr-type))
-          (when (and (integer? raw) (or (< raw 0) (>= raw len)))
-            (error! idx "Array index ~a out of bounds for length ~a" raw len))
-          elem]
          [(? tuple-representation?)
           (define slots (tuple-representation-slots arr-type))
           (cond
             [(and (exact-nonnegative-integer? raw) (< raw (length slots))) (list-ref slots raw)]
-            [else
+            [(exact-nonnegative-integer? raw)
              (error! idx "Tuple index ~a out of bounds for ~a slots" raw (length slots))
+             (get-representation (dict-ref prop-dict ':precision))]
+            [else
+             (error! idx "Index must be a nonnegative integer literal, got ~a" idx)
              (get-representation (dict-ref prop-dict ':precision))])]
          [_
-          (error! stx "ref expects an array or tuple, got ~a" (repr-description arr-type))
+          (error! stx "ref expects a tuple, got ~a" (repr-description arr-type))
           (get-representation (dict-ref prop-dict ':precision))])]
       [#`(cast #,arg)
        (define irepr (loop arg prop-dict ctx))
@@ -227,11 +214,11 @@
     (check-equal? (representation-name dummy) 'dummy)
     (check-equal? (get-representation 'dummy) dummy)
 
-    (define array2 (make-array-representation #:elem dummy #:len 2))
-    (check-equal? (representation-name array2) '(array dummy 2))
-    (check-equal? (representation-name array2) '(array dummy 2))
-    (check-true (repr-exists? '(array dummy 2)))
-    (check-equal? (representation-name (get-representation '(array dummy 2))) '(array dummy 2))
+    (define tuple2 (make-tuple-representation #:slots (list dummy dummy)))
+    (check-equal? (representation-name tuple2) '(tuple dummy dummy))
+    (check-true (repr-exists? '(tuple dummy dummy)))
+    (check-equal? (representation-name (get-representation '(tuple dummy dummy)))
+                  '(tuple dummy dummy))
 
     ;; Context operations
     (define <b64> (get-representation 'binary64))
@@ -275,12 +262,14 @@
     (check-fails <b64> #'(if (== a 1) 1 TRUE) #:env `((a . ,<b64>)))
     (check-types <b64> <b64> #'(let ([a 1]) a) #:env `((a . ,<bool>)))
 
-    ;; Array-aware typing
-    (define vec-type (array-of <b64> '(2)))
-    (define vec3-type (array-of <b64> '(3)))
+    ;; Array literals are homogeneous tuples
+    (define vec-type (tuple-of <b64> '(2)))
+    (define vec3-type (tuple-of <b64> '(3)))
     (check-types <b64> vec-type #'(array 1 2))
     (check-types <b64> vec3-type #'(array 1 2 3))
-    (check-fails <b64> #'(array (array 1) (array 1 2)))
+    (check-types <b64>
+                 (make-tuple-representation #:slots (list (tuple-of <b64> '(1)) vec-type))
+                 #'(array (array 1) (array 1 2)))
     (check-types <b64> <b64> #'(ref (array 5 6) 0))
     (check-types <b64> <b64> #'(ref A 2) #:env `((A . ,vec3-type)))
     (check-fails <b64> #'(ref A 3) #:env `((A . ,vec3-type)))

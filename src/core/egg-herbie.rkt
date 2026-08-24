@@ -198,10 +198,13 @@
        (loop body (hash-set env var (loop term env)))]
       [`(,op ,args ...) (cons op (map (curryr loop env) args))])))
 
+;; The argument types of a spec operator at the arity it was applied at.
+;; `tuple` is variadic with real-typed slots; every other operator has the
+;; fixed signature `operator-info` reports.
 (define (spec-arg-types op arity)
-  (if (equal? op 'tuple)
-      (make-list arity 'real)
-      (operator-info op 'itype)))
+  (match op
+    ['tuple (make-list arity 'real)]
+    [_ (operator-info op 'itype)]))
 
 ;; Converts an S-expr from egg into one Herbie understands
 ;; TODO: typing information is confusing since proofs mean
@@ -447,10 +450,9 @@
 
 ;; Returns all representatations (and their types) in the current platform.
 (define (all-reprs/types [pform (*active-platform*)])
-  (remove-duplicates (list* 'array
-                            'tuple
-                            (append-map (lambda (repr) (list repr (representation-type repr)))
-                                        (platform-reprs pform)))))
+  (remove-duplicates (cons 'tuple
+                           (append-map (lambda (repr) (list repr (representation-type repr)))
+                                       (platform-reprs pform)))))
 
 ;; Returns the type(s) of an enode so it can be placed in the proper e-class.
 ;; Typing rules:

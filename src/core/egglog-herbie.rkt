@@ -37,25 +37,19 @@
 (define (all-repr-names [pform (*active-platform*)])
   (map representation-name (platform-reprs pform)))
 
+;; Tuple tokens carry their arity, so nested tuples encode unambiguously.
+;; The decoding direction (`egglog-repr-name`) only ever sees the scalar
+;; tokens of Num nodes, so tuple tokens are encode-only.
 (define (egglog-repr-token repr-name)
   (match repr-name
     [(? representation?) (egglog-repr-token (representation-name repr-name))]
     [(? symbol?) (format "sym_~a" repr-name)]
-    [`(array ,elem ,len) (format "arr_~a_~a" len (egglog-repr-token elem))]
-    [`(tuple ,_ ...)
-     (raise-herbie-error "The egglog backend does not support tuple representations: ~a" repr-name)]))
+    [`(tuple ,slots ...)
+     (format "tup~a_~a" (length slots) (string-join (map egglog-repr-token slots) "_"))]))
 
 (define (egglog-repr-name token)
   (cond
     [(string-prefix? token "sym_") (string->symbol (substring token 4))]
-    [(string-prefix? token "arr_")
-     (define rest (substring token 4))
-     (define split
-       (for/first ([i (in-range (string-length rest))]
-                   #:when (char=? (string-ref rest i) #\_))
-         i))
-     `(array ,(egglog-repr-name (substring rest (add1 split)))
-             ,(string->number (substring rest 0 split)))]
     ;; Legacy scalar encoding used in older tests and dumps.
     [else (string->symbol token)]))
 
@@ -277,18 +271,18 @@
   (for ([op '(sound-/ sound-log sound-pow)])
     (hash-set! (id->e1) op (serialize-op op))
     (hash-set! (e1->id) (serialize-op op) op))
-  (hash-set! (id->e1) 'array 'Array)
-  (hash-set! (e1->id) 'Array 'array)
-  (hash-set! (e1->id) 'Array3 'array)
+  (hash-set! (id->e1) 'tuple 'Tuple2)
+  (hash-set! (e1->id) 'Tuple2 'tuple)
+  (hash-set! (e1->id) 'Tuple3 'tuple)
   (list* '(Num BigRat :cost 4294967295)
          '(Var String :cost 4294967295)
          '(Sound-/ M M M :cost 4294967295)
          '(Sound-Log M M :cost 4294967295)
          '(Sound-Pow M M M :cost 4294967295)
-         '(Array M M :cost 4294967295)
-         '(Array3 M M M :cost 4294967295)
+         '(Tuple2 M M :cost 4294967295)
+         '(Tuple3 M M M :cost 4294967295)
          (for/list ([op (in-list (all-operators))]
-                    #:unless (eq? op 'array))
+                    #:unless (eq? op 'tuple))
            (define arity (length (operator-info op 'itype)))
            (hash-set! (id->e1) op (serialize-op op))
            (hash-set! (e1->id) (serialize-op op) op)
@@ -369,8 +363,9 @@
 
 (define (serialize-spec-op op arity)
   (match* (op arity)
-    [('array 2) 'Array]
-    [('array 3) 'Array3]
+    ;; Only two- and three-slot tuple nodes are declared; other arities
+    ;; name an undeclared node and egglog rejects them.
+    [('tuple n) (string->symbol (format "Tuple~a" n))]
     [(_ _) (hash-ref (id->e1) op)]))
 
 (define (expr->egglog-spec-serialized expr s)

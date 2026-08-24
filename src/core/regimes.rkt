@@ -270,14 +270,11 @@
     (check-false (critical-subexpression? block (first vs) (block-add! block '(+ x y)))))
 
   (let ()
-    (define vec2-ctx
-      (context '(a b)
-               <binary64>
-               (list (make-array-representation #:elem <binary64> #:len 2)
-                     (make-array-representation #:elem <binary64> #:len 2))))
+    (define vec2 (make-tuple-representation #:slots (list <binary64> <binary64>)))
+    (define vec2-ctx (context '(a b) <binary64> (list vec2 vec2)))
     (define dot-product
-      '(+.f64 (*.f64 (ref.f64 a #s(literal 0 binary64)) (ref.f64 b #s(literal 0 binary64)))
-              (*.f64 (ref.f64 a #s(literal 1 binary64)) (ref.f64 b #s(literal 1 binary64)))))
+      '(+.f64 (*.f64 (ref.0.tuple<binary64:binary64> a) (ref.0.tuple<binary64:binary64> b))
+              (*.f64 (ref.1.tuple<binary64:binary64> a) (ref.1.tuple<binary64:binary64> b))))
     (define-values (block vs) (progs->block (list dot-product) #:ctx vec2-ctx))
     (check-true (set-member? (critical-subexpressions block (first vs)) (first vs)))))
 

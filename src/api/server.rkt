@@ -622,20 +622,20 @@
 
 (define (alt->fpcore test altn)
   (define out-repr (test-output-repr test))
-  (define out-base-repr
-    (if (tuple-representation? out-repr)
-        (get-representation (dict-ref (repr->prop out-repr) ':precision))
-        (array-representation-base out-repr)))
+  (define out-base-repr (tuple-representation-base out-repr))
   `(FPCore ,@(filter identity (list (test-identifier test)))
            ,(for/list ([var (in-list (test-vars test))]
                        [repr (in-list (test-var-reprs test))])
               (cond
-                [(array-representation? repr)
-                 (define dims (array-representation-shape repr))
-                 (define elem-repr (array-representation-base repr))
-                 (if (equal? elem-repr out-base-repr)
-                     (append (list var) dims)
-                     (append (list '! ':precision (representation-name elem-repr) var) dims))]
+                [(tuple-representation? repr)
+                 ;; A uniform tuple prints with the FPCore dimension syntax;
+                 ;; a mixed one has only its structural type to identify it.
+                 (define dims (uniform-tuple-shape repr))
+                 (define elem-repr (tuple-representation-base repr))
+                 (cond
+                   [(and dims (equal? elem-repr out-base-repr)) (append (list var) dims)]
+                   [dims (append (list '! ':precision (representation-name elem-repr) var) dims)]
+                   [else (list '! ':precision (representation-name repr) var)])]
                 [(equal? repr out-base-repr) var]
                 [else (list '! ':precision (representation-name repr) var)]))
            :name

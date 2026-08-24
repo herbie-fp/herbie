@@ -44,15 +44,6 @@
     (match spec
       [(? number?) 'real]
       [(? symbol? x) (dict-ref env x #f)]
-      [(list 'array elems ...)
-       #:when (null? elems)
-       #f]
-      [(list 'array elems ...)
-       (define elem-ty (infer (first elems)))
-       (and elem-ty
-            (for/and ([elem (in-list (rest elems))])
-              (equal? elem-ty (infer elem)))
-            `(array ,elem-ty ,(length elems)))]
       ;; An empty tuple has no slot to take its rounding context from
       [(list 'tuple) #f]
       [(list 'tuple elems ...)
@@ -60,7 +51,6 @@
        (and (andmap values tys) `(tuple ,@tys))]
       [(list 'ref arr idx)
        (match (infer arr)
-         [`(array ,elem-ty ,_) elem-ty]
          [`(tuple ,tys ...)
           (and (exact-nonnegative-integer? idx) (< idx (length tys)) (list-ref tys idx))]
          [_ #f])]

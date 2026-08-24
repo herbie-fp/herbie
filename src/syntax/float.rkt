@@ -22,10 +22,6 @@
 
 (define (repr-ulps repr)
   (match (representation-type repr)
-    [`(array ,_ ,_)
-     (define elem-repr (array-representation-elem repr))
-     (define elem-ulps (repr-ulps elem-repr))
-     (lambda (x y) (for/sum ([x1 (in-vector x)] [y1 (in-vector y)]) (elem-ulps x1 y1)))]
     [`(tuple ,_ ...)
      (define slot-ulps (map repr-ulps (tuple-representation-slots repr)))
      (lambda (x y)
@@ -48,12 +44,6 @@
 ;; not the real-valued midpoint
 (define (midpoint p1 p2 repr)
   (match (representation-type repr)
-    [`(array ,_ ,_)
-     (define elem-repr (array-representation-elem repr))
-     (for/vector #:length (vector-length p1)
-                 ([x1 (in-vector p1)]
-                  [y1 (in-vector p2)])
-       (midpoint x1 y1 elem-repr))]
     ['bool (and p1 p2)]
     ['real
      ((representation-ordinal->repr repr) (floor (/ (+ ((representation-repr->ordinal repr) p1)
@@ -81,12 +71,6 @@
 
 (define (random-generate repr)
   (match (representation-type repr)
-    [`(array ,_ ,_)
-     (define elem-repr (array-representation-elem repr))
-     (define len (array-representation-len repr))
-     (for/vector #:length len
-                 ([_ (in-range len)])
-       (random-generate elem-repr))]
     ['bool (zero? (random-integer 0 2))]
     ['real
      (define bits (sub1 (representation-total-bits repr)))
@@ -111,14 +95,9 @@
 (define (value->json x repr)
   (match x
     [(? vector?)
-     #:when (tuple-representation? repr)
      (for/list ([v (in-vector x)]
                 [slot (in-list (tuple-representation-slots repr))])
        (value->json v slot))]
-    [(? vector?)
-     (define elem-repr (array-representation-elem repr))
-     (for/list ([v (in-vector x)])
-       (value->json v elem-repr))]
     [(? real?)
      (match x
        [(? rational?) x]
@@ -134,14 +113,9 @@
 (define (json->value x repr)
   (match x
     [(? list?)
-     #:when (tuple-representation? repr)
      (for/vector ([v (in-list x)]
                   [slot (in-list (tuple-representation-slots repr))])
        (json->value v slot))]
-    [(? list?)
-     (define elem-repr (array-representation-elem repr))
-     (for/vector ([v (in-list x)])
-       (json->value v elem-repr))]
     [(? real?) (exact->inexact x)]
     [(? hash?)
      (match (hash-ref x 'type)
@@ -176,10 +150,6 @@
 
 (define (real->repr x repr)
   (match (representation-type repr)
-    [`(array ,_ ,_)
-     (define elem-repr (array-representation-elem repr))
-     (for/vector ([v (in-vector x)])
-       (real->repr v elem-repr))]
     [`(tuple ,_ ...)
      (for/vector ([v (in-vector x)]
                   [slot (in-list (tuple-representation-slots repr))])
@@ -191,10 +161,6 @@
 
 (define (repr->real x repr)
   (match (representation-type repr)
-    [`(array ,_ ,_)
-     (define elem-repr (array-representation-elem repr))
-     (for/vector ([v (in-vector x)])
-       (repr->real v elem-repr))]
     [`(tuple ,_ ...)
      (for/vector ([v (in-vector x)]
                   [slot (in-list (tuple-representation-slots repr))])

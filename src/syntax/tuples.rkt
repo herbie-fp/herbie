@@ -19,7 +19,6 @@
 (define (repr-name->token name)
   (match name
     [(? symbol?) (symbol->string name)]
-    [`(array ,elem ,len) (format "array<~a:~a>" (repr-name->token elem) len)]
     [`(tuple ,slots ...) (format "tuple<~a>" (string-join (map repr-name->token slots) ":"))]
     [_ (raise-herbie-error "Cannot name representation ~a" name)]))
 
@@ -125,12 +124,6 @@
     [(wrapped? "tuple")
      (define names (slots-of "tuple"))
      (and names `(tuple ,@names))]
-    [(wrapped? "array")
-     (define names (slots-of "array"))
-     (and names
-          (= (length names) 2)
-          (exact-positive-integer? (string->number (second (split-slots (body "array")))))
-          `(array ,(first names) ,(string->number (second (split-slots (body "array"))))))]
     [(zero? (string-length tok)) #f]
     [(or (string-contains? tok "<") (string-contains? tok ">") (string-contains? tok ":")) #f]
     [else (string->symbol tok)]))

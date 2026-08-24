@@ -4,9 +4,9 @@
          racket/list
          "../syntax/types.rkt")
 
-(provide flatten-arrays-for-rival)
+(provide flatten-tuples-for-rival)
 
-;; Flatten array inputs/outputs into scalar inputs/outputs for Rival.
+;; Flatten tuple inputs/outputs into scalar inputs/outputs for Rival.
 ;; Returns:
 ;;   - flattened specs
 ;;   - flattened contexts
@@ -15,34 +15,30 @@
 ;;   - output assembler (flattened outputs -> original outputs)
 ;;   - flattened output reprs
 
-;; Returns whether an expression contains an array literal or reference.
-;; Array-valued intermediate expressions in LSpec are represented by array
+;; Returns whether an expression contains a tuple literal or reference.
+;; Tuple-valued intermediate expressions in LSpec are represented by tuple
 ;; literals, and references can hide them behind another expression.
-(define (array-expression? expr)
+(define (tuple-expression? expr)
   (match expr
-    [(list 'array _ ...) #t]
     [(list 'tuple _ ...) #t]
     [(list 'ref _ ...) #t]
-    [(list _ args ...) (ormap array-expression? args)]
+    [(list _ args ...) (ormap tuple-expression? args)]
     [_ #f]))
 
-(define (aggregate-representation? repr)
-  (or (array-representation? repr) (tuple-representation? repr)))
+(define (flatten-tuples-for-rival/no-tuples? specs ctxs pre)
+  (and (not (ormap tuple-representation? (map context-repr ctxs)))
+       (not (ormap tuple-representation? (append* (map context-var-reprs ctxs))))
+       (not (ormap tuple-expression? (cons pre specs)))))
 
-(define (flatten-arrays-for-rival/no-arrays? specs ctxs pre)
-  (and (not (ormap aggregate-representation? (map context-repr ctxs)))
-       (not (ormap aggregate-representation? (append* (map context-var-reprs ctxs))))
-       (not (ormap array-expression? (cons pre specs)))))
-
-(define (flatten-arrays-for-rival/no-arrays specs ctxs pre)
+(define (flatten-tuples-for-rival/no-tuples specs ctxs pre)
   (values specs ctxs pre identity identity (map context-repr ctxs)))
 
-(define (flatten-arrays-for-rival specs ctxs pre)
-  (if (flatten-arrays-for-rival/no-arrays? specs ctxs pre)
-      (flatten-arrays-for-rival/no-arrays specs ctxs pre)
-      (flatten-arrays-for-rival/with-arrays specs ctxs pre)))
+(define (flatten-tuples-for-rival specs ctxs pre)
+  (if (flatten-tuples-for-rival/no-tuples? specs ctxs pre)
+      (flatten-tuples-for-rival/no-tuples specs ctxs pre)
+      (flatten-tuples-for-rival/with-tuples specs ctxs pre)))
 
-(define (flatten-arrays-for-rival/with-arrays specs ctxs pre)
+(define (flatten-tuples-for-rival/with-tuples specs ctxs pre)
   (define orig-vars (context-vars (first ctxs)))
   (define orig-reprs (map context-repr ctxs))
   (define orig-var-reprs (context-var-reprs (first ctxs)))
@@ -56,20 +52,11 @@
          (set-add! taken candidate)
          candidate])))
   (define (leaf-reprs repr)
-    (cond
-      [(array-representation? repr)
-       (append* (for/list ([_ (in-range (array-representation-len repr))])
-                  (leaf-reprs (array-representation-elem repr))))]
-      [(tuple-representation? repr) (append* (map leaf-reprs (tuple-representation-slots repr)))]
-      [else (list repr)]))
+    (if (tuple-representation? repr)
+        (append* (map leaf-reprs (tuple-representation-slots repr)))
+        (list repr)))
   (define (fresh-tree base repr)
     (cond
-      [(array-representation? repr)
-       (define-values (elems vars reprs)
-         (for/lists (elems vars reprs)
-                    ([_ (in-range (array-representation-len repr))])
-                    (fresh-tree base (array-representation-elem repr))))
-       (values `(array ,@elems) (append* vars) (append* reprs))]
       [(tuple-representation? repr)
        (define-values (elems vars reprs)
          (for/lists (elems vars reprs)
@@ -81,10 +68,6 @@
        (values v (list v) (list repr))]))
   (define (flatten-by-repr expr repr)
     (cond
-      [(array-representation? repr)
-       (match-let ([`(array ,elems ...) expr])
-         (append* (for/list ([elem (in-list elems)])
-                    (flatten-by-repr elem (array-representation-elem repr)))))]
       [(tuple-representation? repr)
        (match-let ([`(tuple ,elems ...) expr])
          (append* (for/list ([elem (in-list elems)]
@@ -93,10 +76,6 @@
       [else (list expr)]))
   (define (build-value next repr)
     (cond
-      [(array-representation? repr)
-       (for/vector #:length (array-representation-len repr)
-                   ([_ (in-range (array-representation-len repr))])
-         (build-value next (array-representation-elem repr)))]
       [(tuple-representation? repr)
        (for/vector #:length (length (tuple-representation-slots repr))
                    ([slot (in-list (tuple-representation-slots repr))])
@@ -109,12 +88,6 @@
   (for ([v orig-vars]
         [r orig-var-reprs])
     (cond
-      [(array-representation? r)
-       (define base (symbol->string v))
-       (define-values (tree vars reprs) (fresh-tree base r))
-       (hash-set! env v tree)
-       (set! new-vars (append new-vars vars))
-       (set! new-var-reprs (append new-var-reprs reprs))]
       [(tuple-representation? r)
        (define base (symbol->string v))
        (define-values (tree vars reprs) (fresh-tree base r))
@@ -125,14 +98,13 @@
        (hash-set! env v v)
        (set! new-vars (append new-vars (list v)))
        (set! new-var-reprs (append new-var-reprs (list r)))]))
-  (define (lower-arr expr)
+  (define (lower-tuples expr)
     (match expr
       [(? number?) expr]
       [(? symbol? s) (hash-ref env s s)]
       [`(,op ,args ...)
-       (define lowered `(,op ,@(map lower-arr args)))
+       (define lowered `(,op ,@(map lower-tuples args)))
        (match lowered
-         [`(ref (array ,elems ...) ,idx) (list-ref elems idx)]
          [`(ref (tuple ,elems ...) ,idx) (list-ref elems idx)]
          [_ lowered])]))
 
@@ -140,19 +112,15 @@
   (define new-reprs '())
   (for ([spec (in-list specs)]
         [repr (in-list orig-reprs)])
-    (define lowered (lower-arr spec))
+    (define lowered (lower-tuples spec))
     (set! new-specs (append new-specs (flatten-by-repr lowered repr)))
     (set! new-reprs (append new-reprs (leaf-reprs repr))))
 
-  (define new-pre (lower-arr pre))
+  (define new-pre (lower-tuples pre))
   (define ctxs*
     (for/list ([ctx (in-list ctxs)])
       (match-define (context _ repr _) ctx)
-      (context new-vars
-               (if (array-representation? repr)
-                   (array-representation-base repr)
-                   repr)
-               new-var-reprs)))
+      (context new-vars repr new-var-reprs)))
 
   (define (assemble-point pt)
     (define idx 0)
@@ -180,17 +148,17 @@
 (module+ test
   (require rackunit)
 
-  (define vec2 (make-array-representation #:elem <binary64> #:len 2))
+  (define vec2 (make-tuple-representation #:slots (list <binary64> <binary64>)))
   (define ctx (context '(x) <binary64> (list vec2)))
   (let-values ([(specs* _ pre* _assemble-point _assemble-output _reprs*)
-                (flatten-arrays-for-rival (list '(ref x 1)) (list ctx) '(< (ref x 0) (ref x 1)))])
+                (flatten-tuples-for-rival (list '(ref x 1)) (list ctx) '(< (ref x 0) (ref x 1)))])
     (check-equal? specs* '(x_1))
     (check-equal? pre* '(< x_0 x_1)))
 
-  (define mat2 (make-array-representation #:elem vec2 #:len 2))
+  (define mat2 (make-tuple-representation #:slots (list vec2 vec2)))
   (define nested-ctx (context '(x) <binary64> (list mat2)))
   (let-values ([(specs* _ pre* assemble-point _assemble-output _reprs*)
-                (flatten-arrays-for-rival (list '(ref (ref x 1) 0))
+                (flatten-tuples-for-rival (list '(ref (ref x 1) 0))
                                           (list nested-ctx)
                                           '(< (ref (ref x 0) 1) (ref (ref x 1) 0)))])
     (check-equal? specs* '(x_2))
@@ -198,7 +166,7 @@
     (check-equal? (assemble-point #(1 2 3 4)) #(#(#(1 2) #(3 4)))))
 
   (let-values ([(specs* _ctxs* _pre* _assemble-point assemble-output reprs*)
-                (flatten-arrays-for-rival (list '(array (array 1 2) (array 3 4)))
+                (flatten-tuples-for-rival (list '(tuple (tuple 1 2) (tuple 3 4)))
                                           (list (context '() mat2 '()))
                                           'TRUE)])
     (check-equal? specs* '(1 2 3 4))
@@ -208,7 +176,7 @@
   (define scalar-ctxs (list (context '(x) <binary64> (list <binary64>))))
   (define scalar-specs (list '(+ x 1)))
   (let-values ([(specs* ctxs* pre* assemble-point assemble-output reprs*)
-                (flatten-arrays-for-rival scalar-specs scalar-ctxs 'TRUE)])
+                (flatten-tuples-for-rival scalar-specs scalar-ctxs 'TRUE)])
     (check-eq? specs* scalar-specs)
     (check-eq? ctxs* scalar-ctxs)
     (check-eq? pre* 'TRUE)
@@ -217,17 +185,17 @@
     (check-equal? reprs* (list <binary64>)))
 
   (let-values ([(specs* _ctxs* _pre* _assemble-point _assemble-output _reprs*)
-                (flatten-arrays-for-rival (list '(ref (array x x) 0)) scalar-ctxs 'TRUE)])
+                (flatten-tuples-for-rival (list '(ref (tuple x x) 0)) scalar-ctxs 'TRUE)])
     (check-equal? specs* '(x)))
 
   (let-values ([(specs* _ctxs* pre* _assemble-point _assemble-output _reprs*)
-                (flatten-arrays-for-rival (list '(+ x 1)) scalar-ctxs '(< (ref (array x x) 0) 2))])
+                (flatten-tuples-for-rival (list '(+ x 1)) scalar-ctxs '(< (ref (tuple x x) 0) 2))])
     (check-equal? specs* '((+ x 1)))
     (check-equal? pre* '(< x 2)))
 
   (define mixed (make-tuple-representation #:slots (list <binary32> <binary64>)))
   (let-values ([(specs* _ctxs* _pre* _assemble-point assemble-output reprs*)
-                (flatten-arrays-for-rival (list '(tuple (+ x 1) (* x 2)))
+                (flatten-tuples-for-rival (list '(tuple (+ x 1) (* x 2)))
                                           (list (context '(x) mixed (list <binary64>)))
                                           'TRUE)])
     (check-equal? specs* '((+ x 1) (* x 2)))

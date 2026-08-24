@@ -27,22 +27,27 @@
 ;; All real operators come from Rival
 
 ;; Checks if an operator has been registered.
+;; `ref` and `tuple` are the structural spec operators; all others come from Rival.
 (define (operator-exists? op)
-  (or (hash-has-key? rival-functions op) (equal? op 'ref) (equal? op 'array) (equal? op 'tuple)))
+  (or (hash-has-key? rival-functions op) (equal? op 'ref) (equal? op 'tuple)))
 
 ;; Returns all operators.
 (define (all-operators)
-  (sort (append (hash-keys rival-functions) (list 'array 'ref 'tuple)) symbol<?))
+  (sort (append (hash-keys rival-functions) (list 'ref 'tuple)) symbol<?))
 
 ;; Looks up a property `field` of a real operator `op`.
-;; Panics if the operator is not found.
+;; Panics if the operator is not found. `tuple` is variadic, so it has an
+;; output type but no fixed signature; arity-aware callers go through
+;; `spec-arg-types` in egg-herbie.rkt instead.
 (define/contract (operator-info op field)
   (-> symbol? (or/c 'itype 'otype) any/c)
   (define info
     (cond
-      [(equal? op 'ref) '(real array real)]
-      [(equal? op 'array) '(array real real)]
-      [(equal? op 'tuple) '(tuple real real)]
+      [(equal? op 'ref) '(real tuple real)]
+      [(equal? op 'tuple)
+       (when (equal? field 'itype)
+         (raise-arguments-error 'operator-info "tuple is variadic and has no fixed signature"))
+       '(tuple)]
       [else
        (hash-ref rival-functions
                  op
