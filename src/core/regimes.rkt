@@ -46,17 +46,11 @@
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
 ;; CONSIDER: move start-prog and the "branch-vs" computation into caller.
-(define (pareto-regimes block
-                        sorted
-                        start-prog
-                        pcontext
-                        spec-block
-                        #:vocabulary [vocab #f]
-                        #:err-cols [err-cols* #f])
+(define (pareto-regimes block sorted start-prog pcontext spec-block)
   (timeline-event! 'regimes)
   (define alts-vec (list->vector sorted))
   (define alt-count (vector-length alts-vec))
-  (define err-cols (or err-cols* (block-errors block (map alt-expr sorted) pcontext)))
+  (define err-cols (block-errors block (map alt-expr sorted) pcontext))
   (define (real-v? v)
     (equal? (representation-type (block-repr-of v)) 'real))
   ;; The dominating subexpressions always stay in the vocabulary.
@@ -70,8 +64,7 @@
   (define (dp-score v v-vals-vec)
     (define curve (branch-options block alts-vec err-cols pts-vec v v-vals-vec (block-repr-of v)))
     (apply min (map pareto-point-error curve)))
-  (define branch-vs
-    (or vocab (branch-candidates block sorted start-prog err-cols pcontext classic-vs dp-score)))
+  (define branch-vs (branch-candidates block sorted start-prog err-cols pcontext classic-vs dp-score))
 
   (define v-vals (v-values* block branch-vs pcontext))
 
@@ -110,16 +103,14 @@
                    (for*/list ([ppt (in-list combined-option-curve)]
                                [sidx (in-list (option-split-indices (pareto-point-data ppt)))])
                      (alt-expr (list-ref (option-alts (pareto-point-data ppt)) (si-cidx sidx)))))))
-  (define opts
-    (for/list ([ppt (in-list combined-option-curve)])
-      (define opt (pareto-point-data ppt))
-      (timeline-push! 'count (length (option-alts opt)) (length (option-split-indices opt)))
-      (timeline-push! 'accuracy
-                      (- (pareto-point-error ppt) (length (option-split-indices opt)))
-                      (oracle-errors-score err-cols (pareto-point-cost ppt))
-                      (baseline-errors-score err-cols (pareto-point-cost ppt)))
-      opt))
-  (values opts branch-vs))
+  (for/list ([ppt (in-list combined-option-curve)])
+    (define opt (pareto-point-data ppt))
+    (timeline-push! 'count (length (option-alts opt)) (length (option-split-indices opt)))
+    (timeline-push! 'accuracy
+                    (- (pareto-point-error ppt) (length (option-split-indices opt)))
+                    (oracle-errors-score err-cols (pareto-point-cost ppt))
+                    (baseline-errors-score err-cols (pareto-point-cost ppt)))
+    opt))
 
 (define (critical-subexpression? block root-v sub-v)
   (set-member? (critical-subexpressions block root-v) sub-v))

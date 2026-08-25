@@ -17,6 +17,10 @@
 (provide branch-candidates
          v-values*)
 
+;; A scored branch candidate: `key` identifies its point ordering, `vals` its
+;; value on every point.
+(struct candidate (score v key vals))
+
 ;; Sorts the points by this expression and groups equal values.
 ;; Returns the sort order, the legal split positions, and a hashable key.
 ;; Two expressions with the same key always get the same separability score.
@@ -88,38 +92,32 @@
   (cond
     [(null? pool) kept]
     [else
-     ;; Score every candidate against every alt on every point. No subsampling.
-     ;; The score depends only on how a candidate orders the points, so all
-     ;; candidates that sort the points the same way share one computation.
-     (define vals (v-values* block pool pcontext))
+     ;; Candidates that sort the points the same way share one separability score.
      (define score-cache (make-hash))
      (define scored
        (for/list ([v (in-list pool)]
-                  [vs (in-list vals)])
+                  [vs (in-list (v-values* block pool pcontext))])
          (define-values (order can-split key) (ordering-key vs (block-repr-of v)))
          (define score
            (hash-ref! score-cache key (lambda () (branch-separability err-cols order can-split))))
-         (list score v key vs)))
-     ;; The sort is stable, so equal scores keep block order and the choice is deterministic.
-     (define ranked (sort scored < #:key first))
-     (define picks (take ranked (min (*branch-expr-limit*) (length ranked))))
-     (define outsiders
-       (drop (take ranked (min (*branch-shortlist*) (length ranked))) (length picks)))
+         (candidate score v key vs)))
+     ;; The sort is stable, so equal scores keep block order and stay deterministic.
+     (define ranked (sort scored < #:key candidate-score))
+     (define shortlist (take ranked (min (*branch-shortlist*) (length ranked))))
+     (define-values (picks outsiders)
+       (split-at shortlist (min (*branch-expr-limit*) (length shortlist))))
      ;; The one-split score cannot see candidates that only pay off with several
-     ;; splits, so re-rank the shortlist with the true DP error. An outsider must
-     ;; win by a clear margin before it displaces a pick; small wins are noise.
+     ;; splits, so re-rank the shortlist by true DP error. An outsider displaces a
+     ;; pick only on a clear win; small wins are training noise.
      (define dp-cache (make-hash))
-     (define (dp-of entry)
-       (hash-ref! dp-cache (third entry) (lambda () (dp-score (second entry) (fourth entry)))))
+     (define (dp-of c)
+       (hash-ref! dp-cache (candidate-key c) (lambda () (dp-score (candidate-v c) (candidate-vals c)))))
      (define final
        (for/fold ([picks picks]) ([out (in-list (sort outsiders < #:key dp-of))])
-         (cond
-           [(< (dp-of out) (- (apply min (map dp-of picks)) (*branch-dp-margin*)))
-            (define worst (argmax dp-of picks))
-            (for/list ([p (in-list picks)])
-              (if (eq? p worst) out p))]
-           [else picks])))
-     (append kept (map second final))]))
+         (if (< (dp-of out) (- (apply min (map dp-of picks)) (*branch-dp-margin*)))
+             (cons out (remq (argmax dp-of picks) picks))
+             picks)))
+     (append kept (map candidate-v final))]))
 
 (define (v-values* block vs pcontext)
   (define count (length vs))
