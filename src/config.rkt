@@ -142,6 +142,13 @@
 ;; each one is more capacity to overfit the training points
 (define *branch-expr-limit* (make-parameter 4))
 
+;; How many top-scored candidates get an exact DP evaluation before the final pick
+(define *branch-shortlist* (make-parameter 32))
+
+;; A shortlist candidate must beat the heuristic picks by this many bits of
+;; average error on the true DP objective before it displaces one
+(define *branch-dp-margin* (make-parameter 2.0))
+
 ;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))
 

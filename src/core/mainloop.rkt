@@ -1,6 +1,7 @@
 #lang racket
 
-(require "../config.rkt"
+(require math/flonum
+         "../config.rkt"
          "../core/alternative.rkt"
          "../utils/common.rkt"
          "../utils/timeline.rkt"
@@ -8,8 +9,10 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "alt-table.rkt"
+         "branches.rkt"
          "bsearch.rkt"
          "../syntax/block.rkt"
+         "../syntax/float.rkt"
          "derivations.rkt"
          "patch.rkt"
          "points.rkt"
@@ -292,28 +295,130 @@
           (not (null? (block-vars block)))
           (get-fpcore-impl 'if '() (list <bool> repr repr))
           (get-fpcore-impl '<= '() (list repr repr)))
-     (define opts
-       (pareto-regimes block
-                       (sort alts < #:key (compose alt-costs alt-expr))
-                       start-prog
-                       (*pcontext*)
-                       spec-block))
-     (for/list ([opt (in-list opts)])
-       (match-define (option splitindices opt-alts _ v) opt)
-       (timeline-event! 'bsearch)
-       (define use-binary?
-         (and (flag-set? 'reduce 'binary-search)
-              (> (length splitindices) 1)
-              (critical-subexpression? block start-prog v)
-              (for/and ([alt (in-list opt-alts)])
-                (critical-subexpression? block (alt-expr alt) v))))
-       (cond
-         [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
-         [use-binary? (combine-alts/binary block opt start-prog (*pcontext*))]
-         [else (combine-alts block opt)]))]
+     (define sorted (sort alts < #:key (compose alt-costs alt-expr)))
+     (define-values (opts branch-vs)
+       (pareto-regimes block sorted start-prog (*pcontext*) spec-block))
+     (define regime-alts
+       (for/list ([opt (in-list opts)])
+         (option->alt block opt start-prog (*pcontext*))))
+     (define tree (make-tree-regime block sorted start-prog spec-block branch-vs opts regime-alts))
+     (if tree (cons tree regime-alts) regime-alts)]
     [else
      (define scores (block-score-alts alts))
      (list (cdr (argmin car (map (λ (a s) (cons s a)) alts scores))))]))
+
+(define (option->alt block opt start-prog pcontext)
+  (match-define (option splitindices opt-alts _ v) opt)
+  (timeline-event! 'bsearch)
+  (define use-binary?
+    (and (flag-set? 'reduce 'binary-search)
+         (> (length splitindices) 1)
+         (critical-subexpression? block start-prog v)
+         (for/and ([alt (in-list opt-alts)])
+           (critical-subexpression? block (alt-expr alt) v))))
+  (cond
+    [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
+    [use-binary? (combine-alts/binary block opt start-prog pcontext)]
+    [else (combine-alts block opt)]))
+
+;; Tries a depth-2 regime: one split on a vocabulary expression, then a fresh
+;; regime on each side. Returns the tree alt only when it beats the flat
+;; regime on the training points by a clear margin, split penalties included.
+(define (make-tree-regime block alts start-prog spec-block branch-vs opts flat-alts)
+  (define pcontext (*pcontext*))
+  (define pts-vec (pcontext-points pcontext))
+  (define exs-vec
+    (for/vector ([(pt ex) (in-pcontext pcontext)])
+      ex))
+  (define n (vector-length pts-vec))
+
+  (define (train-errors es)
+    (for/list ([col (in-list (block-errors block es pcontext))])
+      (for/sum ([x (in-flvector col)])
+        x)))
+  (define (alt-splits a)
+    (match (alt-event a)
+      [(list 'regimes sps) (sub1 (length sps))]
+      [_ 0]))
+
+  (define flat-errors (train-errors (map alt-expr flat-alts)))
+  (define flat-score
+    (for/fold ([best +inf.0]) ([a (in-list flat-alts)]
+                               [err (in-list flat-errors)])
+      (min best (+ err (* n (alt-splits a))))))
+
+  (cond
+    [(or (< n 64) (< (apply min flat-errors) n)) #f]
+    [else
+     (define all-err-cols (block-errors block (map alt-expr alts) pcontext))
+     (define (solve-side idxs)
+       (define sub-pcontext
+         (mk-pcontext (for/list ([i (in-vector idxs)])
+                        (vector-ref pts-vec i))
+                      (for/list ([i (in-vector idxs)])
+                        (vector-ref exs-vec i))))
+       (define sub-cols
+         (for/list ([col (in-list all-err-cols)])
+           (for/flvector ([i (in-vector idxs)])
+             (flvector-ref col i))))
+       (parameterize ([*timeline-disabled* #t])
+         (define-values (sub-opts _vs)
+           (pareto-regimes block
+                           alts
+                           start-prog
+                           sub-pcontext
+                           spec-block
+                           #:vocabulary branch-vs
+                           #:err-cols sub-cols))
+         (define a (option->alt block (first sub-opts) start-prog sub-pcontext))
+         (define err
+           (for/sum ([x (in-flvector (first (block-errors block (list (alt-expr a)) sub-pcontext)))])
+             x))
+         (list a err (alt-splits a))))
+
+     ;; First-cut menu: the flat pareto winners first, then the rest of the
+     ;; vocabulary, capped to keep the number of side solves bounded.
+     (define menu
+       (let ([all (remove-duplicates (append (map option-expr opts) branch-vs))])
+         (take all (min 6 (length all)))))
+     (define vvals (v-values* block menu pcontext))
+     (define scored
+       (append*
+        (for/list ([v (in-list menu)]
+                   [vs (in-list vvals)])
+          (define repr (block-repr-of v))
+          (define order
+            (vector-sort (build-vector n values)
+                         (lambda (i j) (</total (vector-ref vs i) (vector-ref vs j) repr))))
+          (define legal
+            (for/list ([k (in-range 1 n)]
+                       #:when (</total (vector-ref vs (vector-ref order (sub1 k)))
+                                       (vector-ref vs (vector-ref order k))
+                                       repr))
+              k))
+          (define cuts
+            (if (null? legal)
+                '()
+                (remove-duplicates
+                 (for/list ([target (in-list (list (quotient n 4) (quotient n 2) (quotient (* 3 n) 4)))])
+                   (argmin (lambda (k) (abs (- k target))) legal)))))
+          (for/list ([cut (in-list cuts)]
+                     #:when (and (>= cut 16) (>= (- n cut) 16)))
+            (match-define (list altL errL splitsL) (solve-side (vector-copy order 0 cut)))
+            (match-define (list altR errR splitsR) (solve-side (vector-copy order cut n)))
+            (define tree-splits (+ 1 splitsL splitsR))
+            (list (+ errL errR (* n tree-splits)) v order cut altL altR tree-splits)))))
+     (cond
+       [(null? scored) #f]
+       [else
+        (match-define (list _ v order cut altL altR tree-splits) (argmin first scored))
+        (define pts*
+          (for/list ([i (in-vector order)])
+            (vector-ref pts-vec i)))
+        (define outer (option (list (si 0 cut) (si 1 n)) (list altL altR) pts* v))
+        (define tree-alt (option->alt block outer start-prog pcontext))
+        (define tree-score (+ (first (train-errors (list (alt-expr tree-alt)))) (* n tree-splits)))
+        (and (< tree-score (- flat-score (* n (*branch-dp-margin*)))) tree-alt)])]))
 
 (define (add-derivations! alts)
   (cond
