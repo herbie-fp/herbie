@@ -656,9 +656,10 @@
   ;; The back-off scheduler's :node-limit keeps the e-graph within the node
   ;; limit as it chooses matches; the :until guards with get-node-size! stop
   ;; the schedule once the limit is reached. Both measure e-nodes (rows of
-  ;; eq-sort tables), matching what egg counts, rather than get-size!'s total
-  ;; table size. After each iteration, we check for unsound merges via
-  ;; bad-merge-rule. The schedule runs until:
+  ;; constructor tables, excluding relations and analysis functions), matching
+  ;; what egg counts, rather than get-size!'s total table size. After each
+  ;; iteration, we check for unsound merges via bad-merge-rule. The schedule
+  ;; runs until:
   ;;   1. Node limit is reached (get-node-size! >= node-limit)
   ;;   2. Saturation (no more progress)
   ;;   3. Iter limit is reached
