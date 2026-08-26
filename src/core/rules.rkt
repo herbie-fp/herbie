@@ -282,6 +282,10 @@
   [fmin-swap (fmin a b) (fmin b a)]
   [fmax-swap (fmax a b) (fmax b a)])
 
+; Remainder
+(define-rules arithmetic
+  [remainder-div (remainder (/ x a) b) (/ (remainder x (* a b)) a)])
+
 ; Exponentials
 (define-rules exponents
   #;[add-log-exp x (log (exp x))]
@@ -511,8 +515,7 @@
   [acos-neg (acos (neg x)) (- (PI) (acos x))]
   [atan-neg (atan (neg x)) (neg (atan x))]
   [acos-half-asin (acos x) (* 2 (asin (sqrt (/ (- 1 x) 2))))]
-  [acos-half-acos (acos x) (* 2 (acos (sqrt (/ (+ 1 x) 2))))]
-  [acos-1sub-asin (acos (- 1 x)) (* 2 (asin (sqrt (/ x 2))))])
+  [acos-half-acos (acos x) (* 2 (acos (sqrt (/ (+ 1 x) 2))))])
 
 (define-rules trigonometry
   [acos-asin-rev (- (/ (PI) 2) (asin x)) (acos x)]
@@ -527,8 +530,7 @@
   [sin-atan-rev (/ x (sqrt (+ 1 (* x x)))) (sin (atan x))]
   [sin-acos-rev (sqrt (- 1 (* x x))) (sin (acos x))]
   [acos-half-asin-rev (* 2 (asin (sqrt (/ (- 1 x) 2)))) (acos x)]
-  [acos-half-acos-rev (* 2 (acos (sqrt (/ (+ 1 x) 2)))) (acos x)]
-  [acos-1sub-asin-rev (* 2 (asin (sqrt (/ x 2)))) (acos (- 1 x))])
+  [acos-half-acos-rev (* 2 (acos (sqrt (/ (+ 1 x) 2)))) (acos x)])
 
 (define-rules trigonometry
   [quarter-pi-atan (/ (PI) 4) (atan 1)]
@@ -536,8 +538,7 @@
   [gudermannian-rev (atan (sinh x)) (- (* 2 (atan (exp x))) (/ (PI) 2))]
   [gudermannian2 (* 2 (- (atan (exp x)) (/ (PI) 4))) (atan (sinh x))]
   [atan-sinh-asin-tanh (atan (sinh x)) (asin (tanh x))]
-  [asin-tanh-atan-sinh (asin (tanh x)) (atan (sinh x))]
-  [log-tan-quarter-half (log (tan (+ (/ (PI) 4) (/ x 2)))) (atanh (sin x))])
+  [asin-tanh-atan-sinh (asin (tanh x)) (atan (sinh x))])
 
 (define-rules trigonometry
   [sin-pi-reduce (sin (* x (PI))) (sin (* (remainder x 2) (PI)))]
