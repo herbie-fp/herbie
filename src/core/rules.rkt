@@ -536,9 +536,7 @@
   [quarter-pi-atan (/ (PI) 4) (atan 1)]
   [gudermannian (- (* 2 (atan (exp x))) (/ (PI) 2)) (atan (sinh x))]
   [gudermannian-rev (atan (sinh x)) (- (* 2 (atan (exp x))) (/ (PI) 2))]
-  [gudermannian2 (* 2 (- (atan (exp x)) (/ (PI) 4))) (atan (sinh x))]
-  [atan-sinh-asin-tanh (atan (sinh x)) (asin (tanh x))]
-  [asin-tanh-atan-sinh (asin (tanh x)) (atan (sinh x))])
+  [gudermannian2 (* 2 (- (atan (exp x)) (/ (PI) 4))) (atan (sinh x))])
 
 (define-rules trigonometry
   [sin-pi-reduce (sin (* x (PI))) (sin (* (remainder x 2) (PI)))]
@@ -634,7 +632,6 @@
 (define-rules hyperbolic
   [asinh-def-rev (log (+ x (sqrt (+ (* x x) 1)))) (asinh x)]
   [atanh-def-rev (/ (log (/ (+ 1 x) (- 1 x))) 2) (atanh x)]
-  [log-div-atanh (log (/ (+ 1 x) (- 1 x))) (* 2 (atanh x))]
   [acosh-def-rev (log (+ x (sqrt (- (* x x) 1)))) (acosh x)]
   [tanh-asinh-rev (/ x (sqrt (+ 1 (* x x)))) (tanh (asinh x))]
   [cosh-asinh-rev (sqrt (+ (* x x) 1)) (cosh (asinh x))]

@@ -195,7 +195,6 @@
                           (or (even-denominator? b) (even-denominator? c))))
     (pow-prod-down (implies (< (* b c) 0) (or (< b 0) (< c 0))))
     (log-pow-rev (implies (and a b) a) (implies (< (pow a b) 0) (< a 0)))
-    (atan-sinh-asin-tanh (implies (< 1 (fabs (tanh x))) (FALSE)))
     (acos-half-asin (implies (< 1 (fabs (sqrt (/ (- 1 x) 2)))) (< 1 (fabs x)))
                     (implies (< 1 x) (< 1 (fabs x))))
     (acos-half-asin-rev (implies (< 1 (fabs x))
