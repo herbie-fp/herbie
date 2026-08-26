@@ -14,7 +14,31 @@
 ;;   - point assembler (original point -> flattened point)
 ;;   - output assembler (flattened outputs -> original outputs)
 ;;   - flattened output reprs
+
+;; Returns whether an expression contains an array literal or reference.
+;; Array-valued intermediate expressions in LSpec are represented by array
+;; literals, and references can hide them behind another expression.
+(define (array-expression? expr)
+  (match expr
+    [(list 'array _ ...) #t]
+    [(list 'ref _ ...) #t]
+    [(list _ args ...) (ormap array-expression? args)]
+    [_ #f]))
+
+(define (flatten-arrays-for-rival/no-arrays? specs ctxs pre)
+  (and (not (ormap array-representation? (map context-repr ctxs)))
+       (not (ormap array-representation? (append* (map context-var-reprs ctxs))))
+       (not (ormap array-expression? (cons pre specs)))))
+
+(define (flatten-arrays-for-rival/no-arrays specs ctxs pre)
+  (values specs ctxs pre identity identity (map context-repr ctxs)))
+
 (define (flatten-arrays-for-rival specs ctxs pre)
+  (if (flatten-arrays-for-rival/no-arrays? specs ctxs pre)
+      (flatten-arrays-for-rival/no-arrays specs ctxs pre)
+      (flatten-arrays-for-rival/with-arrays specs ctxs pre)))
+
+(define (flatten-arrays-for-rival/with-arrays specs ctxs pre)
   (define orig-vars (context-vars (first ctxs)))
   (define orig-reprs (map context-repr ctxs))
   (define orig-var-reprs (context-var-reprs (first ctxs)))
@@ -158,4 +182,24 @@
                                           'TRUE)])
     (check-equal? specs* '(1 2 3 4))
     (check-equal? reprs* (list <binary64> <binary64> <binary64> <binary64>))
-    (check-equal? (assemble-output '(10 11 12 13)) (list #(#(10 11) #(12 13))))))
+    (check-equal? (assemble-output '(10 11 12 13)) (list #(#(10 11) #(12 13)))))
+
+  (define scalar-ctxs (list (context '(x) <binary64> (list <binary64>))))
+  (define scalar-specs (list '(+ x 1)))
+  (let-values ([(specs* ctxs* pre* assemble-point assemble-output reprs*)
+                (flatten-arrays-for-rival scalar-specs scalar-ctxs 'TRUE)])
+    (check-eq? specs* scalar-specs)
+    (check-eq? ctxs* scalar-ctxs)
+    (check-eq? pre* 'TRUE)
+    (check-eq? assemble-point identity)
+    (check-eq? assemble-output identity)
+    (check-equal? reprs* (list <binary64>)))
+
+  (let-values ([(specs* _ctxs* _pre* _assemble-point _assemble-output _reprs*)
+                (flatten-arrays-for-rival (list '(ref (array x x) 0)) scalar-ctxs 'TRUE)])
+    (check-equal? specs* '(x)))
+
+  (let-values ([(specs* _ctxs* pre* _assemble-point _assemble-output _reprs*)
+                (flatten-arrays-for-rival (list '(+ x 1)) scalar-ctxs '(< (ref (array x x) 0) 2))])
+    (check-equal? specs* '((+ x 1)))
+    (check-equal? pre* '(< x 2))))
