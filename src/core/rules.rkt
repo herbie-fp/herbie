@@ -152,12 +152,15 @@
   [add-to-fraction-rev (/ (+ (* c a) b) a) (+ c (/ b a))]
   [sub-to-fraction (- c (/ b a)) (/ (- (* c a) b) a)]
   [sub-to-fraction-rev (/ (- (* c a) b) a) (- c (/ b a))]
-  [common-denominator (+ (/ a b) (/ c d)) (/ (+ (* a d) (* c b)) (* b d))])
+  [common-denominator (+ (/ a b) (/ c d)) (/ (+ (* a d) (* c b)) (* b d))]
+  [div-sub-halving (/ (- a b) (- c d)) (/ (- (* 1/2 a) (* 1/2 b)) (- (* 1/2 c) (* 1/2 d)))])
 
 (define-rules polynomials
   #;[sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
   [flip-+ (+ (sqrt a) (sqrt b)) (sound-/ (- a b) (- (sqrt a) (sqrt b)) (+ (sqrt a) (sqrt b)))]
-  [flip-- (- (sqrt a) (sqrt b)) (sound-/ (- a b) (+ (sqrt a) (sqrt b)) (- (sqrt a) (sqrt b)))])
+  [flip-- (- (sqrt a) (sqrt b)) (sound-/ (- a b) (+ (sqrt a) (sqrt b)) (- (sqrt a) (sqrt b)))]
+  [flip--sqrt-lft (- a (sqrt b)) (sound-/ (- (* a a) b) (+ a (sqrt b)) (- a (sqrt b)))]
+  [flip-+sqrt-lft (+ a (sqrt b)) (sound-/ (- (* a a) b) (- a (sqrt b)) (+ a (sqrt b)))])
 
 ; Difference of cubes
 (define-rules polynomials
@@ -506,7 +509,10 @@
   [acos-asin (acos x) (- (/ (PI) 2) (asin x))]
   [asin-neg (asin (neg x)) (neg (asin x))]
   [acos-neg (acos (neg x)) (- (PI) (acos x))]
-  [atan-neg (atan (neg x)) (neg (atan x))])
+  [atan-neg (atan (neg x)) (neg (atan x))]
+  [acos-half-asin (acos x) (* 2 (asin (sqrt (/ (- 1 x) 2))))]
+  [acos-half-acos (acos x) (* 2 (acos (sqrt (/ (+ 1 x) 2))))]
+  [acos-1sub-asin (acos (- 1 x)) (* 2 (asin (sqrt (/ x 2))))])
 
 (define-rules trigonometry
   [acos-asin-rev (- (/ (PI) 2) (asin x)) (acos x)]
@@ -519,7 +525,27 @@
   [tan-asin-rev (/ x (sqrt (- 1 (* x x)))) (tan (asin x))]
   [cos-asin-rev (sqrt (- 1 (* x x))) (cos (asin x))]
   [sin-atan-rev (/ x (sqrt (+ 1 (* x x)))) (sin (atan x))]
-  [sin-acos-rev (sqrt (- 1 (* x x))) (sin (acos x))])
+  [sin-acos-rev (sqrt (- 1 (* x x))) (sin (acos x))]
+  [acos-half-asin-rev (* 2 (asin (sqrt (/ (- 1 x) 2)))) (acos x)]
+  [acos-half-acos-rev (* 2 (acos (sqrt (/ (+ 1 x) 2)))) (acos x)]
+  [acos-1sub-asin-rev (* 2 (asin (sqrt (/ x 2)))) (acos (- 1 x))])
+
+(define-rules trigonometry
+  [quarter-pi-atan (/ (PI) 4) (atan 1)]
+  [gudermannian (- (* 2 (atan (exp x))) (/ (PI) 2)) (atan (sinh x))]
+  [gudermannian-rev (atan (sinh x)) (- (* 2 (atan (exp x))) (/ (PI) 2))]
+  [gudermannian2 (* 2 (- (atan (exp x)) (/ (PI) 4))) (atan (sinh x))]
+  [atan-sinh-asin-tanh (atan (sinh x)) (asin (tanh x))]
+  [asin-tanh-atan-sinh (asin (tanh x)) (atan (sinh x))]
+  [log-tan-quarter-half (log (tan (+ (/ (PI) 4) (/ x 2)))) (atanh (sin x))])
+
+(define-rules trigonometry
+  [sin-pi-reduce (sin (* x (PI))) (sin (* (remainder x 2) (PI)))]
+  [cos-pi-reduce (cos (* x (PI))) (cos (* (remainder x 2) (PI)))]
+  [tan-pi-reduce (tan (* x (PI))) (tan (* (remainder x 1) (PI)))]
+  [sin-deg-reduce (sin (* (/ x 180) (PI))) (sin (* (/ (remainder x 360) 180) (PI)))]
+  [cos-deg-reduce (cos (* (/ x 180) (PI))) (cos (* (/ (remainder x 360) 180) (PI)))]
+  [tan-deg-reduce (tan (* (/ x 180) (PI))) (tan (* (/ (remainder x 180) 180) (PI)))])
 
 ; Hyperbolic trigonometric functions
 (define-rules hyperbolic
@@ -607,6 +633,7 @@
 (define-rules hyperbolic
   [asinh-def-rev (log (+ x (sqrt (+ (* x x) 1)))) (asinh x)]
   [atanh-def-rev (/ (log (/ (+ 1 x) (- 1 x))) 2) (atanh x)]
+  [log-div-atanh (log (/ (+ 1 x) (- 1 x))) (* 2 (atanh x))]
   [acosh-def-rev (log (+ x (sqrt (- (* x x) 1)))) (acosh x)]
   [tanh-asinh-rev (/ x (sqrt (+ 1 (* x x)))) (tanh (asinh x))]
   [cosh-asinh-rev (sqrt (+ (* x x) 1)) (cosh (asinh x))]
