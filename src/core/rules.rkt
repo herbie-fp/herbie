@@ -283,8 +283,7 @@
   [fmax-swap (fmax a b) (fmax b a)])
 
 ; Remainder
-(define-rules arithmetic
-  [remainder-div (remainder (/ x a) b) (/ (remainder x (* a b)) a)])
+(define-rules arithmetic [remainder-div (remainder (/ x a) b) (/ (remainder x (* a b)) a)])
 
 ; Exponentials
 (define-rules exponents
