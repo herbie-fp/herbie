@@ -202,10 +202,9 @@
       (egglog-multi-extract subproc
                             `(multi-extract ,extract
                                             :dag
-                                            ,@(for/list ([constructor-name
-                                                          (in-list extract-bindings)]
+                                            ,@(for/list ([n (in-list extract-bindings)]
                                                          [repr (in-list reprs)])
-                                                `(do-lower (,constructor-name)
+                                                `(do-lower (herbie-const ,n)
                                                            ,(egglog-repr-token repr))))))
 
     ;; Roll the persistent subprocess back to its post-prelude state, or close
@@ -286,6 +285,7 @@
                    (Approx M MTy)
                    ,@(platform-impl-nodes pform))
         `(constructor do-lower (M String) MTy :unextractable)
+        `(constructor herbie-const (i64) M :unextractable)
         `(constructor do-lift (MTy) M :unextractable)
         `(ruleset lower)
         `(ruleset lift)
@@ -527,12 +527,28 @@
       [(list op args ...) `(,(serialize-spec-op op (length args)) ,@(map loop args))])))
 
 (define (egglog-rewrite-rules rules tag)
-  (for/list ([rule (in-list rules)]
-             #:when (not (symbol? (rule-input rule))))
-    `(rewrite ,(expr->e1-pattern (rule-input rule))
-              ,(expr->e1-pattern (rule-output rule))
-              :ruleset
-              ,tag)))
+  (apply append
+         (for/list ([rule (in-list rules)])
+           (define input (rule-input rule))
+           (define output (expr->e1-pattern (rule-output rule)))
+           (cond
+             [(symbol? input)
+              ;; A bare-variable left-hand side (e.g. pow1: a -> (pow a 1)) matches
+              ;; every e-class. egg applies such rules; egglog needs a pattern, so
+              ;; emit one rule per M constructor. Skipping them makes the two
+              ;; backends explore differently (fewer nodes per iteration, more
+              ;; iterations, ~2x wider root classes at the same node limit).
+              (for/list ([node (in-list (platform-spec-nodes))])
+                (match-define (list ctor arg-sorts ...) node)
+                (define args
+                  (for/list ([_ (in-list (takef arg-sorts (lambda (x) (not (keyword-like? x)))))]
+                             [i (in-naturals)])
+                    (string->symbol (format "?p~a" i))))
+                `(rule ((= ,input (,ctor ,@args))) ((union ,input ,output)) :ruleset ,tag))]
+             [else `((rewrite ,(expr->e1-pattern input) ,output :ruleset ,tag))]))))
+
+(define (keyword-like? x)
+  (and (symbol? x) (string-prefix? (symbol->string x) ":")))
 
 (define (egglog-add-exprs block vs subproc)
   (define bindings (make-hash))
@@ -605,18 +621,14 @@
   (for ([var (in-list (block-vars block))])
     ; Get the binding names for the program
     (define binding-name (string->symbol (format "?s~a" var)))
-    (define constructor-name (string->symbol (format "const~a" constructor-num)))
-    (hash-set! binding->constructor binding-name constructor-name)
+    (hash-set! binding->constructor binding-name constructor-num)
 
     ; Define the actual binding
     (define curr-var-spec-binding `(let ,binding-name (Var ,(symbol->string var))))
 
-    ; Send the constructor definition
-    (egglog-send subproc `(constructor ,constructor-name () M :unextractable))
-
     ; Add the binding and constructor union to all-bindings for the future rule
     (set! all-bindings (cons curr-var-spec-binding all-bindings))
-    (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
+    (set! all-bindings (cons `(union (herbie-const ,constructor-num) ,binding-name) all-bindings))
 
     (set! constructor-num (add1 constructor-num)))
 
@@ -630,16 +642,13 @@
           (string->symbol (format "?r~a" n))
           (string->symbol (format "?b~a" n))))
 
-    (define constructor-name (string->symbol (format "const~a" constructor-num)))
-    (hash-set! binding->constructor binding-name constructor-name)
+    (hash-set! binding->constructor binding-name constructor-num)
 
     (define actual-binding (hash-ref bindings binding-name))
     (define curr-binding-exprs `(let ,binding-name ,actual-binding))
 
-    (egglog-send subproc `(constructor ,constructor-name () M :unextractable))
-
     (set! all-bindings (cons curr-binding-exprs all-bindings))
-    (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
+    (set! all-bindings (cons `(union (herbie-const ,constructor-num) ,binding-name) all-bindings))
 
     (set! constructor-num (add1 constructor-num)))
 
@@ -654,10 +663,14 @@
   (define iter-limit (*default-egglog-iter-limit*))
 
   ;; The back-off scheduler's :node-limit keeps the e-graph within the node
-  ;; limit as it chooses matches; the :until guards with get-node-size! stop
+  ;; limit as it chooses matches; the :until guard with get-node-size! stops
   ;; the schedule once the limit is reached. Both measure e-nodes (rows of
   ;; constructor tables, excluding relations and analysis functions), matching
-  ;; what egg counts, rather than get-size!'s total table size. After each
+  ;; what egg counts, rather than get-size!'s total table size. Constant
+  ;; folding runs with the default scheduler, like egg's analysis-based
+  ;; folding: it is not rewriting to be rationed, and running it through the
+  ;; same back-off instance would advance that scheduler's iteration counter
+  ;; twice per repeat, halving ban lengths relative to egg. After each
   ;; iteration, we check for unsound merges via bad-merge-rule. The schedule
   ;; runs until:
   ;;   1. Node limit is reached (get-node-size! >= node-limit)
@@ -670,7 +683,7 @@
                  (let-scheduler bo (back-off :node-limit ,node-limit :eager-apply 1))
                  (repeat ,iter-limit
                          (seq (run-with bo ,tag :until (<= ,node-limit (get-node-size!)))
-                              (run-with bo const-fold :until (<= ,node-limit (get-node-size!)))
+                              (run const-fold)
                               (run bad-merge-rule :until (bad-merge?))))))
   (void))
 
