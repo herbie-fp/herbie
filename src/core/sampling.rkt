@@ -49,7 +49,7 @@
   (let loop ([left 0]
              [right (- (vector-length vector) 1)])
     (cond
-      [(>= left right) (min left (- (vector-length vector) 1))]
+      [(= left right) left]
       [else
        (define mid (arithmetic-shift (+ left right) -1))
        (define pivot (vector-ref vector mid))
