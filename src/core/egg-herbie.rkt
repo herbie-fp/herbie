@@ -1139,14 +1139,14 @@
            (egraph-run-rules egg-graph
                              rules
                              #:node-limit (rewrite-node-limit rewrite-initial-size))]))
-  
+
       ; get cost statistics
       (for ([iter (in-list iteration-data)]
             [i (in-naturals)])
         (define cnt (iteration-data-num-nodes iter))
         (define cost (for/sum ([id (in-list root-ids)]) (egraph_get_cost egg-graph* id i)))
         (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
-  
+
       (define rewrite-initial-size*
         (if (empty? iteration-data)
             rewrite-initial-size
