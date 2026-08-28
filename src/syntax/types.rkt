@@ -1,6 +1,7 @@
 #lang racket
 
 (require math/bigfloat
+         (only-in math/private/bigfloat/mpfr [bigfloat->flonum direct-bigfloat->flonum])
          math/base
          math/flonum
          "../utils/errors.rkt")
@@ -123,7 +124,7 @@
 
 (define <binary64>
   (make-representation #:name 'binary64
-                       #:bf->repr bigfloat->flonum
+                       #:bf->repr direct-bigfloat->flonum
                        #:repr->bf (lambda (x)
                                     (parameterize ([bf-precision 53])
                                       (bf x)))
