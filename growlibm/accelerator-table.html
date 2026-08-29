@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>growlibm Accelerators</title>
+</head>
+<body>
+  <h1>growlibm accelerators</h1>
+  <table border="1" cellspacing="0" cellpadding="6">
+    <thead>
+      <tr>
+        <th>name</th>
+        <th>origin</th>
+        <th>spec</th>
+        <th>cost</th>
+        <th>accuracy</th>
+        <th>cost of spec</th>
+        <th>accuracy of spec</th>
+      </tr>
+    </thead>
+    <tbody>
+<tr><td>cosprod</td><td></td><td><code>(cos (* x y))</code></td><td>12800</td><td>87.99%</td><td>6784</td><td>57.33%</td></tr>
+<tr><td>hypot</td><td></td><td><code>(sqrt (+ (* x x) (* y y)))</code></td><td>3200</td><td>99.99%</td><td>1536</td><td>54.45%</td></tr>
+<tr><td>invgud</td><td></td><td><code>(log (tan (* (+ (+ x x) (PI)) 1/4)))</code></td><td>25000</td><td>99.87%</td><td>13568</td><td>4.05%</td></tr>
+<tr><td>log1pmd</td><td></td><td><code>(log (/ (+ 1 x) (- 1 x)))</code></td><td>3200</td><td>100.00%</td><td>7552</td><td>8.86%</td></tr>
+<tr><td>pow1ms</td><td></td><td><code>(pow (* (- 1 x) (- 1 x)) y)</code></td><td>8320</td><td>99.97%</td><td>7232</td><td>73.80%</td></tr>
+<tr><td>powcos</td><td></td><td><code>(pow (cos x) y)</code></td><td>64000</td><td>100.00%</td><td>12928</td><td>93.19%</td></tr>
+<tr><td>powcos2</td><td></td><td><code>(pow (cos x) 2)</code></td><td>64000</td><td>99.70%</td><td>12928</td><td>99.72%</td></tr>
+<tr><td>powcos4</td><td></td><td><code>(pow (cos x) 4)</code></td><td>64000</td><td>99.42%</td><td>12928</td><td>99.38%</td></tr>
+<tr><td>powcos6</td><td></td><td><code>(pow (cos x) 6)</code></td><td>64000</td><td>99.08%</td><td>12928</td><td>99.03%</td></tr>
+<tr><td>sinprod</td><td>PROJ</td><td><code>(sin (* x y))</code></td><td>12800</td><td>89.11%</td><td>6784</td><td>58.58%</td></tr>
+<tr><td>verdcos</td><td></td><td><code>(- (cos (+ x x)) 1)</code></td><td>9600</td><td>99.58%</td><td>6848</td><td>76.48%</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>
