@@ -140,35 +140,17 @@
   (define repr (block-repr-of v))
   (define eval-expr (compose (curryr vector-ref 0) (compile-block block (list v))))
 
-  (define ->bf (representation-repr->bf repr))
-  (define bf-> (representation-bf->repr repr))
-
   (define (left-point p1 p2)
-    (define left (->bf p1))
-    (define right (->bf p2))
-    (define out
+    (define left ((representation-repr->bf repr) p1))
+    (define right ((representation-repr->bf repr) p2))
+    (define out ; TODO: Try using bigfloat-pick-point here?
       (if (bfnegative? left)
           (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
           (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
     ;; It's important to return something strictly less than right
     (if (bf= out right)
         p1
-        (bf-> out)))
-
-  ;; A sign change is the most common boundary, so a gap across zero splits at zero.
-  (define (midpoint-threshold p1 p2)
-    (define left (->bf p1))
-    (define right (->bf p2))
-    (cond
-      [(or (bfnan? right) (bfinfinite? left)) (left-point p1 p2)]
-      [(and (bfnegative? left) (bfpositive? right)) (real->repr 0 repr)]
-      [else
-       (define mid (->bf (midpoint p1 p2 repr)))
-       (define split (bf-> (bigfloat-interval-shortest left mid)))
-       ;; It's important to return something in [p1, p2)
-       (if (and (<=/total p1 split repr) (</total split p2 repr))
-           split
-           (left-point p1 p2))]))
+        ((representation-bf->repr repr) out)))
 
   (for/list ([si1 sindices]
              [si2 (cdr sindices)])
@@ -176,10 +158,10 @@
     (define p2 (eval-expr (list-ref points (si-pidx si1))))
 
     (define timeline-stop! (timeline-start! 'bstep (value->json p1 repr) (value->json p2 repr)))
-    (define split-at (midpoint-threshold p1 p2))
+    (define split-at (left-point p1 p2))
     (timeline-stop!)
 
-    (timeline-push! 'method "midpoint")
+    (timeline-push! 'method "left-value")
     (sp (si-cidx si1) v split-at)))
 
 (define/contract (sindices->spoints/binary block points target-v alts sindices start-prog pcontext)
