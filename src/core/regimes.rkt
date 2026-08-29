@@ -53,18 +53,20 @@
   (define err-cols (block-errors block (map alt-expr sorted) pcontext))
   (define (real-v? v)
     (equal? (representation-type (block-repr-of v)) 'real))
-  ;; The dominating subexpressions always stay in the vocabulary.
-  (define classic-vs
-    (filter real-v?
-            (if (flag-set? 'reduce 'branch-expressions)
-                (critical-subexpressions block start-prog)
-                (map (curry block-add! block) (block-vars block)))))
   (define pts-vec (pcontext-points pcontext))
-  ;; The true regimes DP error for one candidate, used to re-rank the shortlist.
   (define (dp-score v v-vals-vec)
     (define curve (branch-options block alts-vec err-cols pts-vec v v-vals-vec (block-repr-of v)))
     (apply min (map pareto-point-error curve)))
-  (define branch-vs (branch-candidates block sorted start-prog err-cols pcontext classic-vs dp-score))
+  (define branch-vs
+    (if (flag-set? 'reduce 'branch-expressions)
+        (branch-candidates block
+                           sorted
+                           start-prog
+                           err-cols
+                           pcontext
+                           (critical-subexpressions block start-prog)
+                           dp-score)
+        (filter real-v? (map (curry block-add! block) (block-vars block)))))
 
   (define v-vals (v-values* block branch-vs pcontext))
 

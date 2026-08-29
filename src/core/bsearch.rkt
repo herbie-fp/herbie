@@ -142,8 +142,6 @@
 
   (define ->bf (representation-repr->bf repr))
   (define bf-> (representation-bf->repr repr))
-  (define ->ordinal (representation-repr->ordinal repr))
-  (define zero (bf-> 0.bf))
 
   (define (left-point p1 p2)
     (define left (->bf p1))
@@ -162,14 +160,14 @@
     (define left (->bf p1))
     (define right (->bf p2))
     (cond
-      [(or (bfnan? left) (bfnan? right) (bfinfinite? left)) (left-point p1 p2)]
-      [(and (bfnegative? left) (bfpositive? right)) zero]
+      [(or (bfnan? right) (bfinfinite? left)) (left-point p1 p2)]
+      [(and (bfnegative? left) (bfpositive? right)) (real->repr 0 repr)]
       [else
-       (define mid (midpoint p1 p2 repr))
-       (define candidate (bf-> (bigfloat-interval-shortest left (->bf mid))))
-       ;; The result must land in [p1, p2).
-       (if (and (<= (->ordinal p1) (->ordinal candidate)) (< (->ordinal candidate) (->ordinal p2)))
-           candidate
+       (define mid (->bf (midpoint p1 p2 repr)))
+       (define split (bf-> (bigfloat-interval-shortest left mid)))
+       ;; It's important to return something in [p1, p2)
+       (if (and (<=/total p1 split repr) (</total split p2 repr))
+           split
            (left-point p1 p2))]))
 
   (for/list ([si1 sindices]
@@ -181,7 +179,7 @@
     (define split-at (midpoint-threshold p1 p2))
     (timeline-stop!)
 
-    (timeline-push! 'method "left-value")
+    (timeline-push! 'method "midpoint")
     (sp (si-cidx si1) v split-at)))
 
 (define/contract (sindices->spoints/binary block points target-v alts sindices start-prog pcontext)
