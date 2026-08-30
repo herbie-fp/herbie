@@ -7,10 +7,10 @@
          "../utils/errors.rkt")
 
 (provide (struct-out representation)
-         (struct-out tuple-representation)
+         (struct-out array-representation)
          repr->prop
-         tuple-representation-base
-         uniform-tuple-shape
+         array-representation-base
+         uniform-array-shape
          shift
          unshift
          <bool>
@@ -22,7 +22,7 @@
          context-lookup
          contexts-union
          make-representation
-         make-tuple-representation)
+         make-array-representation)
 
 ;; Representations
 
@@ -33,30 +33,30 @@
   [(define (write-proc repr port mode)
      (fprintf port "#<representation ~a>" (representation-name repr)))])
 
-(struct tuple-representation representation (slots) #:transparent)
+(struct array-representation representation (slots) #:transparent)
 
-;; The scalar representation at a tuple's first leaf; the identity on scalars.
-(define (tuple-representation-base repr)
-  (if (tuple-representation? repr)
-      (tuple-representation-base (first (tuple-representation-slots repr)))
+;; The scalar representation at an array's first leaf; the identity on scalars.
+(define (array-representation-base repr)
+  (if (array-representation? repr)
+      (array-representation-base (first (array-representation-slots repr)))
       repr))
 
-;; The dimensions of a tuple tree that is homogeneous at every level,
+;; The dimensions of an array tree that is homogeneous at every level,
 ;; e.g. '(2 3) for a pair of triples, or '() for a scalar. Returns #f for
-;; a tuple that mixes representations. Such tuples round-trip through the
+;; an array that mixes representations. Such arrays round-trip through the
 ;; FPCore dimension syntax for arguments, e.g. (x 2 3).
-(define (uniform-tuple-shape repr)
+(define (uniform-array-shape repr)
   (match repr
-    [(? tuple-representation?)
-     (match-define (cons slot rest) (tuple-representation-slots repr))
-     (define shape (uniform-tuple-shape slot))
+    [(? array-representation?)
+     (match-define (cons slot rest) (array-representation-slots repr))
+     (define shape (uniform-array-shape slot))
      (and shape (andmap (curry equal? slot) rest) (cons (add1 (length rest)) shape))]
     [_ '()]))
 
 ;; Converts a representation into a rounding property
 (define (repr->prop repr)
   (match repr
-    [(? tuple-representation?) (repr->prop (first (tuple-representation-slots repr)))]
+    [(? array-representation?) (repr->prop (first (array-representation-slots repr)))]
     [(? representation?)
      (match (representation-type repr)
        ['bool '()]
@@ -71,16 +71,16 @@
                              #:special-value? special-value?)
   (representation name 'real bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value?))
 
-(define (make-tuple-representation #:slots slots)
-  ;; A tuple needs at least one slot: its first slot decides the rounding
+(define (make-array-representation #:slots slots)
+  ;; An array needs at least one slot: its first slot decides the rounding
   ;; context of the whole value (see `repr->prop`).
   (when (null? slots)
-    (raise-herbie-error "Tuples require at least one slot"))
-  (define tuple-ty `(tuple ,@(map representation-type slots)))
-  (define name `(tuple ,@(map representation-name slots)))
-  ;; TODO: tuples inherit unused scalar conversion slots.
+    (raise-herbie-error "Arrays require at least one slot"))
+  (define array-ty `(array ,@(map representation-type slots)))
+  (define name `(array ,@(map representation-name slots)))
+  ;; TODO: arrays inherit unused scalar conversion slots.
   (define total-bits (apply + (map representation-total-bits slots)))
-  (tuple-representation name tuple-ty void void void void total-bits void slots))
+  (array-representation name array-ty void void void void total-bits void slots))
 
 (module hairy racket/base
   (require (only-in math/private/bigfloat/mpfr get-mpfr-fun _mpfr-pointer _rnd_t bf-rounding-mode))

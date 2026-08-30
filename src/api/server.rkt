@@ -622,16 +622,16 @@
 
 (define (alt->fpcore test altn)
   (define out-repr (test-output-repr test))
-  (define out-base-repr (tuple-representation-base out-repr))
+  (define out-base-repr (array-representation-base out-repr))
   `(FPCore ,@(filter identity (list (test-identifier test)))
            ,(for/list ([var (in-list (test-vars test))]
                        [repr (in-list (test-var-reprs test))])
               (cond
-                [(tuple-representation? repr)
-                 ;; A uniform tuple prints with the FPCore dimension syntax;
+                [(array-representation? repr)
+                 ;; A uniform array prints with the FPCore dimension syntax;
                  ;; a mixed one has only its structural type to identify it.
-                 (define dims (uniform-tuple-shape repr))
-                 (define elem-repr (tuple-representation-base repr))
+                 (define dims (uniform-array-shape repr))
+                 (define elem-repr (array-representation-base repr))
                  (cond
                    [(and dims (equal? elem-repr out-base-repr)) (append (list var) dims)]
                    [dims (append (list '! ':precision (representation-name elem-repr) var) dims)]

@@ -12,7 +12,7 @@
          (prefix-in r3: rival3))
 
 (require "../config.rkt"
-         "../core/flatten-tuples.rkt"
+         "../core/arrays.rkt"
          "../utils/errors.rkt"
          "../syntax/float.rkt"
          "../utils/timeline.rkt"
@@ -147,7 +147,7 @@
     (for/list ([repr (in-list output-reprs)])
       (context (block-vars block) repr (block-var-reprs block))))
   (define-values (specs* ctxs* pre* assemble-point assemble-output flattened-reprs)
-    (flatten-tuples-for-rival specs ctxs pre))
+    (flatten-arrays-for-rival specs ctxs pre))
   (define vars (context-vars (first ctxs*)))
 
   ; create the machine
@@ -279,10 +279,10 @@
 (module+ test
   (require rackunit)
   (define <b64> <binary64>)
-  (define vec-repr (make-tuple-representation #:slots (list <b64> <b64> <b64>)))
+  (define vec-repr (make-array-representation #:slots (list <b64> <b64> <b64>)))
   (define vec-ctx (context '(v) vec-repr (list vec-repr)))
   (define-values (specs* ctxs* pre* _assemble-pt _assemble-out reprs*)
-    (flatten-tuples-for-rival (list 'v) (list vec-ctx) 'TRUE))
+    (flatten-arrays-for-rival (list 'v) (list vec-ctx) 'TRUE))
   (check-equal? specs* '(v_0 v_1 v_2))
   (check-equal? (map context-vars ctxs*) '((v_0 v_1 v_2)))
   (check-equal? (map context-var-reprs ctxs*) (list (list <b64> <b64> <b64>)))

@@ -22,8 +22,8 @@
 
 (define (repr-ulps repr)
   (match (representation-type repr)
-    [`(tuple ,_ ...)
-     (define slot-ulps (map repr-ulps (tuple-representation-slots repr)))
+    [`(array ,_ ...)
+     (define slot-ulps (map repr-ulps (array-representation-slots repr)))
      (lambda (x y)
        (for/sum ([ulps (in-list slot-ulps)] [x1 (in-vector x)] [y1 (in-vector y)]) (ulps x1 y1)))]
     ['bool (lambda (x y) (if (equal? x y) 1 2))]
@@ -96,7 +96,7 @@
   (match x
     [(? vector?)
      (for/list ([v (in-vector x)]
-                [slot (in-list (tuple-representation-slots repr))])
+                [slot (in-list (array-representation-slots repr))])
        (value->json v slot))]
     [(? real?)
      (match x
@@ -114,7 +114,7 @@
   (match x
     [(? list?)
      (for/vector ([v (in-list x)]
-                  [slot (in-list (tuple-representation-slots repr))])
+                  [slot (in-list (array-representation-slots repr))])
        (json->value v slot))]
     [(? real?) (exact->inexact x)]
     [(? hash?)
@@ -150,9 +150,9 @@
 
 (define (real->repr x repr)
   (match (representation-type repr)
-    [`(tuple ,_ ...)
+    [`(array ,_ ...)
      (for/vector ([v (in-vector x)]
-                  [slot (in-list (tuple-representation-slots repr))])
+                  [slot (in-list (array-representation-slots repr))])
        (real->repr v slot))]
     ['real
      (parameterize ([bf-precision (representation-total-bits repr)])
@@ -161,9 +161,9 @@
 
 (define (repr->real x repr)
   (match (representation-type repr)
-    [`(tuple ,_ ...)
+    [`(array ,_ ...)
      (for/vector ([v (in-vector x)]
-                  [slot (in-list (tuple-representation-slots repr))])
+                  [slot (in-list (array-representation-slots repr))])
        (repr->real v slot))]
     ['real (bigfloat->real ((representation-repr->bf repr) x))]
     ['bool x]))

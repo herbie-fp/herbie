@@ -57,7 +57,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary32> #:cost 32bit-move-cost)
-(define <pair32> (make-tuple-representation #:slots (list <binary32> <binary32>)))
+(define <pair32> (make-array-representation #:slots (list <binary32> <binary32>)))
 
 (define-operation (if.f32 [c <bool>] [t <binary32>] [f <binary32>]) <binary32>
   #:spec (if c t f) #:impl if-impl
@@ -121,7 +121,7 @@
 (define-representation <pair32> #:cost (* 2 32bit-move-cost))
 
 (define-operation (sincos.f32 [x <binary32>]) <pair32>
-  #:spec (tuple (sin x) (cos x))
+  #:spec (array (sin x) (cos x))
   #:impl sincosf-impl
   #:fpcore (! :precision binary32 (sincos x))
   #:cost 4.250)
@@ -152,7 +152,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary64> #:cost 64bit-move-cost)
-(define <pair64> (make-tuple-representation #:slots (list <binary64> <binary64>)))
+(define <pair64> (make-array-representation #:slots (list <binary64> <binary64>)))
 
 (define-operation (if.f64 [c <bool>] [t <binary64>] [f <binary64>]) <binary64>
   #:spec (if c t f) #:impl if-impl
@@ -215,7 +215,7 @@
 (define-representation <pair64> #:cost (* 2 64bit-move-cost))
 
 (define-operation (sincos.f64 [x <binary64>]) <pair64>
-  #:spec (tuple (sin x) (cos x))
+  #:spec (array (sin x) (cos x))
   #:impl sincos-impl
   #:fpcore (! :precision binary64 (sincos x))
   #:cost 4.200)

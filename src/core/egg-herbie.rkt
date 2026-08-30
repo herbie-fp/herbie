@@ -198,12 +198,9 @@
        (loop body (hash-set env var (loop term env)))]
       [`(,op ,args ...) (cons op (map (curryr loop env) args))])))
 
-;; The argument types of a spec operator at the arity it was applied at.
-;; `tuple` is variadic with real-typed slots; every other operator has the
-;; fixed signature `operator-info` reports.
 (define (spec-arg-types op arity)
   (match op
-    ['tuple (make-list arity 'real)]
+    ['array (make-list arity 'real)]
     [_ (operator-info op 'itype)]))
 
 ;; Converts an S-expr from egg into one Herbie understands
@@ -277,8 +274,8 @@
 
   (check-equal? (egg-expr->expr '(sound-sqrt $var0 $var1) ctx) '(sqrt x))
 
-  (check-equal? (egg-expr->expr '(tuple $var0 $var1) ctx) '(tuple x y))
-  (check-equal? (egg-expr->expr '(tuple $var0 $var1 $var2) ctx) '(tuple x y z))
+  (check-equal? (egg-expr->expr '(array $var0 $var1) ctx) '(array x y))
+  (check-equal? (egg-expr->expr '(array $var0 $var1 $var2) ctx) '(array x y z))
 
   (set! ctx (context '(x a b c r) <binary64> (make-list 5 <binary64>)))
   (define extended-expr-list
@@ -450,7 +447,7 @@
 
 ;; Returns all representatations (and their types) in the current platform.
 (define (all-reprs/types [pform (*active-platform*)])
-  (remove-duplicates (cons 'tuple
+  (remove-duplicates (cons 'array
                            (append-map (lambda (repr) (list repr (representation-type repr)))
                                        (platform-reprs pform)))))
 

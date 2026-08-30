@@ -12,7 +12,7 @@
          define-operation
          define-operations
          create-operator-impl!
-         ;; The procedural registration API: tuples.rkt uses it to register
+         ;; The procedural registration API: arrays.rkt uses it to register
          ;; generated representations and impls outside a platform definition
          platform-register-implementation!
          platform-register-representation!
@@ -44,14 +44,14 @@
     (match spec
       [(? number?) 'real]
       [(? symbol? x) (dict-ref env x #f)]
-      ;; An empty tuple has no slot to take its rounding context from
-      [(list 'tuple) #f]
-      [(list 'tuple elems ...)
+      ;; An empty array has no slot to take its rounding context from
+      [(list 'array) #f]
+      [(list 'array elems ...)
        (define tys (map infer elems))
-       (and (andmap values tys) `(tuple ,@tys))]
+       (and (andmap values tys) `(array ,@tys))]
       [(list 'ref arr idx)
        (match (infer arr)
-         [`(tuple ,tys ...)
+         [`(array ,tys ...)
           (and (exact-nonnegative-integer? idx) (< idx (length tys)) (list-ref tys idx))]
          [_ #f])]
       [(list op args ...)

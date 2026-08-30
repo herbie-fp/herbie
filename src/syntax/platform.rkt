@@ -49,8 +49,8 @@
                        [platform-cost-proc (-> platform? procedure?)])
          ; Platform creation
          make-empty-platform
-         set-tuple-impl-synthesizer!
-         set-tuple-impl-resolvable?!
+         set-array-impl-synthesizer!
+         set-array-impl-resolvable?!
          display-platform
          make-representation
          (all-from-out "generators.rkt"))
@@ -77,7 +77,7 @@
   (define reprs (platform-representations platform))
   (match name
     [(? representation?) name]
-    [`(tuple ,slots ...) (make-tuple-representation #:slots (map get-representation slots))]
+    [`(array ,slots ...) (make-array-representation #:slots (map get-representation slots))]
     [_
      (or (hash-ref reprs name #f)
          (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
@@ -90,7 +90,7 @@
   (define reprs (platform-representations platform))
   (match name
     [(? representation?) #t]
-    [`(tuple ,slots ...) (and (pair? slots) (andmap repr-exists? slots))]
+    [`(array ,slots ...) (and (pair? slots) (andmap repr-exists? slots))]
     [_ (hash-has-key? reprs name)]))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> LSpec
@@ -169,27 +169,27 @@
 
 ;; Expression predicates ;;
 
-(define tuple-impl-synthesizer (box #f))
-(define tuple-impl-resolvable? (box #f))
+(define array-impl-synthesizer (box #f))
+(define array-impl-resolvable? (box #f))
 
-(define (set-tuple-impl-synthesizer! proc)
-  (set-box! tuple-impl-synthesizer proc))
+(define (set-array-impl-synthesizer! proc)
+  (set-box! array-impl-synthesizer proc))
 
-(define (set-tuple-impl-resolvable?! proc)
-  (set-box! tuple-impl-resolvable? proc))
+(define (set-array-impl-resolvable?! proc)
+  (set-box! array-impl-resolvable? proc))
 
-(define (tuple-impl-name? name)
-  (define resolvable? (unbox tuple-impl-resolvable?))
+(define (array-impl-name? name)
+  (define resolvable? (unbox array-impl-resolvable?))
   (and resolvable? (resolvable? name)))
 
-(define (synthesize-tuple-impl! name)
-  (define synth (unbox tuple-impl-synthesizer))
+(define (synthesize-array-impl! name)
+  (define synth (unbox array-impl-synthesizer))
   (and synth (synth name)))
 
 (define (impl-exists? op)
   (define platform (*active-platform*))
   (define impls (platform-implementations platform))
-  (or (hash-has-key? impls op) (tuple-impl-name? op)))
+  (or (hash-has-key? impls op) (array-impl-name? op)))
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
@@ -201,7 +201,7 @@
      impls
      impl-name
      (lambda ()
-       (synthesize-tuple-impl! impl-name)
+       (synthesize-array-impl! impl-name)
        (hash-ref
         impls
         impl-name

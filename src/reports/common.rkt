@@ -228,11 +228,11 @@
     (for/list ([var (in-list (test-vars test))])
       (define repr (get-representation (dict-ref (test-var-repr-names test) var)))
       (cond
-        [(tuple-representation? repr)
-         ;; A uniform tuple prints with the FPCore dimension syntax;
+        [(array-representation? repr)
+         ;; A uniform array prints with the FPCore dimension syntax;
          ;; a mixed one has only its structural type to identify it.
-         (define dims (uniform-tuple-shape repr))
-         (define elem-precision (repr->precision-name (tuple-representation-base repr)))
+         (define dims (uniform-array-shape repr))
+         (define elem-precision (repr->precision-name (array-representation-base repr)))
          (cond
            [(and dims (equal? elem-precision output-precision)) (append (list var) dims)]
            [dims (append (list '! ':precision elem-precision var) dims)]

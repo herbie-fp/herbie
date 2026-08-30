@@ -6,7 +6,7 @@
 ;; FPCore: the input/output language
 ;;
 ;; - standardized interchange format with other tools
-;; - using a loopless subset with tuple literals
+;; - using a loopless subset with array literals
 ;; - operators denote real computations while rounding contexts decide format
 ;;
 ;;  <FPCore> ::= (FPCore (<var> ...) <props> ... <expr>)
@@ -62,7 +62,7 @@
          "platform.rkt"
          "matcher.rkt"
          "syntax.rkt"
-         "tuples.rkt"
+         "arrays.rkt"
          "types.rkt")
 
 (provide fpcore->spec
@@ -156,8 +156,6 @@
                (list 'and out (list '!= term term2))
                (list '!= term term2))))
        (or out '(TRUE))]
-      ; array literals are homogeneous tuples
-      [`(array ,elems ...) `(tuple ,@(map (curryr loop env) elems))]
       ; applications
       [`(,op ,args ...) `(,op ,@(map (curryr loop env) args))]
       ; constants
@@ -203,9 +201,9 @@
 (define (aggregate-index idx)
   (inexact->exact (round idx)))
 
-(define (tuple-accessor-impl impl)
+(define (array-accessor-impl impl)
   (match (impl-info impl 'fpcore)
-    [(list 'ref _ _) (and (tuple-representation? (first (impl-info impl 'itype))) impl)]
+    [(list 'ref _ _) (and (array-representation? (first (impl-info impl 'itype))) impl)]
     [_ #f]))
 
 ;; Translates an FPCore operator application into
@@ -247,16 +245,16 @@
       [(list 'ref arr idx)
        (define arr* (loop arr prop-dict))
        (define arr-repr (repr-of arr* ctx))
-       (unless (tuple-representation? arr-repr)
+       (unless (array-representation? arr-repr)
          (raise-herbie-missing-error "No implementation for `ref` over `~a`"
                                      (representation-name arr-repr)))
-       (list (ensure-tuple-ref-impl! arr-repr (aggregate-index idx)) arr*)]
-      [(list 'tuple args ...)
+       (list (ensure-array-ref-impl! arr-repr (aggregate-index idx)) arr*)]
+      [(list 'array args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
        (define slots (map (lambda (arg) (repr-of arg ctx)) args*))
-       (define repr (make-tuple-representation #:slots slots))
-       (ensure-tuple-impls! repr)
-       (cons (tuple-impl-name repr) args*)]
+       (define repr (make-array-representation #:slots slots))
+       (ensure-array-impls! repr)
+       (cons (array-impl-name repr) args*)]
       [(list op args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
        (fpcore->impl-app op prop-dict args* ctx)])))
@@ -337,7 +335,7 @@
        ; we check what happens if we inline
        (match-define (cons expr impl) (vector-ref ivec idx))
        (define impl*
-         (or (tuple-accessor-impl impl)
+         (or (array-accessor-impl impl)
              (match expr
                [(list '! props ... (or (? symbol? op) (list op _ ...)))
                 ; rounding context updated parent context
