@@ -35,16 +35,11 @@
 
 (struct array-representation representation (slots) #:transparent)
 
-;; The scalar representation at an array's first leaf; the identity on scalars.
 (define (array-representation-base repr)
   (if (array-representation? repr)
       (array-representation-base (first (array-representation-slots repr)))
       repr))
 
-;; The dimensions of an array tree that is homogeneous at every level,
-;; e.g. '(2 3) for a pair of triples, or '() for a scalar. Returns #f for
-;; an array that mixes representations. Such arrays round-trip through the
-;; FPCore dimension syntax for arguments, e.g. (x 2 3).
 (define (uniform-array-shape repr)
   (match repr
     [(? array-representation?)
@@ -72,8 +67,6 @@
   (representation name 'real bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value?))
 
 (define (make-array-representation #:slots slots)
-  ;; An array needs at least one slot: its first slot decides the rounding
-  ;; context of the whole value (see `repr->prop`).
   (when (null? slots)
     (raise-herbie-error "Arrays require at least one slot"))
   (define array-ty `(array ,@(map representation-type slots)))

@@ -41,7 +41,6 @@
     (match spec
       [(? number?) 'real]
       [(? symbol? x) (dict-ref env x #f)]
-      ;; An empty array has no slot to take its rounding context from
       [(list 'array) #f]
       [(list 'array elems ...)
        (define tys (map infer elems))

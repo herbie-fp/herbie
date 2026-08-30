@@ -253,7 +253,6 @@
   (ensure-array-impls! repr)
   (array-ref-impl-name repr idx))
 
-;; Inverse of `repr-name->token`; #f when the token is not a well-formed name.
 (define (token->repr-name tok)
   (define (split-slots body)
     (let loop ([i 0]
@@ -288,10 +287,8 @@
     [(or (string-contains? tok "<") (string-contains? tok ">") (string-contains? tok ":")) #f]
     [else (string->symbol tok)]))
 
-;; Symbols that cannot name an array impl, so a repeated miss costs one eq lookup.
 (define non-array-names (make-weak-hasheq))
 
-;; Splits a name into its array token and, for an accessor, its slot index.
 (define (array-impl-name-parts name)
   (cond
     [(not (symbol? name)) (values #f #f)]
@@ -318,7 +315,6 @@
         (hash-set! non-array-names name #t)
         (values #f #f)])]))
 
-;; Resolves a name to the shape it denotes, or #f. Never mutates the platform.
 (define (array-impl-name->repr name)
   (define-values (tok idx) (array-impl-name-parts name))
   (define repr-name (and tok (token->repr-name tok)))
@@ -336,8 +332,6 @@
     [(< idx (length (array-representation-slots repr))) (values repr idx)]
     [else (values #f #f)]))
 
-;; Impl names encode their whole shape, so a missing array impl can be rebuilt
-;; from its name alone.
 (define (array-impl-name? name)
   (define-values (repr _idx) (array-impl-name->repr name))
   (and repr #t))

@@ -19,16 +19,12 @@
   (define <b64> (get-representation 'binary64))
   (define mixed (get-representation '(array binary32 binary64)))
 
-  ;; type identity
-
   (check-equal? (representation-name mixed) '(array binary32 binary64))
   (check-equal? (representation-type mixed) '(array real real))
   (check-equal? mixed (make-array-representation #:slots (list <b32> <b64>)))
   (check-not-equal? mixed (get-representation '(array binary64 binary32)))
   (check-equal? (get-representation (representation-name mixed)) mixed)
   (check-equal? (repr->prop mixed) '((:precision . binary32)))
-
-  ;; generated impls
 
   (parameterize ([*active-platform* (platform-copy (*active-platform*))])
     (ensure-array-impls! mixed)
@@ -42,8 +38,6 @@
     (define ctx (context '(a b) mixed (list <b32> <b64>)))
     (check-equal? (fpcore->prog '(array a b) ctx) '(array<binary32:binary64> a b)))
 
-  ;; distance, measured per slot in that slot's own representation
-
   (define (repr-next repr x)
     ((representation-ordinal->repr repr) (add1 ((representation-repr->ordinal repr) x))))
 
@@ -52,14 +46,10 @@
     (check-equal? (ulps (vector 1.0 1.0) (vector (repr-next <b32> 1.0) 1.0)) 3)
     (check-equal? (ulps (vector 1.0 1.0) (vector 1.0 (repr-next <b64> 1.0))) 3))
 
-  ;; real conversions
-
   (let ([v (real->repr (vector 1/3 1/3) mixed)])
     (check-equal? (vector-ref v 0) (flsingle (exact->inexact 1/3)))
     (check-equal? (vector-ref v 1) (exact->inexact 1/3)))
   (check-equal? (repr->real (real->repr (vector 0.5 0.25) mixed) mixed) (vector 1/2 1/4))
-
-  ;; type checking
 
   (let-values ([(repr _ctx) (assert-program-typed! #'(FPCore ((! :precision binary32 a) b)
                                                              :precision
@@ -79,8 +69,6 @@
 
   (check-exn exn:fail?
              (lambda () (assert-program-typed! #'(FPCore (x) :precision binary64 (array (< x 5) x)))))
-
-  ;; impls survive the platform re-activation before every run
 
   (parameterize ([*active-platform* (platform-copy (*active-platform*))]
                  [*platform-extensions* '()])

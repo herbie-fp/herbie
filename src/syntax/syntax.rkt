@@ -27,7 +27,6 @@
 ;; All real operators come from Rival
 
 ;; Checks if an operator has been registered.
-;; `ref` and `array` are the structural spec operators; all others come from Rival.
 (define (operator-exists? op)
   (or (hash-has-key? rival-functions op) (equal? op 'ref) (equal? op 'array)))
 
@@ -36,9 +35,7 @@
   (sort (append (hash-keys rival-functions) (list 'ref 'array)) symbol<?))
 
 ;; Looks up a property `field` of a real operator `op`.
-;; Panics if the operator is not found. `array` is variadic, so it has an
-;; output type but no fixed signature; arity-aware callers go through
-;; `spec-arg-types` in egg-herbie.rkt instead.
+;; Panics if the operator is not found.
 (define/contract (operator-info op field)
   (-> symbol? (or/c 'itype 'otype) any/c)
   (define info

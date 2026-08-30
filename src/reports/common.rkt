@@ -229,8 +229,6 @@
       (define repr (get-representation (dict-ref (test-var-repr-names test) var)))
       (cond
         [(array-representation? repr)
-         ;; A uniform array prints with the FPCore dimension syntax;
-         ;; a mixed one has only its structural type to identify it.
          (define dims (uniform-array-shape repr))
          (define elem-precision (repr->precision-name (array-representation-base repr)))
          (cond

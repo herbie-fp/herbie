@@ -67,7 +67,6 @@
        (for ([elem (in-list elems)])
          (loop elem vars))]
       [#`(ref #,arr ,idx)
-       ;; In Racket a float can satisfy `integer?`, so insist on an exact one.
        (unless (exact-nonnegative-integer? idx)
          (error! idx "Index must be a nonnegative integer literal, got ~a" idx))
        (loop arr vars)]

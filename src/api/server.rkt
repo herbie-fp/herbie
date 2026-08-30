@@ -628,8 +628,6 @@
                        [repr (in-list (test-var-reprs test))])
               (cond
                 [(array-representation? repr)
-                 ;; A uniform array prints with the FPCore dimension syntax;
-                 ;; a mixed one has only its structural type to identify it.
                  (define dims (uniform-array-shape repr))
                  (define elem-repr (array-representation-base repr))
                  (cond

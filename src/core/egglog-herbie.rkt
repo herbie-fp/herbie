@@ -360,8 +360,6 @@
 
 (define (serialize-spec-op op arity)
   (match* (op arity)
-    ;; Only two- and three-slot array nodes are declared; other arities
-    ;; name an undeclared node and egglog rejects them.
     [('array 2) 'Array]
     [('array 3) 'Array3]
     [('array n) (string->symbol (format "Array~a" n))]

@@ -15,15 +15,10 @@
 
 (define (repr-compatible-with-precision? repr precision-repr)
   (match repr
-    ;; An array-typed program is compatible with any ambient precision: unless a
-    ;; slot is explicitly annotated with `!`, it already types at the ambient
-    ;; precision, so a differing slot can only come from a deliberate annotation
-    ;; (mixed-precision arrays are the point of the type).
     [(? array-representation?) #t]
     [(? representation?)
      (or (equal? (representation-type repr) 'bool) (equal? repr precision-repr))]))
 
-;; A dimensioned argument such as (x 2 3) is a homogeneous array tree.
 (define (array-of elem dims)
   (for/fold ([out elem]) ([d (in-list (reverse dims))])
     (unless (exact-positive-integer? d)
@@ -127,16 +122,12 @@
        ift-repr]
       [#`(! #,props ... #,body) (loop body (apply dict-set prop-dict (map syntax->datum props)) ctx)]
       [#`(array #,elems ...)
-       ;; Empty arrays are rejected in syntax-check.rkt.
        (define slots
          (for/list ([elem (in-list elems)])
            (loop elem prop-dict ctx)))
        (cond
          [(for/or ([slot (in-list slots)])
             (equal? (representation-type slot) 'bool))
-          ;; Array slots are typed `real` in the spec language (see
-          ;; `spec-arg-types` in egg-herbie.rkt), so a boolean slot would be
-          ;; mistyped during rewriting.
           (error! stx "Array slots must not be boolean")
           (get-representation (dict-ref prop-dict ':precision))]
          [else (make-array-representation #:slots slots)])]
