@@ -15,7 +15,9 @@
 
 (define (repr-compatible-with-precision? repr precision-repr)
   (match repr
-    [(? array-representation?) #t]
+    [(? array-representation?)
+     (or (not (uniform-array-shape repr))
+         (repr-compatible-with-precision? (array-representation-base repr) precision-repr))]
     [(? representation?)
      (or (equal? (representation-type repr) 'bool) (equal? repr precision-repr))]))
 
