@@ -62,7 +62,6 @@
          "platform.rkt"
          "matcher.rkt"
          "syntax.rkt"
-         "arrays.rkt"
          "types.rkt")
 
 (provide fpcore->spec

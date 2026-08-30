@@ -12,10 +12,7 @@
          define-operation
          define-operations
          create-operator-impl!
-         ;; The procedural registration API: arrays.rkt uses it to register
-         ;; generated representations and impls outside a platform definition
          platform-register-implementation!
-         platform-register-representation!
          fpcore-context
          if-impl
          if-cost

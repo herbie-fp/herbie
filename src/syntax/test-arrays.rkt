@@ -1,7 +1,6 @@
 #lang racket
 
 (require math/flonum
-         "arrays.rkt"
          "float.rkt"
          "platform.rkt"
          "platform-state.rkt"
