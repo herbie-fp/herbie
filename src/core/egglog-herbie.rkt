@@ -37,9 +37,6 @@
 (define (all-repr-names [pform (*active-platform*)])
   (map representation-name (platform-reprs pform)))
 
-;; Array tokens carry their arity, so nested arrays encode unambiguously.
-;; The decoding direction (`egglog-repr-name`) only ever sees the scalar
-;; tokens of Num nodes, so array tokens are encode-only.
 (define (egglog-repr-token repr-name)
   (match repr-name
     [(? representation?) (egglog-repr-token (representation-name repr-name))]
