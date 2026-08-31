@@ -14,7 +14,7 @@
 
 (struct candidate (score v order vals))
 
-;; Cheap heuristic score how well one split along this point order separates the alts.
+;; How well one split along a permutation of points separates the alts for min error.
 (define (branch-separability err-cols order)
   (define n (vector-length order))
   (define best-prefix (make-flvector (add1 n) +inf.0))
@@ -39,8 +39,9 @@
              [suffix (in-flvector best-suffix)])
     (min best (+ prefix suffix))))
 
-;; Chooses the branch expressions for the regimes DP; the keep list always stays.
-;; dp-score gives a candidate's true regimes DP error, for re-ranking the shortlist.
+;; Chooses the branch expressions for the regimes DP. First uses a heuristic to
+;; narrow thousands of candidates, then filters using dp-score to get each
+;; candidate's true regimes error.
 (define (branch-candidates block roots err-cols pcontext keep dp-score)
   (define free-vars (block-free-vars block))
   (define (usable? v)
@@ -69,19 +70,21 @@
   (define shortlist (take ranked (min (*branch-shortlist*) (length ranked))))
   (define-values (picks outsiders)
     (split-at shortlist (min (*branch-expr-limit*) (length shortlist))))
-  ;; The one-split score misses candidates that only pay off with several splits,
-  ;; so an outsider may displace a pick, but only on a clear win over all of them.
+  ;; The one-split heuristic misses candidates that only pay off with several splits,
+  ;; so the outsider with the best actual error (via dp-score) may replace the worst pick.
   (define dp-cache (make-hash))
   (define (dp-of c)
     (hash-ref! dp-cache
                (candidate-order c)
                (lambda () (dp-score (candidate-v c) (candidate-vals c)))))
   (define final
-    (for/fold ([picks picks]) ([out (in-list (sort outsiders < #:key dp-of))])
-      (define best (apply min (map dp-of picks)))
-      (if (< (dp-of out) (- best (*branch-dp-margin*)))
-          (cons out (remq (argmax dp-of picks) picks))
-          picks)))
+    (cond
+      [(null? outsiders) picks]
+      [else
+       (define challenger (argmin dp-of outsiders))
+       (if (< (dp-of challenger) (apply min (map dp-of picks)))
+           (cons challenger (remq (argmax dp-of picks) picks))
+           picks)]))
   (append kept (map candidate-v final)))
 
 (define (v-values* block vs pcontext)

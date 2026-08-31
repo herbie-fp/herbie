@@ -138,15 +138,9 @@
 (define *binary-search-test-points* (make-parameter 16))
 (define *binary-search-accuracy* (make-parameter 48))
 
-;; How many branch expressions regimes may add beyond the dominating subexpressions;
-;; each one is more capacity to overfit the training points
+;; How many branch subexpressions to give regimes
 (define *branch-expr-limit* (make-parameter 4))
-
-;; How many top-scored candidates get an exact DP evaluation before the final pick
 (define *branch-shortlist* (make-parameter 32))
-
-;; How many bits a shortlist candidate must win by to displace a heuristic pick
-(define *branch-dp-margin* (make-parameter 2.0))
 
 ;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))

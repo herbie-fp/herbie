@@ -54,6 +54,7 @@
   (define (real-v? v)
     (equal? (representation-type (block-repr-of v)) 'real))
   (define pts-vec (pcontext-points pcontext))
+  ;; The lowest error score regimes can give for a given branch candidate.
   (define (dp-score v v-vals-vec)
     (define curve (branch-options block alts-vec err-cols pts-vec v v-vals-vec (block-repr-of v)))
     (apply min (map pareto-point-error curve)))
