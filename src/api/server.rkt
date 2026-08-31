@@ -628,11 +628,12 @@
                        [repr (in-list (test-var-reprs test))])
               (cond
                 [(array-representation? repr)
-                 (define dims (array-representation-shape repr))
+                 (define dims (uniform-array-shape repr))
                  (define elem-repr (array-representation-base repr))
-                 (if (equal? elem-repr out-base-repr)
-                     (append (list var) dims)
-                     (append (list '! ':precision (representation-name elem-repr) var) dims))]
+                 (cond
+                   [(and dims (equal? elem-repr out-base-repr)) (append (list var) dims)]
+                   [dims (append (list '! ':precision (representation-name elem-repr) var) dims)]
+                   [else (list '! ':precision (representation-name repr) var)])]
                 [(equal? repr out-base-repr) var]
                 [else (list '! ':precision (representation-name repr) var)]))
            :name

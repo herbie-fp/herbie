@@ -197,6 +197,14 @@
        prop-dict
        (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " "))))
 
+(define (aggregate-index idx)
+  (inexact->exact (round idx)))
+
+(define (array-accessor-impl impl)
+  (match (impl-info impl 'fpcore)
+    [(list 'ref _ _) (and (array-representation? (first (impl-info impl 'itype))) impl)]
+    [_ #f]))
+
 ;; Translates an FPCore operator application into
 ;; an LImpl operator application.
 (define (fpcore->impl-app op prop-dict args ctx)
@@ -235,14 +243,17 @@
            (fpcore->impl-app 'cast prop-dict (list arg*) ctx))]
       [(list 'ref arr idx)
        (define arr* (loop arr prop-dict))
-       (define idx* (loop idx prop-dict))
        (define arr-repr (repr-of arr* ctx))
-       (define idx-repr (repr-of idx* ctx))
-       (define impl (assert-fpcore-impl 'ref prop-dict (list arr-repr idx-repr)))
-       (define vars (impl-info impl 'vars))
-       (define-values (_ body) (impl->fpcore impl))
-       (define subst (pattern-match body (list 'ref arr* idx*)))
-       (pattern-substitute (cons impl vars) subst)]
+       (unless (array-representation? arr-repr)
+         (raise-herbie-missing-error "No implementation for `ref` over `~a`"
+                                     (representation-name arr-repr)))
+       (list (ensure-array-ref-impl! arr-repr (aggregate-index idx)) arr*)]
+      [(list 'array args ...)
+       (define args* (map (lambda (arg) (loop arg prop-dict)) args))
+       (define slots (map (lambda (arg) (repr-of arg ctx)) args*))
+       (define repr (make-array-representation #:slots slots))
+       (ensure-array-impls! repr)
+       (cons (array-impl-name repr) args*)]
       [(list op args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
        (fpcore->impl-app op prop-dict args* ctx)])))
@@ -323,17 +334,18 @@
        ; we check what happens if we inline
        (match-define (cons expr impl) (vector-ref ivec idx))
        (define impl*
-         (match expr
-           [(list '! props ... (or (? symbol? op) (list op _ ...)))
-            ; rounding context updated parent context
-            (define prop-dict*
-              (if (not (null? props))
-                  (apply dict-set prop-dict props)
-                  prop-dict))
-            (assert-fpcore-impl op prop-dict* (impl-info impl 'itype))]
-           ; rounding context inherited from parent context
-           [(or (? symbol? op) (list op _ ...))
-            (assert-fpcore-impl op prop-dict (impl-info impl 'itype))]))
+         (or (array-accessor-impl impl)
+             (match expr
+               [(list '! props ... (or (? symbol? op) (list op _ ...)))
+                ; rounding context updated parent context
+                (define prop-dict*
+                  (if (not (null? props))
+                      (apply dict-set prop-dict props)
+                      prop-dict))
+                (assert-fpcore-impl op prop-dict* (impl-info impl 'itype))]
+               ; rounding context inherited from parent context
+               [(or (? symbol? op) (list op _ ...))
+                (assert-fpcore-impl op prop-dict (impl-info impl 'itype))])))
        (cond
          [(equal? impl impl*) ; inlining is safe
           (define expr* (loop expr prop-dict))

@@ -31,9 +31,9 @@
 
   (define ctx (context '(x) f64 (list f64)))
   (check-equal? (fpcore->prog '(ref (sincos x) 0) ctx)
-                '(ref.f64 (sincos.f64 x) #s(literal 0 binary64)))
+                '(ref.0.array<binary64:binary64> (sincos.f64 x)))
   (check-equal? (fpcore->prog '(ref (sincos x) 1) ctx)
-                '(ref.f64 (sincos.f64 x) #s(literal 1 binary64)))
+                '(ref.1.array<binary64:binary64> (sincos.f64 x)))
   ; fpcore->spec
   (check-equal? (fpcore->spec '(log1p x)) '(log (+ 1 x)))
   (check-equal? (fpcore->spec '(hypot x y)) '(sqrt (+ (* x x) (* y y))))

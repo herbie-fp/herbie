@@ -314,7 +314,7 @@
   (check-equal? (fpcore->prog fifth ctx) '(*.f64 (cube a) (sqr a)))
 
   ;; array arguments
-  (define vec2 (make-array-representation #:elem <binary64> #:len 2))
+  (define vec2 (make-array-representation #:slots (list <binary64> <binary64>)))
   (define sum2-ctx (context '(v) <binary64> (list vec2)))
   (define sum2-prog (fpcore->prog '(+ (ref v 0) (ref v 1)) sum2-ctx))
   (register-fpcore-operator! 'sum2 sum2-ctx sum2-prog sum2-prog)

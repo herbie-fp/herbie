@@ -41,18 +41,14 @@
     (match spec
       [(? number?) 'real]
       [(? symbol? x) (dict-ref env x #f)]
+      [(list 'array) #f]
       [(list 'array elems ...)
-       #:when (null? elems)
-       #f]
-      [(list 'array elems ...)
-       (define elem-ty (infer (first elems)))
-       (and elem-ty
-            (for/and ([elem (in-list (rest elems))])
-              (equal? elem-ty (infer elem)))
-            `(array ,elem-ty ,(length elems)))]
+       (define tys (map infer elems))
+       (and (andmap values tys) `(array ,@tys))]
       [(list 'ref arr idx)
        (match (infer arr)
-         [`(array ,elem-ty ,_) elem-ty]
+         [`(array ,tys ...)
+          (and (exact-nonnegative-integer? idx) (< idx (length tys)) (list-ref tys idx))]
          [_ #f])]
       [(list op args ...)
        (define arg-types (map infer args))
