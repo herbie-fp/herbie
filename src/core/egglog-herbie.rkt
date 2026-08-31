@@ -663,10 +663,12 @@
   (define iter-limit (*default-egglog-iter-limit*))
 
   ;; The back-off scheduler's :node-limit keeps the e-graph within the node
-  ;; limit as it chooses matches; the :until guard with get-node-size! stops
-  ;; the schedule once the limit is reached. Both measure e-nodes (rows of
-  ;; constructor tables, excluding relations and analysis functions), matching
-  ;; what egg counts, rather than get-size!'s total table size. Constant
+  ;; limit as it chooses matches (each rule's matches are applied before the
+  ;; next rule is consulted, so the check sees the live size); the :until
+  ;; guard with get-node-size! stops the schedule once the limit is reached.
+  ;; Both measure e-nodes (rows of constructor tables, excluding relations and
+  ;; analysis functions), matching what egg counts, rather than get-size!'s
+  ;; total table size. Constant
   ;; folding runs with the default scheduler, like egg's analysis-based
   ;; folding: it is not rewriting to be rationed, and running it through the
   ;; same back-off instance would advance that scheduler's iteration counter
@@ -680,10 +682,13 @@
 
   (egglog-send subproc
                `(run-schedule
-                 (let-scheduler bo (back-off :node-limit ,node-limit :eager-apply 1))
+                 (let-scheduler bo (back-off :node-limit ,node-limit))
                  (repeat ,iter-limit
-                         (seq (run-with bo ,tag :until (<= ,node-limit (get-node-size!)))
-                              (run const-fold)
+                         (seq (run-with bo
+                                        ,tag
+                                        :until (or (bad-merge?) (<= ,node-limit (get-node-size!))))
+                              (run bad-merge-rule :until (bad-merge?))
+                              (saturate (run const-fold :until (bad-merge?)))
                               (run bad-merge-rule :until (bad-merge?))))))
   (void))
 
