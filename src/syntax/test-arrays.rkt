@@ -67,8 +67,14 @@
              (lambda ()
                (assert-program-typed! #'(FPCore (x) :precision binary64 (ref (array x x) 2)))))
 
-  (check-exn exn:fail?
-             (lambda () (assert-program-typed! #'(FPCore (x) :precision binary64 (array (< x 5) x)))))
+  (let-values ([(repr _ctx) (assert-program-typed!
+                             #'(FPCore (x) :precision binary64 (array (< x 5) x)))])
+    (check-equal? (representation-name repr) '(array bool binary64)))
+
+  (check-equal? (repr->prop (make-array-representation #:slots (list <bool> <b64>)))
+                '((:precision . binary64)))
+  (check-equal? (array-representation-base (make-array-representation #:slots (list <bool> <b64>)))
+                <b64>)
 
   (parameterize ([*active-platform* (platform-copy (*active-platform*))]
                  [*platform-extensions* '()])

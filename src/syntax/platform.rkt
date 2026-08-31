@@ -321,11 +321,7 @@
   (define repr
     (and repr-name
          (repr-exists? repr-name)
-         (let ([r (get-representation repr-name)])
-           (and (array-representation? r)
-                (for/and ([slot (in-list (array-representation-slots r))])
-                  (not (equal? (representation-type slot) 'bool)))
-                r))))
+         (let ([r (get-representation repr-name)]) (and (array-representation? r) r))))
   (cond
     [(not repr) (values #f #f)]
     [(not idx) (values repr #f)]

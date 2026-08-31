@@ -127,12 +127,7 @@
        (define slots
          (for/list ([elem (in-list elems)])
            (loop elem prop-dict ctx)))
-       (cond
-         [(for/or ([slot (in-list slots)])
-            (equal? (representation-type slot) 'bool))
-          (error! stx "Array slots must not be boolean")
-          (get-representation (dict-ref prop-dict ':precision))]
-         [else (make-array-representation #:slots slots)])]
+       (make-array-representation #:slots slots)]
       [#`(ref #,arr #,idx)
        (define arr-type (loop arr prop-dict ctx))
        (define raw (syntax-e idx))

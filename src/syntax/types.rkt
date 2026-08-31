@@ -36,9 +36,11 @@
 (struct array-representation representation (slots) #:transparent)
 
 (define (array-representation-base repr)
-  (if (array-representation? repr)
-      (array-representation-base (first (array-representation-slots repr)))
-      repr))
+  (cond
+    [(array-representation? repr)
+     (define bases (map array-representation-base (array-representation-slots repr)))
+     (or (findf (lambda (r) (equal? (representation-type r) 'real)) bases) (first bases))]
+    [else repr]))
 
 (define (uniform-array-shape repr)
   (match repr
@@ -51,7 +53,7 @@
 ;; Converts a representation into a rounding property
 (define (repr->prop repr)
   (match repr
-    [(? array-representation?) (repr->prop (first (array-representation-slots repr)))]
+    [(? array-representation?) (repr->prop (array-representation-base repr))]
     [(? representation?)
      (match (representation-type repr)
        ['bool '()]
