@@ -60,8 +60,7 @@
   (define branch-vs
     (if (flag-set? 'reduce 'branch-expressions)
         (branch-candidates block
-                           sorted
-                           start-prog
+                           (cons start-prog (map alt-expr sorted))
                            err-cols
                            pcontext
                            (critical-subexpressions block start-prog)

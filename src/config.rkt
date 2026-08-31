@@ -145,8 +145,7 @@
 ;; How many top-scored candidates get an exact DP evaluation before the final pick
 (define *branch-shortlist* (make-parameter 32))
 
-;; A shortlist candidate must beat the heuristic picks by this many bits of
-;; average error on the true DP objective before it displaces one
+;; How many bits a shortlist candidate must win by to displace a heuristic pick
 (define *branch-dp-margin* (make-parameter 2.0))
 
 ;; If `:precision` is unspecified, which representation should we use?
