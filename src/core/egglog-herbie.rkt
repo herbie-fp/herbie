@@ -101,6 +101,13 @@
                     reprs
                     [label #f]
                     #:extract extract) ; multi expression extraction
+  ;; With no roots there is nothing to insert or extract. Skip the subprocess
+  ;; entirely.
+  (if (null? (egglog-runner-vs runner))
+      '()
+      (run-egglog-subprocess runner output-block reprs label extract)))
+
+(define (run-egglog-subprocess runner output-block reprs label extract)
   (define insert-block (egglog-runner-block runner))
   (define insert-vs (egglog-runner-vs runner))
   (define schedule (egglog-runner-schedule runner))
