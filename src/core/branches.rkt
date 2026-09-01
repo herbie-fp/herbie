@@ -12,8 +12,6 @@
 (provide branch-candidates
          v-values*)
 
-(struct candidate (score v order vals))
-
 ;; How well one split along a permutation of points separates the alts for min error.
 (define (branch-separability err-cols order)
   (define n (vector-length order))
@@ -39,10 +37,8 @@
              [suffix (in-flvector best-suffix)])
     (min best (+ prefix suffix))))
 
-;; Chooses the branch expressions for the regimes DP. First uses a heuristic to
-;; narrow thousands of candidates, then filters using dp-score to get each
-;; candidate's true regimes error.
-(define (branch-candidates block roots err-cols pcontext keep dp-score)
+;; Chooses the branch expressions for the regimes DP using a cheap heuristic.
+(define (branch-candidates block roots err-cols pcontext keep)
   (define free-vars (block-free-vars block))
   (define (usable? v)
     (and (equal? (representation-type (block-repr-of v)) 'real) (not (set-empty? (free-vars v)))))
@@ -64,28 +60,9 @@
         (vector-sort (build-vector (vector-length v-vals-vec) values)
                      (lambda (i j)
                        (</total (vector-ref v-vals-vec i) (vector-ref v-vals-vec j) repr))))
-      (define score (hash-ref! score-cache order (lambda () (branch-separability err-cols order))))
-      (candidate score v order v-vals-vec)))
-  (define ranked (sort scored < #:key candidate-score))
-  (define shortlist (take ranked (min (*branch-shortlist*) (length ranked))))
-  (define-values (picks outsiders)
-    (split-at shortlist (min (*branch-expr-limit*) (length shortlist))))
-  ;; The one-split heuristic misses candidates that only pay off with several splits,
-  ;; so the outsider with the best actual error (via dp-score) may replace the worst pick.
-  (define dp-cache (make-hash))
-  (define (dp-of c)
-    (hash-ref! dp-cache
-               (candidate-order c)
-               (lambda () (dp-score (candidate-v c) (candidate-vals c)))))
-  (define final
-    (cond
-      [(null? outsiders) picks]
-      [else
-       (define challenger (argmin dp-of outsiders))
-       (if (< (dp-of challenger) (apply min (map dp-of picks)))
-           (cons challenger (remq (argmax dp-of picks) picks))
-           picks)]))
-  (append kept (map candidate-v final)))
+      (cons (hash-ref! score-cache order (lambda () (branch-separability err-cols order))) v)))
+  (define ranked (map cdr (sort scored < #:key car)))
+  (append kept (take ranked (min (*branch-expr-limit*) (length ranked)))))
 
 (define (v-values* block vs pcontext)
   (define count (length vs))

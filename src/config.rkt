@@ -140,7 +140,6 @@
 
 ;; How many branch subexpressions to give regimes
 (define *branch-expr-limit* (make-parameter 4))
-(define *branch-shortlist* (make-parameter 32))
 
 ;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))
