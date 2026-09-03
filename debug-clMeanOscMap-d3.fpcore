@@ -1,8 +1,0 @@
-(FPCore (i Omega di dOmega)
-  :name "clMeanOscMap-d3"
-  (+ (* (+ (sin (/ i 2))
-           (* (/ (cos (/ i 2)) 2) di))
-        (sin Omega))
-     (* (* (sin (/ i 2))
-           dOmega)
-        (cos Omega))))
