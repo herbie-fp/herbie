@@ -81,8 +81,7 @@
       (timeline-stop!)
       (timeline-push! 'branch
                       (hash-ref branch-root-map v)
-                      (- (pareto-point-error last-point)
-                         (length (option-split-indices (pareto-point-data last-point))))
+                      (option-error last-point)
                       (length (option-split-indices (pareto-point-data last-point)))
                       (~a (representation-name repr)))
       curve))
@@ -100,14 +99,20 @@
                    (for*/list ([ppt (in-list combined-option-curve)]
                                [sidx (in-list (option-split-indices (pareto-point-data ppt)))])
                      (alt-expr (list-ref (option-alts (pareto-point-data ppt)) (si-cidx sidx)))))))
+  (timeline-push! 'accuracy
+                  (errors-score (first (block-errors block (list start-prog) pcontext)))
+                  (baseline-errors-score err-cols alt-count)
+                  (for/fold ([best +inf.0]) ([ppt (in-list combined-option-curve)])
+                    (min best (option-error ppt)))
+                  (oracle-errors-score err-cols alt-count)
+                  (~a (representation-name (block-repr-of start-prog))))
   (for/list ([ppt (in-list combined-option-curve)])
     (define opt (pareto-point-data ppt))
     (timeline-push! 'count (length (option-alts opt)) (length (option-split-indices opt)))
-    (timeline-push! 'accuracy
-                    (- (pareto-point-error ppt) (length (option-split-indices opt)))
-                    (oracle-errors-score err-cols (pareto-point-cost ppt))
-                    (baseline-errors-score err-cols (pareto-point-cost ppt)))
     opt))
+
+(define (option-error ppt)
+  (- (pareto-point-error ppt) (length (option-split-indices (pareto-point-data ppt)))))
 
 (define (critical-subexpression? block root-v sub-v)
   (set-member? (critical-subexpressions block root-v) sub-v))
