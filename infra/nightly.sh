@@ -5,7 +5,7 @@ set -e -x
 
 # Ensure egglog is in the path
 export PATH="$HOME/.cargo/bin/:$PATH"
-rustup update
+rustup default stable
 
 # Keep nightly installs isolated and consistent across install/run steps.
 export PLTADDONDIR="${PLTADDONDIR:-pltlibs}"
