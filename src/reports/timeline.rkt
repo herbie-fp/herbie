@@ -240,8 +240,8 @@
                           (table ((class "times"))
                                  ,(row (- start baseline) "Fixed by single best alt")
                                  ,(row (- baseline achieved) "Fixed by regimes")
-                                 ,(row (- achieved oracle) "Wrong alt picked")
-                                 ,(row oracle "No accurate alt"))))))
+                                 ,(row (- achieved oracle) "Inexpressive regimes")
+                                 ,(row oracle "Inaccurate alts"))))))
 
 (define (render-phase-pruning kept-data)
   (match-define (list kept) kept-data)
