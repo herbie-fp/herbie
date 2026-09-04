@@ -138,6 +138,9 @@
 (define *binary-search-test-points* (make-parameter 16))
 (define *binary-search-accuracy* (make-parameter 48))
 
+;; How many branch subexpressions to give regimes
+(define *branch-expr-limit* (make-parameter 4))
+
 ;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))
 

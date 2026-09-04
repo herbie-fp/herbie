@@ -197,7 +197,7 @@
 (define-timeline series [time +] [var false] [transform false])
 (define-timeline compiler [before +] [after +])
 (define-timeline outcomes [time +] [prec false] [category false] [count +])
-(define-timeline accuracy [accuracy] [oracle] [baseline])
+(define-timeline accuracy [start +] [baseline +] [achieved +] [oracle +])
 (define-timeline count [input +] [output +])
 (define-timeline alts #:unmergable)
 (define-timeline block #:unmergable)

@@ -55,7 +55,11 @@
   (define branch-vs
     (filter real-v?
             (if (flag-set? 'reduce 'branch-expressions)
-                (critical-subexpressions block start-prog)
+                (branch-candidates block
+                                   (cons start-prog (map alt-expr sorted))
+                                   err-cols
+                                   pcontext
+                                   (critical-subexpressions block start-prog))
                 (map (curry block-add! block) (block-vars block)))))
 
   (define v-vals (v-values* block branch-vs pcontext))
@@ -77,8 +81,7 @@
       (timeline-stop!)
       (timeline-push! 'branch
                       (hash-ref branch-root-map v)
-                      (- (pareto-point-error last-point)
-                         (length (option-split-indices (pareto-point-data last-point))))
+                      (option-error last-point)
                       (length (option-split-indices (pareto-point-data last-point)))
                       (~a (representation-name repr)))
       curve))
@@ -96,14 +99,19 @@
                    (for*/list ([ppt (in-list combined-option-curve)]
                                [sidx (in-list (option-split-indices (pareto-point-data ppt)))])
                      (alt-expr (list-ref (option-alts (pareto-point-data ppt)) (si-cidx sidx)))))))
+  (timeline-push! 'accuracy
+                  (errors-score (first (block-errors block (list start-prog) pcontext)))
+                  (baseline-errors-score err-cols alt-count)
+                  (for/fold ([best +inf.0]) ([ppt (in-list combined-option-curve)])
+                    (min best (option-error ppt)))
+                  (oracle-errors-score err-cols alt-count))
   (for/list ([ppt (in-list combined-option-curve)])
     (define opt (pareto-point-data ppt))
     (timeline-push! 'count (length (option-alts opt)) (length (option-split-indices opt)))
-    (timeline-push! 'accuracy
-                    (- (pareto-point-error ppt) (length (option-split-indices opt)))
-                    (oracle-errors-score err-cols (pareto-point-cost ppt))
-                    (baseline-errors-score err-cols (pareto-point-cost ppt)))
     opt))
+
+(define (option-error ppt)
+  (- (pareto-point-error ppt) (length (option-split-indices (pareto-point-data ppt)))))
 
 (define (critical-subexpression? block root-v sub-v)
   (set-member? (critical-subexpressions block root-v) sub-v))
@@ -158,6 +166,55 @@
       [(= idx1 idx2) v1]
       [(< idx1 idx2) (loop (dom-parent v1) v2)]
       [else (loop v1 (dom-parent v2))])))
+
+;; How well one split along a permutation of points separates the alts for min error.
+(define (branch-separability err-cols order)
+  (define n (vector-length order))
+  (define best-prefix (make-flvector (add1 n) +inf.0))
+  (define best-suffix (make-flvector (add1 n) +inf.0))
+  (define acc (make-flvector (add1 n) 0.0))
+  (for ([err-col (in-list err-cols)])
+    ;; Accumulate errors for this alt.
+    (for ([k (in-range n)])
+      (define err (flvector-ref err-col (vector-ref order k)))
+      (flvector-set! acc (add1 k) (+ (flvector-ref acc k) err)))
+    (define total (flvector-ref acc n))
+    ;; Record best prefixes and suffixes for every point.
+    (for ([k (in-range (add1 n))])
+      (define prefix (flvector-ref acc k))
+      (define suffix (- total prefix))
+      (when (< prefix (flvector-ref best-prefix k))
+        (flvector-set! best-prefix k prefix))
+      (when (< suffix (flvector-ref best-suffix k))
+        (flvector-set! best-suffix k suffix))))
+  (for/fold ([best +inf.0])
+            ([prefix (in-flvector best-prefix)]
+             [suffix (in-flvector best-suffix)])
+    (min best (+ prefix suffix))))
+
+;; In addition to the keep expressions, choose additional branch expressions
+;; for the regimes DP using a cheap heuristic.
+(define (branch-candidates block roots err-cols pcontext keep)
+  (define free-vars (block-free-vars block))
+  ;; All possible subexpressions across all alts and the original program.
+  (define pool
+    (for/list ([v (in-list (remove* keep (block-reachable block roots)))]
+               #:when (equal? (representation-type (block-repr-of v)) 'real)
+               #:unless (set-empty? (free-vars v)))
+      v))
+  ;; Expressions that sort the points identically are cached.
+  (define score-cache (make-hash))
+  (define scored
+    (for/list ([v (in-list pool)]
+               [v-vals-vec (in-list (v-values* block pool pcontext))])
+      (define repr (block-repr-of v))
+      (define order
+        (vector-sort (build-vector (vector-length v-vals-vec) values)
+                     (lambda (i j)
+                       (</total (vector-ref v-vals-vec i) (vector-ref v-vals-vec j) repr))))
+      (cons (hash-ref! score-cache order (lambda () (branch-separability err-cols order))) v)))
+  (define ranked (map cdr (sort scored < #:key car)))
+  (append keep (take ranked (min (*branch-expr-limit*) (length ranked)))))
 
 (define (baseline-errors-score err-cols count)
   (for/fold ([best +inf.0]) ([err-col (in-list (take err-cols count))])

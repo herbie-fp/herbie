@@ -231,36 +231,17 @@
       empty))
 
 (define (render-phase-accuracy accuracy)
-  (define rows
-    (sort (for/list ([row (in-list accuracy)])
-            (match-define (list acc ora bas) row)
-            (list (- acc ora) (- bas acc)))
-          >
-          #:key first))
-
-  (define bits (map first rows))
-  (define total-remaining (apply + (map first accuracy)))
-
-  `((dt "Accuracy") (dd (p "Total "
-                           ,(format-bits (apply + bits) #:unit #t)
-                           " remaining"
-                           " ("
-                           ,(format-percent (apply + bits) total-remaining)
-                           ")"
-                           (p "Threshold costs "
-                              ,(format-bits (apply + (filter (curry > 1) bits)))
-                              "b"
-                              " ("
-                              ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining)
-                              ")")
-                           ,@(if (> (length rows) 1)
-                                 `((table ((class "times"))
-                                          ,@(for/list ([rec (in-list rows)]
-                                                       [_ (in-range 5)])
-                                              (match-define (list left gained) rec)
-                                              `(tr (td ,(format-bits left #:unit #t))
-                                                   (td ,(format-percent gained (+ left gained)))))))
-                                 '())))))
+  `((dt "Error") ,@(for/list ([rec (in-list accuracy)])
+                     (match-define (list start baseline achieved oracle) rec)
+                     (define (row error name)
+                       `(tr (td ,(format-bits error #:unit #t))
+                            (td ,name " (" ,(format-percent error start) ")")))
+                     `(dd (p ,(format-bits start #:unit #t) " → " ,(format-bits achieved #:unit #t))
+                          (table ((class "times"))
+                                 ,(row (- start baseline) "Fixed by single best alt")
+                                 ,(row (- baseline achieved) "Fixed by regimes")
+                                 ,(row (- achieved oracle) "Inexpressive regimes")
+                                 ,(row oracle "Inaccurate alts"))))))
 
 (define (render-phase-pruning kept-data)
   (match-define (list kept) kept-data)
