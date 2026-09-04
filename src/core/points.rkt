@@ -13,6 +13,7 @@
          pcontext?
          pcontext-points
          split-pcontext
+         pcontext-append
          pcontext-length
          errors
          block-errors
@@ -51,6 +52,10 @@
   (define-values (pts-a pts-b) (vector-split-at pts num-a))
   (define-values (exs-a exs-b) (vector-split-at exs num-a))
   (values (pcontext pts-a exs-a) (pcontext pts-b exs-b)))
+
+(define (pcontext-append pctx1 pctx2)
+  (pcontext (vector-append (pcontext-points pctx1) (pcontext-points pctx2))
+            (vector-append (pcontext-exacts pctx1) (pcontext-exacts pctx2))))
 
 ;; Herbie's standard error measure is the average bits of error across
 ;; all points in a pcontext.

@@ -9,7 +9,10 @@
          "programs.rkt")
 
 (provide approximate
+         taylor-terms
+         horner-form
          taylor-coefficients
+         taylor-transforms
          reduce
          add)
 
@@ -22,6 +25,16 @@
 (define (adder x)
   ((add) x))
 
+(define taylor-transforms
+  (let ([invert-x (λ (x) `(/ 1 ,x))]
+        [exp-x (λ (x) `(exp ,x))]
+        [log-x (λ (x) `(log ,x))]
+        [ninvert-x (λ (x) `(/ 1 (neg ,x)))])
+    `((0 ,identity ,identity) (inf ,invert-x ,invert-x)
+                              (-inf ,ninvert-x ,ninvert-x)
+                              #;(exp ,exp-x ,log-x)
+                              #;(log ,log-x ,exp-x))))
+
 (define (taylor-coefficients block vs vars transforms-to-try)
   (define expander (expand-taylor! block))
   (for*/list ([var (in-list vars)]
@@ -32,29 +45,41 @@
     (for/list ([v (in-list vs)])
       (taylorer (expander (reducer (replacer v)))))))
 
+;; Returns List<(cons coeff exponent)>
+(define (taylor-terms taylor-approx
+                      block
+                      var
+                      #:transform [tform (cons identity identity)]
+                      #:iters [iters 5]
+                      #:replacer [replacer (block-replace-expression! block var ((cdr tform) var))])
+  (define offset (series-offset taylor-approx))
+  (define i 0)
+
+  (define (next [iter 0])
+    (define coeff (reducer (replacer (series-ref taylor-approx i))))
+    (set! i (+ i 1))
+    (match (val-def coeff)
+      [0 (and (< iter iters) (next (+ iter 1)))]
+      [_ (cons coeff (- i offset 1))]))
+  next)
+
+(define (horner-form terms var #:transform [tform (cons identity identity)])
+  (reducer (make-horner ((cdr tform) var) terms)))
+
 (define (approximate taylor-approxs
                      block
                      var
                      #:transform [tform (cons identity identity)]
                      #:iters [iters 5])
   (define replacer (block-replace-expression! block var ((cdr tform) var)))
-  (for/list ([ta taylor-approxs])
-    (define offset (series-offset ta))
-    (define i 0)
-    (define terms '())
-
-    (define (next [iter 0])
-      (define coeff (reducer (replacer (series-ref ta i))))
-      (set! i (+ i 1))
-      (match (val-def coeff)
-        [0
-         (if (< iter iters)
-             (next (+ iter 1))
-             (reducer (make-horner ((cdr tform) var) (reverse terms))))]
-        [_
-         (set! terms (cons (cons coeff (- i offset 1)) terms))
-         (reducer (make-horner ((cdr tform) var) (reverse terms)))]))
-    next))
+  (for/list ([ta (in-list taylor-approxs)])
+    (define next-term (taylor-terms ta block var #:transform tform #:iters iters #:replacer replacer))
+    (define terms '()) ; highest exponent first
+    (lambda ()
+      (define term (next-term))
+      (when term
+        (set! terms (cons term terms)))
+      (horner-form (reverse terms) var #:transform tform))))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
 (define (expand-taylor! input-block)
