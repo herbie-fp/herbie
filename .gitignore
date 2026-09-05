@@ -33,3 +33,5 @@ herbie-compiled/
 .env/
 .worktrees
 
+# Amp orb portals
+.amp/portals/*
