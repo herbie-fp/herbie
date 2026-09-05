@@ -25,7 +25,7 @@
 
 (define debug-flags
   #hash([generate . (egglog)]
-        [reduce . (dag-cost)]
+        [reduce . (dag-cost branch-bound)]
         [dump . (egg rival egglog trace intermediates)]
         [setup . (rival2)]))
 
