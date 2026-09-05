@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+RACKET_VERSION=9.3
+RACKET_PREFIX="$HOME/.local/racket-$RACKET_VERSION"
+RACKET_BIN="$RACKET_PREFIX/bin"
+RACKET_INSTALLER="racket-$RACKET_VERSION-x86_64-linux-buster-cs.sh"
+RACKET_URL="https://download.racket-lang.org/installers/$RACKET_VERSION/$RACKET_INSTALLER"
+RUST_VERSION=1.88.0
+
+log_step() {
+  printf '\n==> %s\n' "$1"
+}
+
+missing_packages=()
+for package in build-essential ca-certificates curl git libmpfr-dev libmpfr6 pkg-config; do
+  if ! dpkg-query -W -f='${db:Status-Abbrev}' "$package" 2>/dev/null | grep -qx 'ii '; then
+    missing_packages+=("$package")
+  fi
+done
+
+if ((${#missing_packages[@]})); then
+  log_step "Installing system packages"
+  sudo apt-get update
+  sudo apt-get install -y --no-install-recommends "${missing_packages[@]}"
+fi
+
+mkdir -p "$HOME/.local/bin"
+
+if [[ ! -x "$RACKET_BIN/racket" ]]; then
+  log_step "Installing Racket $RACKET_VERSION"
+  installer_path="$(mktemp)"
+  trap 'rm -f "$installer_path"' EXIT
+  curl --fail --location --retry 3 --silent --show-error --output "$installer_path" "$RACKET_URL"
+  sh "$installer_path" --unix-style --dest "$RACKET_PREFIX" --create-dir
+  rm -f "$installer_path"
+  trap - EXIT
+fi
+
+if [[ ! -x "$HOME/.cargo/bin/rustup" ]]; then
+  log_step "Installing Rust"
+  curl --fail --location --retry 3 --silent --show-error https://sh.rustup.rs |
+    sh -s -- -y --profile minimal
+fi
+
+profile_marker='# Herbie orb toolchains'
+if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+  cat >> "$HOME/.bash_profile" <<EOF
+
+$profile_marker
+export PATH="$RACKET_BIN:\$HOME/.cargo/bin:\$HOME/.local/bin:\$PATH"
+EOF
+fi
+
+export PATH="$RACKET_BIN:$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+
+if ! rustup toolchain list | grep -q "^$RUST_VERSION"; then
+  log_step "Installing Rust $RUST_VERSION"
+  rustup toolchain install "$RUST_VERSION" --profile minimal
+fi
+rustup default "$RUST_VERSION"
+
+fingerprint_file="$HOME/.cache/herbie-orb/dependency-fingerprint"
+mkdir -p "$(dirname "$fingerprint_file")"
+fingerprint="$(
+  {
+    printf 'racket=%s\n' "$RACKET_VERSION"
+    printf 'rust=%s\n' "$RUST_VERSION"
+    sha256sum Makefile src/info.rkt egg-herbie/Cargo.toml egg-herbie/Cargo.lock
+  } | sha256sum | cut -d ' ' -f 1
+)"
+
+if [[ ! -f "$fingerprint_file" ]] || [[ "$(<"$fingerprint_file")" != "$fingerprint" ]]; then
+  log_step "Building Herbie and installing Racket dependencies"
+  make install
+  printf '%s\n' "$fingerprint" > "$fingerprint_file"
+else
+  log_step "Herbie dependencies are current"
+fi
+
+log_step "Verifying toolchains"
+racket --version
+cargo --version
+racket -l herbie -- --help >/dev/null
