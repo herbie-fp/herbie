@@ -157,8 +157,6 @@
 
 (define-rules polynomials
   #;[sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
-  [flip-+ (+ (sqrt a) (sqrt b)) (sound-/ (- a b) (- (sqrt a) (sqrt b)) (+ (sqrt a) (sqrt b)))]
-  [flip-- (- (sqrt a) (sqrt b)) (sound-/ (- a b) (+ (sqrt a) (sqrt b)) (- (sqrt a) (sqrt b)))]
   [flip--sqrt-lft (- a (sqrt b)) (sound-/ (- (* a a) b) (+ a (sqrt b)) (- a (sqrt b)))]
   [flip-+sqrt-lft (+ a (sqrt b)) (sound-/ (- (* a a) b) (- a (sqrt b)) (+ a (sqrt b)))])
 
@@ -281,9 +279,6 @@
 (define-rules arithmetic
   [fmin-swap (fmin a b) (fmin b a)]
   [fmax-swap (fmax a b) (fmax b a)])
-
-; Remainder
-(define-rules arithmetic [remainder-div (remainder (/ x a) b) (/ (remainder x (* a b)) a)])
 
 ; Exponentials
 (define-rules exponents
@@ -533,9 +528,7 @@
 
 (define-rules trigonometry
   [quarter-pi-atan (/ (PI) 4) (atan 1)]
-  [gudermannian (- (* 2 (atan (exp x))) (/ (PI) 2)) (atan (sinh x))]
-  [gudermannian-rev (atan (sinh x)) (- (* 2 (atan (exp x))) (/ (PI) 2))]
-  [gudermannian2 (* 2 (- (atan (exp x)) (/ (PI) 4))) (atan (sinh x))])
+  [remainder-div (remainder (/ x a) b) (/ (remainder x (* a b)) a)])
 
 (define-rules trigonometry
   [sin-pi-reduce (sin (* x (PI))) (sin (* (remainder x 2) (PI)))]
