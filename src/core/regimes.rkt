@@ -249,6 +249,17 @@
 
   (test-regimes `(if.f64 (==.f64 x ,(literal 0.5 'binary64)) ,(literal 1 'binary64) (NAN.f64)) '(1 0))
 
+  ;; A cheap alt can be optimal on both sides of an expensive alt. The DP
+  ;; must retain the expensive middle state while it is temporarily worse.
+  (let ()
+    (define triple-errors
+      (list (flvector 0.0 100.0 0.0) (flvector 100.0 0.0 100.0) (flvector 1.0 1.0 1.0)))
+    (define-values (splitss scores) (infer-option-prefixes triple-errors #(0 1 2) '(#f #t #t)))
+    (check-equal? (flvector-ref scores 0) 100.0)
+    (check-equal? (flvector-ref scores 1) 6.0)
+    (check-equal? (flvector-ref scores 2) 3.0)
+    (check-equal? (map si-cidx (vector-ref splitss 1)) '(0 1 0)))
+
   (check-equal? (baseline-errors-score err-cols 2) 26.5)
   (check-equal? (oracle-errors-score err-cols 2) 0.0)
 
@@ -296,12 +307,6 @@
   ;; pidx = Point index: The index of the point to the left of which we should split.
   (struct si ([cidx : Integer] [pidx : Integer]) #:prefab)
 
-  (: resort-errors (-> FlVector (Vectorof Integer) FlVector))
-  (define (resort-errors alt-errors sorted-indices)
-    (for/flvector #:length (vector-length sorted-indices)
-                  ([point-idx (in-vector sorted-indices)])
-                  (flvector-ref alt-errors point-idx)))
-
   ;; This is the core main loop of the regimes algorithm.
   ;; Takes in alt-major error columns, point-sorting indices, and a list of
   ;; split indices to determine when it's ok to split for another alt.
@@ -316,126 +321,101 @@
   (define (infer-option-prefixes err-cols sorted-indices can-split)
     (define can-split-vec (list->vector can-split))
     (define number-of-alts (length err-cols))
-    (: flvec-psums (Vectorof FlVector))
-    (define flvec-psums
-      (for/vector #:length number-of-alts
-                  ([err-col (in-list err-cols)])
-        :
-        FlVector
-        (flvector-sums (resort-errors err-col sorted-indices))))
-
-    ;; Set up data needed for algorithm
+    (: err-vec (Vectorof FlVector))
+    (define err-vec (list->vector err-cols))
     (define number-of-points (vector-length can-split-vec))
     ;; min-weight is used as penalty to favor not adding split points
     (define min-weight (fl number-of-points))
 
-    (: result-error-sums (Vectorof FlVector))
-    (: result-alt-idxs (Vectorof (Vectorof Integer)))
-    (: result-prev-idxs (Vectorof (Vectorof Integer)))
-    (define result-error-sums
-      (for/vector #:length number-of-alts
-                  ([alt-idx (in-range number-of-alts)])
-        :
-        FlVector
-        (make-flvector number-of-points +inf.0)))
-    (define result-alt-idxs
-      (for/vector #:length number-of-alts
-                  ([alt-idx (in-range number-of-alts)])
-        :
-        (Vectorof Integer)
-        (make-vector number-of-points 0)))
-    (define result-prev-idxs
-      (for/vector #:length number-of-alts
-                  ([alt-idx (in-range number-of-alts)])
-        :
-        (Vectorof Integer)
-        (make-vector number-of-points number-of-points)))
+    ;; The state is (maximum allowed alt, alt on the final segment). This
+    ;; retains every possible final-segment start without explicitly scanning
+    ;; all earlier split points.
+    (: state-index (-> Integer Integer Integer))
+    (define (state-index max-alt alt-idx)
+      (+ (* max-alt number-of-alts) alt-idx))
+    (: prev-index (-> Integer Integer Integer Integer))
+    (define (prev-index point-idx max-alt alt-idx)
+      (+ (* point-idx number-of-alts number-of-alts) (state-index max-alt alt-idx)))
 
-    ;; Vectors used to determine the best final segment for each possible split
-    ;; when adding alts in increasing cost order.
-    (: best-alt-idxs (Vectorof Integer))
-    (: best-alt-costs FlVector)
-    (define best-alt-idxs (make-vector number-of-points number-of-alts))
-    (define best-alt-costs (make-flvector number-of-points))
+    (: previous FlVector)
+    (: current FlVector)
+    (define previous (make-flvector (* number-of-alts number-of-alts) +inf.0))
+    (define current (make-flvector (* number-of-alts number-of-alts) +inf.0))
+    (: previous-alts (Vectorof Integer))
+    (define previous-alts (make-vector (* number-of-points number-of-alts number-of-alts) 0))
 
-    (for ([point-idx (in-range number-of-points)])
-      (define current-best-alt 0)
-      (define current-best-cost +inf.0)
+    (for ([max-alt (in-range number-of-alts)])
+      (for ([alt-idx (in-range (add1 max-alt))])
+        (flvector-set! previous
+                       (state-index max-alt alt-idx)
+                       (flvector-ref (vector-ref err-vec alt-idx) (vector-ref sorted-indices 0)))))
 
-      (for ([prev-split-idx (in-range number-of-points)])
-        (vector-set! best-alt-idxs prev-split-idx number-of-alts)
-        (flvector-set! best-alt-costs prev-split-idx +inf.0))
+    (for ([point-idx (in-range 1 number-of-points)])
+      (define can-split? (vector-ref can-split-vec point-idx))
+      (define original-idx (vector-ref sorted-indices point-idx))
+      (for ([max-alt (in-range number-of-alts)])
+        (define best-alt 0)
+        (define best-score +inf.0)
+        (define second-best-alt 0)
+        (define second-best-score +inf.0)
+        (for ([alt-idx (in-range (add1 max-alt))])
+          (define score (flvector-ref previous (state-index max-alt alt-idx)))
+          (cond
+            [(< score best-score)
+             (set! second-best-alt best-alt)
+             (set! second-best-score best-score)
+             (set! best-score score)
+             (set! best-alt alt-idx)]
+            [(< score second-best-score)
+             (set! second-best-alt alt-idx)
+             (set! second-best-score score)]))
+        (for ([alt-idx (in-range (add1 max-alt))])
+          (define continued-score (flvector-ref previous (state-index max-alt alt-idx)))
+          (define switched-score
+            (+ min-weight (if (= alt-idx best-alt) second-best-score best-score)))
+          (define switch? (and can-split? (< switched-score continued-score)))
+          (define previous-alt
+            (if switch?
+                (if (= alt-idx best-alt) second-best-alt best-alt)
+                alt-idx))
+          (flvector-set! current
+                         (state-index max-alt alt-idx)
+                         (+ (flvector-ref (vector-ref err-vec alt-idx) original-idx)
+                            (if switch? switched-score continued-score)))
+          (vector-set! previous-alts (prev-index point-idx max-alt alt-idx) previous-alt)))
+      (define temporary previous)
+      (set! previous current)
+      (set! current temporary))
 
-      (for ([alt-idx (in-range number-of-alts)])
-        (define alt-error-sums (vector-ref flvec-psums alt-idx))
-        (define single-alt-error (flvector-ref alt-error-sums point-idx))
-        (when (< single-alt-error current-best-cost)
-          (set! current-best-cost single-alt-error)
-          (set! current-best-alt alt-idx))
-
-        (define current-alt-error current-best-cost)
-        (define current-alt-idx current-best-alt)
-        (define current-prev-idx number-of-points)
-
-        ;; Update the best last segment for each split point with the newly
-        ;; available alt.
-        (for ([prev-split-idx (in-range point-idx)]
-              [prev-alt-error-sum (in-flvector alt-error-sums)]
-              [can-split (in-vector can-split-vec 1)]
-              #:when can-split)
-          (define best-alt-idx (vector-ref best-alt-idxs prev-split-idx))
-          (define best-alt-cost (flvector-ref best-alt-costs prev-split-idx))
-          (define segment-error (- single-alt-error prev-alt-error-sum))
-          (when (or (= best-alt-idx number-of-alts) (< segment-error best-alt-cost))
-            (flvector-set! best-alt-costs prev-split-idx segment-error)
-            (vector-set! best-alt-idxs prev-split-idx alt-idx)))
-
-        ;; Compare against the best already-computed prefix result for this alt
-        ;; budget.
-        (define alt-result-error-sums (vector-ref result-error-sums alt-idx))
-        (for ([prev-split-idx (in-range point-idx)]
-              [r-error-sum (in-flvector alt-result-error-sums)]
-              [best-alt-idx (in-vector best-alt-idxs)]
-              [best-alt-cost (in-flvector best-alt-costs)]
-              [can-split (in-vector can-split-vec 1)]
-              #:when can-split)
-          (define alt-error-sum (+ r-error-sum best-alt-cost min-weight))
-          (define set-cond
-            (cond
-              [(< alt-error-sum current-alt-error) #t]
-              [(and (= alt-error-sum current-alt-error) (> current-alt-idx best-alt-idx)) #t]
-              [(and (= alt-error-sum current-alt-error)
-                    (= current-alt-idx best-alt-idx)
-                    (> current-prev-idx prev-split-idx))
-               #t]
-              [else #f]))
-          (when set-cond
-            (set! current-alt-error alt-error-sum)
-            (set! current-alt-idx best-alt-idx)
-            (set! current-prev-idx prev-split-idx)))
-
-        (flvector-set! (vector-ref result-error-sums alt-idx) point-idx current-alt-error)
-        (vector-set! (vector-ref result-alt-idxs alt-idx) point-idx current-alt-idx)
-        (vector-set! (vector-ref result-prev-idxs alt-idx) point-idx current-prev-idx)))
-
-    (define splitss
-      (for/vector #:length number-of-alts
-                  ([alt-idx (in-range number-of-alts)])
-        :
-        (Listof si)
-        (let loop ([i (- number-of-points 1)]
-                   [rest (ann null (Listof si))])
-          (define alt-idx* (vector-ref (vector-ref result-alt-idxs alt-idx) i))
-          (define next (vector-ref (vector-ref result-prev-idxs alt-idx) i))
-          (define sis (cons (si alt-idx* (+ i 1)) rest))
-          (if (< next i)
-              (loop next sis)
-              sis))))
-
+    (: end-alts (Vectorof Integer))
+    (define end-alts (make-vector number-of-alts 0))
     (define scores
       (for/flvector #:length number-of-alts
-                    ([alt-idx (in-range number-of-alts)])
-                    (flvector-ref (vector-ref result-error-sums alt-idx) (sub1 number-of-points))))
+                    ([max-alt (in-range number-of-alts)])
+                    (define best-alt 0)
+                    (define best-score +inf.0)
+                    (for ([alt-idx (in-range (add1 max-alt))])
+                      (define score (flvector-ref previous (state-index max-alt alt-idx)))
+                      (when (< score best-score)
+                        (set! best-score score)
+                        (set! best-alt alt-idx)))
+                    (vector-set! end-alts max-alt best-alt)
+                    best-score))
+    (define splitss
+      (for/vector #:length number-of-alts
+                  ([max-alt (in-range number-of-alts)])
+        :
+        (Listof si)
+        (let loop ([point-idx (sub1 number-of-points)]
+                   [alt-idx (vector-ref end-alts max-alt)]
+                   [end number-of-points]
+                   [rest (ann null (Listof si))])
+          (if (= point-idx 0)
+              (cons (si alt-idx end) rest)
+              (let ([previous-alt (vector-ref previous-alts (prev-index point-idx max-alt alt-idx))])
+                (if (= previous-alt alt-idx)
+                    (loop (sub1 point-idx) alt-idx end rest)
+                    (loop (sub1 point-idx) previous-alt point-idx (cons (si alt-idx end) rest))))))))
     (values splitss scores)))
 
 (require (submod "." core))
