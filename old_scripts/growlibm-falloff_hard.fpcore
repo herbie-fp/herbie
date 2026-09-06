@@ -1,0 +1,122 @@
+; Hard falloff benchmarks sourced from growlibm/Falloff.cpp. Troe, SRI, and Tsang falloff formulæ mix exponentials, logarithms, and guarded reciprocals, which create cancellation-prone transitions between low- and high-pressure limits.
+
+(FPCore (T m_a m_rt3 m_rt1 m_t2)
+  :name "falloff-troe-fcent"
+  :pre (and (> T 0)
+            (>= m_a 0)
+            (<= m_a 1)
+            (> m_rt3 0)
+            (> m_rt1 0))
+  (let ((term3 (* (- 1 m_a) (exp (- (* T m_rt3))))))
+    (let ((term1 (* m_a (exp (- (* T m_rt1))))))
+      (let ((base (+ term3 term1)))
+        (if (< (fabs m_t2) 1e-12)
+            base
+            (+ base (exp (/ (- m_t2) T))))))))
+
+(FPCore (T m_a m_rt3 m_rt1 m_t2 SmallNumber)
+  :name "falloff-troe-log-fcent"
+  :pre (and (> T 0)
+            (> SmallNumber 0)
+            (>= m_a 0)
+            (<= m_a 1)
+            (> m_rt3 0)
+            (> m_rt1 0))
+  (let ((term3 (* (- 1 m_a) (exp (- (* T m_rt3))))))
+    (let ((term1 (* m_a (exp (- (* T m_rt1))))))
+      (let ((base (+ term3 term1)))
+        (let ((fcent (if (< (fabs m_t2) 1e-12)
+                         base
+                         (+ base (exp (/ (- m_t2) T))))))
+          (let ((safe (if (> fcent SmallNumber) fcent SmallNumber)))
+            (/ (log safe) (log 10.0))))))))
+
+(FPCore (pr work SmallNumber)
+  :name "falloff-troe-blend"
+  :pre (and (> SmallNumber 0)
+            (> pr 0)
+            (< (fabs work) 10))
+  (let ((guard (if (> pr SmallNumber) pr SmallNumber)))
+    (let ((lpr (/ (log guard) (log 10.0))))
+      (let ((cc (+ -0.4 (* -0.67 work))))
+        (let ((nn (+ 0.75 (* -1.27 work))))
+          (let ((lp (+ lpr cc)))
+            (let ((den (- nn (* 0.14 lp))))
+              (let ((f1 (/ lp den)))
+                (let ((lgf (/ work (+ 1 (* f1 f1)))))
+                  (pow 10.0 lgf))))))))))
+
+(FPCore (T3 SmallNumber)
+  :name "falloff-troe-inverse-t3"
+  :pre (and (> SmallNumber 0))
+  (let ((absT3 (fabs T3)))
+    (if (< absT3 SmallNumber)
+        (/ 1.0 SmallNumber)
+        (/ 1.0 T3))))
+
+(FPCore (T1 SmallNumber)
+  :name "falloff-troe-inverse-t1"
+  :pre (and (> SmallNumber 0))
+  (let ((absT1 (fabs T1)))
+    (if (< absT1 SmallNumber)
+        (/ 1.0 SmallNumber)
+        (/ 1.0 T1))))
+
+(FPCore (T m_a m_b m_c)
+  :name "falloff-sri-work"
+  :pre (and (> T 0)
+            (>= m_a 0)
+            (>= m_c 0))
+  (let ((base (* m_a (exp (/ (- m_b) T)))))
+    (if (< m_c 1e-12)
+        base
+        (+ base (exp (/ (- T) m_c))))))
+
+(FPCore (pr work m_d m_e T SmallNumber)
+  :name "falloff-sri-factor"
+  :pre (and (> pr 0)
+            (> work 0)
+            (> T 0)
+            (> SmallNumber 0)
+            (>= m_d 0))
+  (let ((guard (if (> pr SmallNumber) pr SmallNumber)))
+    (let ((lpr (/ (log guard) (log 10.0))))
+      (let ((xx (/ 1.0 (+ 1.0 (* lpr lpr)))))
+        (let ((amp (* m_d (pow T m_e))))
+          (* (pow work xx) amp))))))
+
+(FPCore (pr work SmallNumber)
+  :name "falloff-troe-shape"
+  :pre (and (> SmallNumber 0)
+            (> pr 0)
+            (< (fabs work) 10))
+  (let ((guard (if (> pr SmallNumber) pr SmallNumber)))
+    (let ((lpr (/ (log guard) (log 10.0))))
+      (let ((cc (+ -0.4 (* -0.67 work))))
+        (let ((nn (+ 0.75 (* -1.27 work))))
+          (let ((lp (+ lpr cc)))
+            (let ((den (- nn (* 0.14 lp))))
+              (/ lp den))))))))
+
+(FPCore (T m_a m_b SmallNumber)
+  :name "falloff-tsang-work"
+  :pre (and (> T 0)
+            (> SmallNumber 0))
+  (let ((fcent (+ m_a (* m_b T))))
+    (let ((safe (if (> fcent SmallNumber) fcent SmallNumber)))
+      (/ (log safe) (log 10.0)))))
+
+(FPCore (pr work SmallNumber)
+  :name "falloff-tsang-factor"
+  :pre (and (> SmallNumber 0)
+            (> pr 0)
+            (< (fabs work) 10))
+  (let ((guard (if (> pr SmallNumber) pr SmallNumber)))
+    (let ((lpr (/ (log guard) (log 10.0))))
+      (let ((cc (+ -0.4 (* -0.67 work))))
+        (let ((nn (+ 0.75 (* -1.27 work))))
+          (let ((lp (+ lpr cc)))
+            (let ((den (- nn (* 0.14 lp))))
+              (let ((f1 (/ lp den)))
+                (let ((lgf (/ work (+ 1 (* f1 f1)))))
+                  (pow 10.0 lgf))))))))))

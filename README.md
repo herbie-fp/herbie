@@ -1,4 +1,14 @@
-![Herbie](logo.png)
+# GROWLIBM
+
+## Install and Running Growlibm
+Run `make generate` to install and run growlibm on the PBRT library
+
+## Dependencies
+Racket v8.17
+rustc 1.91.0
+Python 3.14.0
+
+<!-- ![Herbie](logo.png)
 
 
 Herbie automatically improves the error of floating point expressions.
@@ -58,4 +68,4 @@ you can see more examples in `bench/`.
 
 Besides `shell`, Herbie has batch the `improve` and `report` commands.
 The [documentation](https://herbie.uwplse.org/doc/latest/options.html)
-has more details.
+has more details. -->
