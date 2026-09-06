@@ -1,0 +1,45 @@
+; -*- mode: scheme -*-
+
+;; Translated from:
+;; https://github.com/sandialabs/elaenia/blob/main/examples/03_vectors/gravitation.c
+;; Original comments cite:
+;; - Ellipsoidal gravity vector source:
+;;   https://www.mathworks.com/matlabcentral/fileexchange/8359-ellipsoidal-gravity-vector/files/xyz2grav.m
+;; - Example ECEF coordinates source:
+;;   https://dominoc925-pages.appspot.com/mapplets/cs_ecef.html
+;; - Constants/provenance in the C example:
+;;   WGS84 Earth gravitational constant and equatorial radius, with J2-only
+;;   ellipsoidal gravity correction ("gravity anomaly" terms omitted).
+
+(FPCore norm-3 ((a 3))
+ :name "3D vector norm"
+ :precision binary64
+ :pre (and (<= (fabs (ref a 0)) 1e154)
+           (<= (fabs (ref a 1)) 1e154)
+           (<= (fabs (ref a 2)) 1e154))
+ (sqrt (+ (* (ref a 0) (ref a 0))
+          (+ (* (ref a 1) (ref a 1))
+             (* (ref a 2) (ref a 2))))))
+
+(FPCore gravitation-ecef ((r_e 3))
+ :name "ECEF gravitation vector"
+ :precision binary64
+ :pre (and (<= (fabs (ref r_e 0)) 1e154)
+           (<= (fabs (ref r_e 1)) 1e154)
+           (<= (fabs (ref r_e 2)) 1e154)
+           (< 0 (sqrt (+ (* (ref r_e 0) (ref r_e 0))
+                         (+ (* (ref r_e 1) (ref r_e 1))
+                            (* (ref r_e 2) (ref r_e 2)))))))
+ (let* ([MU 3.986004418e14]
+        [R 6378137.0]
+        [J2 0.00108263]
+        [r (sqrt (+ (* (ref r_e 0) (ref r_e 0))
+                    (+ (* (ref r_e 1) (ref r_e 1))
+                       (* (ref r_e 2) (ref r_e 2)))))]
+        [sub1 (* (* 1.5 J2) (/ (* R R) (* r r)))]
+        [sub2 (/ (* (* 5 (ref r_e 2)) (ref r_e 2)) (* r r))]
+        [sub3 (/ (- MU) (* (* r r) r))]
+        [sub4 (* sub3 (- 1 (* sub1 (- sub2 1.0))))])
+   (array (* (ref r_e 0) sub4)
+          (* (ref r_e 1) sub4)
+          (* (* (ref r_e 2) sub3) (- 1 (* sub1 (- sub2 3.0)))))))
