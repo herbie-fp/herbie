@@ -11,7 +11,7 @@
         [setup . (search preprocess)]
         [localize . ()]
         [generate . (rr taylor proofs evaluate)]
-        [reduce . (regimes binary-search branch-expressions)]
+        [reduce . (regimes binary-search branch-expressions branch-bound)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic special)]
         [dump . ()]))
 
@@ -25,7 +25,7 @@
 
 (define debug-flags
   #hash([generate . (egglog)]
-        [reduce . (dag-cost branch-bound)]
+        [reduce . (dag-cost)]
         [dump . (egg rival egglog trace intermediates)]
         [setup . (rival2)]))
 
