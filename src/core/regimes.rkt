@@ -1,7 +1,7 @@
 #lang racket
 
 ;;;; Module principles
-;; - The core of this file is infer-option-prefixes.
+;; - The core of this file is infer-max-option.
 ;;   It is a giant dynamic programming algorithm.
 ;;   It is extremely performance-sensitive.
 ;; - Therefore almost everything is vector-based with few copies.
@@ -55,7 +55,11 @@
   (define branch-vs
     (filter real-v?
             (if (flag-set? 'reduce 'branch-expressions)
-                (critical-subexpressions block start-prog)
+                (branch-candidates block
+                                   (cons start-prog (map alt-expr sorted))
+                                   err-cols
+                                   pcontext
+                                   (critical-subexpressions block start-prog))
                 (map (curry block-add! block) (block-vars block)))))
 
   (define v-vals (v-values* block branch-vs pcontext))
@@ -159,6 +163,45 @@
       [(< idx1 idx2) (loop (dom-parent v1) v2)]
       [else (loop v1 (dom-parent v2))])))
 
+(define (branch-order v-vals-vec repr)
+  (define order
+    (vector-sort (build-vector (vector-length v-vals-vec) values)
+                 (lambda (i j) (</total (vector-ref v-vals-vec i) (vector-ref v-vals-vec j) repr))))
+  (define can-split-vec (make-vector (vector-length order) #f))
+  (for ([idx (in-vector order 1)]
+        [prev-idx (in-vector order 0)]
+        [k (in-naturals 1)])
+    (vector-set! can-split-vec
+                 k
+                 (</total (vector-ref v-vals-vec prev-idx) (vector-ref v-vals-vec idx) repr)))
+  (values order can-split-vec))
+
+;; In addition to the keep expressions, choose the branch expressions whose
+;; best-accuracy regimes solution has the lowest error.
+(define (branch-candidates block roots err-cols pcontext keep)
+  (define free-vars (block-free-vars block))
+  ;; All possible subexpressions across all alts and the original program.
+  (define pool
+    (for/list ([v (in-list (remove* keep (block-reachable block roots)))]
+               #:when (equal? (representation-type (block-repr-of v)) 'real)
+               #:unless (set-empty? (free-vars v)))
+      v))
+  ;; Expressions that sort the points identically are cached.
+  (define score-cache (make-hash))
+  (define scored
+    (for/list ([v (in-list pool)]
+               [v-vals-vec (in-list (v-values* block pool pcontext))])
+      (define-values (order can-split-vec) (branch-order v-vals-vec (block-repr-of v)))
+      (cons (hash-ref! score-cache
+                       (cons order can-split-vec)
+                       (lambda ()
+                         (define-values (_splits score)
+                           (infer-max-option err-cols order can-split-vec))
+                         score))
+            v)))
+  (define ranked (map cdr (sort scored < #:key car)))
+  (append keep (take ranked (min (*branch-expr-limit*) (length ranked)))))
+
 (define (baseline-errors-score err-cols count)
   (for/fold ([best +inf.0]) ([err-col (in-list (take err-cols count))])
     (min best (errors-score err-col))))
@@ -183,19 +226,12 @@
   (vector->list vals))
 
 (define (branch-options block alts-vec err-cols pts-vec v v-vals-vec repr)
-  (define sorted-indices
-    (vector-sort (build-vector (vector-length v-vals-vec) values)
-                 (lambda (i j) (</total (vector-ref v-vals-vec i) (vector-ref v-vals-vec j) repr))))
+  (define-values (sorted-indices can-split-vec) (branch-order v-vals-vec repr))
   (define pts*
     (for/list ([i (in-vector sorted-indices)])
       (vector-ref pts-vec i)))
-  (define can-split?
-    (cons #f
-          (for/list ([idx (in-vector sorted-indices 1)]
-                     [prev-idx (in-vector sorted-indices 0)])
-            (</total (vector-ref v-vals-vec prev-idx) (vector-ref v-vals-vec idx) repr))))
 
-  (define-values (splitss scores) (infer-option-prefixes err-cols sorted-indices can-split?))
+  (define-values (splitss scores) (infer-option-prefixes err-cols sorted-indices can-split-vec))
 
   (define points
     (for/list ([count (in-range 1 (add1 (vector-length splitss)))])
@@ -254,7 +290,7 @@
   (let ()
     (define triple-errors
       (list (flvector 0.0 100.0 0.0) (flvector 100.0 0.0 100.0) (flvector 1.0 1.0 1.0)))
-    (define-values (splitss scores) (infer-option-prefixes triple-errors #(0 1 2) '(#f #t #t)))
+    (define-values (splitss scores) (infer-option-prefixes triple-errors #(0 1 2) #(#f #t #t)))
     (check-equal? (flvector-ref scores 0) 100.0)
     (check-equal? (flvector-ref scores 1) 6.0)
     (check-equal? (flvector-ref scores 2) 3.0)
@@ -393,8 +429,7 @@
 ;; Repeatedly solve the maximum-accuracy problem. If the maximum used alt is
 ;; m, that solution is optimal for every prefix from m through the prefix just
 ;; solved, so one solve fills an entire Pareto plateau.
-(define (infer-option-prefixes err-cols sorted-indices can-split)
-  (define can-split-vec (list->vector can-split))
+(define (infer-option-prefixes err-cols sorted-indices can-split-vec)
   (define number-of-alts (length err-cols))
   (define splitss (make-vector number-of-alts null))
   (define scores (make-flvector number-of-alts +inf.0))
