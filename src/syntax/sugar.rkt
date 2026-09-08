@@ -66,6 +66,7 @@
 
 (provide fpcore->spec
          fpcore->prog
+         spec->prog
          prog->fpcore)
 
 ;; Local copies to avoid depending on core/programs.rkt.
@@ -199,7 +200,7 @@
 
 ;; Translates an FPCore operator application into
 ;; an LImpl operator application.
-(define (fpcore->impl-app op prop-dict args ctx)
+(define (impl-app op prop-dict args ctx)
   (define ireprs (map (lambda (arg) (repr-of arg ctx)) args))
   (define impl (assert-fpcore-impl op prop-dict ireprs))
   (define vars (impl-info impl 'vars))
@@ -226,13 +227,13 @@
                  prop-dict))]
       [(list 'neg arg) ; non-standard but useful [TODO: remove]
        (define arg* (loop arg prop-dict))
-       (fpcore->impl-app '- prop-dict (list arg*) ctx)]
+       (impl-app '- prop-dict (list arg*) ctx)]
       [(list 'cast arg) ; special case: unnecessary casts
        (define arg* (loop arg prop-dict))
        (define repr (get-representation (dict-ref prop-dict ':precision)))
        (if (equal? (repr-of arg* ctx) repr)
            arg*
-           (fpcore->impl-app 'cast prop-dict (list arg*) ctx))]
+           (impl-app 'cast prop-dict (list arg*) ctx))]
       [(list 'ref arr idx)
        (define arr* (loop arr prop-dict))
        (define idx* (loop idx prop-dict))
@@ -245,7 +246,22 @@
        (pattern-substitute (cons impl vars) subst)]
       [(list op args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
-       (fpcore->impl-app op prop-dict args* ctx)])))
+       (impl-app op prop-dict args* ctx)])))
+
+;; Translates from LSpec to an LImpl.
+(define (spec->prog prog ctx)
+  (define prop-dict (repr->prop (context-repr ctx)))
+  (let loop ([expr prog])
+    (match expr
+      [(? number?)
+       (literal (match expr
+                  [(or +inf.0 -inf.0 +nan.0) expr]
+                  [(? exact?) expr]
+                  [_ (inexact->exact expr)])
+                (dict-ref prop-dict ':precision))]
+      [(? symbol?) expr]
+      [(list 'neg arg) (impl-app '- prop-dict (list (loop arg)) ctx)]
+      [(list op args ...) (impl-app op prop-dict (map loop args) ctx)])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> FPCore

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="$HOME/.local/racket-9.3/bin:$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+
+command -v racket >/dev/null
+command -v cargo >/dev/null
