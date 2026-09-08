@@ -11,7 +11,7 @@
         [setup . (search preprocess)]
         [localize . ()]
         [generate . (rr taylor proofs evaluate)]
-        [reduce . (regimes binary-search branch-expressions)]
+        [reduce . (regimes binary-search branch-expressions branch-bound)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic special)]
         [dump . ()]))
 

@@ -259,6 +259,11 @@
       particularly for large programs. If turned off, Herbie will only
       try to branch on variables.</dd>
 
+    <dt><code>reduce:branch-bound</code></dt>
+    <dd>This experimental option, off by default, uses branch-and-bound
+      to select an expression for the maximum-accuracy regimes problem.
+      It currently does not compute the full regimes Pareto curve.</dd>
+
     <dt><code>reduce:dag-cost</code></dt>
     <dd>This option, off by default, uses a more complex algorithm
     when pruning. It slows Herbie down, particularly for large

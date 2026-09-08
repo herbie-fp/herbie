@@ -53,14 +53,16 @@
   (define (real-v? v)
     (equal? (representation-type (block-repr-of v)) 'real))
   (define branch-vs
-    (filter real-v?
-            (if (flag-set? 'reduce 'branch-expressions)
-                (branch-candidates block
-                                   (cons start-prog (map alt-expr sorted))
-                                   err-cols
-                                   pcontext
-                                   (critical-subexpressions block start-prog))
-                (map (curry block-add! block) (block-vars block)))))
+    (filter
+     real-v?
+     (if (flag-set? 'reduce 'branch-expressions)
+         ((if (flag-set? 'reduce 'branch-bound) branch-candidates/branch-bound branch-candidates)
+          block
+          (cons start-prog (map alt-expr sorted))
+          err-cols
+          pcontext
+          (critical-subexpressions block start-prog))
+         (map (curry block-add! block) (block-vars block)))))
 
   (define v-vals (v-values* block branch-vs pcontext))
   (define pts-vec (pcontext-points pcontext))
@@ -216,6 +218,76 @@
   (define ranked (map cdr (sort scored < #:key car)))
   (append keep (take ranked (min (*branch-expr-limit*) (length ranked)))))
 
+;; Return the point order and the legal split boundaries for a branch expression.
+(define (branch-order v-vals-vec repr)
+  (define order
+    (vector-sort (build-vector (vector-length v-vals-vec) values)
+                 (lambda (i j) (</total (vector-ref v-vals-vec i) (vector-ref v-vals-vec j) repr))))
+  (values order
+          (cons #f
+                (for/list ([idx (in-vector order 1)]
+                           [prev-idx (in-vector order 0)])
+                  (</total (vector-ref v-vals-vec prev-idx) (vector-ref v-vals-vec idx) repr)))))
+
+;; An optimistic lower bound on the error sum of regimes for one point order.
+;; Each retained edge may independently choose its best common alt, whereas the
+;; full DP must use one alt throughout an entire unsplit region.
+(define (branch-bound err-cols order can-split?)
+  (define n (vector-length order))
+  (define (point-error point-idx)
+    (for/fold ([best +inf.0]) ([err-col (in-list err-cols)])
+      (min best (flvector-ref err-col point-idx))))
+  (define (edge-gap left-idx right-idx)
+    (define left-error (point-error left-idx))
+    (define right-error (point-error right-idx))
+    (for/fold ([best +inf.0]) ([err-col (in-list err-cols)])
+      (min best
+           (+ (- (flvector-ref err-col left-idx) left-error)
+              (- (flvector-ref err-col right-idx) right-error)))))
+  (define oracle-error (for/sum ([point-idx (in-vector order)]) (point-error point-idx)))
+  (for/fold ([bound oracle-error])
+            ([idx (in-range 1 n)]
+             [can-split (in-list (rest can-split?))])
+    (define gap (/ (edge-gap (vector-ref order (sub1 idx)) (vector-ref order idx)) 2))
+    (+ bound
+       (if can-split
+           (min gap n)
+           gap))))
+
+;; Solve only the maximum-accuracy regimes problem. This is intentionally an
+;; experiment: the full Pareto curve still needs the iterative budget process.
+(define (branch-candidates/branch-bound block roots err-cols pcontext keep)
+  (define free-vars (block-free-vars block))
+  (define pool
+    (for/list ([v (in-list (append keep (block-reachable block roots)))]
+               #:when (equal? (representation-type (block-repr-of v)) 'real)
+               #:unless (and (not (member v keep)) (set-empty? (free-vars v))))
+      v))
+  (define branch-vs (remove-duplicates pool))
+  (define candidates
+    (for/list ([v (in-list branch-vs)]
+               [v-vals-vec (in-list (v-values* block branch-vs pcontext))])
+      (define-values (order can-split?) (branch-order v-vals-vec (block-repr-of v)))
+      (list (branch-bound err-cols order can-split?) v order can-split?)))
+  (define ranked (sort candidates < #:key first))
+  (define best-score +inf.0)
+  (define best-v #f)
+  (define evaluated 0)
+  (for ([candidate (in-list ranked)]
+        #:break (>= (first candidate) best-score))
+    (match-define (list _bound v order can-split?) candidate)
+    (define-values (_splitss scores) (infer-option-prefixes err-cols order can-split?))
+    (define score (flvector-ref scores (sub1 (length err-cols))))
+    (set! evaluated (add1 evaluated))
+    (when (< score best-score)
+      (set! best-score score)
+      (set! best-v v)))
+  (eprintf "regimes branch-and-bound: evaluated ~a of ~a branch expressions; score ~a\n"
+           evaluated
+           (length candidates)
+           best-score)
+  (list best-v))
+
 (define (baseline-errors-score err-cols count)
   (for/fold ([best +inf.0]) ([err-col (in-list (take err-cols count))])
     (min best (errors-score err-col))))
@@ -240,17 +312,10 @@
   (vector->list vals))
 
 (define (branch-options block alts-vec err-cols pts-vec v v-vals-vec repr)
-  (define sorted-indices
-    (vector-sort (build-vector (vector-length v-vals-vec) values)
-                 (lambda (i j) (</total (vector-ref v-vals-vec i) (vector-ref v-vals-vec j) repr))))
+  (define-values (sorted-indices can-split?) (branch-order v-vals-vec repr))
   (define pts*
     (for/list ([i (in-vector sorted-indices)])
       (vector-ref pts-vec i)))
-  (define can-split?
-    (cons #f
-          (for/list ([idx (in-vector sorted-indices 1)]
-                     [prev-idx (in-vector sorted-indices 0)])
-            (</total (vector-ref v-vals-vec prev-idx) (vector-ref v-vals-vec idx) repr))))
 
   (define-values (splitss scores) (infer-option-prefixes err-cols sorted-indices can-split?))
 
@@ -295,6 +360,19 @@
           [opt (in-list options)])
       (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y)) opt goal)))
 
+  (define (check-branch-bound expr)
+    (define-values (block vs) (progs->block (list expr) #:ctx ctx))
+    (define v (car vs))
+    (define v-vals (car (v-values* block (list v) pctx)))
+    (define-values (order can-split?) (branch-order v-vals (block-repr-of v)))
+    (define-values (_splitss scores) (infer-option-prefixes err-cols order can-split?))
+    (check-true (<= (branch-bound err-cols order can-split?) (flvector-ref scores 1))))
+
+  (define (check-bound err-cols order can-split?)
+    (define-values (_splitss scores) (infer-option-prefixes err-cols order can-split?))
+    (check-true (<= (branch-bound err-cols order can-split?)
+                    (flvector-ref scores (sub1 (length err-cols))))))
+
   ;; This is a basic sanity test
   (test-regimes 'x '(1 0))
   (test-regimes/prefixes 'x '((0) (1 0)))
@@ -305,6 +383,14 @@
   (test-regimes (literal 1 'binary64) '(0))
 
   (test-regimes `(if.f64 (==.f64 x ,(literal 0.5 'binary64)) ,(literal 1 'binary64) (NAN.f64)) '(1 0))
+
+  ;; The edge relaxation is an optimistic lower bound on the full regimes score.
+  (check-branch-bound 'x)
+  (check-branch-bound (literal 1 'binary64))
+  (define bound-errors (list (flvector 0.0 10.0 0.0) (flvector 10.0 0.0 10.0) (flvector 4.0 4.0 4.0)))
+  (for* ([order (in-list '(#(0 1 2) #(0 2 1) #(1 0 2) #(1 2 0) #(2 0 1) #(2 1 0)))]
+         [can-split? (in-list '((#f #f #f) (#f #f #t) (#f #t #f) (#f #t #t)))])
+    (check-bound bound-errors order can-split?))
 
   (check-equal? (baseline-errors-score err-cols 2) 26.5)
   (check-equal? (oracle-errors-score err-cols 2) 0.0)
