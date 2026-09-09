@@ -55,11 +55,7 @@
   (define branch-vs
     (filter real-v?
             (if (flag-set? 'reduce 'branch-expressions)
-                (branch-candidates block
-                                   (cons start-prog (map alt-expr sorted))
-                                   err-cols
-                                   pcontext
-                                   (critical-subexpressions block start-prog))
+                (branch-subexpressions block (cons start-prog (map alt-expr sorted)))
                 (map (curry block-add! block) (block-vars block)))))
 
   (define v-vals (v-values* block branch-vs pcontext))
@@ -81,8 +77,7 @@
       (timeline-stop!)
       (timeline-push! 'branch
                       (hash-ref branch-root-map v)
-                      (- (pareto-point-error last-point)
-                         (length (option-split-indices (pareto-point-data last-point))))
+                      (option-error last-point)
                       (length (option-split-indices (pareto-point-data last-point)))
                       (~a (representation-name repr)))
       curve))
@@ -100,14 +95,19 @@
                    (for*/list ([ppt (in-list combined-option-curve)]
                                [sidx (in-list (option-split-indices (pareto-point-data ppt)))])
                      (alt-expr (list-ref (option-alts (pareto-point-data ppt)) (si-cidx sidx)))))))
+  (timeline-push! 'accuracy
+                  (errors-score (first (block-errors block (list start-prog) pcontext)))
+                  (baseline-errors-score err-cols alt-count)
+                  (for/fold ([best +inf.0]) ([ppt (in-list combined-option-curve)])
+                    (min best (option-error ppt)))
+                  (oracle-errors-score err-cols alt-count))
   (for/list ([ppt (in-list combined-option-curve)])
     (define opt (pareto-point-data ppt))
     (timeline-push! 'count (length (option-alts opt)) (length (option-split-indices opt)))
-    (timeline-push! 'accuracy
-                    (- (pareto-point-error ppt) (length (option-split-indices opt)))
-                    (oracle-errors-score err-cols (pareto-point-cost ppt))
-                    (baseline-errors-score err-cols (pareto-point-cost ppt)))
     opt))
+
+(define (option-error ppt)
+  (- (pareto-point-error ppt) (length (option-split-indices (pareto-point-data ppt)))))
 
 (define (critical-subexpression? block root-v sub-v)
   (set-member? (critical-subexpressions block root-v) sub-v))
@@ -135,6 +135,12 @@
                 (when (extractable? v)
                   (sow v))
                 (loop (dom-parent v))))))))
+
+(define (branch-subexpressions block roots)
+  (define free-vars (block-free-vars block))
+  (for/list ([v (in-list (block-reachable block roots))]
+             #:unless (set-empty? (free-vars v)))
+    v))
 
 (define (build-dominator-tree block root-v)
   (define reachable-vs (reverse (block-reachable block (list root-v))))
@@ -175,32 +181,6 @@
                  k
                  (</total (vector-ref v-vals-vec prev-idx) (vector-ref v-vals-vec idx) repr)))
   (values order can-split-vec))
-
-;; In addition to the keep expressions, choose the branch expressions whose
-;; best-accuracy regimes solution has the lowest error.
-(define (branch-candidates block roots err-cols pcontext keep)
-  (define free-vars (block-free-vars block))
-  ;; All possible subexpressions across all alts and the original program.
-  (define pool
-    (for/list ([v (in-list (remove* keep (block-reachable block roots)))]
-               #:when (equal? (representation-type (block-repr-of v)) 'real)
-               #:unless (set-empty? (free-vars v)))
-      v))
-  ;; Expressions that sort the points identically are cached.
-  (define score-cache (make-hash))
-  (define scored
-    (for/list ([v (in-list pool)]
-               [v-vals-vec (in-list (v-values* block pool pcontext))])
-      (define-values (order can-split-vec) (branch-order v-vals-vec (block-repr-of v)))
-      (cons (hash-ref! score-cache
-                       (cons order can-split-vec)
-                       (lambda ()
-                         (define-values (_splits score)
-                           (infer-max-option err-cols order can-split-vec))
-                         score))
-            v)))
-  (define ranked (map cdr (sort scored < #:key car)))
-  (append keep (take ranked (min (*branch-expr-limit*) (length ranked)))))
 
 (define (baseline-errors-score err-cols count)
   (for/fold ([best +inf.0]) ([err-col (in-list (take err-cols count))])
