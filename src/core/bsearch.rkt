@@ -178,7 +178,13 @@
   (define progs
     (for/list ([alt (in-list alts)])
       (extract-subexpression block (alt-expr alt) target-v block* var-v)))
-  (define start-prog-sub (extract-subexpression block start-prog target-v block* var-v))
+  ;; An approx start program is lowered through its implementation, since its
+  ;; specification lives in another block and does not mention the branch variable.
+  (define start-prog-sub
+    (let ([sub (extract-subexpression block start-prog target-v block* var-v)])
+      (match (and sub (val-def sub))
+        [(approx _ impl) impl]
+        [_ sub])))
   (unless (and start-prog-sub (andmap identity progs))
     (raise-user-error
      'sindices->spoints/binary
