@@ -55,7 +55,7 @@
   (define branch-vs
     (filter real-v?
             (if (flag-set? 'reduce 'branch-expressions)
-                (branch-subexpressions block (cons start-prog (map alt-expr sorted)))
+                (branch-candidate block (cons start-prog (map alt-expr sorted)) err-cols pcontext)
                 (map (curry block-add! block) (block-vars block)))))
 
   (define v-vals (v-values* block branch-vs pcontext))
@@ -136,11 +136,31 @@
                   (sow v))
                 (loop (dom-parent v))))))))
 
-(define (branch-subexpressions block roots)
+;; Choose the branch expression whose best-accuracy regimes solution has the
+;; lowest error, out of every subexpression of the original program and the alts.
+(define (branch-candidate block roots err-cols pcontext)
   (define free-vars (block-free-vars block))
-  (for/list ([v (in-list (block-reachable block roots))]
-             #:unless (set-empty? (free-vars v)))
-    v))
+  (define pool
+    (for/list ([v (in-list (block-reachable block roots))]
+               #:when (equal? (representation-type (block-repr-of v)) 'real)
+               #:unless (set-empty? (free-vars v)))
+      v))
+  ;; Expressions that sort the points identically are cached.
+  (define score-cache (make-hash))
+  (define scored
+    (for/list ([v (in-list pool)]
+               [v-vals-vec (in-list (v-values* block pool pcontext))])
+      (define-values (order can-split-vec) (branch-order v-vals-vec (block-repr-of v)))
+      (cons (hash-ref! score-cache
+                       (cons order can-split-vec)
+                       (lambda ()
+                         (define-values (_splits score)
+                           (infer-max-option err-cols order can-split-vec))
+                         score))
+            v)))
+  (if (null? scored)
+      '()
+      (list (cdr (argmin car scored)))))
 
 (define (build-dominator-tree block root-v)
   (define reachable-vs (reverse (block-reachable block (list root-v))))
