@@ -416,6 +416,16 @@ const [dup1, dup2] = await Promise.all([startImprove(dupFormula), startImprove(d
 for (const r of [busy1, busy2, dup1, dup2]) {
   assert.equal(r.status == 201 || r.status == 202, true)
 }
+// The pair shares one job, and both workers were still busy when it
+// arrived: a finished job cannot go back to in-progress.
+assert.equal(dup1.headers.get("location"), dup2.headers.get("location"))
+for (const r of [busy1, busy2]) {
+  const status = await fetch(makeURL(r.headers.get("location")), {
+    method: 'GET',
+    signal: AbortSignal.timeout(10000),
+  })
+  assert.equal(status.status, 202)
+}
 const waitDone = async (path) => {
   for (let i = 0; i < 600; i++) {
     const r = await fetch(makeURL(path), { method: 'GET', signal: AbortSignal.timeout(10000) })
@@ -427,6 +437,7 @@ const waitDone = async (path) => {
 await waitDone(busy1.headers.get("location"))
 await waitDone(busy2.headers.get("location"))
 await waitDone(dup1.headers.get("location"))
+await waitDone(dup2.headers.get("location"))
 const upAfterDup = await fetch(makeURL("/up"), {
   method: 'GET',
   signal: AbortSignal.timeout(10000),
