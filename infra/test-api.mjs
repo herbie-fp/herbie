@@ -395,5 +395,42 @@ const jsonResults = await (await fetch(makeURL("/results.json"), { method: 'GET'
 // TODO add a way to reset the results.json file?
 assert.equal(jsonResults.tests.length, 2)
 
+// Two identical submissions queued behind busy workers. The manager must
+// queue the job once and serve both, and must survive: a dead manager
+// leaves the server up with every job request hanging, so the timeouts
+// here turn a hang into a failure. Both workers are kept busy first so
+// the identical pair waits in the queue; the bug was that the second
+// copy of the id outlived the job's table entry there.
+const startImprove = (formula) => fetch(makeURL("/api/start/improve"), {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/x-www-form-urlencoded',
+  },
+  body: "formula=" + encodeURIComponent(formula),
+  signal: AbortSignal.timeout(60000),
+})
+const busy1 = await startImprove('(FPCore (x y) (/ (- (exp x) (exp y)) (- x y)))')
+const busy2 = await startImprove('(FPCore (x) (/ (- (exp x) 1) x))')
+const dupFormula = '(FPCore (x) (sqrt (+ x 1)))'
+const [dup1, dup2] = await Promise.all([startImprove(dupFormula), startImprove(dupFormula)])
+for (const r of [busy1, busy2, dup1, dup2]) {
+  assert.equal(r.status == 201 || r.status == 202, true)
+}
+const waitDone = async (path) => {
+  for (let i = 0; i < 600; i++) {
+    const r = await fetch(makeURL(path), { method: 'GET', signal: AbortSignal.timeout(10000) })
+    if (r.status == 201) return
+    await new Promise(r => setTimeout(r, 100))
+  }
+  assert.fail("job did not finish: " + path)
+}
+await waitDone(busy1.headers.get("location"))
+await waitDone(busy2.headers.get("location"))
+await waitDone(dup1.headers.get("location"))
+const upAfterDup = await fetch(makeURL("/up"), {
+  method: 'GET',
+  signal: AbortSignal.timeout(10000),
+})
+assert.equal('Up', upAfterDup.statusText)
 
 child.kill('SIGINT');
