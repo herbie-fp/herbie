@@ -195,7 +195,12 @@
   (set! manager
         (if threads
             (make-manager threads)
-            'basic)))
+            'basic))
+  (when (place? manager)
+    (thread (λ ()
+              (sync (place-dead-evt manager))
+              (eprintf "Manager place died; exiting.\n")
+              (exit 1)))))
 
 (define (server-improve-results)
   (log "Getting improve results.\n")
@@ -351,6 +356,11 @@
         (cond
           [(hash-has-key? completed-jobs job-id)
            (place-channel-put self (list 'send job-id (hash-ref completed-jobs job-id)))]
+          ; Already queued or running: 'finished will 'send to every waiter.
+          ; Queuing the id a second time would leave a stale id in the
+          ; queue once the first is assigned, and the lookup for it would
+          ; kill the manager.
+          [(or (hash-has-key? queued-jobs job-id) (hash-has-key? current-jobs job-id)) (void)]
           [else
            (hash-set! queued-jobs job-id job)
            (enqueue! queued-job-ids job-id)
