@@ -229,11 +229,12 @@
       (define repr (get-representation (dict-ref (test-var-repr-names test) var)))
       (cond
         [(array-representation? repr)
-         (define dims (array-representation-shape repr))
+         (define dims (uniform-array-shape repr))
          (define elem-precision (repr->precision-name (array-representation-base repr)))
-         (if (equal? elem-precision output-precision)
-             (append (list var) dims)
-             (append (list '! ':precision elem-precision var) dims))]
+         (cond
+           [(and dims (equal? elem-precision output-precision)) (append (list var) dims)]
+           [dims (append (list '! ':precision elem-precision var) dims)]
+           [else (list '! ':precision (representation-name repr) var)])]
         [else
          (define var-precision (repr->precision-name repr))
          (if (equal? var-precision output-precision)

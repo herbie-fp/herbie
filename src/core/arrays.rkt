@@ -53,32 +53,34 @@
          candidate])))
   (define (leaf-reprs repr)
     (if (array-representation? repr)
-        (append* (for/list ([_ (in-range (array-representation-len repr))])
-                   (leaf-reprs (array-representation-elem repr))))
+        (append* (map leaf-reprs (array-representation-slots repr)))
         (list repr)))
   (define (fresh-tree base repr)
     (cond
       [(array-representation? repr)
        (define-values (elems vars reprs)
          (for/lists (elems vars reprs)
-                    ([_ (in-range (array-representation-len repr))])
-                    (fresh-tree base (array-representation-elem repr))))
+                    ([slot (in-list (array-representation-slots repr))])
+                    (fresh-tree base slot)))
        (values `(array ,@elems) (append* vars) (append* reprs))]
       [else
        (define v (fresh base))
        (values v (list v) (list repr))]))
   (define (flatten-by-repr expr repr)
-    (if (array-representation? repr)
-        (match-let ([`(array ,elems ...) expr])
-          (append* (for/list ([elem (in-list elems)])
-                     (flatten-by-repr elem (array-representation-elem repr)))))
-        (list expr)))
+    (cond
+      [(array-representation? repr)
+       (match-let ([`(array ,elems ...) expr])
+         (append* (for/list ([elem (in-list elems)]
+                             [slot (in-list (array-representation-slots repr))])
+                    (flatten-by-repr elem slot))))]
+      [else (list expr)]))
   (define (build-value next repr)
-    (if (array-representation? repr)
-        (for/vector #:length (array-representation-len repr)
-                    ([_ (in-range (array-representation-len repr))])
-          (build-value next (array-representation-elem repr)))
-        (next)))
+    (cond
+      [(array-representation? repr)
+       (for/vector #:length (length (array-representation-slots repr))
+                   ([slot (in-list (array-representation-slots repr))])
+         (build-value next slot))]
+      [else (next)]))
 
   (define env (make-hasheq))
   (define new-vars '())
@@ -111,25 +113,14 @@
   (for ([spec (in-list specs)]
         [repr (in-list orig-reprs)])
     (define lowered (lower-arr spec))
-    (cond
-      [(array-representation? repr)
-       (define comps (flatten-by-repr lowered repr))
-       (define reprs (leaf-reprs repr))
-       (set! new-specs (append new-specs comps))
-       (set! new-reprs (append new-reprs reprs))]
-      [else
-       (set! new-specs (append new-specs (list lowered)))
-       (set! new-reprs (append new-reprs (list repr)))]))
+    (set! new-specs (append new-specs (flatten-by-repr lowered repr)))
+    (set! new-reprs (append new-reprs (leaf-reprs repr))))
 
   (define new-pre (lower-arr pre))
   (define ctxs*
     (for/list ([ctx (in-list ctxs)])
       (match-define (context _ repr _) ctx)
-      (context new-vars
-               (if (array-representation? repr)
-                   (array-representation-base repr)
-                   repr)
-               new-var-reprs)))
+      (context new-vars repr new-var-reprs)))
 
   (define (assemble-point pt)
     (define idx 0)
@@ -150,23 +141,21 @@
       (begin0 (list-ref outputs idx)
         (set! idx (add1 idx))))
     (for/list ([repr (in-list orig-reprs)])
-      (if (array-representation? repr)
-          (build-value next repr)
-          (next))))
+      (build-value next repr)))
 
   (values new-specs ctxs* new-pre assemble-point assemble-output new-reprs))
 
 (module+ test
   (require rackunit)
 
-  (define vec2 (make-array-representation #:elem <binary64> #:len 2))
+  (define vec2 (make-array-representation #:slots (list <binary64> <binary64>)))
   (define ctx (context '(x) <binary64> (list vec2)))
   (let-values ([(specs* _ pre* _assemble-point _assemble-output _reprs*)
                 (flatten-arrays-for-rival (list '(ref x 1)) (list ctx) '(< (ref x 0) (ref x 1)))])
     (check-equal? specs* '(x_1))
     (check-equal? pre* '(< x_0 x_1)))
 
-  (define mat2 (make-array-representation #:elem vec2 #:len 2))
+  (define mat2 (make-array-representation #:slots (list vec2 vec2)))
   (define nested-ctx (context '(x) <binary64> (list mat2)))
   (let-values ([(specs* _ pre* assemble-point _assemble-output _reprs*)
                 (flatten-arrays-for-rival (list '(ref (ref x 1) 0))
@@ -202,4 +191,13 @@
   (let-values ([(specs* _ctxs* pre* _assemble-point _assemble-output _reprs*)
                 (flatten-arrays-for-rival (list '(+ x 1)) scalar-ctxs '(< (ref (array x x) 0) 2))])
     (check-equal? specs* '((+ x 1)))
-    (check-equal? pre* '(< x 2))))
+    (check-equal? pre* '(< x 2)))
+
+  (define mixed (make-array-representation #:slots (list <binary32> <binary64>)))
+  (let-values ([(specs* _ctxs* _pre* _assemble-point assemble-output reprs*)
+                (flatten-arrays-for-rival (list '(array (+ x 1) (* x 2)))
+                                          (list (context '(x) mixed (list <binary64>)))
+                                          'TRUE)])
+    (check-equal? specs* '((+ x 1) (* x 2)))
+    (check-equal? reprs* (list <binary32> <binary64>))
+    (check-equal? (assemble-output '(10 11)) (list #(10 11)))))

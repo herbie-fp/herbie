@@ -10,6 +10,7 @@
          "../config.rkt"
          "../syntax/block.rkt"
          "../utils/common.rkt"
+         "../utils/errors.rkt"
          "egglog-subprocess.rkt")
 
 (provide (struct-out egglog-runner)
@@ -40,19 +41,12 @@
   (match repr-name
     [(? representation?) (egglog-repr-token (representation-name repr-name))]
     [(? symbol?) (format "sym_~a" repr-name)]
-    [`(array ,elem ,len) (format "arr_~a_~a" len (egglog-repr-token elem))]))
+    [`(array ,slots ...)
+     (format "arr~a_~a" (length slots) (string-join (map egglog-repr-token slots) "_"))]))
 
 (define (egglog-repr-name token)
   (cond
     [(string-prefix? token "sym_") (string->symbol (substring token 4))]
-    [(string-prefix? token "arr_")
-     (define rest (substring token 4))
-     (define split
-       (for/first ([i (in-range (string-length rest))]
-                   #:when (char=? (string-ref rest i) #\_))
-         i))
-     `(array ,(egglog-repr-name (substring rest (add1 split)))
-             ,(string->number (substring rest 0 split)))]
     ;; Legacy scalar encoding used in older tests and dumps.
     [else (string->symbol token)]))
 
@@ -368,6 +362,7 @@
   (match* (op arity)
     [('array 2) 'Array]
     [('array 3) 'Array3]
+    [('array n) (string->symbol (format "Array~a" n))]
     [(_ _) (hash-ref (id->e1) op)]))
 
 (define (expr->egglog-spec-serialized expr s)

@@ -104,7 +104,7 @@
   (cond
     [(and (flag-set? 'setup 'search)
           (not (vector-empty? var-reprs))
-          (for/and ([repr (in-vector (vector-append var-reprs reprs))])
+          (for/and ([repr (in-vector var-reprs)])
             (equal? (representation-type repr) 'real)))
      (timeline-push! 'method "search")
      (define hyperrects-analysis (precondition->hyperrects pre vars var-reprs))
