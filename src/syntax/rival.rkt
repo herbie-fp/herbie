@@ -160,8 +160,9 @@
                      #:unless (file-exists? (build-path dump-dir (format "~a.rival" i))))
            (build-path dump-dir (format "~a.rival" i))))
        (define dump-file (open-output-file name #:exists 'replace))
+       (pretty-print `(precision ,@(map representation-name flattened-reprs)) dump-file 1)
        (pretty-print `(define (f ,@vars)
-                        ,@specs*)
+                        ,@exprs)
                      dump-file
                      1)
        (flush-output dump-file)
@@ -206,6 +207,9 @@
                      [*rival-max-iterations* 5])
         (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
         (values 'valid value))))
+  (when dump-file
+    (fprintf dump-file "(answer ~a)\n" (string-join (map ~a (cons status (or value '()))) " "))
+    (flush-output dump-file))
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"
