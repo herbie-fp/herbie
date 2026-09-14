@@ -83,16 +83,6 @@
                             (r3:*rival-max-iterations* v)
                             v)))
 
-(define (*rival-profile-executions*)
-  (if (use-rival3?)
-      (r3:*rival-profile-executions*)
-      (r2:*rival-profile-executions*)))
-
-(define/rival (execution-name exec) r2:execution-name r3:execution-name)
-(define/rival (execution-precision exec) r2:execution-precision r3:execution-precision)
-(define/rival (execution-time exec) r2:execution-time r3:execution-time)
-(define/rival (execution-memory exec) r2:execution-memory r3:execution-memory)
-
 (struct herbie-ival (lo hi) #:transparent)
 
 (define (ival? x)
@@ -128,7 +118,6 @@
                 (#:pre [pre any/c])
                 [c real-compiler?])]
           [real-apply (->* (real-compiler? vector?) (any/c) (values symbol? any/c))]
-          [real-compiler-clear! (-> real-compiler? void?)]
           [real-compiler-analyze (->* (real-compiler? (vectorof ival?)) (any/c) (listof any/c))]))
 
 (define (expr-size expr)
@@ -154,6 +143,8 @@
   (define exprs (cons `(assert ,pre*) specs*))
   (define discs (make-discretizations flattened-reprs))
   (define machine (rival-compile exprs vars discs))
+  (when (use-rival3?)
+    (r3:rival-set-profiling! machine #f)) ; Herbie only reads iteration and bump counters
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre*) (map expr-size specs*))
                   (+ (length vars) (rival-profile machine 'instructions)))
@@ -162,15 +153,14 @@
     (cond
       [(flag-set? 'dump 'rival)
        (define dump-dir "dump-rival")
-       (unless (directory-exists? dump-dir)
-         (make-directory dump-dir))
-       (define name
-         (for/first ([i (in-naturals)]
-                     #:unless (file-exists? (build-path dump-dir (format "~a.rival" i))))
-           (build-path dump-dir (format "~a.rival" i))))
-       (define dump-file (open-output-file name #:exists 'replace))
+       (make-directory* dump-dir)
+       (define dump-file
+         (for/or ([i (in-naturals)])
+           (with-handlers ([exn:fail:filesystem:exists? (const #f)])
+             (open-output-file (build-path dump-dir (format "~a.rival" i)) #:exists 'error))))
+       (pretty-print `(precision ,@(map representation-name flattened-reprs)) dump-file 1)
        (pretty-print `(define (f ,@vars)
-                        ,@specs*)
+                        ,@exprs)
                      dump-file
                      1)
        (flush-output dump-file)
@@ -215,54 +205,21 @@
                      [*rival-max-iterations* 5])
         (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
         (values 'valid value))))
+  (when dump-file
+    (fprintf dump-file "(answer ~a)\n" (string-join (map ~a (cons status (or value '()))) " "))
+    (flush-output dump-file))
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"
           #:extra (for/list ([var (in-vector vars)]
                              [val (in-vector pt)])
                     (format "~a = ~a" var val))))
-  (define-values (iterations mixsample-data)
-    (cond
-      [(use-rival3?)
-       (match-define (list summary _ iters) (rival-profile machine 'summary))
-       (values iters
-               (for/list ([entry (in-vector summary)])
-                 (match-define (list name prec-bucket total-time _) entry)
-                 (list total-time name prec-bucket 0)))]
-      [else
-       (define executions (rival-profile machine 'executions))
-       (when (>= (vector-length executions) (r2:*rival-profile-executions*))
-         (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
-       (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
-       (define mixsample-table (make-hash))
-       (for ([execution (in-vector executions)])
-         (define name (format "~a" (r2:execution-name execution)))
-         (define precision
-           (- (r2:execution-precision execution)
-              (remainder (r2:execution-precision execution) prec-threshold)))
-         (define key (cons name precision))
-         ;; Uses vectors to avoid allocation; this is really allocation-heavy
-         (define data (hash-ref! mixsample-table key (lambda () (make-vector 2 0))))
-         (vector-set! data 0 (+ (vector-ref data 0) (r2:execution-time execution)))
-         (vector-set! data 1 (+ (vector-ref data 1) (r2:execution-memory execution))))
-       (values (rival-profile machine 'iterations)
-               (for/list ([(key val) (in-hash mixsample-table)])
-                 (list (vector-ref val 0) (car key) (cdr key) (vector-ref val 1))))]))
-  (for ([entry (in-list mixsample-data)])
-    (match-define (list time name prec memory) entry)
-    (timeline-push!/unsafe 'mixsample time name prec memory))
   (timeline-push!/unsafe 'outcomes
                          (- (current-inexact-milliseconds) start)
-                         iterations
+                         (rival-profile machine 'iterations)
                          (symbol->string status)
                          1)
   (values status value))
-
-;; Clears profiling data.
-(define (real-compiler-clear! compiler)
-  (unless (use-rival3?)
-    (r2:rival-profile (real-compiler-machine compiler) 'executions))
-  (void))
 
 ;; Returns whether the machine is guaranteed to raise an exception
 ;; for the given inputs range. The result is an interval representing
