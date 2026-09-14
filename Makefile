@@ -48,6 +48,12 @@ minimal-distribution:
 nightly:
 	bash infra/nightly.sh bench reports --threads 2
 
+points.tar.xz:
+	rm -rf dump-rival
+	racket -y src/main.rkt report --threads yes --seed 1 --num-iters 0 --num-points 256/1000 \
+		-o setup:preprocess -o reduce:regimes +o dump:rival bench reports/points
+	tar cJf $@ dump-rival
+
 upgrade:
 	git pull
 	$(MAKE) install

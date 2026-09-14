@@ -153,13 +153,11 @@
     (cond
       [(flag-set? 'dump 'rival)
        (define dump-dir "dump-rival")
-       (unless (directory-exists? dump-dir)
-         (make-directory dump-dir))
-       (define name
-         (for/first ([i (in-naturals)]
-                     #:unless (file-exists? (build-path dump-dir (format "~a.rival" i))))
-           (build-path dump-dir (format "~a.rival" i))))
-       (define dump-file (open-output-file name #:exists 'replace))
+       (make-directory* dump-dir)
+       (define dump-file
+         (for/or ([i (in-naturals)])
+           (with-handlers ([exn:fail:filesystem:exists? (const #f)])
+             (open-output-file (build-path dump-dir (format "~a.rival" i)) #:exists 'error))))
        (pretty-print `(precision ,@(map representation-name flattened-reprs)) dump-file 1)
        (pretty-print `(define (f ,@vars)
                         ,@exprs)
