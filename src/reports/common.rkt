@@ -164,6 +164,15 @@
       (core->tex fpcore #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
+(define (precondition->display expr)
+  (match expr
+    [(? exact-integer? n)
+     (if (> (integer-length (abs n)) 10)
+         (exact->inexact n)
+         n)]
+    [(list exprs ...) (map precondition->display exprs)]
+    [_ expr]))
+
 (define (render-program expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)])
   (define output-repr (context-repr ctx))
   (define out-prog
@@ -172,6 +181,7 @@
 
   (define output-prec (repr->precision-name output-repr))
   (define precondition* (prog->fpcore precondition ctx))
+  (define precondition-display* (precondition->display precondition*))
   (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec ':pre precondition*)))
 
   (define versions
@@ -195,16 +205,15 @@
                  `(option ,lang))))
 
   (define body
-    `(div
-      ,(if (equal? precondition '(TRUE))
-           ""
-           `(div
-             ([id "precondition"])
-             (div ((class "program math")) "\\[" ,(expr->tex (prog->fpcore precondition ctx)) "\\]")))
-      (div ((class "implementation") [data-language "Math"])
-           (div ((class "program math")) "\\[" ,math-out "\\]"))
-      ,@(for/list ([(lang out) (in-dict versions)])
-          `(div ((class "implementation") [data-language ,lang]) (pre ((class "program")) ,out)))))
+    `(div ,(if (equal? precondition '(TRUE))
+               ""
+               `(div ([id "precondition"])
+                     (div ((class "program math")) "\\[" ,(expr->tex precondition-display*) "\\]")))
+          (div ((class "implementation") [data-language "Math"])
+               (div ((class "program math")) "\\[" ,math-out "\\]"))
+          ,@(for/list ([(lang out) (in-dict versions)])
+              `(div ((class "implementation") [data-language ,lang])
+                    (pre ((class "program")) ,out)))))
 
   (values dropdown body))
 
