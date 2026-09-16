@@ -43,7 +43,7 @@
 ;; - the loop: choose some alts, localize, run the patch table, and finalize
 ;; - Final steps: regimes, derivations, and remove preprocessing
 
-(define (run-improve! initial specification context pcontext)
+(define (run-improve! initial specification context pcontext #:sampler [sampler #f])
   (parameterize ([*global-block* (block-empty context)])
     (define global-spec-block (block-empty context))
     (define specification-v (block-add! global-spec-block specification))
@@ -56,16 +56,17 @@
       (if (flag-set? 'setup 'preprocess)
           (find-preprocessing global-spec-block specification-v context)
           '()))
-    (timeline-push! 'symmetry (map ~a preprocessing))
-    (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-    (*pcontext* pcontext*)
+    (define-values (train-pcontext validation-pcontext)
+      (cover-pcontexts pcontext preprocessing sampler))
+    (timeline-push! 'preprocessing (map ~a preprocessing))
+    (*pcontext* (preprocess-pcontext context train-pcontext preprocessing))
 
     (define spec-reducer (block-reduce global-spec-block))
 
     (*preprocessing* preprocessing)
     (*start-v* initial-v)
     (define start-alt (alt initial-v 'start '()))
-    (^table^ (make-alt-table (*global-block*) pcontext start-alt))
+    (^table^ (make-alt-table (*global-block*) train-pcontext start-alt))
 
     (for ([_ (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
@@ -74,7 +75,7 @@
     (timeline-event! 'preprocess)
     (for/list ([altn alternatives])
       (define expr (alt-expr altn))
-      (define expr* (compile-useful-preprocessing expr context pcontext (*preprocessing*)))
+      (define expr* (compile-useful-preprocessing expr context validation-pcontext (*preprocessing*)))
       (alt expr* 'add-preprocessing (list altn)))))
 
 (define (extract! spec-block)

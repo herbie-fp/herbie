@@ -116,7 +116,7 @@
   (and a b))
 
 (define (make-mask pcontext)
-  (make-vector (pcontext-length pcontext) #f))
+  (make-vector (pcontext-length pcontext) #t))
 
 ;; HTML renderer for derivations
 (define (render-history json repr)
@@ -157,48 +157,51 @@
 
     ["rr"
      (define-values (prev proof) (apply values (map (curry hash-ref json) '(prev proof))))
+     (define proof-html (render-proof proof repr))
      `(,@(render-history prev repr)
-       (li ,(if (eq? proof (json-null))
-                ""
-                (render-proof proof repr)))
+       ,@(if proof-html
+             `((li ,proof-html))
+             '())
        (li (p "Applied rewrites" (span ((class "error")) ,err))
            (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]))
 
 (define (errors-score-masked errs mask)
-  (define mask-count (for/sum ([use? (in-vector mask)] #:when use?) 1))
-  (define masked-errs
-    (for/flvector #:length mask-count
-                  ([err (in-flvector errs)] [use? (in-vector mask)] #:when use?)
-                  err))
-  (errors-score (if (zero? mask-count) errs masked-errs)))
+  (define count (for/sum ([use? (in-vector mask)] #:when use?) 1))
+  (if (zero? count)
+      "unsampled"
+      (errors-score (for/flvector #:length count
+                                  ([err (in-flvector errs)] [use? (in-vector mask)] #:when use?)
+                                  err))))
 
 (define (render-proof proof-json repr)
-  `(div ((class "proof"))
-        (details
-         (summary "Step-by-step derivation")
-         (ol ,@(for/list ([step (in-list proof-json)])
-                 (define-values (direction err rule prog-str)
-                   (apply values (map (curry hash-ref step) '(direction error rule program))))
-                 (define dir
-                   (match direction
-                     ["goal" "goal"]
-                     ["rtl" "right to left"]
-                     ["ltr" "left to right"]))
-                 (define prog (read (open-input-string prog-str)))
-                 (if (equal? dir "goal")
-                     ""
-                     `(li (p (code ([title ,dir]) ,rule)
-                             (span ((class "error"))
-                                   ,(if (number? err)
-                                        (format-accuracy err repr #:unit "%")
-                                        err)))
-                          (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]"))))))))
+  (cond
+    [(eq? proof-json (json-null)) #f]
+    [else
+     (define steps
+       (for/list ([step (in-list proof-json)]
+                  #:unless (equal? (hash-ref step 'direction) "goal"))
+         (define-values (direction err rule prog-str)
+           (apply values (map (curry hash-ref step) '(direction error rule program))))
+         (define dir
+           (match direction
+             ["rtl" "right to left"]
+             ["ltr" "left to right"]))
+         (define prog (read (open-input-string prog-str)))
+         `(li (p (code ([title ,dir]) ,rule)
+                 (span ((class "error"))
+                       ,(if (number? err)
+                            (format-accuracy err repr #:unit "%")
+                            err)))
+              (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]"))))
+     (if (null? steps)
+         #f
+         `(div ((class "proof")) (details (summary "Step-by-step derivation") (ol ,@steps))))]))
 
 (define (render-json altn
                      pcontext
                      ctx
                      errcache
-                     [mask (make-vector (pcontext-length pcontext) #f)]
+                     [mask (make-mask pcontext)]
                      [fpcore-cache (make-hash)])
   (define repr (context-repr ctx))
   (define err
