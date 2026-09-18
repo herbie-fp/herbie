@@ -143,8 +143,6 @@
   (define exprs (cons `(assert ,pre*) specs*))
   (define discs (make-discretizations flattened-reprs))
   (define machine (rival-compile exprs vars discs))
-  (when (use-rival3?)
-    (r3:rival-set-profiling! machine #f)) ; Herbie only reads iteration and bump counters
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre*) (map expr-size specs*))
                   (+ (length vars) (rival-profile machine 'instructions)))
