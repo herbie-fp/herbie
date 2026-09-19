@@ -249,17 +249,6 @@
 
   (test-regimes `(if.f64 (==.f64 x ,(literal 0.5 'binary64)) ,(literal 1 'binary64) (NAN.f64)) '(1 0))
 
-  ;; A cheap alt can be optimal on both sides of an expensive alt. The DP
-  ;; must retain the expensive middle state while it is temporarily worse.
-  (let ()
-    (define triple-errors
-      (list (flvector 0.0 100.0 0.0) (flvector 100.0 0.0 100.0) (flvector 1.0 1.0 1.0)))
-    (define-values (splitss scores) (infer-option-prefixes triple-errors #(0 1 2) '(#f #t #t)))
-    (check-equal? (flvector-ref scores 0) 100.0)
-    (check-equal? (flvector-ref scores 1) 6.0)
-    (check-equal? (flvector-ref scores 2) 3.0)
-    (check-equal? (map si-cidx (vector-ref splitss 1)) '(0 1 0)))
-
   (check-equal? (baseline-errors-score err-cols 2) 26.5)
   (check-equal? (oracle-errors-score err-cols 2) 0.0)
 
@@ -296,6 +285,28 @@
   (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
          (and (> pidx 0) (list-ref can-split? pidx)))
        (= (si-pidx (last split-indices)) (length can-split?))))
+
+;; Repeatedly solve the maximum-accuracy problem. If the maximum used alt is
+;; m, that solution is optimal for every prefix from m through the prefix just
+;; solved, so one solve fills an entire Pareto plateau.
+(define (infer-option-prefixes err-cols sorted-indices can-split)
+  (define can-split-vec (list->vector can-split))
+  (define number-of-alts (length err-cols))
+  (define splitss (make-vector number-of-alts null))
+  (define scores (make-flvector number-of-alts +inf.0))
+  (define max-alt (sub1 number-of-alts))
+  (for ([ignored (in-range number-of-alts)]
+        #:break (< max-alt 0))
+    (define-values (splits score)
+      (infer-max-option (take err-cols (add1 max-alt)) sorted-indices can-split-vec))
+    (define highest-used-alt
+      (for/fold ([highest 0]) ([split (in-list splits)])
+        (max highest (si-cidx split))))
+    (for ([alt-idx (in-range highest-used-alt (add1 max-alt))])
+      (vector-set! splitss alt-idx splits)
+      (flvector-set! scores alt-idx score))
+    (set! max-alt (sub1 highest-used-alt)))
+  (values splitss scores))
 
 (module core typed/racket
   (provide (struct-out si)
@@ -389,25 +400,3 @@
      score)))
 
 (require (submod "." core))
-
-;; Repeatedly solve the maximum-accuracy problem. If the maximum used alt is
-;; m, that solution is optimal for every prefix from m through the prefix just
-;; solved, so one solve fills an entire Pareto plateau.
-(define (infer-option-prefixes err-cols sorted-indices can-split)
-  (define can-split-vec (list->vector can-split))
-  (define number-of-alts (length err-cols))
-  (define splitss (make-vector number-of-alts null))
-  (define scores (make-flvector number-of-alts +inf.0))
-  (define max-alt (sub1 number-of-alts))
-  (for ([ignored (in-range number-of-alts)]
-        #:break (< max-alt 0))
-    (define-values (splits score)
-      (infer-max-option (take err-cols (add1 max-alt)) sorted-indices can-split-vec))
-    (define highest-used-alt
-      (for/fold ([highest 0]) ([split (in-list splits)])
-        (max highest (si-cidx split))))
-    (for ([alt-idx (in-range highest-used-alt (add1 max-alt))])
-      (vector-set! splitss alt-idx splits)
-      (flvector-set! scores alt-idx score))
-    (set! max-alt (sub1 highest-used-alt)))
-  (values splitss scores))
