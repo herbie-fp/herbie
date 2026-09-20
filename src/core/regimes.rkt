@@ -307,7 +307,13 @@
          (loop (add1 alt-idx) alt-idx (flvector-ref scores alt-idx))]
         [else (loop (add1 alt-idx) best best-score)])))
 
-  ;; Calculate the optimal regimes split using the following DP recurrence:
+  ;; This is the core main loop of the regimes algorithm.
+  ;; Takes in alt-major error columns, point-sorting indices, and a vector
+  ;; of booleans to determine when it's ok to split for another alt.
+  ;; Returns a list of split indices saying which alt to use for which
+  ;; range of points, starting at 1 going up to num-points, and the score
+  ;; of that split. Alts are indexed 0 and points are index 1. The optimal
+  ;; regimes split is calculated using the following DP recurrence:
   ;; best[p][a] = error[p][a] + min(best[p-1][a], penalty + min_b best[p-1][b])
   (: infer-option
      (-> (Listof FlVector) (Vectorof Integer) (Vectorof Boolean) (Values (Listof si) Float)))
