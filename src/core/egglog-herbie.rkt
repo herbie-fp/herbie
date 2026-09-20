@@ -166,7 +166,7 @@
   ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
 
   (for ([step (in-list schedule)])
-    (apply egglog-send subproc (egglog-step-commands step pform))
+    (apply egglog-send subproc (remove-duplicates (egglog-step-commands step pform)))
     (match step
       ['lift (egglog-send subproc '(run-schedule (saturate lift)))]
       ['lower (egglog-send subproc '(run-schedule (saturate lower)))]
