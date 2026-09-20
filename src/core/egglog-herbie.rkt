@@ -336,20 +336,23 @@
   (define helper-impls
     (for/seteq ([extension (in-list (*platform-extensions*))])
       (fpcore-extension-name extension)))
-  (for/list ([impl (in-list (platform-impls pform))]
-             #:unless (set-member? helper-impls impl))
-    (define spec-expr (impl-info impl 'spec))
-    `(rule ((= ?root ,(expr->egglog-spec-serialized spec-expr ""))
-            ,@(for/list ([v (in-list (impl-info impl 'vars))]
-                         [vt (in-list (impl-info impl 'itype))])
-                `(= ,(string->symbol (string-append "t" (symbol->string v)))
-                    (do-lower ,v ,(egglog-repr-token vt)))))
-           ((union (do-lower ?root ,(egglog-repr-token (impl-info impl 'otype)))
-                   (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
-                    ,@(for/list ([v (in-list (impl-info impl 'vars))])
-                        (string->symbol (string-append "t" (symbol->string v)))))))
-           :ruleset
-           lower)))
+  (reap [sow]
+        (for ([impl (in-list (platform-impls pform))]
+              #:unless (set-member? helper-impls impl))
+          (define spec-expr (impl-info impl 'spec))
+          (sow `(rule ((= ?root ,(expr->egglog-spec-serialized spec-expr ""))
+                       ,@(for/list ([v (in-list (impl-info impl 'vars))]
+                                    [vt (in-list (impl-info impl 'itype))])
+                           `(= ,(string->symbol (string-append "t" (symbol->string v)))
+                               (do-lower ,v ,(egglog-repr-token vt)))))
+                      ((union (do-lower ?root ,(egglog-repr-token (impl-info impl 'otype)))
+                              (,(string->symbol (string-append (symbol->string (serialize-impl impl))
+                                                               "Ty"))
+                               ,@(for/list ([v (in-list (impl-info impl 'vars))])
+                                   (string->symbol (string-append "t" (symbol->string v)))))))
+                      :ruleset
+                      lower))
+          (for-each sow (egglog-rewrite-rules (array-lowering-rules impl spec-expr) 'lower)))))
 
 (define (impl-lifting-rules pform)
   (for/list ([impl (in-list (platform-impls pform))])

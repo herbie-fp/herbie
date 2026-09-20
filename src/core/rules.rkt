@@ -7,6 +7,7 @@
 
 (provide *rules*
          *sound-removal-rules*
+         array-lowering-rules
          (struct-out rule))
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
@@ -31,6 +32,15 @@
                       [rname input output flags ...] ...)
   (begin
     (define-rule rname group input output flags ...) ...))
+
+(define (array-lowering-rules impl spec)
+  (match spec
+    [`(array ,elems ...)
+     (for/list ([elem (in-list elems)]
+                [idx (in-naturals)]
+                #:when (pair? elem))
+       (rule (sym-append 'lower- impl '-array- idx) elem `(ref (array ,@elems) ,idx) '(lowering)))]
+    [_ '()]))
 
 ; Commutativity
 (define-rules arithmetic
