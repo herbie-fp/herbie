@@ -15,10 +15,10 @@
   (define f64 (get-representation 'binary64))
   (define array64 (get-representation '(array binary64 2)))
   (define sincos-spec '(array (sin x) (cos x)))
-  (define lowering-rules (array-lowering-rules 'sincos.f64 sincos-spec))
+  (define lowering-rules (array-lowering-rules))
 
-  (check-equal? (map rule-input lowering-rules) '((sin x) (cos x)))
-  (check-equal? (map rule-output lowering-rules)
+  (check-equal? (sort (map rule-input lowering-rules) string<? #:key ~s) '((cos x) (sin x)))
+  (check-equal? (sort (map rule-output lowering-rules) string<? #:key ~s)
                 '((ref (array (sin x) (cos x)) 0) (ref (array (sin x) (cos x)) 1)))
 
   (define ctx (context '(x) array64 (list f64)))

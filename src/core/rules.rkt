@@ -3,6 +3,8 @@
 ;; Arithmetic identities for rewriting programs.
 
 (require "../utils/common.rkt"
+         "../syntax/platform-state.rkt"
+         "../syntax/platform.rkt"
          "../syntax/syntax.rkt")
 
 (provide *rules*
@@ -33,14 +35,25 @@
   (begin
     (define-rule rname group input output flags ...) ...))
 
-(define (array-lowering-rules impl spec)
-  (match spec
-    [`(array ,elems ...)
-     (for/list ([elem (in-list elems)]
-                [idx (in-naturals)]
-                #:when (pair? elem))
-       (rule (sym-append 'lower- impl '-array- idx) elem `(ref (array ,@elems) ,idx) '(lowering)))]
-    [_ '()]))
+(define (array-lowering-rules [pform (*active-platform*)])
+  (define helper-impls
+    (for/seteq ([extension (in-list (*platform-extensions*))])
+      (fpcore-extension-name extension)))
+  (define rules
+    (append* (for/list ([impl (in-list (platform-impls pform))]
+                        #:unless (set-member? helper-impls impl))
+               (define elems
+                 (match (impl-info impl 'spec)
+                   [`(array ,elems ...) elems]
+                   [_ '()]))
+               (for/list ([elem (in-list elems)]
+                          [idx (in-naturals)]
+                          #:when (pair? elem))
+                 (rule (sym-append 'lower- impl '-array- idx)
+                       elem
+                       `(ref (array ,@elems) ,idx)
+                       '(lowering))))))
+  (remove-duplicates rules #:key (λ (rule) (list (rule-input rule) (rule-output rule)))))
 
 ; Commutativity
 (define-rules arithmetic
