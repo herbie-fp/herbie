@@ -332,19 +332,16 @@
     ;; row = best[p-1] going in to point p, best[p] coming out; updated in place
     (: row FlVector)
     (define row (flvector-copy (vector-ref errors 0))) ; best[0][a] = error[0][a]
-    (: switched (Vectorof Bytes))
-    (define switched (build-vector number-of-points (lambda (_) (make-bytes number-of-alts 0))))
-    ;; best-alts[p] = argmin_a best[p][a]
-    (: best-alts (Vectorof Integer))
-    (define best-alts (make-vector number-of-points 0))
+    ;; previous-alts[p][a] = the alt at p-1 on the best path ending on a at p
+    (: previous-alts (Vectorof (Vectorof Integer)))
+    (define previous-alts (build-vector number-of-points (lambda (_) (make-vector number-of-alts 0))))
 
     (for ([point-idx (in-range 1 number-of-points)])
       (define best-alt (argmin row))
-      (vector-set! best-alts (sub1 point-idx) best-alt)
       ;; penalty + min_b best[p-1][b]
       (define switched-score (+ split-penalty (flvector-ref row best-alt)))
       (define errors-here (vector-ref errors point-idx)) ; error[p]
-      (define switched-here (vector-ref switched point-idx))
+      (define previous-here (vector-ref previous-alts point-idx))
       (define can-split? (vector-ref can-split-vec point-idx))
       (for ([alt-idx (in-range number-of-alts)])
         (define continued-score (flvector-ref row alt-idx)) ; best[p-1][a]
@@ -353,27 +350,20 @@
                        alt-idx
                        (+ (flvector-ref errors-here alt-idx)
                           (if switch? switched-score continued-score)))
-        ;; If we end on alt a at the current point p, then switching is the best choice.
-        (bytes-set! switched-here alt-idx (if switch? 1 0))))
+        (vector-set! previous-here alt-idx (if switch? best-alt alt-idx))))
 
     ;; score = min_a best[P][a]
     (define last-point (sub1 number-of-points))
     (define last-alt (argmin row))
 
-    ;; Reconstruct: at p on alt a, the alt at p-1 is a if a continued there,
-    ;; otherwise argmin_b best[p-1][b].
     (: alts (Vectorof Integer))
     (define alts (make-vector number-of-points 0))
     (vector-set! alts last-point last-alt)
     (for ([point-idx (in-range last-point 0 -1)])
-      (define alt-idx (vector-ref alts point-idx))
       (vector-set! alts
                    (sub1 point-idx)
-                   (if (= 1 (bytes-ref (vector-ref switched point-idx) alt-idx))
-                       (vector-ref best-alts (sub1 point-idx))
-                       alt-idx)))
+                   (vector-ref (vector-ref previous-alts point-idx) (vector-ref alts point-idx))))
 
-    ;; Convert to splitindices.
     (define splits
       (for/list :
         (Listof si)
