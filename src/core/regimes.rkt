@@ -1,7 +1,7 @@
 #lang racket
 
 ;;;; Module principles
-;; - The core of this file is infer-option and infer-option-prefixes,
+;; - The core of this file is infer-option and infer-option-prefixes.
 ;;   Both are extremely performance-sensitive.
 ;; - Therefore almost everything is vector-based with few copies.
 ;;   Except critical-subexpressions. Converting it to vectors makes it slow.
@@ -291,7 +291,7 @@
   (require math/flonum)
 
   ;; Struct representing a splitindex
-  ;; cidx = Candidate index: the alt to use for the points to the left of this splitindex
+  ;; cidx = Candidate index: the index candidate program that should be used to the left of this splitindex
   ;; pidx = Point index: The index of the point to the left of which we should split.
   (struct si ([cidx : Integer] [pidx : Integer]) #:prefab)
 
