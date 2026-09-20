@@ -41,8 +41,7 @@
   (match repr-name
     [(? representation?) (egglog-repr-token (representation-name repr-name))]
     [(? symbol?) (format "sym_~a" repr-name)]
-    [`(array ,slots ...)
-     (format "arr~a_~a" (length slots) (string-join (map egglog-repr-token slots) "_"))]))
+    [`(array ,slots ...) (format "arr_~a" (string-join (map egglog-repr-token slots) "_"))]))
 
 (define (egglog-repr-name token)
   (cond
@@ -197,7 +196,7 @@
 (define (prelude subproc #:mixed-egraph? [mixed-egraph? #t])
   (define pform (*active-platform*))
 
-  (egglog-send subproc `(datatype M ,@(platform-spec-nodes)))
+  (egglog-send subproc `(datatype M ,@(platform-spec-nodes pform)))
 
   (egglog-send
    subproc
@@ -264,26 +263,36 @@
     (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
     (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
 
-(define (platform-spec-nodes)
+(define (spec-array-arities expr)
+  (match expr
+    [(list 'array args ...) (cons (length args) (append* (map spec-array-arities args)))]
+    [(list _ args ...) (append* (map spec-array-arities args))]
+    [_ '()]))
+
+(define (platform-spec-nodes pform)
   (for ([op '(sound-/ sound-log sound-pow)])
     (hash-set! (id->e1) op (serialize-op op))
     (hash-set! (e1->id) (serialize-op op) op))
-  (hash-set! (id->e1) 'array 'Array)
-  (hash-set! (e1->id) 'Array 'array)
-  (hash-set! (e1->id) 'Array3 'array)
-  (list* '(Num BigRat :cost 4294967295)
-         '(Var String :cost 4294967295)
-         '(Sound-/ M M M :cost 4294967295)
-         '(Sound-Log M M :cost 4294967295)
-         '(Sound-Pow M M M :cost 4294967295)
-         '(Array M M :cost 4294967295)
-         '(Array3 M M M :cost 4294967295)
-         (for/list ([op (in-list (all-operators))]
-                    #:unless (eq? op 'array))
-           (define arity (length (operator-info op 'itype)))
-           (hash-set! (id->e1) op (serialize-op op))
-           (hash-set! (e1->id) (serialize-op op) op)
-           `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295))))
+  (define array-arities
+    (sort (remove-duplicates (append* (for/list ([impl (in-list (platform-impls pform))])
+                                        (spec-array-arities (impl-info impl 'spec)))))
+          <))
+  (hash-set! (id->e1) 'array #t)
+  (append (list '(Num BigRat :cost 4294967295)
+                '(Var String :cost 4294967295)
+                '(Sound-/ M M M :cost 4294967295)
+                '(Sound-Log M M :cost 4294967295)
+                '(Sound-Pow M M M :cost 4294967295))
+          (for/list ([arity (in-list array-arities)])
+            (define name (string->symbol (format "Array~a" arity)))
+            (hash-set! (e1->id) name 'array)
+            `(,name ,@(make-list arity 'M) :cost 4294967295))
+          (for/list ([op (in-list (all-operators))]
+                     #:unless (eq? op 'array))
+            (define arity (length (operator-info op 'itype)))
+            (hash-set! (id->e1) op (serialize-op op))
+            (hash-set! (e1->id) (serialize-op op) op)
+            `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295))))
 
 (define (platform-impl-nodes pform)
   (for/list ([impl (in-list (platform-impls pform))])
@@ -360,8 +369,6 @@
 
 (define (serialize-spec-op op arity)
   (match* (op arity)
-    [('array 2) 'Array]
-    [('array 3) 'Array3]
     [('array n) (string->symbol (format "Array~a" n))]
     [(_ _) (hash-ref (id->e1) op)]))
 
@@ -436,8 +443,11 @@
                          [(? number?) `(Num ,(real->bigrat node))]
                          [(? symbol?) #f]
                          [(list impl args ...)
-                          `(,(hash-ref (id->e1) impl) ,@(for/list ([arg (in-list args)])
-                                                          (recurse arg)))]))
+                          `(,(if (eq? impl 'array)
+                                 (serialize-spec-op impl (length args))
+                                 (hash-ref (id->e1) impl))
+                            ,@(for/list ([arg (in-list args)])
+                                (recurse arg)))]))
 
                      (set! reachable-vs (cons v reachable-vs))
                      (if node*

@@ -79,7 +79,7 @@
   (define reprs (platform-representations platform))
   (match name
     [(? representation?) name]
-    [`(array ,slots ...) (make-array-representation #:slots (map get-representation slots))]
+    [`(array ,slots ...) (apply make-array-representation (map get-representation slots))]
     [_
      (or (hash-ref reprs name #f)
          (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
@@ -178,14 +178,11 @@
     [`(array ,slots ...) (format "array<~a>" (string-join (map repr-name->token slots) ":"))]
     [_ (raise-herbie-error "Cannot name representation ~a" name)]))
 
-(define (array-token repr)
-  (repr-name->token (representation-name repr)))
-
 (define (array-impl-name repr)
-  (string->symbol (array-token repr)))
+  (string->symbol (repr-name->token (representation-name repr))))
 
 (define (array-ref-impl-name repr idx)
-  (string->symbol (format "ref.~a.~a" idx (array-token repr))))
+  (string->symbol (format "ref.~a.~a" idx (repr-name->token (representation-name repr)))))
 
 (define (ensure-array-representation! repr)
   (define pform (*active-platform*))
@@ -210,14 +207,13 @@
       (for/list ([i (in-range (length slots))])
         (string->symbol (format "x~a" i))))
     (define spec `(array ,@vars))
-    (define cost (for/sum ([slot (in-list slots)]) (platform-repr-cost (*active-platform*) slot)))
     (register-array-impl! (operator-impl name
                                          (context vars repr slots)
                                          spec
                                          spec
                                          (procedure-reduce-arity (lambda args (list->vector args))
                                                                  (length vars))
-                                         cost
+                                         0
                                          +)))
   name)
 
@@ -231,7 +227,7 @@
                                          spec
                                          spec
                                          (lambda (v) (vector-ref v idx))
-                                         (platform-repr-cost (*active-platform*) (list-ref slots idx))
+                                         0
                                          +)))
   name)
 
@@ -251,7 +247,7 @@
 
 (define (ensure-array-ref-impl! repr idx)
   (ensure-array-impls! repr)
-  (array-ref-impl-name repr idx))
+  (ensure-array-accessor! repr idx))
 
 (define (token->repr-name tok)
   (define (split-slots body)
@@ -287,12 +283,9 @@
     [(or (string-contains? tok "<") (string-contains? tok ">") (string-contains? tok ":")) #f]
     [else (string->symbol tok)]))
 
-(define non-array-names (make-weak-hasheq))
-
 (define (array-impl-name-parts name)
   (cond
     [(not (symbol? name)) (values #f #f)]
-    [(hash-ref non-array-names name #f) (values #f #f)]
     [else
      (define str (symbol->string name))
      (define-values (tok idx)
@@ -311,9 +304,7 @@
          [else (values #f #f)]))
      (cond
        [(and tok (string-prefix? tok "array<")) (values tok idx)]
-       [else
-        (hash-set! non-array-names name #t)
-        (values #f #f)])]))
+       [else (values #f #f)])]))
 
 (define (array-impl-name->repr name)
   (define-values (tok idx) (array-impl-name-parts name))

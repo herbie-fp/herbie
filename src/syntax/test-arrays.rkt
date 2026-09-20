@@ -21,7 +21,7 @@
 
   (check-equal? (representation-name mixed) '(array binary32 binary64))
   (check-equal? (representation-type mixed) '(array real real))
-  (check-equal? mixed (make-array-representation #:slots (list <b32> <b64>)))
+  (check-equal? mixed (make-array-representation <b32> <b64>))
   (check-not-equal? mixed (get-representation '(array binary64 binary32)))
   (check-equal? (get-representation (representation-name mixed)) mixed)
   (check-equal? (repr->prop mixed) '((:precision . binary32)))
@@ -32,8 +32,10 @@
     (check-equal? ctor 'array<binary32:binary64>)
     (check-equal? (impl-info ctor 'itype) (list <b32> <b64>))
     (check-equal? (impl-info ctor 'otype) mixed)
+    (check-equal? (impl-info ctor 'cost) 0)
     (check-equal? ((impl-info ctor 'fl) 1.0 2.0) (vector 1.0 2.0))
     (check-equal? (impl-info (array-ref-impl-name mixed 1) 'otype) <b64>)
+    (check-equal? (impl-info (array-ref-impl-name mixed 1) 'cost) 0)
     (check-equal? ((impl-info (array-ref-impl-name mixed 1) 'fl) (vector 1.0 2.0)) 2.0)
     (define ctx (context '(a b) mixed (list <b32> <b64>)))
     (check-equal? (fpcore->prog '(array a b) ctx) '(array<binary32:binary64> a b)))
@@ -66,15 +68,15 @@
   (check-exn exn:fail?
              (lambda ()
                (assert-program-typed! #'(FPCore (x) :precision binary64 (ref (array x x) 2)))))
+  (check-exn exn:fail?
+             (lambda () (fpcore->prog '(ref (array x x) 0.5) (context '(x) <b64> (list <b64>)))))
 
   (let-values ([(repr _ctx) (assert-program-typed!
                              #'(FPCore (x) :precision binary64 (array (< x 5) x)))])
     (check-equal? (representation-name repr) '(array bool binary64)))
 
-  (check-equal? (repr->prop (make-array-representation #:slots (list <bool> <b64>)))
-                '((:precision . binary64)))
-  (check-equal? (array-representation-base (make-array-representation #:slots (list <bool> <b64>)))
-                <b64>)
+  (check-equal? (repr->prop (make-array-representation <bool> <b64>)) '((:precision . binary64)))
+  (check-equal? (array-representation-base (make-array-representation <bool> <b64>)) <b64>)
 
   (parameterize ([*active-platform* (platform-copy (*active-platform*))]
                  [*platform-extensions* '()])

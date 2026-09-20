@@ -148,14 +148,14 @@
 (module+ test
   (require rackunit)
 
-  (define vec2 (make-array-representation #:slots (list <binary64> <binary64>)))
+  (define vec2 (make-array-representation <binary64> <binary64>))
   (define ctx (context '(x) <binary64> (list vec2)))
   (let-values ([(specs* _ pre* _assemble-point _assemble-output _reprs*)
                 (flatten-arrays-for-rival (list '(ref x 1)) (list ctx) '(< (ref x 0) (ref x 1)))])
     (check-equal? specs* '(x_1))
     (check-equal? pre* '(< x_0 x_1)))
 
-  (define mat2 (make-array-representation #:slots (list vec2 vec2)))
+  (define mat2 (make-array-representation vec2 vec2))
   (define nested-ctx (context '(x) <binary64> (list mat2)))
   (let-values ([(specs* _ pre* assemble-point _assemble-output _reprs*)
                 (flatten-arrays-for-rival (list '(ref (ref x 1) 0))
@@ -193,7 +193,7 @@
     (check-equal? specs* '((+ x 1)))
     (check-equal? pre* '(< x 2)))
 
-  (define mixed (make-array-representation #:slots (list <binary32> <binary64>)))
+  (define mixed (make-array-representation <binary32> <binary64>))
   (let-values ([(specs* _ctxs* _pre* _assemble-point assemble-output reprs*)
                 (flatten-arrays-for-rival (list '(array (+ x 1) (* x 2)))
                                           (list (context '(x) mixed (list <binary64>)))

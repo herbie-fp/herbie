@@ -279,7 +279,7 @@
 (module+ test
   (require rackunit)
   (define <b64> <binary64>)
-  (define vec-repr (make-array-representation #:slots (list <b64> <b64> <b64>)))
+  (define vec-repr (make-array-representation <b64> <b64> <b64>))
   (define vec-ctx (context '(v) vec-repr (list vec-repr)))
   (define-values (specs* ctxs* pre* _assemble-pt _assemble-out reprs*)
     (flatten-arrays-for-rival (list 'v) (list vec-ctx) 'TRUE))

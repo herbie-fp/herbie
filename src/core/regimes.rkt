@@ -270,7 +270,7 @@
     (check-false (critical-subexpression? block (first vs) (block-add! block '(+ x y)))))
 
   (let ()
-    (define vec2 (make-array-representation #:slots (list <binary64> <binary64>)))
+    (define vec2 (make-array-representation <binary64> <binary64>))
     (define vec2-ctx (context '(a b) <binary64> (list vec2 vec2)))
     (define dot-product
       '(+.f64 (*.f64 (ref.0.array<binary64:binary64> a) (ref.0.array<binary64:binary64> b))

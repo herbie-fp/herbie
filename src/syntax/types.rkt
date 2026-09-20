@@ -68,7 +68,7 @@
                              #:special-value? special-value?)
   (representation name 'real bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value?))
 
-(define (make-array-representation #:slots slots)
+(define (make-array-representation . slots)
   (when (null? slots)
     (raise-herbie-error "Arrays require at least one slot"))
   (define array-ty `(array ,@(map representation-type slots)))

@@ -57,7 +57,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary32> #:cost 32bit-move-cost)
-(define <pair32> (make-array-representation #:slots (list <binary32> <binary32>)))
+(define <pair32> (make-array-representation <binary32> <binary32>))
 
 (define-operation (if.f32 [c <bool>] [t <binary32>] [f <binary32>]) <binary32>
   #:spec (if c t f) #:impl if-impl
@@ -152,7 +152,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary64> #:cost 64bit-move-cost)
-(define <pair64> (make-array-representation #:slots (list <binary64> <binary64>)))
+(define <pair64> (make-array-representation <binary64> <binary64>))
 
 (define-operation (if.f64 [c <bool>] [t <binary64>] [f <binary64>]) <binary64>
   #:spec (if c t f) #:impl if-impl

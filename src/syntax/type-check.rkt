@@ -25,7 +25,7 @@
   (for/fold ([out elem]) ([d (in-list (reverse dims))])
     (unless (exact-positive-integer? d)
       (raise-herbie-error "Argument dimensions must be positive integers, got ~a" d))
-    (make-array-representation #:slots (make-list d out))))
+    (apply make-array-representation (make-list d out))))
 
 (define (assert-program-typed! stx)
   (define-values (vars props body)
@@ -127,7 +127,7 @@
        (define slots
          (for/list ([elem (in-list elems)])
            (loop elem prop-dict ctx)))
-       (make-array-representation #:slots slots)]
+       (apply make-array-representation slots)]
       [#`(ref #,arr #,idx)
        (define arr-type (loop arr prop-dict ctx))
        (define raw (syntax-e idx))
@@ -201,7 +201,7 @@
     (check-equal? (representation-name dummy) 'dummy)
     (check-equal? (get-representation 'dummy) dummy)
 
-    (define array2 (make-array-representation #:slots (list dummy dummy)))
+    (define array2 (make-array-representation dummy dummy))
     (check-equal? (representation-name array2) '(array dummy dummy))
     (check-true (repr-exists? '(array dummy dummy)))
     (check-equal? (representation-name (get-representation '(array dummy dummy)))
@@ -255,7 +255,7 @@
     (check-types <b64> vec-type #'(array 1 2))
     (check-types <b64> vec3-type #'(array 1 2 3))
     (check-types <b64>
-                 (make-array-representation #:slots (list (array-of <b64> '(1)) vec-type))
+                 (make-array-representation (array-of <b64> '(1)) vec-type)
                  #'(array (array 1) (array 1 2)))
     (check-types <b64> <b64> #'(ref (array 5 6) 0))
     (check-types <b64> <b64> #'(ref A 2) #:env `((A . ,vec3-type)))
