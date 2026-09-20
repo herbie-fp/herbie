@@ -27,6 +27,9 @@ fi
 
 mkdir -p "$HOME/.local/bin"
 
+log_step "Pre-installing Nightlies CLI"
+uvx nightlies --help >/dev/null
+
 if [[ ! -x "$RACKET_BIN/racket" ]]; then
   log_step "Installing Racket $RACKET_VERSION"
   installer_path="$(mktemp)"

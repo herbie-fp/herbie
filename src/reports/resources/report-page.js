@@ -468,9 +468,10 @@ function plotPareto(jsonData, otherJsonData) {
     const [initial, frontier] = mergedCostAccuracy;
     const plottedFrontier = frontier.filter(([speedup, accuracy]) =>
         Number.isFinite(speedup) && Number.isFinite(accuracy));
+    const initialStroke = otherJsonData ? "#00a" : "#900";
     let marks = [
         Plot.dot([initial], {
-            stroke: "#00a",
+            stroke: initialStroke,
             symbol: "square",
             strokeWidth: 2,
         }),
@@ -682,7 +683,7 @@ function buildBody(jsonData, otherJsonData) {
                 buildTableHeader("time"),
             ]),
         ]),
-        rows,
+        Element("tbody", {}, rows),
         footer
     ]);
     return [header, stats, figureRow, buildControls(jsonData, otherJsonData, rows.length), resultsTable]

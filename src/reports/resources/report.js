@@ -36,21 +36,6 @@ function Element(tagname, props, children) {
 }
 
 
-var TogglableFlags = new Component("#flag-list", {
-    setup: function() {
-        this.elt.classList.add("changed-flags");
-        this.button = Element("a", {id: "flag-list-toggle"}, "see all");
-        this.button.addEventListener("click", this.toggle);
-        this.elt.insertBefore(this.button, this.elt.children[0]);
-    },
-    toggle: function() {
-        this.elt.classList.toggle("changed-flags");
-        var changed_only = this.elt.classList.contains("changed-flags");
-        this.button.innerText = changed_only ? "see all" : "see diff";
-    }
-});
-
-
 // Cicular color wheel representing error values limited to size 10
 const colors = [
     { line: { stroke: '#d00' }, dot: { stroke: '#d002'} },

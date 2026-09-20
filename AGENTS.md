@@ -48,6 +48,8 @@
 
 # Observability
 
+- Nightly eval runs can be accessed with `uvx nightlies`; run
+  `uvx nightlies --help` for usage.
 - If you're investigating a single benchmark, copy it to a file named
   `test.fpcore` and run just that file.
 - Herbie runs output a `tmp/<benchmark>/timeline.json` with rich
