@@ -170,7 +170,7 @@
     (match step
       ['lift (egglog-send subproc '(run-schedule (saturate lift)))]
       ['lower (egglog-send subproc '(run-schedule (saturate lower)))]
-      ['unsound (egglog-unsound-step subproc)]
+      ['unsound (egglog-send subproc '(run-schedule (saturate unsound)))]
       ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
       ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
@@ -220,8 +220,7 @@
    `(function bad-merge? () bool :merge (or old new))
    `(ruleset bad-merge-rule)
    `(set (bad-merge?) false)
-   `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule)
-   `(rule ((= (Num c) (Var v))) ((set (bad-merge?) true)) :ruleset bad-merge-rule))
+   `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule))
 
   (void))
 
@@ -290,7 +289,14 @@
            (define arity (length (operator-info op 'itype)))
            (hash-set! (id->e1) op (serialize-op op))
            (hash-set! (e1->id) (serialize-op op) op)
-           `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295))))
+           `(,(serialize-op op) ,@(if (eq? op 'ref)
+                                      '(M i64)
+                                      (make-list arity 'M))
+                                :cost
+                                4294967295))))
+
+(define (impl-op impl)
+  (string->symbol (car (string-split (symbol->string impl) "."))))
 
 (define (platform-impl-nodes pform)
   (for/list ([impl (in-list (platform-impls pform))])
@@ -299,7 +305,11 @@
     (hash-set! (id->e2) impl typed-name)
     (hash-set! (e2->id) typed-name impl)
     (define cost (normalize-cost (impl-info impl 'cost)))
-    `(,typed-name ,@(make-list arity 'MTy) :cost ,cost)))
+    `(,typed-name ,@(if (eq? (impl-op impl) 'ref)
+                        '(MTy i64)
+                        (make-list arity 'MTy))
+                  :cost
+                  ,cost)))
 
 (define (typed-num-id repr-name)
   (string->symbol (format "Num_~a" (egglog-repr-token repr-name))))
@@ -340,16 +350,22 @@
   (append (for/list ([impl (in-list (platform-impls pform))]
                      #:unless (set-member? helper-impls impl))
             (define spec-expr (impl-info impl 'spec))
+            (define ref? (eq? (impl-op impl) 'ref))
             `(rule ((= ?root ,(expr->egglog-spec-serialized spec-expr ""))
                     ,@(for/list ([v (in-list (impl-info impl 'vars))]
-                                 [vt (in-list (impl-info impl 'itype))])
+                                 [vt (in-list (impl-info impl 'itype))]
+                                 [i (in-naturals)]
+                                 #:unless (and ref? (= i 1)))
                         `(= ,(string->symbol (string-append "t" (symbol->string v)))
                             (do-lower ,v ,(egglog-repr-token vt)))))
                    ((union (do-lower ?root ,(egglog-repr-token (impl-info impl 'otype)))
                            (,(string->symbol (string-append (symbol->string (serialize-impl impl))
                                                             "Ty"))
-                            ,@(for/list ([v (in-list (impl-info impl 'vars))])
-                                (string->symbol (string-append "t" (symbol->string v)))))))
+                            ,@(for/list ([v (in-list (impl-info impl 'vars))]
+                                         [i (in-naturals)])
+                                (if (and ref? (= i 1))
+                                    v
+                                    (string->symbol (string-append "t" (symbol->string v))))))))
                    :ruleset
                    lower))
           (egglog-rewrite-rules (array-lowering-rules pform) 'lower)))
@@ -357,11 +373,14 @@
 (define (impl-lifting-rules pform)
   (for/list ([impl (in-list (platform-impls pform))])
     (define spec-expr (impl-info impl 'spec))
+    (define ref? (eq? (impl-op impl) 'ref))
     `(rule ((= ?root
                (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
                 ,@(impl-info impl 'vars)))
             ,@(for/list ([v (in-list (impl-info impl 'vars))]
-                         [vt (in-list (impl-info impl 'itype))])
+                         [vt (in-list (impl-info impl 'itype))]
+                         [i (in-naturals)]
+                         #:unless (and ref? (= i 1)))
                 `(= ,(string->symbol (string-append "s" (symbol->string v))) (do-lift ,v))))
            ((union (do-lift ?root) ,(expr->egglog-spec-serialized spec-expr "s")))
            :ruleset
@@ -374,15 +393,24 @@
     [(_ _) (hash-ref (id->e1) op)]))
 
 (define (expr->egglog-spec-serialized expr s)
-  (let loop ([expr expr])
+  (let loop ([expr expr]
+             [int? #f])
     (match expr
-      [(? number?) `(Num ,(real->bigrat expr))]
-      [(? symbol?) (string->symbol (string-append s (symbol->string expr)))]
+      [(? number?)
+       (if int?
+           expr
+           `(Num ,(real->bigrat expr)))]
+      [(? symbol?)
+       (if int?
+           expr
+           (string->symbol (string-append s (symbol->string expr))))]
       [(list op args ...)
        `(,(if (hash-has-key? (id->e1) op)
               (serialize-spec-op op (length args))
               (hash-ref (id->e2) op))
-         ,@(map loop args))])))
+         ,@(for/list ([arg (in-list args)]
+                      [i (in-naturals)])
+             (loop arg (and (eq? op 'ref) (= i 1)))))])))
 
 (define (serialize-op op)
   (if (hash-has-key? op-string-names op)
@@ -399,11 +427,18 @@
   (string->symbol (string-append (symbol->string (serialize-op op)) type)))
 
 (define (expr->e1-pattern expr)
-  (let loop ([expr expr])
+  (let loop ([expr expr]
+             [int? #f])
     (match expr
-      [(? number?) `(Num ,(real->bigrat expr))]
+      [(? number?)
+       (if int?
+           expr
+           `(Num ,(real->bigrat expr)))]
       [(? symbol?) expr]
-      [(list op args ...) `(,(serialize-spec-op op (length args)) ,@(map loop args))])))
+      [(list op args ...)
+       `(,(serialize-spec-op op (length args)) ,@(for/list ([arg (in-list args)]
+                                                            [i (in-naturals)])
+                                                   (loop arg (and (eq? op 'ref) (= i 1)))))])))
 
 (define (egglog-rewrite-rules rules tag)
   (for/list ([rule (in-list rules)]
@@ -431,6 +466,11 @@
   (define root-mask (make-vector (block-length block) #f))
   (define reachable-vs '())
 
+  (define (ref-index arg)
+    (match (val-def arg)
+      [(literal value _) value]
+      [(? exact-integer? value) value]))
+
   (for ([v (in-list vs)])
     (vector-set! root-mask (val-idx v) #t))
   (define add-to-egglog
@@ -444,8 +484,11 @@
                          [(? number?) `(Num ,(real->bigrat node))]
                          [(? symbol?) #f]
                          [(list impl args ...)
-                          `(,(hash-ref (id->e1) impl) ,@(for/list ([arg (in-list args)])
-                                                          (recurse arg)))]))
+                          `(,(hash-ref (id->e1) impl) ,@(for/list ([arg (in-list args)]
+                                                                   [i (in-naturals)])
+                                                          (if (and (eq? impl 'ref) (= i 1))
+                                                              (ref-index arg)
+                                                              (recurse arg))))]))
 
                      (set! reachable-vs (cons v reachable-vs))
                      (if node*
@@ -549,20 +592,6 @@
                               (run bad-merge-rule :until (bad-merge?))))))
   (void))
 
-(define (egglog-unsound-step subproc)
-  (egglog-send subproc
-               '(set (bad-merge?) false)
-               '(push)
-               '(run-schedule (saturate unsound))
-               '(run bad-merge-rule 1))
-  (define bad-merge?
-    (match (first (egglog-send subproc '(extract (bad-merge?))))
-      ['("false") #f]
-      ['("true") #t]))
-  (when bad-merge?
-    (egglog-send subproc '(pop)))
-  (void))
-
 (define (egglog-num? id)
   (string-prefix? (symbol->string id) "Num"))
 
@@ -577,15 +606,22 @@
 
 (define (e1->expr expr)
   (match expr
+    [(? exact-integer? n) n]
     [`(Num (bigrat (from-string ,n) (from-string ,d))) (/ (string->number n) (string->number d))]
     [`(Var ,v) (string->symbol v)]
     [`(,op ,args ...) `(,(hash-ref (e1->id) op) ,@(map e1->expr args))]))
 
 (define (e2->expr expr)
   (match expr
+    [(? exact-integer? n) n]
     [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
      (literal (/ (string->number n) (string->number d)) (egglog-num-repr num))]
     [`(,(? egglog-var? var) ,v) (string->symbol v)]
+    [`(,impl ,arr ,idx)
+     #:when (and (hash-has-key? (e2->id) impl) (eq? (impl-op (hash-ref (e2->id) impl)) 'ref))
+     (define ref-impl (hash-ref (e2->id) impl))
+     `(,ref-impl ,(e2->expr arr)
+                 ,(literal idx (representation-name (second (impl-info ref-impl 'itype)))))]
     ; Approx stores a spec expression in E1/M and an implementation in E2/MTy.
     [`(Approx ,spec ,impl) (approx (e1->expr spec) (e2->expr impl))]
     [`(,impl ,args ...) `(,(hash-ref (e2->id) impl) ,@(map e2->expr args))]))
