@@ -73,10 +73,25 @@
   (for/list ([result (in-list results)])
     (read (open-input-string result))))
 
+;; Send an extract command and read its single s-expression response directly
+;; from the subprocess port. Responses can be many megabytes, so this avoids
+;; materializing them as intermediate line strings before parsing.
 (define (egglog-multi-extract subproc extract-command)
-  (define raw-lines (first (egglog-send subproc extract-command)))
-  (define combined (string-join raw-lines " "))
-  (define parsed (read (open-input-string combined)))
-  (for/list ([result-list (in-list parsed)])
-    (for/list ([result (in-list result-list)])
-      result)))
+  (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
+
+  (when dump-file
+    (pretty-print extract-command dump-file 1)
+    (flush-output dump-file))
+
+  (writeln extract-command egglog-in)
+  (flush-output egglog-in)
+
+  (define result (read egglog-output))
+  (when (eof-object? result)
+    (error 'egglog-multi-extract "egglog subprocess closed its output"))
+  ;; Drain the rest of the response up to the (done) marker.
+  (let loop ()
+    (define line (read-line egglog-output))
+    (unless (or (eof-object? line) (equal? line "(done)"))
+      (loop)))
+  result)
