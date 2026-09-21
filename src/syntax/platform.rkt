@@ -87,12 +87,12 @@
                              (string-join (map ~s (hash-keys reprs)) ", ")
                              (*platform-name*)))]))
 
-(define (repr-exists? name)
-  (define platform (*active-platform*))
+(define (repr-exists? name [platform (*active-platform*)])
   (define reprs (platform-representations platform))
   (match name
     [(? representation?) #t]
-    [`(array ,slots ...) (and (pair? slots) (andmap repr-exists? slots))]
+    [`(array ,slots ...)
+     (and (pair? slots) (andmap (lambda (slot) (repr-exists? slot platform)) slots))]
     [_ (hash-has-key? reprs name)]))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> LSpec

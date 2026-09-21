@@ -118,8 +118,6 @@
   [tgamma.f32 #:spec (tgamma x) #:impl (from-libm 'tgammaf) #:cost 2.625]
   [trunc.f32  #:spec (trunc x)  #:impl (from-libm 'truncf)  #:cost 0.275])
 
-(define-representation <pair32> #:cost (* 2 32bit-move-cost))
-
 (define-operation (sincos.f32 [x <binary32>]) <pair32>
   #:spec (array (sin x) (cos x))
   #:impl sincosf-impl
@@ -211,8 +209,6 @@
   [tanh.f64   #:spec (tanh x)   #:impl (from-libm 'tanh)      #:cost 1.000]
   [tgamma.f64 #:spec (tgamma x) #:impl (from-libm 'tgamma)    #:cost 2.625]
   [trunc.f64  #:spec (trunc x)  #:impl (from-libm 'trunc)     #:cost 0.250])
-
-(define-representation <pair64> #:cost (* 2 64bit-move-cost))
 
 (define-operation (sincos.f64 [x <binary64>]) <pair64>
   #:spec (array (sin x) (cos x))

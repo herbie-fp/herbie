@@ -143,12 +143,11 @@
 
 (define (platform-register-implementation! platform impl)
   ; Reprs check
-  (define reprs (platform-representations platform))
   (define otype (context-repr (operator-impl-ctx impl)))
   (define itype (context-var-reprs (operator-impl-ctx impl)))
   (define impl-reprs (map representation-name (remove-duplicates (cons otype itype))))
   (for ([repr-name (in-list impl-reprs)]
-        #:unless (hash-has-key? reprs repr-name))
+        #:unless (repr-exists? repr-name platform))
     (raise-herbie-error "Platform ~a missing representation ~a for ~a implementation"
                         (*platform-name*)
                         repr-name
