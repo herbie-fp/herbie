@@ -210,6 +210,7 @@
    `(datatype MTy
               ,@(num-typed-nodes pform)
               ,@(var-typed-nodes pform)
+              ,@(index-typed-nodes pform)
               (Approx M MTy)
               ,@(platform-impl-nodes pform))
    `(constructor do-lower (M String) MTy :unextractable)
@@ -306,6 +307,9 @@
 (define (typed-var-id repr-name)
   (string->symbol (format "Var_~a" (egglog-repr-token repr-name))))
 
+(define (typed-index-id repr-name)
+  (string->symbol (format "Index_~a" (egglog-repr-token repr-name))))
+
 (define (num-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))]
              #:when (not (eq? repr 'bool)))
@@ -315,6 +319,11 @@
 (define (var-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))])
     `(,(typed-var-id repr) String :cost 0)))
+
+(define (index-typed-nodes pform)
+  (for/list ([repr (in-list (all-repr-names))]
+             #:when (not (eq? repr 'bool)))
+    `(,(typed-index-id repr) BigRat :cost 0)))
 
 (define (num-lowering-rules)
   (for/list ([repr (in-list (all-repr-names))]
@@ -351,7 +360,55 @@
                                 (string->symbol (string-append "t" (symbol->string v)))))))
                    :ruleset
                    lower))
-          (egglog-rewrite-rules (array-lowering-rules pform) 'lower)))
+          (egglog-array-lowering-rules pform)))
+
+(define (array-rule-index impl array-rule)
+  (match (impl-info impl 'spec)
+    [`(array ,elems ...)
+     (for/first ([elem (in-list elems)]
+                 [idx (in-naturals)]
+                 #:when (and (equal? elem (rule-input array-rule))
+                             (equal? `(ref (array ,@elems) ,idx) (rule-output array-rule))))
+       idx)]
+    [_ #f]))
+
+(define (impl-op impl)
+  (string->symbol (car (string-split (symbol->string impl) "."))))
+
+(define (array-ref-impl pform array-repr elem-repr)
+  (for/first ([impl (in-list (platform-impls pform))]
+              #:when (and (eq? (impl-op impl) 'ref)
+                          (equal? (impl-info impl 'itype) (list array-repr elem-repr))
+                          (equal? (impl-info impl 'otype) elem-repr)))
+    impl))
+
+(define (egglog-array-lowering-rules pform)
+  (define helper-impls
+    (for/seteq ([extension (in-list (*platform-extensions*))])
+      (fpcore-extension-name extension)))
+  (append*
+   (for/list ([array-rule (in-list (array-lowering-rules pform))])
+     (for/list ([impl (in-list (platform-impls pform))]
+                #:unless (set-member? helper-impls impl)
+                #:when (array-rule-index impl array-rule))
+       (define array-repr (impl-info impl 'otype))
+       (define elem-repr (array-representation-elem array-repr))
+       (define ref-impl (array-ref-impl pform array-repr elem-repr))
+       (define idx (array-rule-index impl array-rule))
+       `(rule ((= ?root ,(expr->egglog-spec-serialized (rule-input array-rule) ""))
+               ,@(for/list ([v (in-list (impl-info impl 'vars))]
+                            [vt (in-list (impl-info impl 'itype))])
+                   `(= ,(string->symbol (string-append "t" (symbol->string v)))
+                       (do-lower ,v ,(egglog-repr-token vt)))))
+              ((union (do-lower ?root ,(egglog-repr-token elem-repr))
+                      (,(string->symbol (string-append (symbol->string (serialize-impl ref-impl))
+                                                       "Ty"))
+                       (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
+                        ,@(for/list ([v (in-list (impl-info impl 'vars))])
+                            (string->symbol (string-append "t" (symbol->string v)))))
+                       (,(typed-index-id (representation-name elem-repr)) ,(real->bigrat idx)))))
+              :ruleset
+              lower)))))
 
 (define (impl-lifting-rules pform)
   (for/list ([impl (in-list (platform-impls pform))])
@@ -560,6 +617,9 @@
 (define (egglog-var? id)
   (string-prefix? (symbol->string id) "Var"))
 
+(define (egglog-index? id)
+  (string-prefix? (symbol->string id) "Index_"))
+
 (define (e1->expr expr)
   (match expr
     [`(Num (bigrat (from-string ,n) (from-string ,d))) (/ (string->number n) (string->number d))]
@@ -570,6 +630,9 @@
   (match expr
     [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
      (literal (/ (string->number n) (string->number d)) (egglog-num-repr num))]
+    [`(,(? egglog-index? index) (bigrat (from-string ,n) (from-string ,d)))
+     (literal (/ (string->number n) (string->number d))
+              (egglog-repr-name (substring (symbol->string index) 6)))]
     [`(,(? egglog-var? var) ,v) (string->symbol v)]
     ; Approx stores a spec expression in E1/M and an implementation in E2/MTy.
     [`(Approx ,spec ,impl) (approx (e1->expr spec) (e2->expr impl))]
