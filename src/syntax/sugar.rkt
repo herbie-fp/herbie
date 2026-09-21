@@ -199,7 +199,8 @@
 
 (define (array-accessor-impl impl)
   (match (impl-info impl 'fpcore)
-    [(list 'ref _ _) (and (array-representation? (first (impl-info impl 'itype))) impl)]
+    [(list 'ref (? symbol?) (? exact-nonnegative-integer?))
+     (and (array-representation? (first (impl-info impl 'itype))) impl)]
     [_ #f]))
 
 ;; Translates an FPCore operator application into

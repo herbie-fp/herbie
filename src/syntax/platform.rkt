@@ -283,31 +283,13 @@
     [(or (string-contains? tok "<") (string-contains? tok ">") (string-contains? tok ":")) #f]
     [else (string->symbol tok)]))
 
-(define (array-impl-name-parts name)
-  (cond
-    [(not (symbol? name)) (values #f #f)]
-    [else
-     (define str (symbol->string name))
-     (define-values (tok idx)
-       (cond
-         [(string-prefix? str "array<") (values str #f)]
-         [(string-prefix? str "ref.")
-          (define rest (substring str 4))
-          (define dot
-            (for/first ([i (in-range (string-length rest))]
-                        #:when (char=? (string-ref rest i) #\.))
-              i))
-          (define n (and dot (string->number (substring rest 0 dot))))
-          (if (and dot (exact-nonnegative-integer? n))
-              (values (substring rest (add1 dot)) n)
-              (values #f #f))]
-         [else (values #f #f)]))
-     (cond
-       [(and tok (string-prefix? tok "array<")) (values tok idx)]
-       [else (values #f #f)])]))
-
 (define (array-impl-name->repr name)
-  (define-values (tok idx) (array-impl-name-parts name))
+  (define-values (tok idx)
+    (match (and (symbol? name)
+                (regexp-match #px"^(?:ref\\.([0-9]+)\\.)?(array<.*>)$" (symbol->string name)))
+      [(list _ #f tok) (values tok #f)]
+      [(list _ idx tok) (values tok (string->number idx))]
+      [_ (values #f #f)]))
   (define repr-name (and tok (token->repr-name tok)))
   (define repr
     (and repr-name
@@ -324,11 +306,10 @@
   (and repr #t))
 
 (define (synthesize-array-impl! name)
-  (define-values (repr idx) (array-impl-name->repr name))
+  (define-values (repr _idx) (array-impl-name->repr name))
   (and repr
-       (begin
-         (ensure-array-impls! repr)
-         #t)))
+       (ensure-array-impls! repr)
+       (hash-ref (platform-implementations (*active-platform*)) name #f)))
 
 ;; Expression predicates ;;
 
@@ -343,16 +324,9 @@
   (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost 'aggregate) any/c)
   (define impls (platform-implementations (*active-platform*)))
   (define impl
-    (hash-ref
-     impls
-     impl-name
-     (lambda ()
-       (synthesize-array-impl! impl-name)
-       (hash-ref
-        impls
-        impl-name
-        (lambda ()
-          (error 'impl-info "unknown impl '~a in platform ~a" impl-name (*platform-name*)))))))
+    (or (hash-ref impls impl-name #f)
+        (synthesize-array-impl! impl-name)
+        (error 'impl-info "unknown impl '~a in platform ~a" impl-name (*platform-name*))))
   (case field
     [(vars) (context-vars (operator-impl-ctx impl))]
     [(itype) (context-var-reprs (operator-impl-ctx impl))]
