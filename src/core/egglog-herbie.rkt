@@ -210,7 +210,7 @@
    `(datatype MTy
               ,@(num-typed-nodes pform)
               ,@(var-typed-nodes pform)
-              ,@(index-typed-nodes pform)
+              (Index BigRat String :cost 0)
               (Approx M MTy)
               ,@(platform-impl-nodes pform))
    `(constructor do-lower (M String) MTy :unextractable)
@@ -307,9 +307,6 @@
 (define (typed-var-id repr-name)
   (string->symbol (format "Var_~a" (egglog-repr-token repr-name))))
 
-(define (typed-index-id repr-name)
-  (string->symbol (format "Index_~a" (egglog-repr-token repr-name))))
-
 (define (num-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))]
              #:when (not (eq? repr 'bool)))
@@ -319,11 +316,6 @@
 (define (var-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))])
     `(,(typed-var-id repr) String :cost 0)))
-
-(define (index-typed-nodes pform)
-  (for/list ([repr (in-list (all-repr-names))]
-             #:when (not (eq? repr 'bool)))
-    `(,(typed-index-id repr) BigRat :cost 0)))
 
 (define (num-lowering-rules)
   (for/list ([repr (in-list (all-repr-names))]
@@ -406,7 +398,7 @@
                        (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
                         ,@(for/list ([v (in-list (impl-info impl 'vars))])
                             (string->symbol (string-append "t" (symbol->string v)))))
-                       (,(typed-index-id (representation-name elem-repr)) ,(real->bigrat idx)))))
+                       (Index ,(real->bigrat idx) ,(egglog-repr-token elem-repr)))))
               :ruleset
               lower)))))
 
@@ -618,7 +610,7 @@
   (string-prefix? (symbol->string id) "Var"))
 
 (define (egglog-index? id)
-  (string-prefix? (symbol->string id) "Index_"))
+  (eq? id 'Index))
 
 (define (e1->expr expr)
   (match expr
@@ -630,9 +622,8 @@
   (match expr
     [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
      (literal (/ (string->number n) (string->number d)) (egglog-num-repr num))]
-    [`(,(? egglog-index? index) (bigrat (from-string ,n) (from-string ,d)))
-     (literal (/ (string->number n) (string->number d))
-              (egglog-repr-name (substring (symbol->string index) 6)))]
+    [`(,(? egglog-index? index) (bigrat (from-string ,n) (from-string ,d)) ,repr)
+     (literal (/ (string->number n) (string->number d)) (egglog-repr-name repr))]
     [`(,(? egglog-var? var) ,v) (string->symbol v)]
     ; Approx stores a spec expression in E1/M and an implementation in E2/MTy.
     [`(Approx ,spec ,impl) (approx (e1->expr spec) (e2->expr impl))]
