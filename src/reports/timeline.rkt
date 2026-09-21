@@ -431,6 +431,22 @@
 
 (define (render-about info)
   (match-define (report-info date commit branch seed flags points iterations tests) info)
+  (define summary-flags
+    (if (null? (changed-flags))
+        '("default")
+        (for/list ([rec (in-list (changed-flags))])
+          (match-define (list delta class flag) rec)
+          `(kbd ,(match delta
+                   ['enabled "+o"]
+                   ['disabled "-o"])
+                " "
+                ,(~a class)
+                ":"
+                ,(~a flag)))))
+  (define all-flags
+    (for*/list ([(class flags) (*flags*)]
+                [flag flags])
+      `(kbd ,(~a class) ":" ,(~a flag))))
 
   `(table ((id "about"))
           (tr (th "Date:") (td ,(date->string date)))
@@ -444,23 +460,9 @@
           (tr (th "Parameters:")
               (td ,(~a (*num-points*)) " points for " ,(~a (*num-iterations*)) " iterations"))
           (tr (th "Flags:")
-              (td ((id "flag-list"))
-                  (div ((id "all-flags"))
-                       ,@(for*/list ([(class flags) (*flags*)]
-                                     [flag flags])
-                           `(kbd ,(~a class) ":" ,(~a flag))))
-                  (div ((id "changed-flags"))
-                       ,@(if (null? (changed-flags))
-                             '("default")
-                             (for/list ([rec (in-list (changed-flags))])
-                               (match-define (list delta class flag) rec)
-                               `(kbd ,(match delta
-                                        ['enabled "+o"]
-                                        ['disabled "-o"])
-                                     " "
-                                     ,(~a class)
-                                     ":"
-                                     ,(~a flag)))))))))
+              (td (details ([id "flag-list"])
+                           (summary ,@summary-flags)
+                           (div "All enabled flags: " ,@all-flags))))))
 
 (define (render-profile)
   `(section ([id "profile"]) (h1 "Profiling") (p ((class "load-text")) "Loading profile data...")))

@@ -27,7 +27,7 @@
 
 (define (flatten-arrays-for-rival/no-arrays? specs ctxs pre)
   (and (not (ormap array-representation? (map context-repr ctxs)))
-       (not (ormap array-representation? (append* (map context-var-reprs ctxs))))
+       (not (ormap array-representation? (append-map context-var-reprs ctxs)))
        (not (ormap array-expression? (cons pre specs)))))
 
 (define (flatten-arrays-for-rival/no-arrays specs ctxs pre)

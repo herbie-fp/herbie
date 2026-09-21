@@ -37,6 +37,10 @@ summary h1, summary h2 { display: inline-block; }
 
 .figure-row { display: flex; flex-direction: row; gap: 1em; align-items: start; }
 figure, section { flex: 1; border: 1px solid #ddd; padding: 1ex; margin: 1em 0; align-self: start; }
+@media (max-width: 800px) {
+    .figure-row { flex-direction: column; }
+    .figure-row > * { width: auto; }
+}
 section.error { border: 2px solid #a40000; background: #ef2929; color: white; }
 section.error a { color: #ffdb4c; }
 h2 { font-size: 1em; font-family: 'IBM Plex Serif', serif; margin: 0; }
@@ -50,17 +54,11 @@ svg.clickable circle:hover { stroke: #00a; stroke-width: 10; cursor: pointer; }
 /* Flag list / configuration */
 
 #about { margin: 3em 0; }
-#about th { font-weight: bold; text-align: left; padding-right: 1em; }
+#about th { font-weight: bold; text-align: left; padding-right: 1em; vertical-align: top; }
 
-#flag-list { position: relative; }
+#flag-list summary { cursor: pointer; }
 #flag-list kbd:not(:last-child):after { content: ", "; }
-#flag-list a { float: right; margin: 0 .5em; }
-#flag-list a:before { content: "("; }
-#flag-list a:after { content: ")"; }
-#flag-list #changed-flags { display: none; }
-#flag-list #all-flags { display: block; }
-#flag-list.changed-flags #changed-flags { display: block; }
-#flag-list.changed-flags #all-flags { display: none; }
+#flag-list > div { color: #666; margin-top: .5em; }
 
 /* Result color pallette */
 :root {
@@ -180,7 +178,7 @@ section { display: flow-root; }
 .programs select { position: absolute; right: 3em; }
 .program { display: inline-block; text-align: left; }
 #precondition { margin: 2em 0; }
-#precondition:before { content: "Precondition:"; display: block; color: #444; margin-left: -2em; }
+#precondition:before { content: "Precondition:"; display: block; color: #444; margin-left: 0; }
 /* Allow line breaks in display equations (see https://katex.org/docs/issues.html) */
 .katex-display > .katex { white-space: normal }
 .katex-display .base { margin: 0.25em 0 }
@@ -226,7 +224,7 @@ section { display: flow-root; }
 
 /* Derivation */
 
-.history, .history ol { list-style: none inside; width: 800px; margin: 0 0 2em; padding: 0; }
+.history, .history ol { list-style: none inside; width: 100%; margin: 0 0 2em; padding: 0; }
 
 .history li p { width: 250px; display: inline-block; margin: 0 25px 0 0; }
 .history li .error { display: block; color: #666; }
