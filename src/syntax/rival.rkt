@@ -29,7 +29,8 @@
         (r2-impl args ...))))
 
 (define/rival (rival-compile exprs vars discs) r2:rival-compile r3:rival-compile)
-(define/rival (rival-apply machine pt hint) r2:rival-apply r3:rival-apply)
+;; Rival 3 takes Herbie's values as they are; Rival 2 takes bigfloats.
+(define/rival (rival-apply machine pt hint) r2:rival-apply r3:rival-apply/f64)
 (define/rival (rival-analyze-with-hints machine rect hint)
               r2:rival-analyze-with-hints
               r3:rival-analyze-with-hints)
@@ -176,24 +177,24 @@
                  assemble-point
                  assemble-output))
 
-(define (bigfloat->readable-string x)
-  (define real (bigfloat->real x)) ; Exact rational unless inf/nan
-  (define float (real->double-flonum real))
-  (if (= real float)
-      (format "#i~a" float) ; The #i explicitly means nearest float
-      (number->string real))) ; Backup is print as rational
+(define (value->readable-string x)
+  (if (flonum? x)
+      (format "#i~a" x) ; The #i explicitly means nearest float
+      (~a x)))
 
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
   (match-define (real-compiler _ vars var-reprs _ _ machine dump-file _ _) compiler)
   (define start (current-inexact-milliseconds))
   (define pt*
-    (for/vector #:length (vector-length vars)
-                ([val (in-vector pt)]
-                 [repr (in-vector var-reprs)])
-      ((representation-repr->bf repr) val)))
+    (if (use-rival3?)
+        pt
+        (for/vector #:length (vector-length vars)
+                    ([val (in-vector pt)]
+                     [repr (in-vector var-reprs)])
+          ((representation-repr->bf repr) val))))
   (when dump-file
-    (define args (map bigfloat->readable-string (vector->list pt*)))
+    (define args (map value->readable-string (vector->list pt)))
     (fprintf dump-file "(eval f ~a)\n" (string-join args " "))
     (flush-output dump-file))
   (define-values (status value)
