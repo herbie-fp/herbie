@@ -69,7 +69,7 @@
       (set-seed! given-seed))]
    [("--threads")
     num
-    "How many jobs to run in parallel: Processor count is the default."
+    "How many jobs to run in parallel, or `yes` for all processors. By default, none."
     (set! threads (string->thread-count num))]
    [("--platform")
     platform
@@ -83,10 +83,14 @@
     (*num-iterations* (string->number num))]
    [("--num-points")
     num
-    ("The number of points to use during sampling. Increasing the number of points may make results
-     more consistent, but may slow down Herbie."
-     (format "[Default: ~a points]" (*num-points*)))
-    (*num-points* (string->number num))]
+    ("The number of points to use during sampling, as training/testing. Increasing the number of
+     points may make results more consistent, but may slow down Herbie."
+     (format "[Default: ~a/~a points]" (*num-points*) (*reeval-pts*)))
+    (match (map string->number (string-split num "/"))
+      [(list train) (*num-points* train)]
+      [(list train test)
+       (*num-points* train)
+       (*reeval-pts* test)])]
    [("--num-enodes")
     num
     ("The maximum number of enodes to use during egraph-based rewriting. Herbie may find additional
