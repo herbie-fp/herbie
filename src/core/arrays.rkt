@@ -67,18 +67,16 @@
        (define v (fresh base))
        (values v (list v) (list repr))]))
   (define (flatten-by-repr expr repr)
-    (cond
-      [(array-representation? repr)
-       (match-let ([`(array ,elems ...) expr])
-         (append-map flatten-by-repr elems (array-representation-slots repr)))]
-      [else (list expr)]))
+    (if (array-representation? repr)
+        (match-let ([`(array ,elems ...) expr])
+          (append-map flatten-by-repr elems (array-representation-slots repr)))
+        (list expr)))
   (define (build-value next repr)
-    (cond
-      [(array-representation? repr)
-       (for/vector #:length (length (array-representation-slots repr))
-                   ([slot (in-list (array-representation-slots repr))])
-         (build-value next slot))]
-      [else (next)]))
+    (if (array-representation? repr)
+        (for/vector #:length (length (array-representation-slots repr))
+                    ([slot (in-list (array-representation-slots repr))])
+          (build-value next slot))
+        (next)))
 
   (define env (make-hasheq))
   (define new-vars '())
