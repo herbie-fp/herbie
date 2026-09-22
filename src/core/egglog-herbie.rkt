@@ -10,6 +10,7 @@
          "../config.rkt"
          "../syntax/block.rkt"
          "../utils/common.rkt"
+         "../utils/errors.rkt"
          "egglog-subprocess.rkt")
 
 (provide (struct-out egglog-runner)
@@ -31,7 +32,6 @@
 (define/reset e1->id (make-hasheq))
 (define/reset id->e2 (make-hasheq))
 (define/reset e2->id (make-hasheq))
-(define/reset e2-ref-index (make-hasheq))
 
 ;; [Copied from egg-herbie.rkt] Returns all representatations (and their types) in the current platform.
 (define (all-repr-names [pform (*active-platform*)])
@@ -41,19 +41,11 @@
   (match repr-name
     [(? representation?) (egglog-repr-token (representation-name repr-name))]
     [(? symbol?) (format "sym_~a" repr-name)]
-    [`(array ,elem ,len) (format "arr_~a_~a" len (egglog-repr-token elem))]))
+    [`(array ,slots ...) (format "arr_~a" (string-join (map egglog-repr-token slots) "_"))]))
 
 (define (egglog-repr-name token)
   (cond
     [(string-prefix? token "sym_") (string->symbol (substring token 4))]
-    [(string-prefix? token "arr_")
-     (define rest (substring token 4))
-     (define split
-       (for/first ([i (in-range (string-length rest))]
-                   #:when (char=? (string-ref rest i) #\_))
-         i))
-     `(array ,(egglog-repr-name (substring rest (add1 split)))
-             ,(string->number (substring rest 0 split)))]
     ;; Legacy scalar encoding used in older tests and dumps.
     [else (string->symbol token)]))
 
@@ -204,7 +196,8 @@
 (define (prelude subproc #:mixed-egraph? [mixed-egraph? #t])
   (define pform (*active-platform*))
 
-  (egglog-send subproc `(datatype M ,@(platform-spec-nodes)))
+  (array-lowering-rules pform)
+  (egglog-send subproc `(datatype M ,@(platform-spec-nodes pform)))
 
   (egglog-send
    subproc
@@ -271,62 +264,48 @@
     (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
     (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
 
-(define (platform-spec-nodes)
+(define (spec-array-arities expr)
+  (match expr
+    [(list 'array args ...) (cons (length args) (append* (map spec-array-arities args)))]
+    [(list _ args ...) (append* (map spec-array-arities args))]
+    [_ '()]))
+
+(define (platform-spec-nodes pform)
   (for ([op '(sound-/ sound-log sound-pow)])
     (hash-set! (id->e1) op (serialize-op op))
     (hash-set! (e1->id) (serialize-op op) op))
-  (hash-set! (id->e1) 'array 'Array)
-  (hash-set! (e1->id) 'Array 'array)
-  (hash-set! (e1->id) 'Array3 'array)
+  (define array-arities
+    (sort (remove-duplicates (append* (for/list ([impl (in-list (platform-impls pform))])
+                                        (spec-array-arities (impl-info impl 'spec)))))
+          <))
+  (hash-set! (id->e1) 'array #t)
   (hash-set! (id->e1) 'ref 'Ref)
   (hash-set! (e1->id) 'Ref 'ref)
-  (list* '(Num BigRat :cost 4294967295)
-         '(Var String :cost 4294967295)
-         '(Sound-/ M M M :cost 4294967295)
-         '(Sound-Log M M :cost 4294967295)
-         '(Sound-Pow M M M :cost 4294967295)
-         '(Array3 M M M :cost 4294967295)
-         '(Ref M i64 :cost 4294967295)
-         (for/list ([op (in-list (all-operators))]
-                    #:unless (eq? op 'ref))
-           (define arity (length (operator-info op 'itype)))
-           (hash-set! (id->e1) op (serialize-op op))
-           (hash-set! (e1->id) (serialize-op op) op)
-           `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295))))
-
-(define (impl-op impl)
-  (string->symbol (car (string-split (symbol->string impl) "."))))
-
-(define (ref-impl-node-name impl idx)
-  (string->symbol (format "Ref_~a_~a_~aTy"
-                          idx
-                          (serialize-impl impl)
-                          (egglog-repr-token (first (impl-info impl 'itype))))))
-
-(define (platform-impl-node impl)
-  (define arity (length (impl-info impl 'itype)))
-  (define typed-name (string->symbol (format "~aTy" (serialize-impl impl))))
-  (hash-set! (id->e2) impl typed-name)
-  (hash-set! (e2->id) typed-name impl)
-  (define cost (normalize-cost (impl-info impl 'cost)))
-  `(,typed-name ,@(make-list arity 'MTy) :cost ,cost))
-
-(define (platform-ref-impl-nodes impl)
-  (define array-repr (first (impl-info impl 'itype)))
-  (define cost (normalize-cost (impl-info impl 'cost)))
-  (for/list ([idx (in-range (array-representation-len array-repr))])
-    (define typed-name (ref-impl-node-name impl idx))
-    (hash-set! (e2->id) typed-name impl)
-    (hash-set! (e2-ref-index) typed-name idx)
-    `(,typed-name MTy :cost ,cost)))
+  (append (list '(Num BigRat :cost 4294967295)
+                '(Var String :cost 4294967295)
+                '(Sound-/ M M M :cost 4294967295)
+                '(Sound-Log M M :cost 4294967295)
+                '(Sound-Pow M M M :cost 4294967295)
+                '(Ref M i64 :cost 4294967295))
+          (for/list ([arity (in-list array-arities)])
+            (define name (string->symbol (format "Array~a" arity)))
+            (hash-set! (e1->id) name 'array)
+            `(,name ,@(make-list arity 'M) :cost 4294967295))
+          (for/list ([op (in-list (all-operators))]
+                     #:unless (member op '(array ref)))
+            (define arity (length (operator-info op 'itype)))
+            (hash-set! (id->e1) op (serialize-op op))
+            (hash-set! (e1->id) (serialize-op op) op)
+            `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295))))
 
 (define (platform-impl-nodes pform)
-  (append (for/list ([impl (in-list (platform-impls pform))]
-                     #:unless (eq? (impl-op impl) 'ref))
-            (platform-impl-node impl))
-          (append* (for/list ([impl (in-list (platform-impls pform))]
-                              #:when (eq? (impl-op impl) 'ref))
-                     (platform-ref-impl-nodes impl)))))
+  (for/list ([impl (in-list (platform-impls pform))])
+    (define arity (length (impl-info impl 'itype)))
+    (define typed-name (string->symbol (format "~aTy" (serialize-impl impl))))
+    (hash-set! (id->e2) impl typed-name)
+    (hash-set! (e2->id) typed-name impl)
+    (define cost (normalize-cost (impl-info impl 'cost)))
+    `(,typed-name ,@(make-list arity 'MTy) :cost ,cost)))
 
 (define (typed-num-id repr-name)
   (string->symbol (format "Num_~a" (egglog-repr-token repr-name))))
@@ -364,9 +343,9 @@
   (define helper-impls
     (for/seteq ([extension (in-list (*platform-extensions*))])
       (fpcore-extension-name extension)))
+  (define array-rules (array-lowering-rules pform))
   (append (for/list ([impl (in-list (platform-impls pform))]
-                     #:unless (set-member? helper-impls impl)
-                     #:unless (eq? (impl-op impl) 'ref))
+                     #:unless (set-member? helper-impls impl))
             (define spec-expr (impl-info impl 'spec))
             `(rule ((= ?root ,(expr->egglog-spec-serialized spec-expr ""))
                     ,@(for/list ([v (in-list (impl-info impl 'vars))]
@@ -380,63 +359,24 @@
                                 (string->symbol (string-append "t" (symbol->string v)))))))
                    :ruleset
                    lower))
-          (append* (for/list ([impl (in-list (platform-impls pform))]
-                              #:unless (set-member? helper-impls impl)
-                              #:when (eq? (impl-op impl) 'ref))
-                     (ref-impl-lowering-rules impl)))
-          (egglog-rewrite-rules (array-lowering-rules pform) 'lower)))
-
-(define (ref-spec-expr impl idx)
-  (match (impl-info impl 'spec)
-    [`(ref ,arr ,_) `(ref ,arr ,idx)]))
-
-(define (ref-impl-lowering-rules impl)
-  (define vars (impl-info impl 'vars))
-  (define array-var (first vars))
-  (define array-repr (first (impl-info impl 'itype)))
-  (for/list ([idx (in-range (array-representation-len array-repr))])
-    (define spec-expr (ref-spec-expr impl idx))
-    (define array-var* (string->symbol (string-append "t" (symbol->string array-var))))
-    `(rule ((= ?root ,(expr->egglog-spec-serialized spec-expr ""))
-            (= ,array-var* (do-lower ,array-var ,(egglog-repr-token array-repr))))
-           ((union (do-lower ?root ,(egglog-repr-token (impl-info impl 'otype)))
-                   (,(ref-impl-node-name impl idx) ,array-var*)))
-           :ruleset
-           lower)))
+          (egglog-rewrite-rules array-rules 'lower)))
 
 (define (impl-lifting-rules pform)
-  (append (for/list ([impl (in-list (platform-impls pform))]
-                     #:unless (eq? (impl-op impl) 'ref))
-            (define spec-expr (impl-info impl 'spec))
-            `(rule ((= ?root
-                       (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
-                        ,@(impl-info impl 'vars)))
-                    ,@(for/list ([v (in-list (impl-info impl 'vars))]
-                                 [vt (in-list (impl-info impl 'itype))])
-                        `(= ,(string->symbol (string-append "s" (symbol->string v))) (do-lift ,v))))
-                   ((union (do-lift ?root) ,(expr->egglog-spec-serialized spec-expr "s")))
-                   :ruleset
-                   lift))
-          (append* (for/list ([impl (in-list (platform-impls pform))]
-                              #:when (eq? (impl-op impl) 'ref))
-                     (ref-impl-lifting-rules impl)))))
-
-(define (ref-impl-lifting-rules impl)
-  (define array-var (first (impl-info impl 'vars)))
-  (define array-repr (first (impl-info impl 'itype)))
-  (for/list ([idx (in-range (array-representation-len array-repr))])
-    (define spec-expr (ref-spec-expr impl idx))
-    (define array-var* (string->symbol (string-append "s" (symbol->string array-var))))
-    `(rule ((= ?root (,(ref-impl-node-name impl idx) ,array-var)) (= ,array-var*
-                                                                     (do-lift ,array-var)))
+  (for/list ([impl (in-list (platform-impls pform))])
+    (define spec-expr (impl-info impl 'spec))
+    `(rule ((= ?root
+               (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
+                ,@(impl-info impl 'vars)))
+            ,@(for/list ([v (in-list (impl-info impl 'vars))]
+                         [vt (in-list (impl-info impl 'itype))])
+                `(= ,(string->symbol (string-append "s" (symbol->string v))) (do-lift ,v))))
            ((union (do-lift ?root) ,(expr->egglog-spec-serialized spec-expr "s")))
            :ruleset
            lift)))
 
 (define (serialize-spec-op op arity)
   (match* (op arity)
-    [('array 2) 'Array]
-    [('array 3) 'Array3]
+    [('array n) (string->symbol (format "Array~a" n))]
     [(_ _) (hash-ref (id->e1) op)]))
 
 (define (expr->egglog-spec-serialized expr s)
@@ -531,11 +471,14 @@
                          [(? number?) `(Num ,(real->bigrat node))]
                          [(? symbol?) #f]
                          [(list impl args ...)
-                          `(,(hash-ref (id->e1) impl) ,@(for/list ([arg (in-list args)]
-                                                                   [i (in-naturals)])
-                                                          (if (and (eq? impl 'ref) (= i 1))
-                                                              (ref-index arg)
-                                                              (recurse arg))))]))
+                          `(,(if (eq? impl 'array)
+                                 (serialize-spec-op impl (length args))
+                                 (hash-ref (id->e1) impl))
+                            ,@(for/list ([arg (in-list args)]
+                                         [i (in-naturals)])
+                                (if (and (eq? impl 'ref) (= i 1))
+                                    (ref-index arg)
+                                    (recurse arg))))]))
 
                      (set! reachable-vs (cons v reachable-vs))
                      (if node*
@@ -660,16 +603,9 @@
 
 (define (e2->expr expr)
   (match expr
-    [(? exact-integer? n) n]
     [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
      (literal (/ (string->number n) (string->number d)) (egglog-num-repr num))]
     [`(,(? egglog-var? var) ,v) (string->symbol v)]
-    [`(,impl ,arr)
-     #:when (hash-has-key? (e2-ref-index) impl)
-     (define ref-impl (hash-ref (e2->id) impl))
-     `(,ref-impl ,(e2->expr arr)
-                 ,(literal (hash-ref (e2-ref-index) impl)
-                           (representation-name (second (impl-info ref-impl 'itype)))))]
     ; Approx stores a spec expression in E1/M and an implementation in E2/MTy.
     [`(Approx ,spec ,impl) (approx (e1->expr spec) (e2->expr impl))]
     [`(,impl ,args ...) `(,(hash-ref (e2->id) impl) ,@(map e2->expr args))]))

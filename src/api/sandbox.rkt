@@ -141,15 +141,14 @@
   (local-error-as-tree (test-input test) (*context*) pcontext))
 
 ;; If the post-preprocessing region is unsamplable, rollback RNG to keep Herbie runs reproducible.
-(define (make-search-sampler test sample)
-  (lambda (precondition)
-    (define rng-state (pseudo-random-generator->vector (current-pseudo-random-generator)))
-    (with-handlers ([exn:fail:user:herbie:sampling?
-                     (lambda (_)
-                       (current-pseudo-random-generator (vector->pseudo-random-generator rng-state))
-                       (timeline-push! 'stop "no-search-sample" 1)
-                       #f)])
-      (sample `(and ,(test-pre test) ,precondition) (*num-points*)))))
+(define ((make-search-sampler test sample) precondition)
+  (define rng-state (pseudo-random-generator->vector (current-pseudo-random-generator)))
+  (with-handlers ([exn:fail:user:herbie:sampling?
+                   (lambda (_)
+                     (current-pseudo-random-generator (vector->pseudo-random-generator rng-state))
+                     (timeline-push! 'stop "no-search-sample" 1)
+                     #f)])
+    (sample `(and ,(test-pre test) ,precondition) (*num-points*))))
 
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility

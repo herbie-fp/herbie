@@ -198,6 +198,11 @@
        (loop body (hash-set env var (loop term env)))]
       [`(,op ,args ...) (cons op (map (curryr loop env) args))])))
 
+(define (spec-arg-types op arity)
+  (match op
+    ['array (make-list arity 'real)]
+    [_ (operator-info op 'itype)]))
+
 ;; Converts an S-expr from egg into one Herbie understands
 ;; TODO: typing information is confusing since proofs mean
 ;; we may process mixed spec/impl expressions;
@@ -238,9 +243,9 @@
                     [(and (operator-exists? op) (impl-exists? op))
                      (if (representation? type)
                          (impl-info op 'itype)
-                         (operator-info op 'itype))]
+                         (spec-arg-types op (length args)))]
                     [(impl-exists? op) (impl-info op 'itype)]
-                    [(operator-exists? op) (operator-info op 'itype)])))])))
+                    [(operator-exists? op) (spec-arg-types op (length args))])))])))
 
 ;; Parses a string from egg into a single S-expr.
 (define (egg-expr->expr egg-expr ctx)
@@ -268,6 +273,9 @@
       (check-equal? computed-in in)))
 
   (check-equal? (egg-expr->expr '(sound-sqrt $var0 $var1) ctx) '(sqrt x))
+
+  (check-equal? (egg-expr->expr '(array $var0 $var1) ctx) '(array x y))
+  (check-equal? (egg-expr->expr '(array $var0 $var1 $var2) ctx) '(array x y z))
 
   (set! ctx (context '(x a b c r) <binary64> (make-list 5 <binary64>)))
   (define extended-expr-list
@@ -411,6 +419,7 @@
   (define helper-impls
     (for/seteq ([extension (in-list (*platform-extensions*))])
       (fpcore-extension-name extension)))
+  (define array-rules (array-lowering-rules pform))
   (define normal-rules
     (append* (for/list ([impl (in-list (platform-impls pform))]
                         #:unless (set-member? helper-impls impl))
@@ -420,7 +429,7 @@
                             (define name (sym-append 'lower- impl))
                             (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
                             (list (rule name spec-expr impl-expr '(lowering))))))))
-  (append normal-rules (array-lowering-rules pform)))
+  (append normal-rules array-rules))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
@@ -489,7 +498,7 @@
         (define itypes
           (cond
             [(representation? type) (impl-info f 'itype)]
-            [else (operator-info f 'itype)]))
+            [else (spec-arg-types f (u32vector-length ids))]))
         ; unsafe since we don't check that |itypes| = |ids|
         ; optimize for common cases to avoid extra allocations
         (cons
@@ -945,7 +954,7 @@
            (for/list ([arg-id (in-list args)]
                       [arg-type (in-list (if (representation? type)
                                              (impl-info impl 'itype)
-                                             (operator-info impl 'itype)))])
+                                             (spec-arg-types impl (length args))))])
              (val-idx (add-id arg-id arg-type))))
          (cons impl args*)]))
     (val-idx (block-push! block enode*)))

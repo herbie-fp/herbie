@@ -5,7 +5,8 @@
 (require "../utils/common.rkt"
          "../syntax/platform-state.rkt"
          "../syntax/platform.rkt"
-         "../syntax/syntax.rkt")
+         "../syntax/syntax.rkt"
+         "../syntax/types.rkt")
 
 (provide *rules*
          *sound-removal-rules*
@@ -39,6 +40,11 @@
   (define helper-impls
     (for/seteq ([extension (in-list (*platform-extensions*))])
       (fpcore-extension-name extension)))
+  (for ([impl (in-list (platform-impls pform))]
+        #:unless (set-member? helper-impls impl))
+    (define output-repr (impl-info impl 'otype))
+    (when (array-representation? output-repr)
+      (ensure-array-impls! output-repr)))
   (define rules
     (append* (for/list ([impl (in-list (platform-impls pform))]
                         #:unless (set-member? helper-impls impl))

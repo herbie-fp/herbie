@@ -105,4 +105,4 @@
   (match-define (taylor-cover _ _ _ arm) cover)
   (define repr (context-repr ctx))
   (define if-impl (get-fpcore-impl 'if '() (list <bool> repr repr)))
-  `(,if-impl ,(spec->prog (cover-condition cover) ctx) ,(spec->prog arm ctx) ,expression))
+  (list if-impl (spec->prog (cover-condition cover) ctx) (spec->prog arm ctx) expression))
