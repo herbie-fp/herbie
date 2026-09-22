@@ -32,7 +32,7 @@
 
 ;; Returns all operators.
 (define (all-operators)
-  (sort (append (hash-keys rival-functions) (list 'array 'ref)) symbol<?))
+  (sort (append (hash-keys rival-functions) (list 'ref 'array)) symbol<?))
 
 ;; Looks up a property `field` of a real operator `op`.
 ;; Panics if the operator is not found.
@@ -41,7 +41,10 @@
   (define info
     (cond
       [(equal? op 'ref) '(real array real)]
-      [(equal? op 'array) '(array real real)]
+      [(equal? op 'array)
+       (when (equal? field 'itype)
+         (raise-arguments-error 'operator-info "array is variadic and has no fixed signature"))
+       '(array)]
       [else
        (hash-ref rival-functions
                  op
