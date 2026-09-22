@@ -250,8 +250,7 @@
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
        (define slots (map (lambda (arg) (repr-of arg ctx)) args*))
        (define repr (apply make-array-representation slots))
-       (ensure-array-impls! repr)
-       (cons (array-impl-name repr) args*)]
+       (cons (ensure-array-impls! repr) args*)]
       [(list op args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
        (fpcore->impl-app op prop-dict args* ctx)])))

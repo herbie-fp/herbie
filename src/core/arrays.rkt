@@ -70,9 +70,7 @@
     (cond
       [(array-representation? repr)
        (match-let ([`(array ,elems ...) expr])
-         (append* (for/list ([elem (in-list elems)]
-                             [slot (in-list (array-representation-slots repr))])
-                    (flatten-by-repr elem slot))))]
+         (append-map flatten-by-repr elems (array-representation-slots repr)))]
       [else (list expr)]))
   (define (build-value next repr)
     (cond
