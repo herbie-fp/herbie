@@ -380,24 +380,16 @@
     [(_ _) (hash-ref (id->e1) op)]))
 
 (define (expr->egglog-spec-serialized expr s)
-  (let loop ([expr expr]
-             [int? #f])
+  (let loop ([expr expr])
     (match expr
-      [(? number?)
-       (if int?
-           expr
-           `(Num ,(real->bigrat expr)))]
-      [(? symbol?)
-       (if int?
-           expr
-           (string->symbol (string-append s (symbol->string expr))))]
+      [(? number?) `(Num ,(real->bigrat expr))]
+      [(? symbol?) (string->symbol (string-append s (symbol->string expr)))]
+      [(list 'ref arr idx) `(,(hash-ref (id->e1) 'ref) ,(loop arr) ,idx)]
       [(list op args ...)
        `(,(if (hash-has-key? (id->e1) op)
               (serialize-spec-op op (length args))
               (hash-ref (id->e2) op))
-         ,@(for/list ([arg (in-list args)]
-                      [i (in-naturals)])
-             (loop arg (and (eq? op 'ref) (= i 1)))))])))
+         ,@(map loop args))])))
 
 (define (serialize-op op)
   (if (hash-has-key? op-string-names op)
@@ -414,18 +406,12 @@
   (string->symbol (string-append (symbol->string (serialize-op op)) type)))
 
 (define (expr->e1-pattern expr)
-  (let loop ([expr expr]
-             [int? #f])
+  (let loop ([expr expr])
     (match expr
-      [(? number?)
-       (if int?
-           expr
-           `(Num ,(real->bigrat expr)))]
+      [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) expr]
-      [(list op args ...)
-       `(,(serialize-spec-op op (length args)) ,@(for/list ([arg (in-list args)]
-                                                            [i (in-naturals)])
-                                                   (loop arg (and (eq? op 'ref) (= i 1)))))])))
+      [(list 'ref arr idx) `(,(hash-ref (id->e1) 'ref) ,(loop arr) ,idx)]
+      [(list op args ...) `(,(serialize-spec-op op (length args)) ,@(map loop args))])))
 
 (define (egglog-rewrite-rules rules tag)
   (for/list ([rule (in-list rules)]
@@ -453,11 +439,6 @@
   (define root-mask (make-vector (block-length block) #f))
   (define reachable-vs '())
 
-  (define (ref-index arg)
-    (match (val-def arg)
-      [(literal value _) value]
-      [(? exact-integer? value) value]))
-
   (for ([v (in-list vs)])
     (vector-set! root-mask (val-idx v) #t))
   (define add-to-egglog
@@ -470,15 +451,12 @@
                        (match node
                          [(? number?) `(Num ,(real->bigrat node))]
                          [(? symbol?) #f]
+                         [(list 'ref arr idx) `(,(hash-ref (id->e1) 'ref) ,(recurse arr) ,idx)]
                          [(list impl args ...)
                           `(,(if (eq? impl 'array)
                                  (serialize-spec-op impl (length args))
                                  (hash-ref (id->e1) impl))
-                            ,@(for/list ([arg (in-list args)]
-                                         [i (in-naturals)])
-                                (if (and (eq? impl 'ref) (= i 1))
-                                    (ref-index arg)
-                                    (recurse arg))))]))
+                            ,@(map recurse args))]))
 
                      (set! reachable-vs (cons v reachable-vs))
                      (if node*
