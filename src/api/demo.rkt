@@ -530,7 +530,7 @@
                  #:port port
                  #:safety-limits
                  (make-safety-limits #:max-request-body-length
-                                     (* 5 1024 1024)) ; 5 mb body size for det44 bench mark.
+                                     (* 8 1024 1024)) ; 8 MiB body size for det44 benchmark.
                  #:servlet-current-directory (current-directory)
                  #:manager (create-none-manager #f)
                  #:command-line? true
