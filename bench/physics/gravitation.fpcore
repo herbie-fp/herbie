@@ -33,9 +33,7 @@
  (let* ([MU 3.986004418e14]
         [R 6378137.0]
         [J2 0.00108263]
-        [r (sqrt (+ (* (ref r_e 0) (ref r_e 0))
-                    (+ (* (ref r_e 1) (ref r_e 1))
-                       (* (ref r_e 2) (ref r_e 2)))))]
+        [r (norm-3 r_e)]
         [sub1 (* (* 1.5 J2) (/ (* R R) (* r r)))]
         [sub2 (/ (* (* 5 (ref r_e 2)) (ref r_e 2)) (* r r))]
         [sub3 (/ (- MU) (* (* r r) r))]
