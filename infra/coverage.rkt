@@ -23,7 +23,7 @@
 ;; These core test modules were probed individually and completed cleanly
 ;; in the merged tutorial run, so include them by default.
 (define stable-rackunit-coverage-files
-  '("src/core/arrays.rkt" "src/core/batch-reduce.rkt"
+  '("src/core/arrays.rkt" "src/core/reduce.rkt"
                           "src/core/egg-herbie.rkt"
                           "src/core/egglog-herbie-tests.rkt"
                           "src/core/prove-rules.rkt"

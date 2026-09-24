@@ -7,11 +7,11 @@
          "../syntax/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "searchreals.rkt"
          "../syntax/rival.rkt")
 
-(provide batch-prepare-points
+(provide block-prepare-points
          sample-points)
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
@@ -41,6 +41,18 @@
   (check-equal? (precondition->hyperrects pre '#(a b) (vector binary64 binary64))
                 (list (list (ival 0.bf 1.bf) (ival 0.bf 1.bf)))))
 
+(module+ test
+  (define bool (get-representation 'bool))
+  (define ctx (context '(x) bool (list binary64)))
+  (define-values (block vs) (progs->block (list '(< x 0)) #:ctx ctx))
+  (define results
+    (parameterize ([*num-points* 4]
+                   [*max-find-range-depth* 2])
+      (sample-points '(and (<= -1 x) (<= x 1)) block vs (list bool))))
+  (check-equal? (length (first results)) 4)
+  (check-equal? (length (second results)) 4)
+  (check-true (andmap boolean? (second results))))
+
 ;; Part 2: using subdivision search to find valid intervals
 
 ;; we want a index i such that vector[i] > num and vector[i-1] <= num
@@ -49,7 +61,7 @@
   (let loop ([left 0]
              [right (- (vector-length vector) 1)])
     (cond
-      [(>= left right) (min left (- (vector-length vector) 1))]
+      [(= left right) left]
       [else
        (define mid (arithmetic-shift (+ left right) -1))
        (define pivot (vector-ref vector mid))
@@ -104,7 +116,7 @@
   (cond
     [(and (flag-set? 'setup 'search)
           (not (vector-empty? var-reprs))
-          (for/and ([repr (in-vector (vector-append var-reprs reprs))])
+          (for/and ([repr (in-vector var-reprs)])
             (equal? (representation-type repr) 'real)))
      (timeline-push! 'method "search")
      (define hyperrects-analysis (precondition->hyperrects pre vars var-reprs))
@@ -120,7 +132,7 @@
 ;; Returns an evaluator for a list of expressions.
 ;; Part 3: compute exact values using Rival's algorithm
 
-(define (batch-prepare-points compiler sampler)
+(define (block-prepare-points compiler sampler)
   ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
   (define vars (real-compiler-vars compiler))
@@ -180,12 +192,12 @@
   (for/fold ([t1 (hash-remove (hash-remove t1 'unknown) 'valid)]) ([(k v) (in-hash t2)])
     (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
 
-(define (sample-points pre batch brfs ctxs)
+(define (sample-points pre block vs reprs)
   (timeline-event! 'analyze)
-  (define compiler (make-real-compiler batch brfs ctxs #:pre pre))
+  (define compiler (make-real-compiler block vs reprs #:pre pre))
   (define-values (sampler table) (make-sampler compiler))
   (timeline-event! 'sample)
-  (define-values (results table2) (batch-prepare-points compiler sampler))
+  (define-values (results table2) (block-prepare-points compiler sampler))
   (define total (apply + (hash-values table2)))
   (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
     (warn 'inf-points

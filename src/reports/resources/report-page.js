@@ -159,16 +159,27 @@ function formatTime(ms) {
     }
 }
 
+function relativeCost(cost, initialCost) {
+    if (initialCost === 0) {
+        return cost === 0 ? 1 : Number.POSITIVE_INFINITY;
+    }
+    return cost / initialCost;
+}
+
+function formatSpeedup(speedup) {
+    if (speedup === Number.POSITIVE_INFINITY) {
+        return "∞×";
+    }
+    return speedup.toFixed(1) + "×";
+}
+
 function calculateSpeedup(mergedCostAccuracy) {
     const initial_accuracy = mergedCostAccuracy[0][1]
     const frontier = mergedCostAccuracy[1]
     for (const point of [...frontier].reverse()) {
         if (point[1] > initial_accuracy) {
             if (typeof point[0] == 'number') {
-                return point[0].toFixed(1) + "×";
-            }
-            else {
-                return point[0];
+                return formatSpeedup(point[0]);
             }
         }
     }
@@ -271,7 +282,7 @@ function paretoUnionBalanced(curves) {
     return level[0] || [];
 }
 
-// Merge shifted frontiers in small balanced batches. This keeps the
+// Merge shifted frontiers in small balanced blockes. This keeps the
 // large-large unions that are fast for JS without retaining every
 // shifted frontier at once.
 function paretoCombineTwo(combined, frontier) {
@@ -326,14 +337,11 @@ function calculateMergedCostAccuracy(tests) {
             const [initialPoint, bestPoint, otherPoints] = costAccuracy;
             const initialCost = Number(initialPoint[0]);
             return [initialPoint, bestPoint].concat(otherPoints).map((point) => [
-                point[0] / initialCost,
+                relativeCost(Number(point[0]), initialCost),
                 point[1],
             ]);
         });
     const frontier = paretoCombine(rescaled).map(([cost, accuracy]) => {
-        if (cost === 0) {
-            return ["N/A", 1 - accuracy / maximumAccuracy];
-        }
         return [testsLength / cost, 1 - accuracy / maximumAccuracy];
     });
     return [[1.0, initialAccuracy], frontier];
@@ -458,13 +466,16 @@ function plotPareto(jsonData, otherJsonData) {
     }
 
     const [initial, frontier] = mergedCostAccuracy;
+    const plottedFrontier = frontier.filter(([speedup, accuracy]) =>
+        Number.isFinite(speedup) && Number.isFinite(accuracy));
+    const initialStroke = otherJsonData ? "#00a" : "#900";
     let marks = [
         Plot.dot([initial], {
-            stroke: "#00a",
+            stroke: initialStroke,
             symbol: "square",
             strokeWidth: 2,
         }),
-        Plot.line(frontier, {
+        Plot.line(plottedFrontier, {
             stroke: "#00a",
             strokeWidth: 2,
         }),
@@ -480,13 +491,15 @@ function plotPareto(jsonData, otherJsonData) {
         }
 
         const [initial2, frontier2] = otherMergedCostAccuracy;
+        const plottedFrontier2 = frontier2.filter(([speedup, accuracy]) =>
+            Number.isFinite(speedup) && Number.isFinite(accuracy));
         marks = [
             Plot.dot([initial2], {
                 stroke: "#900",
                 symbol: "square",
                 strokeWidth: 2,
             }),
-            Plot.line(frontier2, {
+            Plot.line(plottedFrontier2, {
                 stroke: "#900",
                 strokeWidth: 2,
             })
@@ -670,7 +683,7 @@ function buildBody(jsonData, otherJsonData) {
                 buildTableHeader("time"),
             ]),
         ]),
-        rows,
+        Element("tbody", {}, rows),
         footer
     ]);
     return [header, stats, figureRow, buildControls(jsonData, otherJsonData, rows.length), resultsTable]

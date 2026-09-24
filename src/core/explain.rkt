@@ -9,7 +9,7 @@
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
          "../syntax/platform.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "localize.rkt"
          "points.rkt"
          "programs.rkt"
@@ -68,17 +68,14 @@
 (define (compile-expr expr ctx)
   (define subexprs (all-subexpressions expr #:reverse? #t))
   (define spec-list (map prog->spec subexprs))
-  (define ctxs
-    (for/list ([subexpr (in-list subexprs)])
-      (struct-copy context ctx [repr (repr-of subexpr ctx)])))
+  (define reprs (map (curryr repr-of ctx) subexprs))
 
-  (define repr-hash
-    (make-immutable-hash (map (lambda (e ctx) (cons e (context-repr ctx))) subexprs ctxs)))
+  (define repr-hash (make-immutable-hash (map cons subexprs reprs)))
 
-  (define-values (batch brfs) (progs->batch spec-list))
+  (define-values (block vs) (progs->block spec-list #:ctx ctx))
   (define subexprs-fn
     (parameterize ([*max-mpfr-prec* 128])
-      (eval-progs-real batch brfs ctxs)))
+      (eval-progs-real block vs reprs)))
   (values subexprs repr-hash subexprs-fn))
 
 (define (predict-errors ctx pctx subexprs-list repr-hash subexprs-fn)

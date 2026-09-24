@@ -62,7 +62,7 @@
     (flush-output egglog-in)
 
     (let loop ([out '()])
-      (define next (read-line egglog-output))
+      (define next (read-line egglog-output 'any))
       (if (equal? next "(done)")
           (reverse out)
           (loop (cons next out))))))

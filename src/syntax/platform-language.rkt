@@ -11,6 +11,8 @@
 (provide define-representation
          define-operation
          define-operations
+         create-operator-impl!
+         platform-register-implementation!
          fpcore-context
          if-impl
          if-cost
@@ -26,23 +28,32 @@
   (define env (map cons vars (map representation-type var-reprs)))
   (define otype (representation-type repr))
 
+  (define (scalar-type? ty)
+    (member ty '(bool real)))
+
+  (define (infer-operator op arg-types)
+    (and (andmap scalar-type? arg-types)
+         (let ([vars (for/list ([_ (in-list arg-types)])
+                       (gensym 'arg))])
+           (rival-type (cons op vars) (map cons vars arg-types)))))
+
   (define (infer spec)
     (match spec
       [(? number?) 'real]
-      [(? symbol? x) (dict-ref env x (lambda () (rival-type spec env)))]
+      [(? symbol? x) (dict-ref env x #f)]
+      [(list 'array) #f]
       [(list 'array elems ...)
-       (if (null? elems)
-           #f
-           (let ([elem-ty (infer (first elems))])
-             (and elem-ty
-                  (for/and ([elem (in-list (rest elems))])
-                    (equal? elem-ty (infer elem)))
-                  `(array ,elem-ty ,(length elems)))))]
+       (define tys (map infer elems))
+       (and (andmap values tys) `(array ,@tys))]
       [(list 'ref arr idx)
        (match (infer arr)
-         [`(array ,elem-ty ,_) elem-ty]
+         [`(array ,tys ...)
+          (and (exact-nonnegative-integer? idx) (< idx (length tys)) (list-ref tys idx))]
          [_ #f])]
-      [_ (rival-type spec env)]))
+      [(list op args ...)
+       (define arg-types (map infer args))
+       (and (andmap values arg-types) (infer-operator op arg-types))]
+      [_ #f]))
   (define spec-type (infer spec))
 
   (match spec-type
@@ -132,12 +143,11 @@
 
 (define (platform-register-implementation! platform impl)
   ; Reprs check
-  (define reprs (platform-representations platform))
   (define otype (context-repr (operator-impl-ctx impl)))
   (define itype (context-var-reprs (operator-impl-ctx impl)))
   (define impl-reprs (map representation-name (remove-duplicates (cons otype itype))))
   (for ([repr-name (in-list impl-reprs)]
-        #:unless (hash-has-key? reprs repr-name))
+        #:unless (repr-exists? repr-name platform))
     (raise-herbie-error "Platform ~a missing representation ~a for ~a implementation"
                         (*platform-name*)
                         repr-name
@@ -149,7 +159,8 @@
                         (operator-impl-name impl)
                         (*platform-name*)))
   ; Update table
-  (hash-set! impls (operator-impl-name impl) impl))
+  (hash-set! impls (operator-impl-name impl) impl)
+  (reset-fpcore-op-cache!))
 
 ;; Macros for the core operations
 

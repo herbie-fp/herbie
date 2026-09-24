@@ -11,19 +11,21 @@
 (define (repr-description t)
   (match t
     [(? representation?) (representation-name t)]
-    [(? array-representation?)
-     `(array ,(repr-description (array-representation-elem t)) ,(array-representation-len t))]))
+    [_ t]))
 
 (define (repr-compatible-with-precision? repr precision-repr)
   (match repr
     [(? array-representation?)
-     (repr-compatible-with-precision? (array-representation-elem repr) precision-repr)]
+     (or (not (uniform-array-shape repr))
+         (repr-compatible-with-precision? (array-representation-base repr) precision-repr))]
     [(? representation?)
      (or (equal? (representation-type repr) 'bool) (equal? repr precision-repr))]))
 
 (define (array-of elem dims)
   (for/fold ([out elem]) ([d (in-list (reverse dims))])
-    (make-array-representation #:elem out #:len d)))
+    (unless (exact-positive-integer? d)
+      (raise-herbie-error "Argument dimensions must be positive integers, got ~a" d))
+    (apply make-array-representation (make-list d out))))
 
 (define (assert-program-typed! stx)
   (define-values (vars props body)
@@ -61,7 +63,7 @@
 
   (define repr (expression->type stx props ctx error!))
   (define expected (context-repr ctx))
-  (when (not (repr-compatible-with-precision? repr expected))
+  (unless (repr-compatible-with-precision? repr expected)
     (error! stx
             "Expected program of type ~a, got type ~a"
             (repr-description expected)
@@ -121,42 +123,25 @@
                  (repr-description iff-repr)))
        ift-repr]
       [#`(! #,props ... #,body) (loop body (apply dict-set prop-dict (map syntax->datum props)) ctx)]
-      [#`(,(? (curry hash-has-key? (*functions*)) fname) #,args ...)
-       ; TODO: inline functions expect uniform types, this is clearly wrong
-       (match-define (list vars prec _) (hash-ref (*functions*) fname))
-       (define repr (get-representation prec))
-       (define ireprs (map (lambda (arg) (loop arg prop-dict ctx)) args))
-       (define expected (map (const repr) vars))
-       (unless (andmap equal? ireprs expected)
-         (error! stx
-                 "Invalid arguments to ~a; expects ~a but got ~a"
-                 fname
-                 fname
-                 (application->string fname expected)
-                 (application->string fname ireprs)))
-       repr]
-      [#`(array #,first-elem #,rest-elems ...)
-       (define first-type (loop first-elem prop-dict ctx))
-       (for ([elem (in-list rest-elems)])
-         (define t (loop elem prop-dict ctx))
-         (unless (equal? t first-type)
-           (error! stx
-                   "Array elements have mismatched types: ~a vs ~a"
-                   (repr-description first-type)
-                   (repr-description t))))
-       (array-of first-type (list (+ 1 (length rest-elems))))]
+      [#`(array #,elems ...)
+       (define slots
+         (for/list ([elem (in-list elems)])
+           (loop elem prop-dict ctx)))
+       (apply make-array-representation slots)]
       [#`(ref #,arr #,idx)
        (define arr-type (loop arr prop-dict ctx))
        (define raw (syntax-e idx))
-       (unless (integer? raw)
-         (error! idx "Array index must be a literal integer, got ~a" idx))
        (match arr-type
          [(? array-representation?)
-          (define len (array-representation-len arr-type))
-          (define elem (array-representation-elem arr-type))
-          (when (and (integer? raw) (or (< raw 0) (>= raw len)))
-            (error! idx "Array index ~a out of bounds for length ~a" raw len))
-          elem]
+          (define slots (array-representation-slots arr-type))
+          (cond
+            [(and (exact-nonnegative-integer? raw) (< raw (length slots))) (list-ref slots raw)]
+            [(exact-nonnegative-integer? raw)
+             (error! idx "Array index ~a out of bounds for ~a slots" raw (length slots))
+             (get-representation (dict-ref prop-dict ':precision))]
+            [else
+             (error! idx "Index must be a nonnegative integer literal, got ~a" idx)
+             (get-representation (dict-ref prop-dict ':precision))])]
          [_
           (error! stx "ref expects an array, got ~a" (repr-description arr-type))
           (get-representation (dict-ref prop-dict ':precision))])]
@@ -216,6 +201,12 @@
     (check-equal? (representation-name dummy) 'dummy)
     (check-equal? (get-representation 'dummy) dummy)
 
+    (define array2 (make-array-representation dummy dummy))
+    (check-equal? (representation-name array2) '(array dummy dummy))
+    (check-true (repr-exists? '(array dummy dummy)))
+    (check-equal? (representation-name (get-representation '(array dummy dummy)))
+                  '(array dummy dummy))
+
     ;; Context operations
     (define <b64> (get-representation 'binary64))
     (define <bool> (get-representation 'bool))
@@ -258,12 +249,14 @@
     (check-fails <b64> #'(if (== a 1) 1 TRUE) #:env `((a . ,<b64>)))
     (check-types <b64> <b64> #'(let ([a 1]) a) #:env `((a . ,<bool>)))
 
-    ;; Array-aware typing
+    ;; Array literals, including heterogeneous and nested ones
     (define vec-type (array-of <b64> '(2)))
     (define vec3-type (array-of <b64> '(3)))
     (check-types <b64> vec-type #'(array 1 2))
     (check-types <b64> vec3-type #'(array 1 2 3))
-    (check-fails <b64> #'(array (array 1) (array 1 2)))
+    (check-types <b64>
+                 (make-array-representation (array-of <b64> '(1)) vec-type)
+                 #'(array (array 1) (array 1 2)))
     (check-types <b64> <b64> #'(ref (array 5 6) 0))
     (check-types <b64> <b64> #'(ref A 2) #:env `((A . ,vec3-type)))
     (check-fails <b64> #'(ref A 3) #:env `((A . ,vec3-type)))

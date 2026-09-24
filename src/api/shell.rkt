@@ -9,7 +9,7 @@
          run-improve)
 
 (define (get-shell-input)
-  (printf "herbie> ")
+  (display "herbie> ")
   (with-handlers ([(or/c exn:fail:user? exn:fail:read?) (λ (e)
                                                           ((error-display-handler) (exn-message e) e)
                                                           (get-shell-input))])
@@ -18,7 +18,7 @@
         (read-syntax "stdin" (current-input-port))))
     (cond
       [(eof-object? input)
-       (printf "\n")
+       (newline)
        eof]
       [else (parse-test input)])))
 

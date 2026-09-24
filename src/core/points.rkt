@@ -3,7 +3,8 @@
 (require math/flonum
          "../syntax/float.rkt"
          "../syntax/types.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
+         "programs.rkt"
          "compiler.rkt")
 
 (provide in-pcontext
@@ -12,10 +13,10 @@
          pcontext?
          pcontext-points
          split-pcontext
+         pcontext-append
          pcontext-length
          errors
-         batchref-errors
-         batch-errors
+         block-errors
          exprs-errors
          errors-score)
 
@@ -52,11 +53,12 @@
   (define-values (exs-a exs-b) (vector-split-at exs num-a))
   (values (pcontext pts-a exs-a) (pcontext pts-b exs-b)))
 
+(define (pcontext-append pctx1 pctx2)
+  (pcontext (vector-append (pcontext-points pctx1) (pcontext-points pctx2))
+            (vector-append (pcontext-exacts pctx1) (pcontext-exacts pctx2))))
+
 ;; Herbie's standard error measure is the average bits of error across
 ;; all points in a pcontext.
-
-(define (average . s)
-  (/ (apply + s) (length s)))
 
 (define (errors-score e)
   (/ (flvector-sum e) (flvector-length e)))
@@ -64,21 +66,17 @@
 (define (errors expr pcontext ctx)
   (first (exprs-errors (list expr) pcontext ctx)))
 
-(define (batchref-errors brf pcontext ctx)
-  (first (batch-errors (batchref-batch brf) (list brf) pcontext ctx)))
-
 (define (exprs-errors exprs pcontext ctx)
   (define fn (compile-progs exprs ctx))
   (define num-exprs (length exprs))
-  (generate-errors fn pcontext ctx num-exprs))
+  (generate-errors fn pcontext (context-repr ctx) num-exprs))
 
-(define (batch-errors batch brfs pcontext ctx)
-  (define fn (compile-batch batch brfs ctx))
-  (define num-exprs (length brfs))
-  (generate-errors fn pcontext ctx num-exprs))
+(define (block-errors block vs pcontext)
+  (define fn (compile-block block vs))
+  (define num-exprs (length vs))
+  (generate-errors fn pcontext (block-repr-of (first vs)) num-exprs))
 
-(define (generate-errors fn pcontext ctx num-exprs)
-  (define repr (context-repr ctx))
+(define (generate-errors fn pcontext repr num-exprs)
   (define ulps (repr-ulps repr))
   (define max-ulps (+ 1 (expt 2 (representation-total-bits repr))))
   (define invalid-bits (real->double-flonum (representation-total-bits repr)))

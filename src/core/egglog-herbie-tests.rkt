@@ -318,76 +318,49 @@
 (module+ test
   (require rackunit
            "egglog-herbie.rkt"
+           "programs.rkt"
            "../syntax/types.rkt"
-           "../syntax/batch.rkt"
+           "../syntax/block.rkt"
            "rules.rkt"
            "../config.rkt"
            "../syntax/platform.rkt"
            "../syntax/float.rkt"
            "../syntax/load-platform.rkt")
   (activate-platform! "c")
-
-  (define-values (batch brfs)
-    (progs->batch (list '(-.f64 (sin.f64 (+.f64 x eps)) (sin.f64 x))
-                        '(sin.f64 (+.f64 x eps))
-                        '(+.f64 x eps)
-                        'x
-                        'eps
-                        '(sin.f64 x))))
-
-  (define-values (batch2 brfs2)
-    (progs->batch
-     (list
-      '(-.f64 (sin.f64 (+.f64 x #s(literal 1 binary64))) (sin.f64 x))
-      '(sin.f64 (+.f64 x #s(literal 1 binary64)))
-      '(+.f64 x #s(literal 1 binary64))
-      'x
-      #s(literal 1 binary64)
-      '(sin.f64 x)
-      #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (sin 1)))
-      #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (+ (sin 1) (* x (- (cos 1) 1)))))
-      #s(approx (- (sin (+ x 1)) (sin x))
-                #s(hole binary64 (+ (sin 1) (* x (- (+ (cos 1) (* -1/2 (* x (sin 1)))) 1)))))
-      #s(approx (- (sin (+ x 1)) (sin x))
-                #s(hole binary64
-                        (+ (sin 1)
-                           (* x
-                              (- (+ (cos 1) (* x (+ (* -1/2 (sin 1)) (* x (+ 1/6 (* -1/6 (cos 1)))))))
-                                 1)))))
-      #s(approx (sin (+ x 1)) #s(hole binary64 (+ (sin 1) (* x (cos 1)))))
-      #s(approx (sin (+ x 1)) #s(hole binary64 (+ (sin 1) (* x (+ (cos 1) (* -1/2 (* x (sin 1))))))))
-      #s(approx (sin (+ x 1))
-                #s(hole binary64
-                        (+ (sin 1)
-                           (* x (+ (cos 1) (* x (+ (* -1/2 (sin 1)) (* -1/6 (* x (cos 1))))))))))
-      #s(approx (+ x 1) #s(hole binary64 1))
-      #s(approx (+ x 1) #s(hole binary64 (+ 1 x)))
-      #s(approx x #s(hole binary64 x))
-      #s(approx (sin x) #s(hole binary64 (* x (+ 1 (* -1/6 (pow x 2))))))
-      #s(approx (sin x) #s(hole binary64 (* x (+ 1 (* (pow x 2) (- (* 1/120 (pow x 2)) 1/6))))))
-      #s(approx
-         (sin x)
-         #s(hole binary64
-                 (* x (+ 1 (* (pow x 2) (- (* (pow x 2) (+ 1/120 (* -1/5040 (pow x 2)))) 1/6))))))
-      #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (- (sin (+ 1 x)) (sin x))))
-      #s(approx (sin (+ x 1)) #s(hole binary64 (sin (+ 1 x))))
-      #s(approx (+ x 1) #s(hole binary64 (* x (+ 1 (/ 1 x)))))
-      #s(approx (sin x) #s(hole binary64 (sin x)))
-      #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (- (sin (- 1 (* -1 x))) (sin x))))
-      #s(approx (sin (+ x 1)) #s(hole binary64 (sin (- 1 (* -1 x))))))))
-
   (define ctx (context '(x eps) <binary64> (make-list 2 <binary64>)))
 
-  (define reprs (make-list (length brfs) (context-repr ctx)))
+  (define-values (block vs)
+    (progs->block (list '(- (sin (+ x eps)) (sin x)) '(sin (+ x eps)) '(+ x eps) 'x 'eps '(sin x))
+                  #:ctx ctx))
 
-  (define schedule '(lift rewrite lower))
+  (define reprs (make-list (length vs) <binary64>))
+
+  (define schedule '(rewrite lower))
 
   (when (find-executable-path "egglog")
-    (void (run-egglog (make-egglog-runner batch brfs reprs schedule ctx) batch #:extract 1000000))))
+    (void (run-egglog (make-egglog-runner block vs schedule ctx) block reprs #:extract 1000000))))
 
 (module+ test
   (require rackunit)
   (when (find-executable-path "egglog")
+    (let ()
+      (define ctx (context '(x y) <binary64> (make-list 2 <binary64>)))
+      (define-values (block vs) (progs->block (list '(+ x y)) #:ctx ctx))
+      (block-add! block '(* x y))
+
+      (define subproc (create-new-egglog-subprocess #f))
+      (prelude subproc)
+      (define-values (all-bindings root-constructors) (egglog-add-exprs block vs subproc))
+      (egglog-subprocess-close subproc)
+
+      (check-equal? (length root-constructors) 1)
+      (check-equal? (length (filter (lambda (stmt)
+                                      (match stmt
+                                        [`(let . ,_) #t]
+                                        [_ #f]))
+                                    all-bindings))
+                    5))
+
     (define subproc (create-new-egglog-subprocess #f))
 
     (define first-commands
@@ -431,8 +404,8 @@
       (egglog-send subproc '(print-size) '(run unsound-rule 1) '(extract (unsound))))
     (define parsed-node-values
       (for/list ([entry (in-list (with-input-from-string (string-join node-values "\n") read))])
-        (match entry
-          [(list relation count) (cons relation count)])))
+        (match-define (list relation count) entry)
+        (cons relation count)))
     (check-equal? (sort parsed-node-values symbol<? #:key car)
                   '((Add . 1) (Var . 2) (const1 . 1) (const2 . 1) (const3 . 1) (unsound . 1)))
 

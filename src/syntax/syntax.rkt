@@ -11,12 +11,9 @@
 
 (provide (struct-out literal)
          (struct-out approx)
-         (struct-out hole)
          operator-exists?
          operator-info
          all-operators ; return a list of operators names
-         *functions*
-         register-function!
          (struct-out operator-impl)) ; required by platform.rkt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -35,7 +32,7 @@
 
 ;; Returns all operators.
 (define (all-operators)
-  (sort (append (hash-keys rival-functions) (list 'array 'ref)) symbol<?))
+  (sort (append (hash-keys rival-functions) (list 'ref 'array)) symbol<?))
 
 ;; Looks up a property `field` of a real operator `op`.
 ;; Panics if the operator is not found.
@@ -44,7 +41,10 @@
   (define info
     (cond
       [(equal? op 'ref) '(real array real)]
-      [(equal? op 'array) '(array real real)]
+      [(equal? op 'array)
+       (when (equal? field 'itype)
+         (raise-arguments-error 'operator-info "array is variadic and has no fixed signature"))
+       '(array)]
       [else
        (hash-ref rival-functions
                  op
@@ -78,12 +78,3 @@
 ;; An approximation of a specification by
 ;; a floating-point expression.
 (struct approx (spec impl) #:prefab)
-
-;; An unknown floating-point expression that implements a given spec
-(struct hole (precision spec) #:prefab)
-
-;; name -> (vars repr body)	;; name -> (vars prec body)
-(define *functions* (make-parameter (make-hasheq)))
-
-(define (register-function! name args repr body) ;; Adds a function definition.
-  (hash-set! (*functions*) name (list args repr body)))

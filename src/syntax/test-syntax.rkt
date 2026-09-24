@@ -2,6 +2,7 @@
 
 (require "syntax.rkt"
          "platform.rkt"
+         "sugar.rkt"
          "types.rkt")
 
 (module+ test
@@ -27,5 +28,15 @@
                 '+.f64)
   (check-equal? (get-impl 'sin '((:precision . binary64)) (list f64)) 'sin.f64)
   (check-equal? (get-impl 'sincos '((:precision . binary64)) (list f64)) 'sincos.f64)
+
+  (define ctx (context '(x) f64 (list f64)))
+  (check-equal? (fpcore->prog '(ref (sincos x) 0) ctx)
+                '(ref.0.array<binary64:binary64> (sincos.f64 x)))
+  (check-equal? (fpcore->prog '(ref (sincos x) 1) ctx)
+                '(ref.1.array<binary64:binary64> (sincos.f64 x)))
+  ; fpcore->spec
+  (check-equal? (fpcore->spec '(log1p x)) '(log (+ 1 x)))
+  (check-equal? (fpcore->spec '(hypot x y)) '(sqrt (+ (* x x) (* y y))))
+  (check-equal? (fpcore->spec '(fma x y z)) '(+ (* x y) z))
 
   (void))

@@ -7,16 +7,16 @@
          "../utils/common.rkt"
          "../syntax/float.rkt"
          "../utils/timeline.rkt"
-         "../syntax/batch.rkt"
+         "../syntax/block.rkt"
          "egg-herbie.rkt"
          "points.rkt"
          "programs.rkt"
-         "rules.rkt")
+         "rules.rkt"
+         "taylor-cover.rkt")
 
 (provide find-preprocessing
+         cover-pcontexts
          preprocess-pcontext
-         remove-unnecessary-preprocessing
-         compile-preprocessing
          compile-useful-preprocessing)
 
 (define (has-fabs-impl? repr)
@@ -30,57 +30,92 @@
   (and (get-fpcore-impl '* (repr->prop repr) (list repr repr))
        (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr))))
 
+(define (block-replace-vars! block replacements)
+  (block-recurse block
+                 (lambda (v recurse)
+                   (dict-ref replacements
+                             v
+                             (lambda ()
+                               (block-push! block
+                                            (expr-recurse (val-def v) (compose val-idx recurse))))))))
+
 ;; The even identities: f(x) = f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
-(define (make-even-identities spec ctx)
-  (for/list ([var (in-list (context-vars ctx))]
-             [repr (in-list (context-var-reprs ctx))]
+(define (make-even-identities block spec-v output-repr)
+  (for/list ([var (in-list (block-vars block))]
+             [repr (in-list (block-var-reprs block))]
              #:when (has-fabs-impl? repr))
-    (cons `(abs ,var) (replace-expression spec var `(neg ,var)))))
+    (define var-v (block-add! block var))
+    (define neg-var-v (block-add! block `(neg ,var-v)))
+    (define replace-neg ((block-replace-vars! block `((,var-v . ,neg-var-v))) spec-v))
+    (cons `(abs ,var) replace-neg)))
 
 ;; The odd identities: f(x) = -f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
-(define (make-odd-identities spec ctx)
-  (for/list ([var (in-list (context-vars ctx))]
-             [repr (in-list (context-var-reprs ctx))]
-             #:when (and (has-fabs-impl? repr) (has-copysign-impl? (context-repr ctx))))
-    (cons `(negabs ,var) (replace-expression `(neg ,spec) var `(neg ,var)))))
+(define (make-odd-identities block spec-v output-repr)
+  (for/list ([var (in-list (block-vars block))]
+             [repr (in-list (block-var-reprs block))]
+             #:when (and (has-fabs-impl? repr) (has-copysign-impl? output-repr)))
+    (define neg-spec-v (block-add! block `(neg ,spec-v)))
+    (define var-v (block-add! block var))
+    (define neg-var-v (block-add! block `(neg ,var-v)))
+    (define replace-neg ((block-replace-vars! block `((,var-v . ,neg-var-v))) neg-spec-v))
+    (cons `(negabs ,var) replace-neg)))
 
 ;; Sort identities: f(a, b) = f(b, a)
-(define (make-sort-identities spec ctx)
-  (define pairs (combinations (context-vars ctx) 2))
+(define (make-sort-identities block spec-v output-repr)
+  (define pairs (combinations (block-vars block) 2))
+  (define reprs (map cons (block-vars block) (block-var-reprs block)))
   (for/list ([pair (in-list pairs)]
              ;; Can only sort same-repr variables
-             #:when (equal? (context-lookup ctx (first pair)) (context-lookup ctx (second pair)))
-             #:when (has-fmin-fmax-impl? (context-lookup ctx (first pair))))
+             #:when (equal? (dict-ref reprs (first pair)) (dict-ref reprs (second pair)))
+             #:when (has-fmin-fmax-impl? (dict-ref reprs (first pair))))
     (match-define (list a b) pair)
-    (cons `(sort ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
+    (define a-v (block-add! block a))
+    (define b-v (block-add! block b))
+    (define sorted-spec-v ((block-replace-vars! block `((,a-v . ,b-v) (,b-v . ,a-v))) spec-v))
+    (cons `(sort ,a ,b) sorted-spec-v)))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
-(define (find-preprocessing expr ctx)
-  (define spec (prog->spec expr))
+(define (find-preprocessing block spec-v ctx)
+  (define repr (context-repr ctx))
+
+  ;; covers
+  (define covers (compute-taylor-covers block spec-v ctx))
 
   ;; identities
   (define identities
-    (append (make-even-identities spec ctx)
-            (make-odd-identities spec ctx)
-            (make-sort-identities spec ctx)))
+    (append (make-even-identities block spec-v repr)
+            (make-odd-identities block spec-v repr)
+            (make-sort-identities block spec-v repr)))
 
   ;; make egg runner
-  (define-values (batch brfs) (progs->batch (cons spec (map cdr identities))))
-  (define runner (make-egraph batch brfs (make-list (length brfs) (context-repr ctx)) '(rewrite) ctx))
+  (define vs (cons spec-v (map cdr identities)))
+  (define runner (make-egraph block vs '(rewrite) ctx))
 
-  ;; collect equalities
-  (for/list ([(ident spec*) (in-dict identities)]
-             #:when (egraph-equal? runner spec spec*))
-    ident))
+  ;; join covers and collected equalities
+  (append covers
+          (for/list ([(ident _) (in-dict identities)]
+                     [idx (in-naturals 1)]
+                     #:when (egraph-roots-equal? runner 0 idx))
+            ident)))
+
+(define (cover-pcontexts pcontext preprocessing sampler)
+  (define covers (filter taylor-cover? preprocessing))
+  ;; No sampler is provided when the pcontext is given by the user.
+  (define sample (and sampler (pair? covers) (sampler (covers-constraint covers))))
+  ;; Return train and validation sample. The validation sample only applies
+  ;; to Taylor covers, and ensures that it was effective.
+  (if sample
+      (values sample (pcontext-append pcontext sample))
+      (values pcontext pcontext)))
 
 (define (preprocess-pcontext context pcontext preprocessing)
   (define preprocess
     (apply compose
            (map (curry instruction->operator context)
                 ;; Function composition applies the rightmost function first
-                (reverse preprocessing))))
+                (reverse (filter-not taylor-cover? preprocessing)))))
   (for/pcontext ([(x y) pcontext]) (preprocess x y)))
 
 (define (vector-update v i f)
@@ -99,7 +134,6 @@
 
 (define (instruction->operator context instruction)
   (define variables (context-vars context))
-  (define sort* (curryr sort (curryr </total (context-repr context))))
   (match instruction
     [(list 'sort a b)
      (define indices (indexes-where variables (curry set-member? (list a b))))
@@ -143,18 +177,18 @@
     [(< (length result) (length preprocessing))
      (remove-unnecessary-preprocessing expression context pcontext result #:removed newly-removed)]
     [else
-     (timeline-push! 'symmetry (map ~a result))
+     (timeline-push! 'preprocessing (map ~a result))
      result]))
 
 (define (preprocessing-<=? expression context pcontext preprocessing1 preprocessing2)
-  (define pcontext1 (preprocess-pcontext context pcontext preprocessing1))
-  (define pcontext2 (preprocess-pcontext context pcontext preprocessing2))
-  (<= (errors-score (errors expression pcontext1 context))
-      (errors-score (errors expression pcontext2 context))))
+  (define expr1 (compile-preprocessings expression context preprocessing1))
+  (define expr2 (compile-preprocessings expression context preprocessing2))
+  (match-define (list errs1 errs2) (exprs-errors (list expr1 expr2) pcontext context))
+  (<= (errors-score errs1) (errors-score errs2)))
 
 (define (compile-preprocessing expression context preprocessing)
   (match preprocessing
-    ; Not handled yet
+    [(? taylor-cover? cover) (cover-wrap cover expression context)]
     [(list 'sort a b)
      (define repr (context-lookup context a))
      (define fmin (get-fpcore-impl 'fmin (repr->prop repr) (list repr repr)))
@@ -174,8 +208,12 @@
      `(,mul (,copysign ,(literal 1 (representation-name repr)) ,var)
             ,(replace-expression expression var replacement))]))
 
-(define (compile-useful-preprocessing expression context pcontext preprocessing)
-  (define useful-preprocessing
-    (remove-unnecessary-preprocessing expression context pcontext preprocessing))
-  (for/fold ([expr expression]) ([prep (in-list (reverse useful-preprocessing))])
+(define (compile-preprocessings expression context preprocessing)
+  (for/fold ([expr expression]) ([prep (in-list (reverse preprocessing))])
     (compile-preprocessing expr context prep)))
+
+(define (compile-useful-preprocessing expression context pcontext preprocessing)
+  (compile-preprocessings
+   expression
+   context
+   (remove-unnecessary-preprocessing expression context pcontext preprocessing)))

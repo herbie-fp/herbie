@@ -164,6 +164,15 @@
       (core->tex fpcore #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
+(define (precondition->display expr)
+  (match expr
+    [(? exact-integer? n)
+     (if (> (integer-length (abs n)) 10)
+         (exact->inexact n)
+         n)]
+    [(list exprs ...) (map precondition->display exprs)]
+    [_ expr]))
+
 (define (render-program expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)])
   (define output-repr (context-repr ctx))
   (define out-prog
@@ -172,6 +181,7 @@
 
   (define output-prec (repr->precision-name output-repr))
   (define precondition* (prog->fpcore precondition ctx))
+  (define precondition-display* (precondition->display precondition*))
   (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec ':pre precondition*)))
 
   (define versions
@@ -195,16 +205,15 @@
                  `(option ,lang))))
 
   (define body
-    `(div
-      ,(if (equal? precondition '(TRUE))
-           ""
-           `(div
-             ([id "precondition"])
-             (div ((class "program math")) "\\[" ,(expr->tex (prog->fpcore precondition ctx)) "\\]")))
-      (div ((class "implementation") [data-language "Math"])
-           (div ((class "program math")) "\\[" ,math-out "\\]"))
-      ,@(for/list ([(lang out) (in-dict versions)])
-          `(div ((class "implementation") [data-language ,lang]) (pre ((class "program")) ,out)))))
+    `(div ,(if (equal? precondition '(TRUE))
+               ""
+               `(div ([id "precondition"])
+                     (div ((class "program math")) "\\[" ,(expr->tex precondition-display*) "\\]")))
+          (div ((class "implementation") [data-language "Math"])
+               (div ((class "program math")) "\\[" ,math-out "\\]"))
+          ,@(for/list ([(lang out) (in-dict versions)])
+              `(div ((class "implementation") [data-language ,lang])
+                    (pre ((class "program")) ,out)))))
 
   (values dropdown body))
 
@@ -226,15 +235,15 @@
   (define output-precision (repr->precision-name output-repr))
   (define rendered-vars
     (for/list ([var (in-list (test-vars test))])
-      (define repr-name (dict-ref (test-var-repr-names test) var))
-      (define repr (get-representation repr-name))
+      (define repr (get-representation (dict-ref (test-var-repr-names test) var)))
       (cond
         [(array-representation? repr)
-         (define dims (array-representation-shape repr))
+         (define dims (uniform-array-shape repr))
          (define elem-precision (repr->precision-name (array-representation-base repr)))
-         (if (equal? elem-precision output-precision)
-             (append (list var) dims)
-             (append (list '! ':precision elem-precision var) dims))]
+         (cond
+           [(and dims (equal? elem-precision output-precision)) (append (list var) dims)]
+           [dims (append (list '! ':precision elem-precision var) dims)]
+           [else (list '! ':precision (representation-name repr) var)])]
         [else
          (define var-precision (repr->precision-name repr))
          (if (equal? var-precision output-precision)

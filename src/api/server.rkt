@@ -7,6 +7,7 @@
 (require math/flonum)
 
 (require "../syntax/read.rkt"
+         "../syntax/platform-state.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -189,10 +190,17 @@
               (get-seed))]
     [else (eprintf "Starting Herbie ~a with seed ~a...\n" *herbie-version* (get-seed))])
 
+  (*platform-state* (platform-serialize))
+
   (set! manager
         (if threads
             (make-manager threads)
-            'basic)))
+            'basic))
+  (when (place? manager)
+    (thread (λ ()
+              (sync (place-dead-evt manager))
+              (eprintf "Manager place died; exiting.\n")
+              (exit 1)))))
 
 (define (server-improve-results)
   (log "Getting improve results.\n")
@@ -288,9 +296,8 @@
                          *reeval-pts*
                          *node-limit*
                          *max-find-range-depth*
-                         *platform-name*
-                         *functions*)
-   (activate-platform! (*platform-name*))
+                         *platform-state*)
+   (activate-platform! (*platform-state*))
    ; not sure if the above code is actaully needed.
    (define busy-workers (make-hash))
    (define waiting-workers (make-hash))
@@ -349,6 +356,11 @@
         (cond
           [(hash-has-key? completed-jobs job-id)
            (place-channel-put self (list 'send job-id (hash-ref completed-jobs job-id)))]
+          ; Already queued or running: 'finished will 'send to every waiter.
+          ; Queuing the id a second time would leave a stale id in the
+          ; queue once the first is assigned, and the lookup for it would
+          ; kill the manager.
+          [(or (hash-has-key? queued-jobs job-id) (hash-has-key? current-jobs job-id)) (void)]
           [else
            (hash-set! queued-jobs job-id job)
            (enqueue! queued-job-ids job-id)
@@ -415,9 +427,8 @@
                          *reeval-pts*
                          *node-limit*
                          *max-find-range-depth*
-                         *platform-name*
-                         *functions*)
-   (activate-platform! (*platform-name*))
+                         *platform-state*)
+   (activate-platform! (*platform-state*))
    (define worker-thread
      (thread (λ ()
                (let loop ()
@@ -596,7 +607,7 @@
 (define (analysis->json analysis pcontext test errcache)
   (define repr (context-repr (test-context test)))
   (match-define (alt-analysis alt test-errors) analysis)
-  (define cost (alt-cost alt repr))
+  (define cost (alt-cost alt))
 
   (define history-json (render-json alt pcontext (test-context test) errcache))
 
@@ -627,15 +638,14 @@
                        [repr (in-list (test-var-reprs test))])
               (cond
                 [(array-representation? repr)
-                 (define dims (array-representation-shape repr))
+                 (define dims (uniform-array-shape repr))
                  (define elem-repr (array-representation-base repr))
-                 (if (equal? elem-repr out-base-repr)
-                     (append (list var) dims)
-                     (append (list '! ':precision (representation-name elem-repr) var) dims))]
-                [else
-                 (if (equal? repr out-base-repr)
-                     var
-                     (list '! ':precision (representation-name repr) var))]))
+                 (cond
+                   [(and dims (equal? elem-repr out-base-repr)) (append (list var) dims)]
+                   [dims (append (list '! ':precision (representation-name elem-repr) var) dims)]
+                   [else (list '! ':precision (representation-name repr) var)])]
+                [(equal? repr out-base-repr) var]
+                [else (list '! ':precision (representation-name repr) var)]))
            :name
            ,(test-name test)
            :precision

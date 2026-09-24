@@ -1,0 +1,66 @@
+; -*- mode: scheme -*-
+
+(FPCore first-element ((v 2))
+ :name "First element from 2-element vector input"
+ (ref v 0))
+
+(FPCore vector-sum ((v 2))
+ :name "Sum two-element vector"
+ :pre (and (<= (fabs (ref v 0)) 1e150)
+           (<= (fabs (ref v 1)) 1e150))
+ (+ (ref v 0) (ref v 1)))
+
+(FPCore dot-product-2d ((a 2) (b 2))
+ :name "2D vector dot product"
+ :pre (and (<= (fabs (ref a 0)) 1e150)
+           (<= (fabs (ref a 1)) 1e150)
+           (<= (fabs (ref b 0)) 1e150)
+           (<= (fabs (ref b 1)) 1e150))
+ (+ (* (ref a 0) (ref b 0))
+    (* (ref a 1) (ref b 1))))
+
+(FPCore weighted-combo (w (v 2))
+ :name "Weighted combination of scalar and vector"
+ :pre (and (<= (fabs w) 1e150)
+           (<= (fabs (ref v 0)) 1e150)
+           (<= (fabs (ref v 1)) 1e150))
+ (+ (* w (ref v 0)) (ref v 1)))
+
+(FPCore scaled-sum ((v 2) s)
+ :name "Scaled sum of vector elements"
+ :pre (and (<= (fabs s) 1e150)
+           (<= (fabs (ref v 0)) 1e150)
+           (<= (fabs (ref v 1)) 1e150))
+ (+ (* s (ref v 0))
+    (* s (ref v 1))))
+
+(FPCore identity-vector ((v 2))
+ :name "Return input vector"
+ :precision binary64
+ v)
+
+(FPCore make-pair (x y)
+ :name "Two-slot array of two scalars"
+ :precision binary64
+ :pre (and (<= (fabs x) 1e150) (<= (fabs y) 1e150))
+ (array x y))
+
+(FPCore mean-and-span (x y)
+ :name "Mean and half-difference"
+ :precision binary64
+ :pre (and (<= (fabs x) 1e150) (<= (fabs y) 1e150))
+ (array (* 0.5 (+ x y))
+        (* 0.5 (- x y))))
+
+(FPCore three-slots (x y z)
+ :name "Three-slot array"
+ :precision binary64
+ :pre (and (<= (fabs x) 1e150) (<= (fabs y) 1e150) (<= (fabs z) 1e150))
+ (array (+ x y) (- x y) (* y z)))
+
+(FPCore ((! :precision binary32 s) d)
+ :name "Mixed-precision pair: binary32 slot and binary64 slot"
+ :precision binary64
+ :pre (and (< 1e-6 s 1e6) (< 1e-6 d 1e6))
+ (array (! :precision binary32 (- (sqrt (+ s 1)) (sqrt s)))
+        (- (sqrt (+ d 1)) (sqrt d))))

@@ -24,9 +24,9 @@
                 (define df1 (call-with-input-file (build-path outdir1 "results.json") read-datafile))
                 (define df2 (call-with-input-file (build-path outdir2 "results.json") read-datafile))
                 (cond
-                  [(datafile-tests-equal? df1 df2) (printf "Matching output expressions\n")]
+                  [(datafile-tests-equal? df1 df2) (displayln "Matching output expressions")]
                   [else
-                   (printf "Output expressions do not match!!\n")
+                   (displayln "Output expressions do not match!!")
                    (printf " datafile1: ~a\n" df1)
                    (printf " datafile1: ~a\n" df2)
                    (exit 1)])))

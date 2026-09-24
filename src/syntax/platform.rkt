@@ -9,7 +9,7 @@
          "syntax.rkt"
          "../syntax/float.rkt"
          "generators.rkt"
-         "batch.rkt")
+         "block.rkt")
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
@@ -29,12 +29,16 @@
      (fprintf port "#<platform>"))])
 
 (provide *active-platform*
+         platform-copy
+         repr-exists?
          get-representation
          impl-exists?
          impl-info
          prog->spec
-         batch-to-spec!
+         block-to-spec!
          get-fpcore-impl
+         impl->fpcore
+         reset-fpcore-op-cache!
          (struct-out $platform)
          ;; Platform API
          ;; Operator sets
@@ -45,12 +49,22 @@
                        [platform-cost-proc (-> platform? procedure?)])
          ; Platform creation
          make-empty-platform
+         array-impl-name
+         array-ref-impl-name
+         ensure-array-impls!
+         ensure-array-ref-impl!
          display-platform
          make-representation
          (all-from-out "generators.rkt"))
 
 ;; Active platform
 (define *active-platform* (make-parameter #f))
+
+(define (platform-copy platform)
+  (struct-copy $platform
+               platform
+               [representations (hash-copy (platform-representations platform))]
+               [implementations (hash-copy (platform-implementations platform))]))
 
 (define (make-empty-platform)
   (define reprs (make-hash))
@@ -63,12 +77,23 @@
 (define (get-representation name)
   (define platform (*active-platform*))
   (define reprs (platform-representations platform))
-  (or (hash-ref reprs name #f)
-      (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
-                          name
-                          (string-join (map ~s (hash-keys reprs)) ", ")
-                          (*platform-name*))))
+  (match name
+    [(? representation?) name]
+    [`(array ,slots ...) (apply make-array-representation (map get-representation slots))]
+    [_
+     (or (hash-ref reprs name #f)
+         (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
+                             name
+                             (string-join (map ~s (hash-keys reprs)) ", ")
+                             (*platform-name*)))]))
 
+(define (repr-exists? name [platform (*active-platform*)])
+  (define reprs (platform-representations platform))
+  (match name
+    [(? representation?) #t]
+    [`(array ,slots ...)
+     (and (pair? slots) (andmap (lambda (slot) (repr-exists? slot platform)) slots))]
+    [_ (hash-has-key? reprs name)]))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> LSpec
 
@@ -88,32 +113,210 @@
      (define env (map cons vars (map prog->spec args)))
      (pattern-substitute spec env)]))
 
-(define (batch-to-spec! batch brfs)
+(define (block-to-spec! in-block out-block vs)
   (define lower
-    (batch-recurse batch
-                   (lambda (brf recurse)
-                     (define node (deref brf))
-                     (match node
-                       [(? literal?) (batch-push! batch (literal-value node))]
-                       [(? number?) brf]
-                       [(? symbol?) brf]
-                       [(hole _ spec) (recurse spec)]
-                       [(approx spec _) (recurse spec)]
-                       [(list (? impl-exists? impl) args ...)
-                        (define vars (impl-info impl 'vars))
-                        (define spec (impl-info impl 'spec))
-                        (define env (map cons vars (map recurse args)))
-                        (batch-add! batch (pattern-substitute spec env))]
-                       [(list op args ...)
-                        (batch-push! batch (cons op (map (compose batchref-idx recurse) args)))]))))
-  (map lower brfs))
+    (block-recurse
+     in-block
+     (lambda (v recurse)
+       (define node (val-def v))
+       (match node
+         [(? literal?) (block-add! out-block (literal-value node))]
+         [(? number?) (error 'block-to-spec! "unexpected spec node in input block: ~a" node)]
+         [(? symbol?) (block-add! out-block node)]
+         [(approx spec _) spec]
+         [(list (? impl-exists? impl) args ...)
+          (define vars (impl-info impl 'vars))
+          (define spec (impl-info impl 'spec))
+          (define env (map cons vars (map recurse args)))
+          (block-add! out-block (pattern-substitute spec env))]
+         [(list op args ...)
+          (error 'block-to-spec! "unexpected spec node in input block: ~a" node)]))))
+  (map lower vs))
+
+(module+ test
+  (require rackunit)
+
+  (define test-empty-ctx (context '() #f '()))
+
+  (let* ([in-block (block-empty test-empty-ctx)]
+         [out-block (block-empty test-empty-ctx)]
+         [x (block-add! in-block 'x)]
+         [x* (first (block-to-spec! in-block out-block (list x)))])
+    (check-equal? (val-block x*) out-block)
+    (check-equal? (val-def x*) 'x))
+
+  (let* ([block (block-empty test-empty-ctx)]
+         [spec-block (block-empty test-empty-ctx)]
+         [spec (block-add! spec-block 'x)]
+         [impl (block-add! block (literal 1 'binary64))]
+         [approx-v (block-add! block (approx spec impl))])
+    (check-equal? (block-to-spec! block spec-block (list approx-v)) (list spec)))
+
+  (let* ([in-block (block-empty test-empty-ctx)]
+         [out-block (block-empty test-empty-ctx)]
+         [spec (block-add! out-block 'x)]
+         [impl (block-add! in-block (literal 1 'binary64))]
+         [approx-v (block-add! in-block (approx spec impl))]
+         [spec* (first (block-to-spec! in-block out-block (list approx-v)))])
+    (check-equal? (val-block spec*) out-block)
+    (check-equal? (val-def spec*) 'x))
+
+  (let* ([in-block (block-empty test-empty-ctx)]
+         [out-block (block-empty test-empty-ctx)]
+         [num (block-add! in-block 1)]
+         [expr (block-add! in-block `(+ ,num ,num))])
+    (parameterize ([*active-platform* (make-empty-platform)])
+      (check-exn #rx"unexpected spec node" (λ () (block-to-spec! in-block out-block (list num))))
+      (check-exn #rx"unexpected spec node" (λ () (block-to-spec! in-block out-block (list expr)))))))
+
+(define (impl-registered? name)
+  (hash-has-key? (platform-implementations (*active-platform*)) name))
+
+(define (repr-name->token name)
+  (match name
+    [(? symbol?) (symbol->string name)]
+    [`(array ,slots ...) (format "array<~a>" (string-join (map repr-name->token slots) ":"))]
+    [_ (raise-herbie-error "Cannot name representation ~a" name)]))
+
+(define (array-impl-name repr)
+  (string->symbol (repr-name->token (representation-name repr))))
+
+(define (array-ref-impl-name repr idx)
+  (string->symbol (format "ref.~a.~a" idx (repr-name->token (representation-name repr)))))
+
+(define (ensure-array-representation! repr)
+  (define pform (*active-platform*))
+  (define reprs (platform-representations pform))
+  (define name (representation-name repr))
+  (unless (hash-has-key? reprs name)
+    (hash-set! reprs name repr)
+    (hash-set! (platform-representation-costs pform)
+               name
+               (for/sum ([slot (in-list (array-representation-slots repr))])
+                        (platform-repr-cost pform slot)))))
+
+(define (register-array-impl! impl)
+  (hash-set! (platform-implementations (*active-platform*)) (operator-impl-name impl) impl)
+  (reset-fpcore-op-cache!))
+
+(define (ensure-array-constructor! repr)
+  (define name (array-impl-name repr))
+  (unless (impl-registered? name)
+    (define slots (array-representation-slots repr))
+    (define vars
+      (for/list ([i (in-range (length slots))])
+        (string->symbol (format "x~a" i))))
+    (define spec `(array ,@vars))
+    (register-array-impl! (operator-impl name
+                                         (context vars repr slots)
+                                         spec
+                                         spec
+                                         (procedure-reduce-arity (lambda args (list->vector args))
+                                                                 (length vars))
+                                         0
+                                         +)))
+  name)
+
+(define (ensure-array-accessor! repr idx)
+  (define name (array-ref-impl-name repr idx))
+  (unless (impl-registered? name)
+    (define slots (array-representation-slots repr))
+    (define spec `(ref t ,idx))
+    (register-array-impl! (operator-impl name
+                                         (context '(t) (list-ref slots idx) (list repr))
+                                         spec
+                                         spec
+                                         (lambda (v) (vector-ref v idx))
+                                         0
+                                         +)))
+  name)
+
+(define (ensure-array-impls! repr)
+  (define ctor-name (array-impl-name repr))
+  (cond
+    [(impl-registered? ctor-name) ctor-name]
+    [else
+     (for ([slot (in-list (array-representation-slots repr))]
+           #:when (array-representation? slot))
+       (ensure-array-impls! slot))
+     (ensure-array-representation! repr)
+     (ensure-array-constructor! repr)
+     (for ([idx (in-range (length (array-representation-slots repr)))])
+       (ensure-array-accessor! repr idx))
+     ctor-name]))
+
+(define (ensure-array-ref-impl! repr idx)
+  (ensure-array-impls! repr)
+  (ensure-array-accessor! repr idx))
+
+(define (token->repr-name tok)
+  (define (split-slots body)
+    (let loop ([i 0]
+               [depth 0]
+               [start 0]
+               [out '()])
+      (cond
+        [(= i (string-length body)) (and (zero? depth) (reverse (cons (substring body start i) out)))]
+        [else
+         (define c (string-ref body i))
+         (cond
+           [(char=? c #\<) (loop (add1 i) (add1 depth) start out)]
+           [(char=? c #\>) (and (positive? depth) (loop (add1 i) (sub1 depth) start out))]
+           [(and (char=? c #\:) (zero? depth))
+            (loop (add1 i) depth (add1 i) (cons (substring body start i) out))]
+           [else (loop (add1 i) depth start out)])])))
+  (define (wrapped? prefix)
+    (and (string-prefix? tok (string-append prefix "<")) (string-suffix? tok ">")))
+  (define (body prefix)
+    (substring tok (add1 (string-length prefix)) (sub1 (string-length tok))))
+  (define (slots-of prefix)
+    (define parts (split-slots (body prefix)))
+    (and parts
+         (pair? parts)
+         (not (member "" parts))
+         (let ([names (map token->repr-name parts)]) (and (andmap values names) names))))
+  (cond
+    [(wrapped? "array")
+     (define names (slots-of "array"))
+     (and names `(array ,@names))]
+    [(zero? (string-length tok)) #f]
+    [(or (string-contains? tok "<") (string-contains? tok ">") (string-contains? tok ":")) #f]
+    [else (string->symbol tok)]))
+
+(define (array-impl-name->repr name)
+  (define-values (tok idx)
+    (match (and (symbol? name)
+                (regexp-match #px"^(?:ref\\.([0-9]+)\\.)?(array<.*>)$" (symbol->string name)))
+      [(list _ #f tok) (values tok #f)]
+      [(list _ idx tok) (values tok (string->number idx))]
+      [_ (values #f #f)]))
+  (define repr-name (and tok (token->repr-name tok)))
+  (define repr
+    (and repr-name
+         (repr-exists? repr-name)
+         (let ([r (get-representation repr-name)]) (and (array-representation? r) r))))
+  (cond
+    [(not repr) (values #f #f)]
+    [(not idx) (values repr #f)]
+    [(< idx (length (array-representation-slots repr))) (values repr idx)]
+    [else (values #f #f)]))
+
+(define (array-impl-name? name)
+  (define-values (repr _idx) (array-impl-name->repr name))
+  (and repr #t))
+
+(define (synthesize-array-impl! name)
+  (define-values (repr _idx) (array-impl-name->repr name))
+  (and repr
+       (ensure-array-impls! repr)
+       (hash-ref (platform-implementations (*active-platform*)) name #f)))
 
 ;; Expression predicates ;;
 
 (define (impl-exists? op)
   (define platform (*active-platform*))
   (define impls (platform-implementations platform))
-  (hash-has-key? impls op))
+  (or (hash-has-key? impls op) (array-impl-name? op)))
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
@@ -121,10 +324,9 @@
   (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost 'aggregate) any/c)
   (define impls (platform-implementations (*active-platform*)))
   (define impl
-    (hash-ref impls
-              impl-name
-              (lambda ()
-                (error 'impl-info "unknown impl '~a in platform ~a" impl-name (*platform-name*)))))
+    (or (hash-ref impls impl-name #f)
+        (synthesize-array-impl! impl-name)
+        (error 'impl-info "unknown impl '~a in platform ~a" impl-name (*platform-name*))))
   (case field
     [(vars) (context-vars (operator-impl-ctx impl))]
     [(itype) (context-var-reprs (operator-impl-ctx impl))]
@@ -148,10 +350,10 @@
 
 ; Cost model of a single node by a platform.
 ; Returns a procedure that must be called with the costs of the children.
-(define ((platform-node-cost-proc platform) expr repr)
+(define ((platform-node-cost-proc platform) expr)
   (match expr
-    [(? literal?) (lambda () (platform-repr-cost platform repr))]
-    [(? symbol?) (lambda () (platform-repr-cost platform repr))]
+    [(literal _ precision) (lambda () (platform-repr-cost platform (get-representation precision)))]
+    [(? symbol?) (lambda () 0)]
     [(list impl args ...)
      (define impl-cost (impl-info impl 'cost))
      (define impl-agg (impl-info impl 'aggregate))
@@ -163,26 +365,32 @@
 ; Cost model parameterized by a platform.
 (define (platform-cost-proc platform)
   (define node-cost-proc (platform-node-cost-proc platform))
-  (λ (expr repr)
-    (let loop ([expr expr]
-               [repr repr])
+  (λ (expr)
+    (let loop ([expr expr])
       (match expr
-        [(? literal?) ((node-cost-proc expr repr))]
-        [(? symbol?) ((node-cost-proc expr repr))]
-        [(approx _ impl) (loop impl repr)]
+        [(? literal?) ((node-cost-proc expr))]
+        [(? symbol?) ((node-cost-proc expr))]
+        [(approx _ impl) (loop impl)]
         [(list impl args ...)
-         (define cost-proc (node-cost-proc expr repr))
-         (define itypes (impl-info impl 'itype))
-         (apply cost-proc (map loop args itypes))]))))
+         (define cost-proc (node-cost-proc expr))
+         (apply cost-proc (map loop args))]))))
 
 ;; Extracts the `fpcore` field of an operator implementation
-;; as a property dictionary and expression.
+;; as a property dictionary and operation.
 (define (impl->fpcore impl)
-  (match (impl-info impl 'fpcore)
-    [(list '! props ... body) (values (props->dict props) body)]
-    [body (values '() body)]))
+  (define-values (props body)
+    (match (impl-info impl 'fpcore)
+      [(list '! props ... body) (values (props->dict props) body)]
+      [body (values '() body)]))
+  (values props
+          (if (symbol? body)
+              (list body)
+              body)))
 
 (define/reset op-hash #f)
+
+(define (reset-fpcore-op-cache!)
+  (op-hash #f))
 
 ;; For a given FPCore operator, rounding context, and input representations,
 ;; finds the best operator implementation. Panics if none can be found.
@@ -192,12 +400,8 @@
     (define h (make-hash))
     (for ([impl (in-list (platform-impls (*active-platform*)))])
       (define-values (_ expr) (impl->fpcore impl))
-      (define expr*
-        (if (symbol? expr)
-            (list expr)
-            expr))
-      (when (list? expr*)
-        (hash-update! h (car expr*) (curry cons impl) '())))
+      (when (list? expr)
+        (hash-update! h (car expr) (curry cons impl) '())))
     (op-hash h))
 
   ; gather all implementations that have the same spec, input representations,
@@ -207,12 +411,8 @@
           (for ([impl (in-list (hash-ref (op-hash) op '()))]
                 #:when (equal? ireprs (impl-info impl 'itype)))
             (define-values (prop-dict* expr) (impl->fpcore impl))
-            (define expr*
-              (if (symbol? expr)
-                  (list expr)
-                  expr)) ; Handle named constants
             (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))
-            (when (and (subset? prop-dict* prop-dict) (pattern-match pattern expr*))
+            (when (and (subset? prop-dict* prop-dict) (pattern-match pattern expr))
               (sow impl)))))
   ; check that we have any matching impls
   (cond
