@@ -419,14 +419,17 @@
   (define helper-impls
     (for/seteq ([extension (in-list (*platform-extensions*))])
       (fpcore-extension-name extension)))
-  (append* (for/list ([impl (in-list (platform-impls pform))]
-                      #:unless (set-member? helper-impls impl))
-             (hash-ref! (*lowering-rules*)
-                        (cons impl pform)
-                        (lambda ()
-                          (define name (sym-append 'lower- impl))
-                          (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                          (list (rule name spec-expr impl-expr '(lowering))))))))
+  (define array-rules (array-lowering-rules pform))
+  (define normal-rules
+    (append* (for/list ([impl (in-list (platform-impls pform))]
+                        #:unless (set-member? helper-impls impl))
+               (hash-ref! (*lowering-rules*)
+                          (cons impl pform)
+                          (lambda ()
+                            (define name (sym-append 'lower- impl))
+                            (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+                            (list (rule name spec-expr impl-expr '(lowering))))))))
+  (append normal-rules array-rules))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph

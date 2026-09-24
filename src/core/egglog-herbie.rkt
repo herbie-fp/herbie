@@ -196,6 +196,7 @@
 (define (prelude subproc #:mixed-egraph? [mixed-egraph? #t])
   (define pform (*active-platform*))
 
+  (array-lowering-rules pform)
   (egglog-send subproc `(datatype M ,@(platform-spec-nodes pform)))
 
   (egglog-send
@@ -278,17 +279,20 @@
                                         (spec-array-arities (impl-info impl 'spec)))))
           <))
   (hash-set! (id->e1) 'array #t)
+  (hash-set! (id->e1) 'ref 'Ref)
+  (hash-set! (e1->id) 'Ref 'ref)
   (append (list '(Num BigRat :cost 4294967295)
                 '(Var String :cost 4294967295)
                 '(Sound-/ M M M :cost 4294967295)
                 '(Sound-Log M M :cost 4294967295)
-                '(Sound-Pow M M M :cost 4294967295))
+                '(Sound-Pow M M M :cost 4294967295)
+                '(Ref M i64 :cost 4294967295))
           (for/list ([arity (in-list array-arities)])
             (define name (string->symbol (format "Array~a" arity)))
             (hash-set! (e1->id) name 'array)
             `(,name ,@(make-list arity 'M) :cost 4294967295))
           (for/list ([op (in-list (all-operators))]
-                     #:unless (eq? op 'array))
+                     #:unless (member op '(array ref)))
             (define arity (length (operator-info op 'itype)))
             (hash-set! (id->e1) op (serialize-op op))
             (hash-set! (e1->id) (serialize-op op) op)
@@ -339,20 +343,23 @@
   (define helper-impls
     (for/seteq ([extension (in-list (*platform-extensions*))])
       (fpcore-extension-name extension)))
-  (for/list ([impl (in-list (platform-impls pform))]
-             #:unless (set-member? helper-impls impl))
-    (define spec-expr (impl-info impl 'spec))
-    `(rule ((= ?root ,(expr->egglog-spec-serialized spec-expr ""))
-            ,@(for/list ([v (in-list (impl-info impl 'vars))]
-                         [vt (in-list (impl-info impl 'itype))])
-                `(= ,(string->symbol (string-append "t" (symbol->string v)))
-                    (do-lower ,v ,(egglog-repr-token vt)))))
-           ((union (do-lower ?root ,(egglog-repr-token (impl-info impl 'otype)))
-                   (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
-                    ,@(for/list ([v (in-list (impl-info impl 'vars))])
-                        (string->symbol (string-append "t" (symbol->string v)))))))
-           :ruleset
-           lower)))
+  (define array-rules (array-lowering-rules pform))
+  (append (for/list ([impl (in-list (platform-impls pform))]
+                     #:unless (set-member? helper-impls impl))
+            (define spec-expr (impl-info impl 'spec))
+            `(rule ((= ?root ,(expr->egglog-spec-serialized spec-expr ""))
+                    ,@(for/list ([v (in-list (impl-info impl 'vars))]
+                                 [vt (in-list (impl-info impl 'itype))])
+                        `(= ,(string->symbol (string-append "t" (symbol->string v)))
+                            (do-lower ,v ,(egglog-repr-token vt)))))
+                   ((union (do-lower ?root ,(egglog-repr-token (impl-info impl 'otype)))
+                           (,(string->symbol (string-append (symbol->string (serialize-impl impl))
+                                                            "Ty"))
+                            ,@(for/list ([v (in-list (impl-info impl 'vars))])
+                                (string->symbol (string-append "t" (symbol->string v)))))))
+                   :ruleset
+                   lower))
+          (egglog-rewrite-rules array-rules 'lower)))
 
 (define (impl-lifting-rules pform)
   (for/list ([impl (in-list (platform-impls pform))])
@@ -377,6 +384,7 @@
     (match expr
       [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) (string->symbol (string-append s (symbol->string expr)))]
+      [(list 'ref arr idx) `(,(hash-ref (id->e1) 'ref) ,(loop arr) ,idx)]
       [(list op args ...)
        `(,(if (hash-has-key? (id->e1) op)
               (serialize-spec-op op (length args))
@@ -402,6 +410,7 @@
     (match expr
       [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) expr]
+      [(list 'ref arr idx) `(,(hash-ref (id->e1) 'ref) ,(loop arr) ,idx)]
       [(list op args ...) `(,(serialize-spec-op op (length args)) ,@(map loop args))])))
 
 (define (egglog-rewrite-rules rules tag)
@@ -442,12 +451,12 @@
                        (match node
                          [(? number?) `(Num ,(real->bigrat node))]
                          [(? symbol?) #f]
+                         [(list 'ref arr idx) `(,(hash-ref (id->e1) 'ref) ,(recurse arr) ,idx)]
                          [(list impl args ...)
                           `(,(if (eq? impl 'array)
                                  (serialize-spec-op impl (length args))
                                  (hash-ref (id->e1) impl))
-                            ,@(for/list ([arg (in-list args)])
-                                (recurse arg)))]))
+                            ,@(map recurse args))]))
 
                      (set! reachable-vs (cons v reachable-vs))
                      (if node*
@@ -565,6 +574,7 @@
 
 (define (e1->expr expr)
   (match expr
+    [(? exact-integer? n) n]
     [`(Num (bigrat (from-string ,n) (from-string ,d))) (/ (string->number n) (string->number d))]
     [`(Var ,v) (string->symbol v)]
     [`(,op ,args ...) `(,(hash-ref (e1->id) op) ,@(map e1->expr args))]))
