@@ -94,6 +94,13 @@
                     reprs
                     [label #f]
                     #:extract extract) ; multi expression extraction
+  ;; With no roots there is nothing to insert or extract. Skip the subprocess
+  ;; entirely.
+  (if (null? (egglog-runner-vs runner))
+      '()
+      (run-egglog-subprocess runner output-block reprs label extract)))
+
+(define (run-egglog-subprocess runner output-block reprs label extract)
   (define insert-block (egglog-runner-block runner))
   (define insert-vs (egglog-runner-vs runner))
   (define schedule (egglog-runner-schedule runner))
@@ -168,65 +175,123 @@
       ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
   ;; 5. Extract using constructor names returned by egglog-add-exprs.
-  (define stdout-content
-    (egglog-multi-extract subproc
-                          `(multi-extract ,extract
-                                          ,@(for/list ([constructor-name (in-list extract-bindings)]
-                                                       [repr (in-list reprs)])
-                                              `(do-lower (,constructor-name)
-                                                         ,(egglog-repr-token repr))))))
+  (define variantss (egglog-multi-extract subproc extract extract-bindings reprs output-block))
 
   ;; Close everything subprocess related
   (egglog-subprocess-close subproc)
 
-  ;; (Listof (Listof exprs))
-  (define herbie-exprss
-    (for/list ([next-expr (in-list stdout-content)])
-      (map e2->expr next-expr)))
+  variantss)
 
-  (for/list ([variants (in-list herbie-exprss)])
+;; Extract `variants` variants for each root, lowered to its repr, and intern
+;; them into output-block, returning one list of blockrefs per root. The
+;; response uses multi-extract's :dag form: subterms shared across variants
+;; arrive let-bound once instead of expanded at every use (responses shrink by
+;; an order of magnitude).
+(define (egglog-multi-extract subproc variants extract-bindings reprs output-block)
+  (define response
+    (egglog-send/read subproc
+                      `(multi-extract ,variants
+                                      :dag
+                                      ,@(for/list ([n (in-list extract-bindings)]
+                                                   [repr (in-list reprs)])
+                                          `(do-lower (herbie-const ,n) ,(egglog-repr-token repr))))))
+  (match-define `(let ,dag-bindings ,dag-body) response)
+  (egglog-dag->blockrefs dag-bindings dag-body output-block))
+
+;; Convert the (let ((name def) ...) ((variant ...) ...)) response of
+;; (multi-extract :dag ...) into blockrefs. Shared subterms arrive as ?tN
+;; binding references; each is resolved, converted, and interned exactly
+;; once, so the total work is proportional to the response DAG rather than
+;; to the expanded variant trees.
+(define (egglog-dag->blockrefs bindings body output-block)
+  ;; Binding name -> its definition with references resolved. Reusing the
+  ;; same pair object at every reference preserves sharing, which the
+  ;; eq?-keyed memo tables below rely on.
+  (define env (make-hasheq))
+  (define (resolve expr)
+    (match expr
+      [(? symbol?) (hash-ref env expr)]
+      [(list head args ...) (cons head (map resolve args))]
+      [_ expr]))
+  (for ([binding (in-list bindings)])
+    (match-define (list name def) binding)
+    (hash-set! env name (resolve def)))
+
+  ;; eq?-memoized counterparts of e1->expr and e2->expr: a shared node is
+  ;; converted once. Impl (MTy) terms are interned eagerly and referenced as
+  ;; blockrefs, which block-add! accepts as children; spec (M) terms stay
+  ;; plain expressions since approx nodes store their spec unmunged.
+  (define spec-memo (make-hasheq))
+  (define impl-memo (make-hasheq))
+  (define (spec->expr expr)
+    (hash-ref!
+     spec-memo
+     expr
+     (lambda ()
+       (match expr
+         ;; Ref indices are bare i64 literals.
+         [(? exact-integer? n) n]
+         [`(Num (bigrat (from-string ,n) (from-string ,d))) (/ (string->number n) (string->number d))]
+         [`(Var ,v) (string->symbol v)]
+         [`(,op ,args ...) `(,(hash-ref (e1->id) op) ,@(map spec->expr args))]))))
+  (define (add-impl! expr)
+    (hash-ref!
+     impl-memo
+     expr
+     (lambda ()
+       (match expr
+         [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
+          (block-add! output-block
+                      (literal (/ (string->number n) (string->number d)) (egglog-num-repr num)))]
+         [`(,(? egglog-var? var) ,v) (block-add! output-block (string->symbol v))]
+         ; Approx stores a spec expression in E1/M and an implementation in E2/MTy.
+         [`(Approx ,spec ,impl) (block-add! output-block (approx (spec->expr spec) (add-impl! impl)))]
+         [`(,impl ,args ...)
+          (block-add! output-block `(,(hash-ref (e2->id) impl) ,@(map add-impl! args)))]))))
+
+  (for/list ([variants (in-list body)])
     (for/list ([v (in-list variants)])
-      (block-add! output-block v))))
+      (add-impl! (resolve v)))))
 
 ;; Egglog requires integer costs, but Herbie uses floating-point costs.
 ;; Scale by 1000 to convert Herbie's float costs to Egglog's integer costs.
 (define (normalize-cost c)
   (exact-round (* c 1000)))
 
-(define (prelude subproc #:mixed-egraph? [mixed-egraph? #t])
-  (define pform (*active-platform*))
-
+(define (prelude-commands pform)
+  ;; Registers any array impls the platform needs before the node declarations
+  ;; below are built.
   (array-lowering-rules pform)
-  (egglog-send subproc `(datatype M ,@(platform-spec-nodes pform)))
+  (list `(datatype M ,@(platform-spec-nodes pform))
+        `(datatype MTy
+                   ,@(num-typed-nodes pform)
+                   ,@(var-typed-nodes pform)
+                   (Approx M MTy)
+                   ,@(platform-impl-nodes pform))
+        `(constructor do-lower (M String) MTy :unextractable)
+        `(constructor herbie-const (i64) M :unextractable)
+        `(constructor do-lift (MTy) M :unextractable)
+        `(ruleset lower)
+        `(ruleset lift)
+        `(ruleset unsound)
+        `(function bad-merge? () bool :merge (or old new))
+        `(ruleset bad-merge-rule)
+        `(set (bad-merge?) false)
+        `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule)))
 
-  (egglog-send
-   subproc
-   `(datatype MTy
-              ,@(num-typed-nodes pform)
-              ,@(var-typed-nodes pform)
-              (Approx M MTy)
-              ,@(platform-impl-nodes pform))
-   `(constructor do-lower (M String) MTy :unextractable)
-   `(constructor do-lift (MTy) M :unextractable)
-   `(ruleset lower)
-   `(ruleset lift)
-   `(ruleset unsound)
-   `(function bad-merge? () bool :merge (or old new))
-   `(ruleset bad-merge-rule)
-   `(set (bad-merge?) false)
-   `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule))
-
+(define (prelude subproc #:mixed-egraph? [mixed-egraph? #t])
+  (apply egglog-send subproc (prelude-commands (*active-platform*)))
   (void))
 
 (define (egglog-step-commands step pform)
   (match step
     ['lift (append (list (approx-lifting-rule)) (impl-lifting-rules pform) (num-lifting-rules))]
     ['lower (append (impl-lowering-rules pform) (num-lowering-rules))]
-    ['unsound (egglog-rewrite-rules (*sound-removal-rules*) 'unsound)]
+    ['unsound (egglog-rewrite-rules (*sound-removal-rules*) 'unsound pform)]
     ['rewrite
      (append (list `(ruleset rewrite))
              (const-fold-rules)
-             (egglog-rewrite-rules (*rules*) 'rewrite))]))
+             (egglog-rewrite-rules (*rules*) 'rewrite pform))]))
 
 (define (const-fold-rules)
   `((ruleset const-fold)
@@ -270,7 +335,9 @@
     [(list _ args ...) (append* (map spec-array-arities args))]
     [_ '()]))
 
-(define (platform-spec-nodes pform)
+;; Every M constructor with its argument sorts, e.g. (Num BigRat), also
+;; registering the id<->e1 mappings as a side effect.
+(define (spec-node-declarations pform)
   (for ([op '(sound-/ sound-log sound-pow)])
     (hash-set! (id->e1) op (serialize-op op))
     (hash-set! (e1->id) (serialize-op op) op))
@@ -281,22 +348,31 @@
   (hash-set! (id->e1) 'array #t)
   (hash-set! (id->e1) 'ref 'Ref)
   (hash-set! (e1->id) 'Ref 'ref)
-  (append (list '(Num BigRat :cost 4294967295)
-                '(Var String :cost 4294967295)
-                '(Sound-/ M M M :cost 4294967295)
-                '(Sound-Log M M :cost 4294967295)
-                '(Sound-Pow M M M :cost 4294967295)
-                '(Ref M i64 :cost 4294967295))
+  (append (list '(Num BigRat)
+                '(Var String)
+                '(Sound-/ M M M)
+                '(Sound-Log M M)
+                '(Sound-Pow M M M)
+                '(Ref M i64))
           (for/list ([arity (in-list array-arities)])
             (define name (string->symbol (format "Array~a" arity)))
             (hash-set! (e1->id) name 'array)
-            `(,name ,@(make-list arity 'M) :cost 4294967295))
+            `(,name ,@(make-list arity 'M)))
           (for/list ([op (in-list (all-operators))]
                      #:unless (member op '(array ref)))
             (define arity (length (operator-info op 'itype)))
             (hash-set! (id->e1) op (serialize-op op))
             (hash-set! (e1->id) (serialize-op op) op)
-            `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295))))
+            `(,(serialize-op op) ,@(make-list arity 'M)))))
+
+(define (platform-spec-nodes pform)
+  (for/list ([decl (in-list (spec-node-declarations pform))])
+    (append decl '(:cost 4294967295))))
+
+;; (ctor . arity) for every M constructor.
+(define (spec-node-signatures pform)
+  (for/list ([decl (in-list (spec-node-declarations pform))])
+    (cons (car decl) (length (cdr decl)))))
 
 (define (platform-impl-nodes pform)
   (for/list ([impl (in-list (platform-impls pform))])
@@ -359,7 +435,7 @@
                                 (string->symbol (string-append "t" (symbol->string v)))))))
                    :ruleset
                    lower))
-          (egglog-rewrite-rules array-rules 'lower)))
+          (egglog-rewrite-rules array-rules 'lower pform)))
 
 (define (impl-lifting-rules pform)
   (for/list ([impl (in-list (platform-impls pform))])
@@ -413,13 +489,25 @@
       [(list 'ref arr idx) `(,(hash-ref (id->e1) 'ref) ,(loop arr) ,idx)]
       [(list op args ...) `(,(serialize-spec-op op (length args)) ,@(map loop args))])))
 
-(define (egglog-rewrite-rules rules tag)
-  (for/list ([rule (in-list rules)]
-             #:when (not (symbol? (rule-input rule))))
-    `(rewrite ,(expr->e1-pattern (rule-input rule))
-              ,(expr->e1-pattern (rule-output rule))
-              :ruleset
-              ,tag)))
+(define (egglog-rewrite-rules rules tag pform)
+  (apply append
+         (for/list ([rule (in-list rules)])
+           (define input (rule-input rule))
+           (define output (expr->e1-pattern (rule-output rule)))
+           (cond
+             [(symbol? input)
+              ;; A bare-variable left-hand side (e.g. pow1: a -> (pow a 1)) matches
+              ;; every e-class. egg applies such rules; egglog needs a pattern, so
+              ;; emit one rule per M constructor. Skipping them makes the two
+              ;; backends explore differently (fewer nodes per iteration, more
+              ;; iterations, ~2x wider root classes at the same node limit).
+              (for/list ([sig (in-list (spec-node-signatures pform))])
+                (match-define (cons ctor arity) sig)
+                (define args
+                  (for/list ([i (in-range arity)])
+                    (string->symbol (format "?p~a" i))))
+                `(rule ((= ,input (,ctor ,@args))) ((union ,input ,output)) :ruleset ,tag))]
+             [else `((rewrite ,(expr->e1-pattern input) ,output :ruleset ,tag))]))))
 
 (define (egglog-add-exprs block vs subproc)
   (define bindings (make-hash))
@@ -495,18 +583,14 @@
   (for ([var (in-list (block-vars block))])
     ; Get the binding names for the program
     (define binding-name (string->symbol (format "?s~a" var)))
-    (define constructor-name (string->symbol (format "const~a" constructor-num)))
-    (hash-set! binding->constructor binding-name constructor-name)
+    (hash-set! binding->constructor binding-name constructor-num)
 
     ; Define the actual binding
     (define curr-var-spec-binding `(let ,binding-name (Var ,(symbol->string var))))
 
-    ; Send the constructor definition
-    (egglog-send subproc `(constructor ,constructor-name () M :unextractable))
-
     ; Add the binding and constructor union to all-bindings for the future rule
     (set! all-bindings (cons curr-var-spec-binding all-bindings))
-    (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
+    (set! all-bindings (cons `(union (herbie-const ,constructor-num) ,binding-name) all-bindings))
 
     (set! constructor-num (add1 constructor-num)))
 
@@ -520,16 +604,13 @@
           (string->symbol (format "?r~a" n))
           (string->symbol (format "?b~a" n))))
 
-    (define constructor-name (string->symbol (format "const~a" constructor-num)))
-    (hash-set! binding->constructor binding-name constructor-name)
+    (hash-set! binding->constructor binding-name constructor-num)
 
     (define actual-binding (hash-ref bindings binding-name))
     (define curr-binding-exprs `(let ,binding-name ,actual-binding))
 
-    (egglog-send subproc `(constructor ,constructor-name () M :unextractable))
-
     (set! all-bindings (cons curr-binding-exprs all-bindings))
-    (set! all-bindings (cons `(union (,constructor-name) ,binding-name) all-bindings))
+    (set! all-bindings (cons `(union (herbie-const ,constructor-num) ,binding-name) all-bindings))
 
     (set! constructor-num (add1 constructor-num)))
 
@@ -543,21 +624,33 @@
   (define node-limit (*node-limit*))
   (define iter-limit (*default-egglog-iter-limit*))
 
-  ;; Use egglog's :until guard with get-size! to stop when node limit is reached.
-  ;; After each iteration, we check for unsound merges via bad-merge-rule.
-  ;; The schedule runs until:
-  ;;   1. Node limit is reached (get-size! >= node-limit)
+  ;; The back-off scheduler's :node-limit keeps the e-graph within the node
+  ;; limit as it chooses matches (each rule's matches are applied before the
+  ;; next rule is consulted, so the check sees the live size); the :until
+  ;; guard with get-node-size! stops the schedule once the limit is reached.
+  ;; Both measure e-nodes (rows of constructor tables, excluding relations and
+  ;; analysis functions), matching what egg counts, rather than get-size!'s
+  ;; total table size. Constant
+  ;; folding runs with the default scheduler, like egg's analysis-based
+  ;; folding: it is not rewriting to be rationed, and running it through the
+  ;; same back-off instance would advance that scheduler's iteration counter
+  ;; twice per repeat, halving ban lengths relative to egg. After each
+  ;; iteration, we check for unsound merges via bad-merge-rule. The schedule
+  ;; runs until:
+  ;;   1. Node limit is reached (get-node-size! >= node-limit)
   ;;   2. Saturation (no more progress)
   ;;   3. Iter limit is reached
   ;;   4. Unsoundness is detected (bad-merge? becomes true)
 
-  (egglog-send subproc
-               `(run-schedule
-                 (let-scheduler bo (back-off))
-                 (repeat ,iter-limit
-                         (seq (run-with bo ,tag :until (<= ,node-limit (get-size!)))
-                              (run-with bo const-fold :until (<= ,node-limit (get-size!)))
-                              (run bad-merge-rule :until (bad-merge?))))))
+  (egglog-send
+   subproc
+   `(run-schedule
+     (let-scheduler bo (back-off :node-limit ,node-limit))
+     (repeat ,iter-limit
+             (seq (run-with bo ,tag :until (or (bad-merge?) (<= ,node-limit (get-node-size!))))
+                  (run bad-merge-rule :until (bad-merge?))
+                  (saturate (run const-fold :until (bad-merge?)))
+                  (run bad-merge-rule :until (bad-merge?))))))
   (void))
 
 (define (egglog-num? id)
