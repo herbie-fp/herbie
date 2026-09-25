@@ -83,7 +83,8 @@
   [associate-/r* (/ a (* b c)) (/ (/ a b) c)]
   [associate-/r/ (/ a (/ b c)) (* (/ a b) c)]
   [associate-/l/ (/ (/ b c) a) (/ b (* c a))]
-  [associate-/l* (/ (* b c) a) (* b (/ c a))])
+  [associate-/l* (/ (* b c) a) (* b (/ c a))]
+  [associate-*cross (* (* a b) (* c d)) (* (* a c) (* b d))])
 
 ; Identity
 (define-rules arithmetic
@@ -91,6 +92,7 @@
   [rgt-mult-inverse (* a (/ 1 a)) 1]
   [lft-mult-inverse (* (/ 1 a) a) 1]
   [+-inverses (- a a) 0]
+  [add-sub-cancel (+ (- a a) b) b]
   [div0 (/ 0 a) 0]
   [mul0-lft (* 0 a) 0]
   [mul0-rgt (* a 0) 0]
@@ -109,6 +111,7 @@
 (define-rules arithmetic
   [count-2 (+ x x) (* 2 x)]
   [2-split 2 (+ 1 1)]
+  [4-split 4 (* 2 2)]
   [count-2-rev (* 2 x) (+ x x)]
   [1-split 1 (* 2 1/2)])
 
@@ -211,6 +214,7 @@
 ; Dealing with fractions
 (define-rules fractions
   [div-sub (/ (- a b) c) (- (/ a c) (/ b c))]
+  [cancel-sound-/ (/ (sound-/ (* a b) c fallback) a) (sound-/ b c (/ fallback a))]
   [times-frac (/ (* a b) (* c d)) (* (/ a c) (/ b d))]
   [div-add (/ (+ a b) c) (+ (/ a c) (/ b c))]
   [div-add-rev (+ (/ a c) (/ b c)) (/ (+ a b) c)]
