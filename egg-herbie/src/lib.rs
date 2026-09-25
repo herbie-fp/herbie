@@ -1,6 +1,7 @@
 #![allow(clippy::missing_safety_doc)]
 
 pub mod math;
+mod polynomial;
 
 use egg::{BackoffScheduler, FromOp, Id, Language, SimpleScheduler, StopReason};
 use libc::{c_void, strlen};
@@ -151,13 +152,16 @@ pub unsafe extern "C" fn egraph_run(
             ffi_tuples.push((&ffi_string.0, &ffi_string.1, &ffi_string.2));
         }
 
-        let rules: Vec<Rewrite> = math::mk_rules(&ffi_tuples);
+        let mut rules: Vec<Rewrite> = math::mk_rules(&ffi_tuples);
+        rules.push(math::polynomial_rewrite());
         context.rules = rules;
 
         context.runner = if simple_scheduler {
             context.runner.with_scheduler(SimpleScheduler)
         } else {
-            context.runner.with_scheduler(BackoffScheduler::default())
+            context.runner.with_scheduler(
+                BackoffScheduler::default().rule_match_limit("polynomial-equality", usize::MAX),
+            )
         };
 
         context.runner = context
@@ -171,8 +175,9 @@ pub unsafe extern "C" fn egraph_run(
                 } else {
                     Ok(())
                 }
-            })
-            .run(&context.rules);
+            });
+
+        context.runner = context.runner.run(&context.rules);
     }
 
     // Prune all e-nodes with children where its e-class has a leaf node (with no children). Pruning

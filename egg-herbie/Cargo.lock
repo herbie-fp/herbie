@@ -75,6 +75,7 @@ version = "0.3.0"
 dependencies = [
  "egg",
  "env_logger",
+ "fxhash",
  "libc",
  "log",
  "num-bigint",

@@ -136,18 +136,42 @@
                                      (td (pre ,(format-value v2)))))))))
 
 (define (render-phase-egraph iters)
-  (define costs (map third iters))
-  (define last-useful-iter (last (filter (compose (curry = (apply min costs)) third) iters)))
-  `((dt "Iterations") (dd (p "Useful iterations: "
-                             ,(~a (first last-useful-iter))
-                             " ("
-                             ,(format-time (fourth last-useful-iter))
-                             ")")
-                          (table ((class "times"))
-                                 (tr (th "Iter") (th "Nodes") (th "Cost"))
-                                 ,@(for/list ([rec (in-list (reverse iters))])
-                                     (match-define (list iter nodes cost t) rec)
-                                     `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
+  (define has-classes? (andmap (λ (rec) (= (length rec) 5)) iters))
+  (define cost
+    (λ (rec)
+      (if has-classes?
+          (fourth rec)
+          (third rec))))
+  (define time
+    (λ (rec)
+      (if has-classes?
+          (fifth rec)
+          (fourth rec))))
+  (define classes
+    (λ (rec)
+      (if has-classes?
+          (third rec)
+          #f)))
+  (define costs (map cost iters))
+  (define last-useful-iter (last (filter (compose (curry = (apply min costs)) cost) iters)))
+  `((dt "Iterations")
+    (dd (p "Useful iterations: "
+           ,(~a (first last-useful-iter))
+           " ("
+           ,(format-time (time last-useful-iter))
+           ")")
+        (table ((class "times"))
+               ,(if has-classes?
+                    `(tr (th "Iter") (th "Nodes") (th "Classes") (th "Cost"))
+                    `(tr (th "Iter") (th "Nodes") (th "Cost")))
+               ,@(for/list ([rec (in-list (reverse iters))])
+                   (define iter (first rec))
+                   (define nodes (second rec))
+                   (define classes* (classes rec))
+                   (define cost* (cost rec))
+                   (if has-classes?
+                       `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a classes*)) (td ,(~a cost*)))
+                       `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost*)))))))))
 
 (define (render-phase-stop data)
   (match-define (list (list reasons counts) ...) (sort data > #:key second))
