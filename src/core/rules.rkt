@@ -92,7 +92,6 @@
   [rgt-mult-inverse (* a (/ 1 a)) 1]
   [lft-mult-inverse (* (/ 1 a) a) 1]
   [+-inverses (- a a) 0]
-  [add-sub-cancel (+ (- a a) b) b]
   [div0 (/ 0 a) 0]
   [mul0-lft (* 0 a) 0]
   [mul0-rgt (* a 0) 0]
