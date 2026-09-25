@@ -1,6 +1,7 @@
 #![allow(clippy::missing_safety_doc)]
 
 pub mod math;
+mod polynomial;
 
 use egg::{BackoffScheduler, FromOp, Id, Language, SimpleScheduler, StopReason};
 use libc::{c_void, strlen};
