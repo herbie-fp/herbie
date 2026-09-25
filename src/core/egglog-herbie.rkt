@@ -106,12 +106,6 @@
   (define schedule (egglog-runner-schedule runner))
   (define pform (*active-platform*))
 
-  ;;;; SUBPROCESS START ;;;;
-  (define subproc (create-new-egglog-subprocess label))
-
-  ;; 1. Add the prelude - send directly to egglog.
-  (prelude subproc #:mixed-egraph? #t)
-
   ;; 2. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
 
   ;; Overview of the new extraction method:
@@ -156,31 +150,31 @@
   ;; of a rule and make them accessible through their unique constructor. Therefore, we must
   ;; keep track of the mapping between each binding and its corresponding constructor.
 
-  (define-values (all-bindings extract-bindings) (egglog-add-exprs insert-block insert-vs subproc))
+  ;; 1. The subprocess arrives with the prelude and rule declarations already
+  ;; loaded, and this call runs isolated between push and pop.
+  (call-with-egglog-subprocess
+   (static-egglog-commands pform)
+   label
+   (lambda (subproc)
+     (define-values (all-bindings extract-bindings) (egglog-add-exprs insert-block insert-vs subproc))
 
-  (egglog-send subproc
-               `(ruleset run-extract-commands)
-               `(rule () (,@all-bindings) :ruleset run-extract-commands)
-               `(run-schedule (repeat 1 run-extract-commands)))
+     (egglog-send subproc
+                  `(ruleset run-extract-commands)
+                  `(rule () (,@all-bindings) :ruleset run-extract-commands)
+                  `(run-schedule (repeat 1 run-extract-commands)))
 
-  ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
+     ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
 
-  (for ([step (in-list schedule)])
-    (apply egglog-send subproc (egglog-step-commands step pform))
-    (match step
-      ['lift (egglog-send subproc '(run-schedule (saturate lift)))]
-      ['lower (egglog-send subproc '(run-schedule (saturate lower)))]
-      ['unsound (egglog-send subproc '(run-schedule (saturate unsound)))]
-      ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
-      ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
+     (for ([step (in-list schedule)])
+       (match step
+         ['lift (egglog-send subproc '(run-schedule (saturate lift)))]
+         ['lower (egglog-send subproc '(run-schedule (saturate lower)))]
+         ['unsound (egglog-send subproc '(run-schedule (saturate unsound)))]
+         ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
+         ['rewrite (egglog-unsound-detected-subprocess step subproc)]))
 
-  ;; 5. Extract using constructor names returned by egglog-add-exprs.
-  (define variantss (egglog-multi-extract subproc extract extract-bindings reprs output-block))
-
-  ;; Close everything subprocess related
-  (egglog-subprocess-close subproc)
-
-  variantss)
+     ;; 5. Extract using constructor names returned by egglog-add-exprs.
+     (egglog-multi-extract subproc extract extract-bindings reprs output-block))))
 
 ;; Extract `variants` variants for each root, lowered to its repr, and intern
 ;; them into output-block, returning one list of blockrefs per root. The
@@ -279,7 +273,7 @@
         `(set (bad-merge?) false)
         `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule)))
 
-(define (prelude subproc #:mixed-egraph? [mixed-egraph? #t])
+(define (prelude subproc)
   (apply egglog-send subproc (prelude-commands (*active-platform*)))
   (void))
 
@@ -292,6 +286,17 @@
      (append (list `(ruleset rewrite))
              (const-fold-rules)
              (egglog-rewrite-rules (*rules*) 'rewrite pform))]))
+
+;; The prelude and every step's rule declarations are identical for all calls
+;; within a test, so they are loaded once into the reused subprocess; rules of
+;; steps a call never runs are inert. The command list doubles as the cache
+;; key, so a platform or rule change respawns the subprocess.
+(define (static-egglog-commands pform)
+  (append (prelude-commands pform)
+          (egglog-step-commands 'lift pform)
+          (egglog-step-commands 'lower pform)
+          (egglog-step-commands 'unsound pform)
+          (egglog-step-commands 'rewrite pform)))
 
 (define (const-fold-rules)
   `((ruleset const-fold)
