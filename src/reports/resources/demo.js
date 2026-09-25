@@ -537,8 +537,7 @@ function onload() {
     }
 
     function range_inputs(varname) {
-        const [low, high] = KNOWN_INPUT_RANGES[varname] || ['-1.79e308', '1.79e308']
-        KNOWN_INPUT_RANGES[varname] = [low, high]
+        const [low, high] = KNOWN_INPUT_RANGES[varname] || [undefined, undefined]
         
         const low_id = `${varname}_low`
         const high_id = `${varname}_high`
@@ -560,7 +559,7 @@ function onload() {
                 <td class="varname">
                     ${varname}:
                 </td>
-                <td>${input_view(low_id, low, '-1.79e308')}</td> <td>to</td> <td>${input_view(high_id, high, '1.79e308')}</td>
+                <td>${input_view(low_id, low, '-1e3')}</td> <td>to</td> <td>${input_view(high_id, high, '1e3')}</td>
                 </tr>`)
 
         const low_el = view.querySelector(`#${low_id}`)
