@@ -396,11 +396,15 @@ function get_precondition_from_input_ranges(formula) {
 
 function setup_state(state, form) {
     window.STATE = state;
+    window.history.replaceState(null, "", state == "fpcore" ? "#fpcore" : window.location.pathname);
     form.fpcore.removeAttribute("disabled");
     form.math.removeAttribute("disabled");
 
-    document.querySelector('#use-fpcore').onclick = function(evt) {
-        if (form.math.value) {
+    const input_switch = document.querySelector('#use-fpcore');
+    input_switch.textContent = state == "math" ? "Use FPCore" : "Use math input";
+    input_switch.onclick = function(evt) {
+        if (form.math.disabled) return;
+        if (state == "math" && form.math.value) {
             if (!check_errors()) {
                 alert("Please fix all errors before attempting to use FPCore input.")
                 return evt.preventDefault();
@@ -408,14 +412,16 @@ function setup_state(state, form) {
             var fpcore = dump_fpcore(form.math.value)
             form.fpcore.value = fpcore;
         }
-        setup_state("fpcore", form);
+        setup_state(state == "math" ? "fpcore" : "math", form);
     }
     document.querySelector('#show-example').onclick = function (evt) {
+        if (form.math.disabled) return;
         form.math.value = "sqrt(x + 1) - sqrt(x)"
         CHECK_ERRORS_AND_DRAW_RANGES()
         document.querySelector('#x_low').value = "0";
         document.querySelector('#x_high').value = "1.79e308";
-        window.KNOWN_INPUT_RANGES['x'] = [0, 1.79e308]
+        window.KNOWN_INPUT_RANGES['x'] = ["0", "1.79e308"]
+        if (state == "fpcore") form.fpcore.value = dump_fpcore(form.math.value)
         update_run_button_mathjs(form)
     }
 
@@ -428,7 +434,7 @@ function setup_state(state, form) {
         document.querySelector("#mathjs-instructions").style.display = "block";
         update_run_button_mathjs(form)
     } else {
-        document.querySelector('#options').style.display = 'none';
+        document.querySelector('#options').style.display = 'block';
         form.fpcore.style.display = "block";
         form.math.style.display = "none";
         form.input_ranges.style.display = "none";
@@ -513,6 +519,7 @@ function onload() {
         form.fpcore.value = params.get('fpcore');
         STATE = "fpcore";
     }
+    else if (window.location.hash == '#fpcore') STATE = "fpcore";
     else if (form.math.value) STATE = "math";
     else if (form.fpcore.value) STATE = "fpcore";
     else STATE = "math";
@@ -526,7 +533,8 @@ function onload() {
     }
 
     function range_inputs(varname) {
-        const [low, high] = KNOWN_INPUT_RANGES[varname] || [undefined, undefined]
+        const [low, high] = KNOWN_INPUT_RANGES[varname] || ['-1.79e308', '1.79e308']
+        KNOWN_INPUT_RANGES[varname] = [low, high]
         
         const low_id = `${varname}_low`
         const high_id = `${varname}_high`
@@ -548,7 +556,7 @@ function onload() {
                 <td class="varname">
                     ${varname}:
                 </td>
-                <td>${input_view(low_id, low, '-1e3')}</td> <td>to</td> <td>${input_view(high_id, high, '1e3')}</td>
+                <td>${input_view(low_id, low, '-1.79e308')}</td> <td>to</td> <td>${input_view(high_id, high, '1.79e308')}</td>
                 </tr>`)
 
         const low_el = view.querySelector(`#${low_id}`)
@@ -611,6 +619,7 @@ function onload() {
         }
         const range_div = document.querySelector('#input-ranges')
         range_div.replaceChildren(...varnames.map(range_inputs))
+        update_run_button_mathjs(form)
     }
     // Expose the updater so generated range callbacks can trigger a refresh.
     CHECK_ERRORS_AND_DRAW_RANGES = check_errors_and_draw_ranges
@@ -637,6 +646,7 @@ function onload() {
         if (url) {
             form.math.disabled = "true";
             form.fpcore.disabled = "true";
+            form.button.disabled = "true";
             ajax_submit(url, fpcore);
             evt.preventDefault();
             return false;
@@ -666,6 +676,10 @@ function get_progress(loc) {
                 form.button.removeAttribute("disabled");
                 window.location.href = loc2;
             } else {
+                var form = new Form(document.getElementById("formula"));
+                form.math.removeAttribute("disabled");
+                form.fpcore.removeAttribute("disabled");
+                form.button.removeAttribute("disabled");
                 document.getElementById("errors").innerHTML = req2.responseText;
             }
         }
@@ -687,6 +701,10 @@ function ajax_submit(url, lisp) {
                 var loc = req.getResponseHeader("Location");
                 get_progress(loc);
             } else {
+                var form = new Form(document.getElementById("formula"));
+                form.math.removeAttribute("disabled");
+                form.fpcore.removeAttribute("disabled");
+                form.button.removeAttribute("disabled");
                 document.getElementById("errors").innerHTML = req.responseText;
             }
         }
