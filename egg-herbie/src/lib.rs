@@ -2,11 +2,12 @@
 
 pub mod math;
 
-use egg::{BackoffScheduler, FromOp, Id, Language, SimpleScheduler, StopReason};
+use egg::{BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason};
 use libc::{c_void, strlen};
 use math::*;
 
 use std::cmp::min;
+use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::mem::{self, ManuallyDrop};
 use std::os::raw::c_char;
@@ -16,6 +17,7 @@ use std::{slice, sync::atomic::Ordering};
 pub struct Context {
     runner: Runner,
     rules: Vec<Rewrite>,
+    best: Option<HashMap<u32, (usize, Math)>>,
 }
 
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
@@ -24,6 +26,7 @@ pub unsafe extern "C" fn egraph_create() -> *mut Context {
     Box::into_raw(Box::new(Context {
         runner: Runner::new(Default::default()).with_explanations_enabled(),
         rules: vec![],
+        best: None,
     }))
 }
 
@@ -80,6 +83,7 @@ pub unsafe extern "C" fn egraph_add_node(
     let _ = env_logger::try_init();
     // Safety: `ptr` was box allocated by `egraph_create`
     let mut context = ManuallyDrop::new(Box::from_raw(ptr));
+    context.best = None;
 
     let f = CStr::from_ptr(f).to_str().unwrap();
     let len = num_ids as usize;
@@ -96,18 +100,45 @@ pub unsafe extern "C" fn egraph_seed_do_lower(
     f: *const c_char,
     ids_ptr: *const u32,
     num_ids: u32,
+    output_ptr: *mut u32,
 ) {
     let f = CStr::from_ptr(f).to_str().unwrap();
     let ids = slice::from_raw_parts(ids_ptr, num_ids as usize);
     let mut context = ManuallyDrop::new(Box::from_raw(ptr));
-    for id in ids {
+    context.best = None;
+    for (i, id) in ids.iter().enumerate() {
         let spec_id = Id::from(*id as usize);
         let do_lower_id = context
             .runner
             .egraph
             .add(Math::from_op(f, vec![spec_id]).unwrap());
-        context.runner.egraph.union(spec_id, do_lower_id);
+        std::ptr::write(output_ptr.offset(i as isize), usize::from(do_lower_id) as u32);
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_add_node_to_eclass(
+    ptr: *mut Context,
+    class_id: u32,
+    f: *const c_char,
+    ids_ptr: *const u32,
+    num_ids: u32,
+) {
+    let f = CStr::from_ptr(f).to_str().unwrap();
+    let ids = slice::from_raw_parts(ids_ptr, num_ids as usize)
+        .iter()
+        .map(|id| Id::from(*id as usize))
+        .collect();
+    let mut context = ManuallyDrop::new(Box::from_raw(ptr));
+    context.best = None;
+    let node_id = context
+        .runner
+        .egraph
+        .add(Math::from_op(f, ids).unwrap());
+    context
+        .runner
+        .egraph
+        .union(Id::from(class_id as usize), node_id);
 }
 
 #[no_mangle]
@@ -125,6 +156,7 @@ pub unsafe extern "C" fn egraph_copy(ptr: *mut Context) -> *mut Context {
     Box::into_raw(Box::new(Context {
         rules: vec![],
         runner,
+        best: None,
     }))
 }
 
@@ -194,6 +226,8 @@ pub unsafe extern "C" fn egraph_run(
             })
             .run(&context.rules);
     }
+
+    context.best = None;
 
     // Prune all e-nodes with children where its e-class has a leaf node (with no children). Pruning
     // safely improves performance because pruning occurs right before extraction and leaf e-nodes
@@ -370,4 +404,51 @@ pub unsafe extern "C" fn egraph_get_cost(ptr: *mut Context, node_id: u32, iter: 
     let ext = find_extracted(&context.runner, node_id, iter);
 
     ext.cost as u32
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_extract_best(ptr: *mut Context, node_id: u32) -> *const c_char {
+    let mut context = ManuallyDrop::new(Box::from_raw(ptr));
+    if context.best.is_none() {
+        let best = {
+            let extractor =
+                Extractor::new(&context.runner.egraph, AltCost::new(&context.runner.egraph));
+            context
+                .runner
+                .egraph
+                .classes()
+                .map(|eclass| {
+                    let cost = extractor.find_best_cost(eclass.id);
+                    let best = extractor.find_best_node(eclass.id).clone();
+                    (usize::from(eclass.id) as u32, (cost, best))
+                })
+                .collect()
+        };
+        context.best = Some(best);
+    }
+    let (cost, _best) = context.best.as_ref().unwrap()[&node_id].clone();
+    let result = if cost == usize::MAX {
+        format!("({} $do-lower)", cost)
+    } else {
+        let mut expr = RecExpr::default();
+        fn build_best(
+            egraph: &EGraph,
+            best: &HashMap<u32, (usize, Math)>,
+            expr: &mut RecExpr,
+            id: Id,
+        ) -> Id {
+            let id = egraph.find(id);
+            let mut node = best[&(usize::from(id) as u32)].1.clone();
+            node.update_children(|child| build_best(egraph, best, expr, child));
+            expr.add(node)
+        }
+        build_best(
+            &context.runner.egraph,
+            context.best.as_ref().unwrap(),
+            &mut expr,
+            Id::from(node_id as usize),
+        );
+        format!("({} {})", cost, expr)
+    };
+    CString::into_raw(CString::new(result).unwrap())
 }
