@@ -44,6 +44,28 @@
      (define len (u32vector-length vec))
      (values (lambda (i) (u32vector-ref vec i)) add1 0 (lambda (i) (< i len)) #f #f))))
 
+(define (repr-token repr)
+  (match (representation-name repr)
+    [(? symbol? name) (~a name)]
+    [`(array ,slots ...) (format "array_~a" (string-join (map ~a slots) "_"))]))
+
+(define do-lower-prefix "$do-lower.")
+
+(define (do-lower-op repr)
+  (string->symbol (format "~a~a" do-lower-prefix (repr-token repr))))
+
+(define (do-lower-op? op)
+  (and (symbol? op) (string-prefix? (symbol->string op) do-lower-prefix)))
+
+(define (do-lower-node? node)
+  (equal? node (list '$do-lower)))
+
+(define (do-lower-op->repr op)
+  (define token (substring (symbol->string op) (string-length do-lower-prefix)))
+  (for/first ([repr (in-list (platform-reprs (*active-platform*)))]
+              #:when (equal? token (repr-token repr)))
+    repr))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; egg FFI shim
 ;;
@@ -101,6 +123,41 @@
     (define v-id (add-to-egraph v)) ; remapping of v
     (egraph_add_root ptr v-id)
     v-id))
+
+(define (seed-do-lower-eclasses! ptr ctx)
+  (define reprs (platform-reprs (*active-platform*)))
+  (define real-reprs (filter (lambda (repr) (equal? (representation-type repr) 'real)) reprs))
+  (define bool-reprs (filter (lambda (repr) (equal? (representation-type repr) 'bool)) reprs))
+  (define array-reprs (filter array-representation? reprs))
+  (define (type-reprs type)
+    (cond
+      [(representation? type) (list type)]
+      [(equal? type 'real) real-reprs]
+      [(equal? type 'bool) bool-reprs]
+      [(equal? type 'array) array-reprs]
+      [else '()]))
+  (define (enode-reprs enode)
+    (match enode
+      [(? number?) real-reprs]
+      [(? symbol? var) (list (context-lookup ctx (egg-var->var var ctx)))]
+      [(cons f _)
+       (cond
+         [(eq? f 'array) array-reprs]
+         [(eq? f 'if) (append real-reprs array-reprs)]
+         [(eq? f '$approx) reprs]
+         [(string-prefix? (symbol->string f) "sound-") real-reprs]
+         [(impl-exists? f) (list (impl-info f 'otype))]
+         [(operator-exists? f) (type-reprs (operator-info f 'otype))]
+         [else '()])]))
+  (define ids (egraph_get_eclasses ptr))
+  (define repr->ids (make-hash))
+  (for ([id (in-u32vector ids)])
+    (define reprs-for-id
+      (remove-duplicates (append-map enode-reprs (vector->list (egraph-get-eclass ptr id)))))
+    (for ([repr (in-list reprs-for-id)])
+      (hash-update! repr->ids repr (lambda (ids) (cons id ids)) '())))
+  (for ([(repr ids) (in-hash repr->ids)])
+    (egraph_seed_do_lower ptr (~s (do-lower-op repr)) (list->u32vector ids))))
 
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run ptr ffi-rules node-limit iter-limit scheduler)
@@ -394,9 +451,6 @@
 ;; Rules from impl to spec (fixed for a particular platform)
 (define/reset *lifting-rules* (make-hash))
 
-;; Rules from spec to impl (fixed for a particular platform)
-(define/reset *lowering-rules* (make-hash))
-
 ;; Synthesizes the LHS and RHS of lifting/lowering rules.
 (define (impl->rule-parts impl)
   (define vars (impl-info impl 'vars))
@@ -414,22 +468,28 @@
                  (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
                  (rule name impl-expr spec-expr '(lifting))))))
 
-;; Synthesizes lowering rules for a given platform.
-(define (platform-lowering-rules [pform (*active-platform*)])
+;; Lowering rules using explicit do-lower terms. The e-graph is seeded with
+;; do-lower terms for matching existing e-classes
+;; before these rules run.
+(define (platform-do-lowering-rules [pform (*active-platform*)])
   (define helper-impls
     (for/seteq ([extension (in-list (*platform-extensions*))])
       (fpcore-extension-name extension)))
-  (define array-rules (array-lowering-rules pform))
   (define normal-rules
     (append* (for/list ([impl (in-list (platform-impls pform))]
                         #:unless (set-member? helper-impls impl))
-               (hash-ref! (*lowering-rules*)
-                          (cons impl pform)
-                          (lambda ()
-                            (define name (sym-append 'lower- impl))
-                            (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                            (list (rule name spec-expr impl-expr '(lowering))))))))
-  (append normal-rules array-rules))
+               (define vars (impl-info impl 'vars))
+               (define var-reprs (map cons vars (impl-info impl 'itype)))
+               (define spec (impl-info impl 'spec))
+               (define otype (impl-info impl 'otype))
+               (define lower-name (sym-append 'do-lower- impl '-impl))
+               (list (rule lower-name
+                           (list (do-lower-op otype) spec)
+                           (cons impl
+                                 (for/list ([var (in-list vars)])
+                                   (list (do-lower-op (dict-ref var-reprs var)) var)))
+                           '(lowering))))))
+  (append normal-rules (array-lowering-rules pform)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
@@ -466,11 +526,14 @@
   (match enode
     [(? number?) (cons 'real (platform-reprs (*active-platform*)))] ; number
     [(? symbol?) ; variable
-     (define var (egg-var->var enode ctx))
-     (define repr (context-lookup ctx var))
-     (list repr (representation-type repr))]
+     (if (do-lower-op? enode)
+         (list (do-lower-op->repr enode))
+         (let* ([var (egg-var->var enode ctx)]
+                [repr (context-lookup ctx var)])
+           (list repr (representation-type repr))))]
     [(cons f _) ; application
      (cond
+       [(do-lower-op? f) (list (do-lower-op->repr f))]
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(string-prefix? (symbol->string f) "sound-") (list 'real)]
        [else
@@ -485,6 +548,7 @@
     [(? symbol?) enode] ; variable
     [(cons f ids) ; application
      (cond
+       [(do-lower-op? f) (list '$do-lower)]
        [(eq? f '$approx) ; approx node
         (define spec (u32vector-ref ids 0))
         (define impl (u32vector-ref ids 1))
@@ -758,6 +822,7 @@
           (match enode
             [(? number?) (platform-repr-cost (*active-platform*) type)]
             [(? symbol?) 0]
+            [(list '$do-lower) +inf.0]
             [(list '$approx x y) 0]
             [(list op args ...) (impl-info op 'cost)])
           1))
@@ -924,7 +989,7 @@
   (define ctx (regraph-ctx regraph))
   (define-values (add-id add-enode) (egg-nodes->block costs block-extract-to ctx))
   ;; These functions provide a setup to extract nodes into block-extract-to from nodes
-  (list add-id add-enode))
+  (list add-id add-enode costs))
 
 (define (egg-nodes->block egg-nodes block ctx)
   (define (eggref id)
@@ -1016,6 +1081,7 @@
      (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
      (match node
        [(? number? n) ((node-cost-proc (literal n type)))]
+       [(list '$do-lower) +inf.0]
        ; variables
        [(? symbol?) 0]
        ; approx node
@@ -1043,13 +1109,17 @@
 (define (regraph-extract-best regraph extract id type)
   (define canon (regraph-canon regraph))
   ; Extract functions to extract exprs from egraph
-  (match-define (list extract-id _) extract)
+  (match-define (list extract-id _ costs) extract)
   ; extract expr
   (define key (cons id type))
   (define id* (hash-ref canon key #f))
   (cond
     ; at least one extractable expression
-    [id* (list (extract-id id* type))]
+    [id*
+     (define cost&node (vector-ref costs id*))
+     (if (and cost&node (not (equal? (car cost&node) +inf.0)))
+         (list (extract-id id* type))
+         (list))]
     ; no extractable expressions
     [else (list)]))
 
@@ -1059,7 +1129,21 @@
   (define eclasses (regraph-eclasses regraph))
   (define canon (regraph-canon regraph))
   ; Functions for egg-extraction
-  (match-define (list _ extract-enode) extract)
+  (match-define (list _ extract-enode costs) extract)
+  (define (extractable-id? id)
+    (define cost&node (vector-ref costs id))
+    (and cost&node (not (equal? (car cost&node) +inf.0))))
+  (define (extractable-enode? enode type)
+    (match enode
+      [(or (? number?) (? symbol?)) #t]
+      [(list '$do-lower) #f]
+      [(list '$approx spec impl) (and (extractable-id? spec) (extractable-id? impl))]
+      [(list impl args ...)
+       (for/and ([arg-id (in-list args)]
+                 [arg-type (in-list (if (representation? type)
+                                        (impl-info impl 'itype)
+                                        (spec-arg-types impl (length args))))])
+         (extractable-id? arg-id))]))
   ; extract expressions
   (define key (cons id type))
   (cond
@@ -1067,7 +1151,9 @@
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
 
-     (remove-duplicates (for/list ([enode (vector-ref eclasses id*)])
+     (remove-duplicates (for/list ([enode (vector-ref eclasses id*)]
+                                   #:unless (do-lower-node? enode)
+                                   #:when (extractable-enode? enode type))
                           (extract-enode enode type))
                         #:key val-idx)]
     [else (list)]))
@@ -1140,7 +1226,8 @@
            (define rules (convert-rules (platform-lifting-rules)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['lower
-           (define rules (convert-rules (platform-lowering-rules)))
+           (seed-do-lower-eclasses! egg-graph ctx)
+           (define rules (convert-rules (platform-do-lowering-rules)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['unsound
            (define rules (convert-rules (*sound-removal-rules*)))
@@ -1193,7 +1280,7 @@
 ;;  - `lift`: run lifting rules for 1 iteration with simple scheduler
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
 ;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
-;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
+;;  - `lower`: seed and run do-lower rules for 1 iteration
 (define (make-egraph block vs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
@@ -1206,6 +1293,23 @@
 
   ; make the runner
   (egg-runner block schedule ctx root-ids egg-graph))
+
+(module+ test
+  (require "../syntax/load-platform.rkt")
+  (activate-platform! "c")
+  (test-case "do-lower terms produce implementations"
+    (define ctx (context '(x) <binary64> (list <binary64>)))
+    (define-values (block vs) (progs->block (list '(+ x 1)) #:ctx ctx))
+    (define runner (make-egraph block vs '(lower) ctx))
+    (define vals (egraph-best runner block (list <binary64>)))
+    (check-equal? (car ((block-exprs block) (first (first vals)))) '+.f64))
+
+  (test-case "do-lower terms handle nullary implementations"
+    (define ctx (context '() <binary64> '()))
+    (define-values (block vs) (progs->block (list '(PI)) #:ctx ctx))
+    (define runner (make-egraph block vs '(lower) ctx))
+    (define vals (egraph-best runner block (list <binary64>)))
+    (check-equal? ((block-exprs block) (first (first vals))) '(PI.f64))))
 
 (module+ test
   (require "../syntax/load-platform.rkt")

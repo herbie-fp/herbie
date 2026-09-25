@@ -91,6 +91,26 @@ pub unsafe extern "C" fn egraph_add_node(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn egraph_seed_do_lower(
+    ptr: *mut Context,
+    f: *const c_char,
+    ids_ptr: *const u32,
+    num_ids: u32,
+) {
+    let f = CStr::from_ptr(f).to_str().unwrap();
+    let ids = slice::from_raw_parts(ids_ptr, num_ids as usize);
+    let mut context = ManuallyDrop::new(Box::from_raw(ptr));
+    for id in ids {
+        let spec_id = Id::from(*id as usize);
+        let do_lower_id = context
+            .runner
+            .egraph
+            .add(Math::from_op(f, vec![spec_id]).unwrap());
+        context.runner.egraph.union(spec_id, do_lower_id);
+    }
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn egraph_copy(ptr: *mut Context) -> *mut Context {
     // Safety: `ptr` was box allocated by `egraph_create`
     let context = Box::from_raw(ptr);

@@ -9,6 +9,7 @@
          egraph_destroy
          egraph_add_root
          egraph_add_node
+         egraph_seed_do_lower
          egraph_run
          egraph_copy
          egraph_get_stop_reason
@@ -165,6 +166,14 @@
                       [_uint = (u32vector-length v)] ; id vector length
                       ->
                       _uint))
+
+(define-eggmath egraph_seed_do_lower
+                (_fun [p : _egraph-pointer]
+                      [f : _rust/string]
+                      [ids : _u32vector]
+                      [_uint = (u32vector-length ids)]
+                      ->
+                      _void))
 
 (define-eggmath egraph_is_unsound_detected (_fun _egraph-pointer -> _stdbool))
 
