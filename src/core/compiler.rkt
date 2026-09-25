@@ -45,6 +45,17 @@
               (for/list ([arg (in-vector argv)])
                 (vector-ref regs arg))))]))
 
+(define (make-array-thunk argidxs regs)
+  (define argv (list->vector argidxs))
+  (λ ()
+    (for/vector #:length (vector-length argv)
+                ([arg (in-vector argv)])
+      (vector-ref regs arg))))
+
+(define (array-impl? op)
+  (define repr (impl-info op 'otype))
+  (and (array-representation? repr) (eq? op (array-impl-name repr))))
+
 ;; This function:
 ;;   1) copies only nodes associated with provided vs - so, gets rid of useless nodes
 ;;   2) rewrites these nodes as fl-instructions
@@ -58,6 +69,7 @@
        (dvector-add! out (make-thunk (λ () (vector-ref args idx)) '() vregs))]
       [(literal value (app get-representation repr))
        (dvector-add! out (make-thunk (const (real->repr value repr)) '() vregs))]
+      [(list (? array-impl?) args ...) (dvector-add! out (make-array-thunk (map recurse args) vregs))]
       [(list op args ...)
        (dvector-add! out (make-thunk (impl-info op 'fl) (map recurse args) vregs))]))
   (define roots (map (block-recurse block compile-node) vs))
