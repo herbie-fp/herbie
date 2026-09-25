@@ -5,8 +5,8 @@
 (provide (struct-out egglog-subprocess)
          create-new-egglog-subprocess
          egglog-send
+         egglog-send/read
          egglog-extract
-         egglog-multi-extract
          egglog-subprocess-close)
 
 ;; Struct to hold egglog subprocess handles
@@ -67,16 +67,12 @@
           (reverse out)
           (loop (cons next out))))))
 
+;; Send a command whose response is a single s-expression (possibly printed
+;; across several lines) and parse it.
+(define (egglog-send/read subproc command)
+  (define lines (first (egglog-send subproc command)))
+  (read (open-input-string (string-join lines " "))))
+
 ;; Send extract commands and read results
 (define (egglog-extract subproc extract-command)
-  (match-define (list "(" results ... ")") (first (egglog-send subproc extract-command)))
-  (for/list ([result (in-list results)])
-    (read (open-input-string result))))
-
-(define (egglog-multi-extract subproc extract-command)
-  (define raw-lines (first (egglog-send subproc extract-command)))
-  (define combined (string-join raw-lines " "))
-  (define parsed (read (open-input-string combined)))
-  (for/list ([result-list (in-list parsed)])
-    (for/list ([result (in-list result-list)])
-      result)))
+  (egglog-send/read subproc extract-command))
