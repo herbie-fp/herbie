@@ -68,10 +68,29 @@
           (loop (cons next out))))))
 
 ;; Send a command whose response is a single s-expression (possibly printed
-;; across several lines) and parse it.
+;; across several lines) and parse it. The response is read directly from the
+;; subprocess port: extraction responses can be many megabytes, and collecting
+;; them as line strings and joining them before parsing costs 2-3x as much as
+;; parsing the port itself.
 (define (egglog-send/read subproc command)
-  (define lines (first (egglog-send subproc command)))
-  (read (open-input-string (string-join lines " "))))
+  (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
+
+  (when dump-file
+    (pretty-print command dump-file 1)
+    (flush-output dump-file))
+
+  (writeln command egglog-in)
+  (flush-output egglog-in)
+
+  (define result (read egglog-output))
+  (when (eof-object? result)
+    (error 'egglog-send/read "egglog subprocess closed its output"))
+  ;; Drain the rest of the response up to the (done) marker.
+  (let loop ()
+    (define line (read-line egglog-output 'any))
+    (unless (or (eof-object? line) (equal? line "(done)"))
+      (loop)))
+  result)
 
 ;; Send extract commands and read results
 (define (egglog-extract subproc extract-command)
