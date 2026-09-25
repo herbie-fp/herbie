@@ -421,7 +421,10 @@ function setup_state(state, form) {
         document.querySelector('#x_low').value = "0";
         document.querySelector('#x_high').value = "1.79e308";
         window.KNOWN_INPUT_RANGES['x'] = ["0", "1.79e308"]
-        if (state == "fpcore") form.fpcore.value = dump_fpcore(form.math.value)
+        if (state == "fpcore") {
+            form.fpcore.value = dump_fpcore(form.math.value)
+            form.button.disabled = false;
+        }
         update_run_button_mathjs(form)
     }
 
