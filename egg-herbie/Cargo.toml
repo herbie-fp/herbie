@@ -9,6 +9,7 @@ egg = { git = "https://github.com/egraphs-good/egg.git", rev = "6f2ac1ee72d0ec6b
 
 log = "0.4"
 libc = "0.2.125"
+fxhash = "0.2.1"
 
 num-bigint = "0.4.3"
 num-integer = "0.1.45"
