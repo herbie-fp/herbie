@@ -2,10 +2,11 @@
 
 (require math/base
          math/bigfloat
-         math/flonum)
+         (except-in math/flonum flonums-between))
 (require "../utils/common.rkt"
          "../syntax/types.rkt"
-         "../utils/errors.rkt")
+         "../utils/errors.rkt"
+         "../utils/unsafe.rkt")
 
 (provide repr-ulps
          ulps->bits
@@ -20,29 +21,6 @@
          real->repr
          repr->real)
 
-(define (flonums-between* x y)
-  (define x-neg? (fl< x 0.0))
-  ; The sign bit is separate from the magnitude bits, so omit it instead of
-  ; allocating an absolute-value flonum.
-  (define xlo (flbit-field x 0 32))
-  (define xhi (flbit-field x 32 63))
-  (define y-neg? (fl< y 0.0))
-  (define ylo (flbit-field y 0 32))
-  (define yhi (flbit-field y 32 63))
-  (+ (arithmetic-shift (- (if y-neg?
-                              (- yhi)
-                              yhi)
-                          (if x-neg?
-                              (- xhi)
-                              xhi))
-                       32)
-     (- (if y-neg?
-            (- ylo)
-            ylo)
-        (if x-neg?
-            (- xlo)
-            xlo))))
-
 (define (repr-ulps repr)
   (match (representation-type repr)
     [`(array ,_ ...)
@@ -56,7 +34,7 @@
      (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
      (define finite-ulps
        (if (eq? repr <binary64>)
-           (lambda (x y) (+ 1 (abs (flonums-between* x y))))
+           (lambda (x y) (+ 1 (abs (flonums-between x y))))
            (lambda (x y) (+ 1 (abs (- (->ordinal y) (->ordinal x)))))))
      (lambda (x y)
        (if (or (special? x) (special? y))
