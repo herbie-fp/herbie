@@ -441,7 +441,7 @@ function setup_state(state, form) {
         document.querySelector("#lisp-instructions").style.display = "block";
         document.querySelector("#mathjs-instructions").style.display = "none";
         form.button.classList.remove("hidden");
-        form.button.removeAttribute("disabled");
+        form.button.disabled = !form.fpcore.value;
     }
 }
 
@@ -456,6 +456,7 @@ function get_varnames_mathjs(mathjs_text) {
 }
 
 function update_run_button_mathjs(form) {
+    if (STATE != "math") return;
     function no_range_errors([low, high] = [undefined, undefined]) {
         return low !== '' && high !== '' && !isNaN(Number(low)) && !isNaN(Number(high)) && Number(low) <= Number(high) 
     }
@@ -629,6 +630,9 @@ function onload() {
         clearTimeout(current_timeout)
         current_timeout = setTimeout(check_errors_and_draw_ranges, 400)
         update_run_button_mathjs(form)
+    })
+    form.fpcore.addEventListener("input", function () {
+        if (STATE == "fpcore") form.button.disabled = !form.fpcore.value;
     })
     form.math.setAttribute('autocomplete', 'off')  // (because it hides the error output)
 
