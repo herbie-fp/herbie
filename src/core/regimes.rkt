@@ -52,10 +52,9 @@
   (define (real-v? v)
     (equal? (representation-type (block-repr-of v)) 'real))
   (define branch-vs
-    (filter real-v?
-            (if (flag-set? 'reduce 'branch-expressions)
-                (critical-subexpressions block start-prog)
-                (map (curry block-add! block) (block-vars block)))))
+    (if (flag-set? 'reduce 'branch-expressions)
+        (list (branch-candidate block (cons start-prog (map alt-expr sorted)) err-cols pcontext))
+        (filter real-v? (map (curry block-add! block) (block-vars block)))))
 
   (define v-vals (v-values* block branch-vs pcontext))
   (define pts-vec (pcontext-points pcontext))
@@ -76,8 +75,7 @@
       (timeline-stop!)
       (timeline-push! 'branch
                       (hash-ref branch-root-map v)
-                      (- (pareto-point-error last-point)
-                         (length (option-split-indices (pareto-point-data last-point))))
+                      (option-error last-point)
                       (length (option-split-indices (pareto-point-data last-point)))
                       (~a (representation-name repr)))
       curve))
@@ -95,14 +93,19 @@
                    (for*/list ([ppt (in-list combined-option-curve)]
                                [sidx (in-list (option-split-indices (pareto-point-data ppt)))])
                      (alt-expr (list-ref (option-alts (pareto-point-data ppt)) (si-cidx sidx)))))))
+  (timeline-push! 'accuracy
+                  (errors-score (first (block-errors block (list start-prog) pcontext)))
+                  (baseline-errors-score err-cols alt-count)
+                  (for/fold ([best +inf.0]) ([ppt (in-list combined-option-curve)])
+                    (min best (option-error ppt)))
+                  (oracle-errors-score err-cols alt-count))
   (for/list ([ppt (in-list combined-option-curve)])
     (define opt (pareto-point-data ppt))
     (timeline-push! 'count (length (option-alts opt)) (length (option-split-indices opt)))
-    (timeline-push! 'accuracy
-                    (- (pareto-point-error ppt) (length (option-split-indices opt)))
-                    (oracle-errors-score err-cols (pareto-point-cost ppt))
-                    (baseline-errors-score err-cols (pareto-point-cost ppt)))
     opt))
+
+(define (option-error ppt)
+  (- (pareto-point-error ppt) (length (option-split-indices (pareto-point-data ppt)))))
 
 (define (critical-subexpression? block root-v sub-v)
   (set-member? (critical-subexpressions block root-v) sub-v))
@@ -158,6 +161,28 @@
       [(< idx1 idx2) (loop (dom-parent v1) v2)]
       [else (loop v1 (dom-parent v2))])))
 
+;; Choose the branch expression whose best-accuracy regimes solution has the
+;; lowest error, out of every subexpression of the original program and the alts.
+(define (branch-candidate block roots err-cols pcontext)
+  (define free-vars (block-free-vars block))
+  (define pool
+    (for/list ([v (in-list (block-reachable block roots))]
+               #:when (equal? (representation-type (block-repr-of v)) 'real)
+               #:unless (set-empty? (free-vars v)))
+      v))
+  ;; Expressions that sort the points identically give identical splits.
+  (define candidates
+    (remove-duplicates (for/list ([v (in-list pool)]
+                                  [v-vals-vec (in-list (v-values* block pool pcontext))])
+                         (cons v (branch-order v-vals-vec (block-repr-of v))))
+                       #:key cdr))
+  (define scored
+    (for/list ([candidate (in-list candidates)])
+      (match-define (cons v (cons order can-split-vec)) candidate)
+      (define-values (_splits score) (infer-option err-cols order can-split-vec))
+      (cons score v)))
+  (cdr (argmin car scored)))
+
 (define (baseline-errors-score err-cols count)
   (for/fold ([best +inf.0]) ([err-col (in-list (take err-cols count))])
     (min best (errors-score err-col))))
@@ -181,20 +206,28 @@
       (vector-set! (vector-ref vals i) p out)))
   (vector->list vals))
 
-(define (branch-options block alts-vec err-cols pts-vec v v-vals-vec repr)
-  (define sorted-indices
+;; The point order along a branch expression, and where splitting it is legal.
+(define (branch-order v-vals-vec repr)
+  (define order
     (vector-sort (build-vector (vector-length v-vals-vec) values)
                  (lambda (i j) (</total (vector-ref v-vals-vec i) (vector-ref v-vals-vec j) repr))))
+  (define can-split-vec
+    (for/vector #:length (vector-length order)
+                ([idx (in-vector order)]
+                 [k (in-naturals)])
+      (and (> k 0)
+           (</total (vector-ref v-vals-vec (vector-ref order (sub1 k)))
+                    (vector-ref v-vals-vec idx)
+                    repr))))
+  (cons order can-split-vec))
+
+(define (branch-options block alts-vec err-cols pts-vec v v-vals-vec repr)
+  (match-define (cons sorted-indices can-split-vec) (branch-order v-vals-vec repr))
   (define pts*
     (for/list ([i (in-vector sorted-indices)])
       (vector-ref pts-vec i)))
-  (define can-split?
-    (cons #f
-          (for/list ([idx (in-vector sorted-indices 1)]
-                     [prev-idx (in-vector sorted-indices 0)])
-            (</total (vector-ref v-vals-vec prev-idx) (vector-ref v-vals-vec idx) repr))))
 
-  (define-values (splitss scores) (infer-option-prefixes err-cols sorted-indices can-split?))
+  (define-values (splitss scores) (infer-option-prefixes err-cols sorted-indices can-split-vec))
 
   (define points
     (for/list ([count (in-range 1 (add1 (vector-length splitss)))])
@@ -284,6 +317,7 @@
 
 (module core typed/racket
   (provide (struct-out si)
+           infer-option
            infer-option-prefixes)
   (require math/flonum)
 
@@ -382,10 +416,9 @@
   (: infer-option-prefixes
      (-> (Listof FlVector)
          (Vectorof Integer)
-         (Listof Boolean)
+         (Vectorof Boolean)
          (Values (Vectorof (Listof si)) FlVector)))
-  (define (infer-option-prefixes err-cols sorted-indices can-split)
-    (define can-split-vec (list->vector can-split))
+  (define (infer-option-prefixes err-cols sorted-indices can-split-vec)
     (define number-of-alts (length err-cols))
     (: splitss (Vectorof (Listof si)))
     (define splitss (make-vector number-of-alts (ann null (Listof si))))
