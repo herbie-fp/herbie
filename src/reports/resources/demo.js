@@ -339,8 +339,8 @@ function check_errors() {
     var errors = get_errors([input.value, "real"]);
     var warnings = get_warnings();
 
-    document.getElementById("errors").innerHTML = errors.length == 0 || !input.value ? "" : "<li>" + errors.join("</li><li>") + "</li>";
-    document.getElementById("warnings").innerHTML = warnings.length == 0 || !input.value ? "" : "<li>" + warnings.join("</li><li>") + "</li>";
+    document.getElementById("errors").innerHTML = STATE != "math" || errors.length == 0 || !input.value ? "" : "<li>" + errors.join("</li><li>") + "</li>";
+    document.getElementById("warnings").innerHTML = STATE != "math" || warnings.length == 0 || !input.value ? "" : "<li>" + warnings.join("</li><li>") + "</li>";
     
     if (!input.value) {
         return false;
@@ -399,7 +399,7 @@ function setup_state(state, form) {
     const url = new URL(window.location.href);
     url.hash = state == "fpcore" ? "fpcore" : "";
     if (state == "math") url.searchParams.delete("fpcore");
-    window.history.replaceState(null, "", url);
+    window.history.replaceState({ input_ranges: window.KNOWN_INPUT_RANGES }, "", url);
     form.fpcore.removeAttribute("disabled");
     form.math.removeAttribute("disabled");
 
@@ -423,6 +423,7 @@ function setup_state(state, form) {
         document.querySelector('#x_low').value = "0";
         document.querySelector('#x_high').value = "1.79e308";
         window.KNOWN_INPUT_RANGES['x'] = ["0", "1.79e308"]
+        window.history.replaceState({ input_ranges: window.KNOWN_INPUT_RANGES }, "", window.location.href);
         update_run_button_mathjs(form)
     }
 
@@ -430,11 +431,14 @@ function setup_state(state, form) {
         form.fpcore.style.display = "none";
         form.math.style.display = "block";
         form.input_ranges.style.display = "table";
+        check_errors()
         document.querySelector('#options').style.display = 'block';
         document.querySelector("#lisp-instructions").style.display = "none";
         document.querySelector("#mathjs-instructions").style.display = "block";
         update_run_button_mathjs(form)
     } else {
+        document.getElementById("errors").innerHTML = "";
+        document.getElementById("warnings").innerHTML = "";
         document.querySelector('#options').style.display = 'block';
         form.fpcore.style.display = "block";
         form.math.style.display = "none";
@@ -508,7 +512,7 @@ function get_input_range_warnings([low, high] = [undefined, undefined]) {
 function onload() {
 
     // Only records ranges the user intentionally set.
-    window.KNOWN_INPUT_RANGES = { /* "x" : [-1, 1] */ }
+    window.KNOWN_INPUT_RANGES = window.history.state?.input_ranges || { /* "x" : [-1, 1] */ }
 
     function hide(selector) { document.querySelector(selector).style.display = 'none' }
     hide('#formula textarea')
@@ -575,6 +579,7 @@ function onload() {
             if (!KNOWN_INPUT_RANGES[varname]) { KNOWN_INPUT_RANGES[varname] = [undefined, undefined] }
             const [old_low, old_high] = KNOWN_INPUT_RANGES[varname]
             KNOWN_INPUT_RANGES[varname] = [low ?? old_low, high ?? old_high]
+            window.history.replaceState({ input_ranges: window.KNOWN_INPUT_RANGES }, "", window.location.href);
             check_errors()
             show_errors()
             update_run_button_mathjs(form)
