@@ -334,6 +334,7 @@ function get_warnings() {
 }
 
 function check_errors() {
+    if (STATE != "math") return false;
     var input = document.querySelector("[name=formula-math]");
     
     var errors = get_errors([input.value, "real"]);
@@ -385,6 +386,14 @@ function Form(form) {
     this.button = form.querySelector("[type=submit]")
 }
 
+function save_inputs(form, url=window.location.href) {
+    window.history.replaceState({
+        input_ranges: window.KNOWN_INPUT_RANGES,
+        math_input: form.math.value,
+        fpcore_input: form.fpcore.value,
+    }, "", url);
+}
+
 function get_precondition_from_input_ranges(formula) {
     const checks = get_varnames_mathjs(formula)
     .map(name => ([name, KNOWN_INPUT_RANGES[name]]))
@@ -396,26 +405,34 @@ function get_precondition_from_input_ranges(formula) {
 
 function setup_state(state, form) {
     window.STATE = state;
+    const url = new URL(window.location.href);
+    url.hash = state == "fpcore" ? "fpcore" : "";
+    if (state == "math") url.searchParams.delete("fpcore");
+    save_inputs(form, url);
     form.fpcore.removeAttribute("disabled");
     form.math.removeAttribute("disabled");
 
-    document.querySelector('#use-fpcore').onclick = function(evt) {
-        if (form.math.value) {
-            if (!check_errors()) {
-                alert("Please fix all errors before attempting to use FPCore input.")
-                return evt.preventDefault();
-            }
-            var fpcore = dump_fpcore(form.math.value)
-            form.fpcore.value = fpcore;
-        }
-        setup_state("fpcore", form);
+    const input_switch = document.querySelector('#use-fpcore');
+    input_switch.textContent = state == "math" ? "Use FPCore" : "Use math input";
+    input_switch.onclick = function(evt) {
+        if (form.math.disabled) return;
+        setup_state(state == "math" ? "fpcore" : "math", form);
     }
     document.querySelector('#show-example').onclick = function (evt) {
+        if (form.math.disabled) return;
+        if (state == "fpcore") {
+            form.fpcore.value = `(FPCore (x)
+  :pre (and (<= 0 x 1.79e308))
+  (- (sqrt (+ x 1)) (sqrt x)))`
+            form.fpcore.dispatchEvent(new Event("input", { bubbles: true }));
+            return;
+        }
         form.math.value = "sqrt(x + 1) - sqrt(x)"
         CHECK_ERRORS_AND_DRAW_RANGES()
         document.querySelector('#x_low').value = "0";
         document.querySelector('#x_high').value = "1.79e308";
-        window.KNOWN_INPUT_RANGES['x'] = [0, 1.79e308]
+        window.KNOWN_INPUT_RANGES['x'] = ["0", "1.79e308"]
+        save_inputs(form);
         update_run_button_mathjs(form)
     }
 
@@ -423,19 +440,22 @@ function setup_state(state, form) {
         form.fpcore.style.display = "none";
         form.math.style.display = "block";
         form.input_ranges.style.display = "table";
+        check_errors()
         document.querySelector('#options').style.display = 'block';
         document.querySelector("#lisp-instructions").style.display = "none";
         document.querySelector("#mathjs-instructions").style.display = "block";
         update_run_button_mathjs(form)
     } else {
-        document.querySelector('#options').style.display = 'none';
+        document.getElementById("errors").innerHTML = "";
+        document.getElementById("warnings").innerHTML = "";
+        document.querySelector('#options').style.display = 'block';
         form.fpcore.style.display = "block";
         form.math.style.display = "none";
         form.input_ranges.style.display = "none";
         document.querySelector("#lisp-instructions").style.display = "block";
         document.querySelector("#mathjs-instructions").style.display = "none";
         form.button.classList.remove("hidden");
-        form.button.removeAttribute("disabled");
+        form.button.disabled = !form.fpcore.value.trim();
     }
 }
 
@@ -450,8 +470,9 @@ function get_varnames_mathjs(mathjs_text) {
 }
 
 function update_run_button_mathjs(form) {
+    if (STATE != "math") return;
     function no_range_errors([low, high] = [undefined, undefined]) {
-        return low !== '' && high !== '' && !isNaN(Number(low)) && !isNaN(Number(high)) && Number(low) <= Number(high) 
+        return get_input_range_errors([low, high]).length == 0
     }
     const button = document.querySelector('#run_herbie')
     let varnames;
@@ -500,19 +521,23 @@ function get_input_range_warnings([low, high] = [undefined, undefined]) {
 function onload() {
 
     // Only records ranges the user intentionally set.
-    window.KNOWN_INPUT_RANGES = { /* "x" : [-1, 1] */ }
+    const input_state = window.history.state;
+    window.KNOWN_INPUT_RANGES = input_state?.input_ranges || { /* "x" : [-1, 1] */ }
 
     function hide(selector) { document.querySelector(selector).style.display = 'none' }
     hide('#formula textarea')
 
     var form = new Form(document.getElementById("formula"));
+    if (input_state?.math_input !== undefined) form.math.value = input_state.math_input;
+    if (input_state?.fpcore_input !== undefined) form.fpcore.value = input_state.fpcore_input;
 
     /* STATE represents whether we are working with the mathjs + precondition inputs or the fpcore input. */
     const params = new URLSearchParams(window.location.search);
     if (params.get('fpcore')) {
-        form.fpcore.value = params.get('fpcore');
+        if (input_state?.fpcore_input === undefined) form.fpcore.value = params.get('fpcore');
         STATE = "fpcore";
     }
+    else if (window.location.hash == '#fpcore') STATE = "fpcore";
     else if (form.math.value) STATE = "math";
     else if (form.fpcore.value) STATE = "fpcore";
     else STATE = "math";
@@ -566,6 +591,7 @@ function onload() {
             if (!KNOWN_INPUT_RANGES[varname]) { KNOWN_INPUT_RANGES[varname] = [undefined, undefined] }
             const [old_low, old_high] = KNOWN_INPUT_RANGES[varname]
             KNOWN_INPUT_RANGES[varname] = [low ?? old_low, high ?? old_high]
+            save_inputs(form);
             check_errors()
             show_errors()
             update_run_button_mathjs(form)
@@ -611,15 +637,25 @@ function onload() {
         }
         const range_div = document.querySelector('#input-ranges')
         range_div.replaceChildren(...varnames.map(range_inputs))
+        update_run_button_mathjs(form)
     }
     // Expose the updater so generated range callbacks can trigger a refresh.
     CHECK_ERRORS_AND_DRAW_RANGES = check_errors_and_draw_ranges
     check_errors_and_draw_ranges()
     
     form.math.addEventListener("input", function () {
+        save_inputs(form)
         clearTimeout(current_timeout)
         current_timeout = setTimeout(check_errors_and_draw_ranges, 400)
         update_run_button_mathjs(form)
+    })
+    form.fpcore.addEventListener("input", function () {
+        save_inputs(form)
+        if (STATE == "fpcore") {
+            document.getElementById("errors").innerHTML = "";
+            document.getElementById("warnings").innerHTML = "";
+            form.button.disabled = !form.fpcore.value.trim();
+        }
     })
     form.math.setAttribute('autocomplete', 'off')  // (because it hides the error output)
 
@@ -629,6 +665,7 @@ function onload() {
             if (!check_errors()) return evt.preventDefault();
             fpcore = dump_fpcore(form.math.value)
         } else {
+            if (!form.fpcore.value.trim()) return evt.preventDefault();
             fpcore = form.fpcore.value;
         }
         console.log(STATE, fpcore);
@@ -637,6 +674,7 @@ function onload() {
         if (url) {
             form.math.disabled = "true";
             form.fpcore.disabled = "true";
+            form.button.disabled = "true";
             ajax_submit(url, fpcore);
             evt.preventDefault();
             return false;
@@ -666,6 +704,10 @@ function get_progress(loc) {
                 form.button.removeAttribute("disabled");
                 window.location.href = loc2;
             } else {
+                var form = new Form(document.getElementById("formula"));
+                form.math.removeAttribute("disabled");
+                form.fpcore.removeAttribute("disabled");
+                form.button.removeAttribute("disabled");
                 document.getElementById("errors").innerHTML = req2.responseText;
             }
         }
@@ -687,6 +729,10 @@ function ajax_submit(url, lisp) {
                 var loc = req.getResponseHeader("Location");
                 get_progress(loc);
             } else {
+                var form = new Form(document.getElementById("formula"));
+                form.math.removeAttribute("disabled");
+                form.fpcore.removeAttribute("disabled");
+                form.button.removeAttribute("disabled");
                 document.getElementById("errors").innerHTML = req.responseText;
             }
         }
