@@ -530,26 +530,31 @@
   (for ([v (in-list vs)])
     (vector-set! root-mask (val-idx v) #t))
   (define add-to-egglog
-    (block-recurse block
-                   (lambda (v recurse)
-                     (define n (val-idx v))
-                     (define node (val-def v))
-                     (define root? (vector-ref root-mask n))
-                     (define node*
-                       (match node
-                         [(? number?) `(Num ,(real->bigrat node))]
-                         [(? symbol?) #f]
-                         [(list 'ref arr idx) `(,(hash-ref (id->e1) 'ref) ,(recurse arr) ,idx)]
-                         [(list impl args ...)
-                          `(,(if (eq? impl 'array)
-                                 (serialize-spec-op impl (length args))
-                                 (hash-ref (id->e1) impl))
-                            ,@(map recurse args))]))
+    (block-recurse
+     block
+     (lambda (v recurse)
+       (define n (val-idx v))
+       (define node (val-def v))
+       (define root? (vector-ref root-mask n))
+       (define node*
+         (match node
+           [(? number?) `(Num ,(real->bigrat node))]
+           [(? symbol?) #f]
+           ;; Ref indices are i64 literals in the egglog encoding,
+           ;; but blocks may store the index as a reference to a
+           ;; literal node (e.g. blocks built by the taylor pass).
+           [(list 'ref arr (? val? idx)) `(,(hash-ref (id->e1) 'ref) ,(recurse arr) ,(val-def idx))]
+           [(list 'ref arr (? exact-integer? idx)) `(,(hash-ref (id->e1) 'ref) ,(recurse arr) ,idx)]
+           [(list impl args ...)
+            `(,(if (eq? impl 'array)
+                   (serialize-spec-op impl (length args))
+                   (hash-ref (id->e1) impl))
+              ,@(map recurse args))]))
 
-                     (set! reachable-vs (cons v reachable-vs))
-                     (if node*
-                         (insert-node! node* n root?)
-                         (var-binding node)))))
+       (set! reachable-vs (cons v reachable-vs))
+       (if node*
+           (insert-node! node* n root?)
+           (var-binding node)))))
 
   (define root-bindings
     (for/list ([v (in-list vs)])
