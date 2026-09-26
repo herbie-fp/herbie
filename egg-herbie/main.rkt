@@ -9,6 +9,8 @@
          egraph_destroy
          egraph_add_root
          egraph_add_node
+         egraph_seed_do_lower
+         egraph_add_node_to_eclass
          egraph_run
          egraph_copy
          egraph_get_stop_reason
@@ -16,6 +18,7 @@
          egraph_get_eclasses
          egraph_get_eclass
          egraph_get_cost
+         egraph_extract_best_batch
          egraph_is_unsound_detected
          egraph_get_proof
          (struct-out iteration-data)
@@ -166,6 +169,26 @@
                       ->
                       _uint))
 
+(define-eggmath egraph_seed_do_lower
+                (_fun [p : _egraph-pointer]
+                      [f : _rust/string]
+                      [ids : _u32vector]
+                      [_uint = (u32vector-length ids)]
+                      [out : _u32vector = (make-u32vector (u32vector-length ids))]
+                      ->
+                      _void
+                      ->
+                      out))
+
+(define-eggmath egraph_add_node_to_eclass
+                (_fun [p : _egraph-pointer]
+                      [class-id : _uint]
+                      [f : _rust/string]
+                      [ids : _u32vector]
+                      [_uint = (u32vector-length ids)]
+                      ->
+                      _void))
+
 (define-eggmath egraph_is_unsound_detected (_fun _egraph-pointer -> _stdbool))
 
 ;; Runs the egraph with a set of rules, returning the statistics of the run.
@@ -257,3 +280,7 @@
                       _uint ;; iteration
                       ->
                       _uint))
+
+(define-eggmath
+ egraph_extract_best_batch
+ (_fun [p : _egraph-pointer] [ids : _u32vector] [_uint = (u32vector-length ids)] -> _rust/datum))
