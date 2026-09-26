@@ -334,13 +334,14 @@ function get_warnings() {
 }
 
 function check_errors() {
+    if (STATE != "math") return false;
     var input = document.querySelector("[name=formula-math]");
     
     var errors = get_errors([input.value, "real"]);
     var warnings = get_warnings();
 
-    document.getElementById("errors").innerHTML = STATE != "math" || errors.length == 0 || !input.value ? "" : "<li>" + errors.join("</li><li>") + "</li>";
-    document.getElementById("warnings").innerHTML = STATE != "math" || warnings.length == 0 || !input.value ? "" : "<li>" + warnings.join("</li><li>") + "</li>";
+    document.getElementById("errors").innerHTML = errors.length == 0 || !input.value ? "" : "<li>" + errors.join("</li><li>") + "</li>";
+    document.getElementById("warnings").innerHTML = warnings.length == 0 || !input.value ? "" : "<li>" + warnings.join("</li><li>") + "</li>";
     
     if (!input.value) {
         return false;
@@ -385,6 +386,14 @@ function Form(form) {
     this.button = form.querySelector("[type=submit]")
 }
 
+function save_inputs(form, url=window.location.href) {
+    window.history.replaceState({
+        input_ranges: window.KNOWN_INPUT_RANGES,
+        math_input: form.math.value,
+        fpcore_input: form.fpcore.value,
+    }, "", url);
+}
+
 function get_precondition_from_input_ranges(formula) {
     const checks = get_varnames_mathjs(formula)
     .map(name => ([name, KNOWN_INPUT_RANGES[name]]))
@@ -399,7 +408,7 @@ function setup_state(state, form) {
     const url = new URL(window.location.href);
     url.hash = state == "fpcore" ? "fpcore" : "";
     if (state == "math") url.searchParams.delete("fpcore");
-    window.history.replaceState({ input_ranges: window.KNOWN_INPUT_RANGES }, "", url);
+    save_inputs(form, url);
     form.fpcore.removeAttribute("disabled");
     form.math.removeAttribute("disabled");
 
@@ -415,7 +424,7 @@ function setup_state(state, form) {
             form.fpcore.value = `(FPCore (x)
   :pre (and (<= 0 x 1.79e308))
   (- (sqrt (+ x 1)) (sqrt x)))`
-            form.button.disabled = false;
+            form.fpcore.dispatchEvent(new Event("input", { bubbles: true }));
             return;
         }
         form.math.value = "sqrt(x + 1) - sqrt(x)"
@@ -423,7 +432,7 @@ function setup_state(state, form) {
         document.querySelector('#x_low').value = "0";
         document.querySelector('#x_high').value = "1.79e308";
         window.KNOWN_INPUT_RANGES['x'] = ["0", "1.79e308"]
-        window.history.replaceState({ input_ranges: window.KNOWN_INPUT_RANGES }, "", window.location.href);
+        save_inputs(form);
         update_run_button_mathjs(form)
     }
 
@@ -446,7 +455,7 @@ function setup_state(state, form) {
         document.querySelector("#lisp-instructions").style.display = "block";
         document.querySelector("#mathjs-instructions").style.display = "none";
         form.button.classList.remove("hidden");
-        form.button.disabled = !form.fpcore.value;
+        form.button.disabled = !form.fpcore.value.trim();
     }
 }
 
@@ -463,7 +472,7 @@ function get_varnames_mathjs(mathjs_text) {
 function update_run_button_mathjs(form) {
     if (STATE != "math") return;
     function no_range_errors([low, high] = [undefined, undefined]) {
-        return low !== '' && high !== '' && !isNaN(Number(low)) && !isNaN(Number(high)) && Number(low) <= Number(high) 
+        return get_input_range_errors([low, high]).length == 0
     }
     const button = document.querySelector('#run_herbie')
     let varnames;
@@ -512,17 +521,20 @@ function get_input_range_warnings([low, high] = [undefined, undefined]) {
 function onload() {
 
     // Only records ranges the user intentionally set.
-    window.KNOWN_INPUT_RANGES = window.history.state?.input_ranges || { /* "x" : [-1, 1] */ }
+    const input_state = window.history.state;
+    window.KNOWN_INPUT_RANGES = input_state?.input_ranges || { /* "x" : [-1, 1] */ }
 
     function hide(selector) { document.querySelector(selector).style.display = 'none' }
     hide('#formula textarea')
 
     var form = new Form(document.getElementById("formula"));
+    if (input_state?.math_input !== undefined) form.math.value = input_state.math_input;
+    if (input_state?.fpcore_input !== undefined) form.fpcore.value = input_state.fpcore_input;
 
     /* STATE represents whether we are working with the mathjs + precondition inputs or the fpcore input. */
     const params = new URLSearchParams(window.location.search);
     if (params.get('fpcore')) {
-        form.fpcore.value = params.get('fpcore');
+        if (input_state?.fpcore_input === undefined) form.fpcore.value = params.get('fpcore');
         STATE = "fpcore";
     }
     else if (window.location.hash == '#fpcore') STATE = "fpcore";
@@ -579,7 +591,7 @@ function onload() {
             if (!KNOWN_INPUT_RANGES[varname]) { KNOWN_INPUT_RANGES[varname] = [undefined, undefined] }
             const [old_low, old_high] = KNOWN_INPUT_RANGES[varname]
             KNOWN_INPUT_RANGES[varname] = [low ?? old_low, high ?? old_high]
-            window.history.replaceState({ input_ranges: window.KNOWN_INPUT_RANGES }, "", window.location.href);
+            save_inputs(form);
             check_errors()
             show_errors()
             update_run_button_mathjs(form)
@@ -632,12 +644,18 @@ function onload() {
     check_errors_and_draw_ranges()
     
     form.math.addEventListener("input", function () {
+        save_inputs(form)
         clearTimeout(current_timeout)
         current_timeout = setTimeout(check_errors_and_draw_ranges, 400)
         update_run_button_mathjs(form)
     })
     form.fpcore.addEventListener("input", function () {
-        if (STATE == "fpcore") form.button.disabled = !form.fpcore.value;
+        save_inputs(form)
+        if (STATE == "fpcore") {
+            document.getElementById("errors").innerHTML = "";
+            document.getElementById("warnings").innerHTML = "";
+            form.button.disabled = !form.fpcore.value.trim();
+        }
     })
     form.math.setAttribute('autocomplete', 'off')  // (because it hides the error output)
 
@@ -647,6 +665,7 @@ function onload() {
             if (!check_errors()) return evt.preventDefault();
             fpcore = dump_fpcore(form.math.value)
         } else {
+            if (!form.fpcore.value.trim()) return evt.preventDefault();
             fpcore = form.fpcore.value;
         }
         console.log(STATE, fpcore);
