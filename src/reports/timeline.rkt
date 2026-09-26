@@ -78,7 +78,6 @@
             ,@(dict-call curr (curryr simple-render-phase "Preprocessing") 'preprocessing)
             ,@(dict-call curr render-phase-outcomes 'outcomes)
             ,@(dict-call curr render-phase-compiler 'compiler)
-            ,@(dict-call curr render-phase-mixed-sampling 'mixsample)
             ,@(dict-call curr render-phase-bogosity 'bogosity)
             ,@(dict-call curr render-phase-allocations 'allocations))))
 
@@ -158,51 +157,6 @@
 
 (define (average . values)
   (/ (apply + values) (length values)))
-
-(define (render-phase-mixed-sampling mixsample)
-  (define total-time (apply + (map first mixsample)))
-  (define (format-memory-bytes bytes)
-    (format "~a MiB" (~r (/ bytes (expt 2 20)) #:precision '(= 1))))
-  `((dt "Precisions")
-    (dd (details
-         (summary "Click to see histograms. Total time spent on operations: "
-                  ,(format-time total-time))
-         ,@(map first
-                (sort (for/list ([rec (in-list (group-by second mixsample))]) ; group by operator
-                        ; rec = '('(time op precision) ... '(time op precision))
-                        (define n (random 100000))
-                        (define op (second (car rec)))
-                        (define precisions (map third rec))
-                        (define times (map first rec))
-                        (define memories (map fourth rec))
-
-                        (define time-per-op (round (apply + times)))
-                        (define memory-per-op (apply + memories))
-
-                        (list `(details (summary (code ,op)
-                                                 ": "
-                                                 ,(format-time time-per-op)
-                                                 " ("
-                                                 ,(format-percent time-per-op total-time)
-                                                 " of total, "
-                                                 ,(format-memory-bytes memory-per-op)
-                                                 ")")
-                                        (canvas ([id ,(format "calls-~a" n)]
-                                                 [title
-                                                  "Histogram of precisions of the used operation"]))
-                                        (script "histogram(\""
-                                                ,(format "calls-~a" n)
-                                                "\", "
-                                                ,(jsexpr->string precisions)
-                                                ", "
-                                                ,(jsexpr->string times)
-                                                ", "
-                                                "{\"max\" : "
-                                                ,(~a (*max-mpfr-prec*))
-                                                "})"))
-                              time-per-op))
-                      >
-                      #:key second))))))
 
 (define (render-phase-sampling sampling)
   (define total (round (apply + (hash-values (cadr (car sampling))))))
