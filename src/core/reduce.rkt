@@ -142,8 +142,10 @@
       [(list 'sin (app val-def (app pi-multiple 1/2))) 1]
       [(list 'cos (app val-def (app pi-multiple 1/3))) 1/2]
       [(list 'cos (app val-def (app pi-multiple 1/4))) '(/ (sqrt 2) 2)]
-      [node node]))
-  (block-add! block node*))
+      [_ #f]))
+  (if node*
+      (block-add! block node*)
+      v))
 
 (define (reduce-inverses v)
   (match (val-def v)
@@ -238,25 +240,24 @@
 (define (combine-aterms terms)
   (define h (make-hash))
   (for ([term terms])
-    (hash-update! h (cadr term) (λ (sum) (+ (car term) sum)) 0))
-  (sort (reap [sow]
-              (for ([(k v) (in-hash h)]
-                    #:when (not (= v 0)))
-                (sow (cons v k))))
+    (define key (val-idx (cadr term)))
+    (hash-set! h key (+ (car term) (hash-ref h key 0))))
+  (sort (for/list ([(k v) (in-hash h)]
+                   #:when (not (= v 0)))
+          (cons v (val (global-block) k)))
         expr<?
         #:key cdr))
 
 (define (combine-mterms terms)
-  (cons (car terms)
-        (let ([h (make-hash)])
-          (for ([term (cdr terms)])
-            (hash-update! h (cdr term) (λ (sum) (+ (car term) sum)) 0))
-          (sort (reap [sow]
-                      (for ([(k v) (in-hash h)]
-                            #:unless (= v 0))
-                        (sow (cons v k))))
-                expr<?
-                #:key cdr))))
+  (define h (make-hash))
+  (for ([term (in-list (cdr terms))])
+    (define key (cdr term))
+    (hash-set! h key (+ (car term) (hash-ref h key 0))))
+  (define combined
+    (for/list ([(k v) (in-hash h)]
+               #:unless (= v 0))
+      (cons v k)))
+  (cons (car terms) (sort combined expr<? #:key cdr)))
 
 (define (aterm->expr term)
   (match term
@@ -280,7 +281,7 @@
     ['() (block-push! (global-block) 0)]
     [`(,term) (aterm->expr term)]
     [`(,term ,terms ...)
-     (block-add! (global-block) `(+ ,(aterm->expr term) ,(make-addition-node terms)))]))
+     (block-add! (global-block) `(+ ,(aterm->expr term) ,(make-addition-node* terms)))]))
 
 (define (make-multiplication-node term)
   (match (cons (car term) (make-multiplication-subnode (cdr term)))

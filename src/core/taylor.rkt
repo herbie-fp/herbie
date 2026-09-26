@@ -148,10 +148,17 @@
      (adder `(* ,(make-monomial var (- n start)) (+ ,c ,(make-horner var rest n))))]))
 
 (define (make-sum terms)
-  (match terms
-    ['() 0]
-    [`(,x) x]
-    [`(,x ,xs ...) `(+ ,x ,(make-sum xs))]))
+  (define terms*
+    (filter (λ (term)
+              (match term
+                [(? val? v) (not (equal? (val-def v) 0))]
+                [_ #t]))
+            terms))
+  (let loop ([terms terms*])
+    (match terms
+      ['() 0]
+      [`(,x) x]
+      [`(,x ,xs ...) `(+ ,x ,(loop xs))])))
 
 (define (make-monomial var power)
   (cond
@@ -338,8 +345,11 @@
                (λ (f n)
                  (if (zero? n)
                      `(/ 1 ,(b 0))
-                     `(neg (+ ,@(for/list ([i (in-range n)])
-                                  `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))
+                     `(neg (+ ,@(for/list ([i (in-range n)]
+                                           #:do [(define fi (f i)) (define bi (b (- n i)))]
+                                           #:unless (or (equal? (val-def fi) 0)
+                                                        (equal? (val-def bi) 0)))
+                                  `(* ,fi (/ ,bi ,(b 0))))))))))
 
 (define (taylor-quotient num denom)
   ;(-> term? term? term?)
@@ -357,8 +367,11 @@
                  (if (zero? n)
                      `(/ ,(a 0) ,(b 0))
                      `(- (/ ,(a n) ,(b 0))
-                         (+ ,@(for/list ([i (in-range n)])
-                                `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))
+                         (+ ,@
+                            (for/list ([i (in-range n)]
+                                       #:do [(define fi (f i)) (define bi (b (- n i)))]
+                                       #:unless (or (equal? (val-def fi) 0) (equal? (val-def bi) 0)))
+                              `(* ,fi (/ ,bi ,(b 0))))))))))
 
 (define (modulo-series var n series)
   ;(-> symbol? number? term? term?)

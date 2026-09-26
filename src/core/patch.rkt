@@ -16,7 +16,8 @@
          "taylor.rkt")
 
 (provide generate-candidates
-         get-starting-expr)
+         get-starting-expr
+         run-series-expansion)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -81,6 +82,14 @@
   (timeline-push! 'outputs (block->jsexpr global-block spec-block (map alt-expr approxs*)))
   (timeline-push! 'count (length altns) (length approxs*))
   approxs*)
+
+(define (run-series-expansion global-block vs spec-block reducer)
+  (define altns
+    (for/list ([v (in-list vs)])
+      (alt v 'patch '())))
+  (define (taylor-key x)
+    (taylor-approx-impl-spec x))
+  (remove-duplicates (taylor-alts altns global-block spec-block reducer) #:key taylor-key))
 
 (define (run-lowering taylors global-block spec-block)
   (define schedule '(lower))
