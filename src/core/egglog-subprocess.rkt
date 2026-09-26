@@ -4,9 +4,10 @@
 
 (provide (struct-out egglog-subprocess)
          create-new-egglog-subprocess
+         call-with-egglog-subprocess
          egglog-send
+         egglog-send/read
          egglog-extract
-         egglog-multi-extract
          egglog-subprocess-close)
 
 ;; Struct to hold egglog subprocess handles
@@ -29,8 +30,12 @@
         (find-executable-path "egglog")
         (error "egglog-experimental executable not found in PATH")))
 
+  ;; The current custodian owns the process, so shutting the custodian down
+  ;; (e.g. a test finishing or timing out, see sandbox.rkt) kills egglog even
+  ;; if it is spinning inside a schedule.
   (define-values (egglog-process egglog-output egglog-in err)
-    (subprocess #f #f (current-error-port) egglog-path "--mode=interactive"))
+    (parameterize ([current-subprocess-custodian-mode 'kill])
+      (subprocess #f #f (current-error-port) egglog-path "--mode=interactive")))
 
   ;; Create dump file if flag is set
   (define dump-file
@@ -48,6 +53,37 @@
       [else #f]))
 
   (egglog-subprocess egglog-process egglog-output egglog-in err dump-file))
+
+;; One cached subprocess with `static-commands` already loaded, reused across
+;; calls and isolated per call with push/pop. It is owned by the custodian of
+;; the call that spawned it: sandbox.rkt runs each test under its own
+;; custodian and shuts it down on completion or timeout, which kills the
+;; subprocess, so reuse never crosses a test. A stale custodian or different
+;; commands (platform or rules changed) respawns. With dump:egglog the dump
+;; file therefore records the whole real session: prelude, rules, then each
+;; call between push and pop.
+(define cached-subprocess #f)
+(define cached-key #f)
+
+(define (call-with-egglog-subprocess static-commands label proc)
+  (define key (cons (current-custodian) static-commands))
+  (unless (equal? key cached-key)
+    (when cached-subprocess
+      (egglog-subprocess-close cached-subprocess))
+    (set! cached-subprocess (create-new-egglog-subprocess label))
+    (set! cached-key key)
+    (apply egglog-send cached-subprocess static-commands))
+  (define subproc cached-subprocess)
+  ;; A failure mid-call leaves the subprocess in an unknown protocol state:
+  ;; discard it so the next call respawns.
+  (with-handlers ([exn:fail? (lambda (e)
+                               (set! cached-subprocess #f)
+                               (set! cached-key #f)
+                               (egglog-subprocess-close subproc)
+                               (raise e))])
+    (egglog-send subproc '(push))
+    (begin0 (proc subproc)
+      (egglog-send subproc '(pop)))))
 
 (define (egglog-send subproc . commands)
   (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
@@ -67,16 +103,31 @@
           (reverse out)
           (loop (cons next out))))))
 
+;; Send a command whose response is a single s-expression (possibly printed
+;; across several lines) and parse it. The response is read directly from the
+;; subprocess port: extraction responses can be many megabytes, and collecting
+;; them as line strings and joining them before parsing costs 2-3x as much as
+;; parsing the port itself.
+(define (egglog-send/read subproc command)
+  (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
+
+  (when dump-file
+    (pretty-print command dump-file 1)
+    (flush-output dump-file))
+
+  (writeln command egglog-in)
+  (flush-output egglog-in)
+
+  (define result (read egglog-output))
+  (when (eof-object? result)
+    (error 'egglog-send/read "egglog subprocess closed its output"))
+  ;; Drain the rest of the response up to the (done) marker.
+  (let loop ()
+    (define line (read-line egglog-output 'any))
+    (unless (or (eof-object? line) (equal? line "(done)"))
+      (loop)))
+  result)
+
 ;; Send extract commands and read results
 (define (egglog-extract subproc extract-command)
-  (match-define (list "(" results ... ")") (first (egglog-send subproc extract-command)))
-  (for/list ([result (in-list results)])
-    (read (open-input-string result))))
-
-(define (egglog-multi-extract subproc extract-command)
-  (define raw-lines (first (egglog-send subproc extract-command)))
-  (define combined (string-join raw-lines " "))
-  (define parsed (read (open-input-string combined)))
-  (for/list ([result-list (in-list parsed)])
-    (for/list ([result (in-list result-list)])
-      result)))
+  (egglog-send/read subproc extract-command))
