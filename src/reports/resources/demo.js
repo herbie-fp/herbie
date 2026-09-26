@@ -396,7 +396,10 @@ function get_precondition_from_input_ranges(formula) {
 
 function setup_state(state, form) {
     window.STATE = state;
-    window.history.replaceState(null, "", state == "fpcore" ? "#fpcore" : window.location.pathname);
+    const url = new URL(window.location.href);
+    url.hash = state == "fpcore" ? "fpcore" : "";
+    if (state == "math") url.searchParams.delete("fpcore");
+    window.history.replaceState(null, "", url);
     form.fpcore.removeAttribute("disabled");
     form.math.removeAttribute("disabled");
 
@@ -404,27 +407,22 @@ function setup_state(state, form) {
     input_switch.textContent = state == "math" ? "Use FPCore" : "Use math input";
     input_switch.onclick = function(evt) {
         if (form.math.disabled) return;
-        if (state == "math" && form.math.value) {
-            if (!check_errors()) {
-                alert("Please fix all errors before attempting to use FPCore input.")
-                return evt.preventDefault();
-            }
-            var fpcore = dump_fpcore(form.math.value)
-            form.fpcore.value = fpcore;
-        }
         setup_state(state == "math" ? "fpcore" : "math", form);
     }
     document.querySelector('#show-example').onclick = function (evt) {
         if (form.math.disabled) return;
+        if (state == "fpcore") {
+            form.fpcore.value = `(FPCore (x)
+  :pre (and (<= 0 x 1.79e308))
+  (- (sqrt (+ x 1)) (sqrt x)))`
+            form.button.disabled = false;
+            return;
+        }
         form.math.value = "sqrt(x + 1) - sqrt(x)"
         CHECK_ERRORS_AND_DRAW_RANGES()
         document.querySelector('#x_low').value = "0";
         document.querySelector('#x_high').value = "1.79e308";
         window.KNOWN_INPUT_RANGES['x'] = ["0", "1.79e308"]
-        if (state == "fpcore") {
-            form.fpcore.value = dump_fpcore(form.math.value)
-            form.button.disabled = false;
-        }
         update_run_button_mathjs(form)
     }
 
