@@ -18,7 +18,7 @@
          egraph_get_eclasses
          egraph_get_eclass
          egraph_get_cost
-         egraph_extract_best
+         egraph_extract_best_batch
          egraph_is_unsound_detected
          egraph_get_proof
          (struct-out iteration-data)
@@ -281,4 +281,6 @@
                       ->
                       _uint))
 
-(define-eggmath egraph_extract_best (_fun _egraph-pointer _uint -> _rust/datum))
+(define-eggmath
+ egraph_extract_best_batch
+ (_fun [p : _egraph-pointer] [ids : _u32vector] [_uint = (u32vector-length ids)] -> _rust/datum))

@@ -742,60 +742,153 @@
 
 (define max-extraction-cost (sub1 (expt 2 64)))
 
-(define (replace-do-lower-leaves expr leaf-ops)
-  (match expr
-    [(? symbol? op) (hash-ref leaf-ops op op)]
-    [(list (? do-lower-leaf-op? op)) (hash-ref leaf-ops op)]
-    [(list exprs ...) (map (curryr replace-do-lower-leaves leaf-ops) exprs)]
-    [_ expr]))
+(define (egg-leaf->block block leaf ctx type leaf-ops)
+  (define leaf*
+    (if (symbol? leaf)
+        (hash-ref leaf-ops leaf leaf)
+        leaf))
+  (block-push!
+   block
+   (cond
+     [(number? leaf*)
+      (if (representation? type)
+          (literal leaf* (representation-name type))
+          leaf*)]
+     [(and (symbol? leaf*) (string-prefix? (symbol->string leaf*) "$var")) (egg-var->var leaf* ctx)]
+     [else (list leaf*)])))
 
-(define (egg-best-expression runner id repr)
-  (define result (egraph_extract_best (egg-runner-egg-graph runner) id))
-  (match result
-    [(list cost expr)
-     #:when (< cost max-extraction-cost)
-     (egg-parsed->expr (replace-do-lower-leaves expr (egg-runner-lower-leaf-ops runner))
-                       (egg-runner-ctx runner)
-                       repr)]
-    [_ #f]))
+(define (egg-batch-nodes->block nodes results block ctx repr leaf-ops)
+  (define vals (make-vector (length nodes) #f))
 
-(define (lower-enode->expr runner enode repr)
+  (define (add-node idx type)
+    (define vals-by-type
+      (or (vector-ref vals idx)
+          (let ([new-vals (make-hash)])
+            (vector-set! vals idx new-vals)
+            new-vals)))
+    (hash-ref! vals-by-type
+               type
+               (lambda ()
+                 (match (list-ref nodes idx)
+                   [(? number? n)
+                    (block-push! block
+                                 (if (representation? type)
+                                     (literal n (representation-name type))
+                                     n))]
+                   [(? symbol? op) (egg-leaf->block block op ctx type leaf-ops)]
+                   [(list '$approx spec impl)
+                    (block-push! block
+                                 (approx (val-idx (add-node spec
+                                                            (if (representation? type)
+                                                                (representation-type type)
+                                                                type)))
+                                         (val-idx (add-node impl type))))]
+                   [(list impl args ...)
+                    (define arg-types
+                      (if (representation? type)
+                          (impl-info impl 'itype)
+                          (spec-arg-types impl (length args))))
+                    (define arg-idxs
+                      (for/list ([arg (in-list args)]
+                                 [arg-type (in-list arg-types)])
+                        (val-idx (add-node arg arg-type))))
+                    (block-push! block (cons impl arg-idxs))]))))
+
+  (for/list ([result (in-list results)])
+    (match result
+      [(list cost idx)
+       #:when (< cost max-extraction-cost)
+       (add-node idx repr)]
+      [_ #f])))
+
+(define (egg-best-expressions runner block ids reprs)
+  (if (empty? ids)
+      '()
+      (let ([out (make-vector (length ids) #f)])
+        (for ([repr (in-list (remove-duplicates reprs))])
+          (define positions
+            (for/list ([id (in-list ids)]
+                       [i (in-naturals)]
+                       [repr* (in-list reprs)]
+                       #:when (equal? repr repr*))
+              i))
+          (define results
+            (egraph_extract_best_batch (egg-runner-egg-graph runner)
+                                       (list->u32vector (map (curry list-ref ids) positions))))
+          (match results
+            [(list batch-results nodes)
+             (define batch-vals
+               (egg-batch-nodes->block nodes
+                                       batch-results
+                                       block
+                                       (egg-runner-ctx runner)
+                                       repr
+                                       (egg-runner-lower-leaf-ops runner)))
+             (for ([i (in-list positions)]
+                   [val (in-list batch-vals)])
+               (vector-set! out i val))]))
+        (vector->list out))))
+
+(define (egg-best-expression runner block id repr)
+  (first (egg-best-expressions runner block (list id) (list repr))))
+
+(define (lower-enode-requests runner enode)
+  (match enode
+    [(cons op ids)
+     (cond
+       [(or (do-lower-op? op) (do-lower-leaf-op? op)) '()]
+       [else
+        (for/list ([id (in-u32vector ids)]
+                   [arg-repr (in-list (impl-info op 'itype))])
+          (cons (egraph_find (egg-runner-egg-graph runner) id) arg-repr))])]
+    [_ '()]))
+
+(define (lower-enode->block runner block enode repr best-exprs)
   (define ctx (egg-runner-ctx runner))
   (define leaf-ops (egg-runner-lower-leaf-ops runner))
   (define egg-graph (egg-runner-egg-graph runner))
   (match enode
-    [(? number? n) (egg-parsed->expr n ctx repr)]
-    [(? symbol? op) (egg-parsed->expr (hash-ref leaf-ops op op) ctx repr)]
+    [(? number? n) (egg-leaf->block block n ctx repr leaf-ops)]
+    [(? symbol? op) (egg-leaf->block block op ctx repr leaf-ops)]
     [(cons op ids)
      (cond
        [(do-lower-op? op) #f]
-       [(do-lower-leaf-op? op) (egg-parsed->expr (hash-ref leaf-ops op) ctx repr)]
+       [(do-lower-leaf-op? op) (egg-leaf->block block op ctx repr leaf-ops)]
        [else
-        (define arg-exprs
+        (define arg-vals
           (for/list ([id (in-u32vector ids)]
                      [arg-repr (in-list (impl-info op 'itype))])
-            (egg-best-expression runner (egraph_find egg-graph id) arg-repr)))
-        (and (andmap values arg-exprs) (cons op arg-exprs))])]))
+            (hash-ref best-exprs (cons (egraph_find egg-graph id) arg-repr) #f)))
+        (and (andmap values arg-vals) (block-push! block (cons op (map val-idx arg-vals))))])]))
 
 (define (egraph-best-from-lower-root runner block root-lower-ids repr)
   (define lower-id (hash-ref root-lower-ids repr #f))
   (if lower-id
-      (match (egg-best-expression runner lower-id repr)
+      (match (egg-best-expression runner block lower-id repr)
         [#f '()]
-        [expr (list (block-add! block expr))])
+        [val (list val)])
       '()))
 
 (define (egraph-variations-from-lower-root runner block root-lower-ids repr)
   (define lower-id (hash-ref root-lower-ids repr #f))
   (if lower-id
-      (let ([exprs (remove-duplicates
-                    (for/list ([enode (in-vector (egraph-get-eclass (egg-runner-egg-graph runner)
-                                                                    lower-id))]
-                               #:do [(define expr (lower-enode->expr runner enode repr))]
-                               #:when expr)
-                      expr))])
-        (for/list ([expr (in-list exprs)])
-          (block-add! block expr)))
+      (let* ([enodes (egraph-get-eclass (egg-runner-egg-graph runner) lower-id)]
+             [requests (remove-duplicates (append* (for/list ([enode (in-vector enodes)])
+                                                     (lower-enode-requests runner enode))))]
+             [best-exprs (for/hash ([request (in-list requests)]
+                                    [expr (in-list (egg-best-expressions runner
+                                                                         block
+                                                                         (map car requests)
+                                                                         (map cdr requests)))])
+                           (values request expr))]
+             [vals (remove-duplicates
+                    (for/list ([enode (in-vector enodes)]
+                               #:do [(define val
+                                       (lower-enode->block runner block enode repr best-exprs))]
+                               #:when val)
+                      val)
+                    #:key val-idx)])
+        vals)
       '()))
 
 (define (egraph-best runner block reprs)
@@ -812,9 +905,9 @@
            (egraph-best-from-lower-root runner block root-lower-ids repr))
          (for/list ([id (in-list (egg-runner-new-roots runner))]
                     [repr (in-list reprs)])
-           (match (egg-best-expression runner id repr)
+           (match (egg-best-expression runner block id repr)
              [#f '()]
-             [expr (list (block-add! block expr))])))]))
+             [val (list val)])))]))
 
 (define (egraph-variations runner block reprs)
   (define egg-graph (egg-runner-egg-graph runner))
@@ -830,9 +923,9 @@
            (egraph-variations-from-lower-root runner block root-lower-ids repr))
          (for/list ([id (in-list (egg-runner-new-roots runner))]
                     [repr (in-list reprs)])
-           (match (egg-best-expression runner id repr)
+           (match (egg-best-expression runner block id repr)
              [#f '()]
-             [expr (list (block-add! block expr))])))]))
+             [val (list val)])))]))
 
 (define (deduplicate-exprs exprs ctxs)
   (define ctx (contexts-union ctxs))

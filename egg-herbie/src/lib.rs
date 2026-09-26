@@ -406,8 +406,49 @@ pub unsafe extern "C" fn egraph_get_cost(ptr: *mut Context, node_id: u32, iter: 
     ext.cost as u32
 }
 
+fn build_best(
+    egraph: &EGraph,
+    best: &HashMap<u32, (usize, Math)>,
+    expr: &mut RecExpr,
+    seen: &mut HashMap<Id, Id>,
+    id: Id,
+) -> Id {
+    let id = egraph.find(id);
+    if let Some(&expr_id) = seen.get(&id) {
+        return expr_id;
+    }
+
+    let mut node = best[&(usize::from(id) as u32)].1.clone();
+    node.update_children(|child| build_best(egraph, best, expr, seen, child));
+    let expr_id = expr.add(node);
+    seen.insert(id, expr_id);
+    expr_id
+}
+
+fn batch_node_string(node: &Math) -> String {
+    if node.is_leaf() {
+        node.to_string()
+    } else {
+        let op = match node {
+            Math::Other(op, _) => op.to_string(),
+            _ => node.to_string(),
+        };
+        let children = node
+            .children()
+            .iter()
+            .map(|id| usize::from(*id).to_string())
+            .collect::<Vec<_>>()
+            .join(" ");
+        format!("({} {})", op, children)
+    }
+}
+
 #[no_mangle]
-pub unsafe extern "C" fn egraph_extract_best(ptr: *mut Context, node_id: u32) -> *const c_char {
+pub unsafe extern "C" fn egraph_extract_best_batch(
+    ptr: *mut Context,
+    ids_ptr: *const u32,
+    num_ids: u32,
+) -> *const c_char {
     let mut context = ManuallyDrop::new(Box::from_raw(ptr));
     if context.best.is_none() {
         let best = {
@@ -426,29 +467,40 @@ pub unsafe extern "C" fn egraph_extract_best(ptr: *mut Context, node_id: u32) ->
         };
         context.best = Some(best);
     }
-    let (cost, _best) = context.best.as_ref().unwrap()[&node_id].clone();
-    let result = if cost == usize::MAX {
-        format!("({} $do-lower)", cost)
-    } else {
-        let mut expr = RecExpr::default();
-        fn build_best(
-            egraph: &EGraph,
-            best: &HashMap<u32, (usize, Math)>,
-            expr: &mut RecExpr,
-            id: Id,
-        ) -> Id {
-            let id = egraph.find(id);
-            let mut node = best[&(usize::from(id) as u32)].1.clone();
-            node.update_children(|child| build_best(egraph, best, expr, child));
-            expr.add(node)
-        }
-        build_best(
-            &context.runner.egraph,
-            context.best.as_ref().unwrap(),
-            &mut expr,
-            Id::from(node_id as usize),
-        );
-        format!("({} {})", cost, expr)
-    };
-    CString::into_raw(CString::new(result).unwrap())
+    let ids = slice::from_raw_parts(ids_ptr, num_ids as usize);
+    let mut expr = RecExpr::default();
+    let mut seen = HashMap::new();
+    let roots = ids
+        .iter()
+        .map(|id| {
+            let id = context.runner.egraph.find(Id::from(*id as usize));
+            let (cost, _) = context.best.as_ref().unwrap()[&(usize::from(id) as u32)].clone();
+            if cost == usize::MAX {
+                None
+            } else {
+                Some((cost, build_best(
+                    &context.runner.egraph,
+                    context.best.as_ref().unwrap(),
+                    &mut expr,
+                    &mut seen,
+                    id,
+                )))
+            }
+        })
+        .collect::<Vec<_>>();
+    let roots = roots
+        .iter()
+        .map(|root| match root {
+            Some((cost, id)) => format!("({} {})", cost, usize::from(*id)),
+            None => "#f".to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    let nodes = expr
+        .as_ref()
+        .iter()
+        .map(batch_node_string)
+        .collect::<Vec<_>>()
+        .join(" ");
+    CString::into_raw(CString::new(format!("(({}) ({}))", roots, nodes)).unwrap())
 }
