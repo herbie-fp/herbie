@@ -384,7 +384,7 @@
     (match expr
       [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) (string->symbol (string-append s (symbol->string expr)))]
-      [(list 'ref arr idx) `(,(hash-ref (id->e1) 'ref) ,(loop arr) ,idx)]
+      [(list 'ref arr idx) (list (hash-ref (id->e1) 'ref) (loop arr) idx)]
       [(list op args ...)
        `(,(if (hash-has-key? (id->e1) op)
               (serialize-spec-op op (length args))
@@ -410,7 +410,7 @@
     (match expr
       [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) expr]
-      [(list 'ref arr idx) `(,(hash-ref (id->e1) 'ref) ,(loop arr) ,idx)]
+      [(list 'ref arr idx) (list (hash-ref (id->e1) 'ref) (loop arr) idx)]
       [(list op args ...) `(,(serialize-spec-op op (length args)) ,@(map loop args))])))
 
 (define (egglog-rewrite-rules rules tag)
@@ -451,7 +451,7 @@
                        (match node
                          [(? number?) `(Num ,(real->bigrat node))]
                          [(? symbol?) #f]
-                         [(list 'ref arr idx) `(,(hash-ref (id->e1) 'ref) ,(recurse arr) ,idx)]
+                         [(list 'ref arr idx) (list (hash-ref (id->e1) 'ref) (recurse arr) idx)]
                          [(list impl args ...)
                           `(,(if (eq? impl 'array)
                                  (serialize-spec-op impl (length args))
