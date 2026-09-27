@@ -156,7 +156,7 @@
          (for/or ([i (in-naturals)])
            (with-handlers ([exn:fail:filesystem:exists? (const #f)])
              (open-output-file (build-path dump-dir (format "~a.rival" i)) #:exists 'error))))
-       (pretty-print `(precision ,@(map representation-name flattened-reprs)) dump-file 1)
+       (pretty-print `(set-precision ,@(map representation-name flattened-reprs)) dump-file 1)
        (pretty-print `(define (f ,@vars)
                         ,@exprs)
                      dump-file
@@ -204,7 +204,7 @@
         (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
         (values 'valid value))))
   (when dump-file
-    (fprintf dump-file "(answer ~a)\n" (string-join (map ~a (cons status (or value '()))) " "))
+    (fprintf dump-file "(check-answer ~a)\n" (string-join (map ~a (cons status (or value '()))) " "))
     (flush-output dump-file))
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth
