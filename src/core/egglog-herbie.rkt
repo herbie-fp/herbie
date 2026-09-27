@@ -266,8 +266,8 @@
 
 (define (spec-array-arities expr)
   (match expr
-    [(list 'array args ...) (cons (length args) (append* (map spec-array-arities args)))]
-    [(list _ args ...) (append* (map spec-array-arities args))]
+    [(list 'array args ...) (cons (length args) (append-map spec-array-arities args))]
+    [(list _ args ...) (append-map spec-array-arities args)]
     [_ '()]))
 
 (define (platform-spec-nodes pform)
