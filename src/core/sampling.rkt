@@ -120,12 +120,11 @@
 ;; Returns an evaluator for a list of expressions.
 ;; Part 3: compute exact values using Rival's algorithm
 
-;; Flonum outputs are checked directly; anything else goes through its bigfloat.
-;; The `bool` representation does not produce bigfloats.
 (define (output-infinite? repr ex)
   (cond
     [(flonum? ex) (infinite? ex)]
     [else
+     ; The `bool` representation does not produce bigfloats
      (define maybe-bf ((representation-repr->bf repr) ex))
      (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))]))
 

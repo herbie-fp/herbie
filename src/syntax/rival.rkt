@@ -29,7 +29,6 @@
         (r2-impl args ...))))
 
 (define/rival (rival-compile exprs vars discs) r2:rival-compile r3:rival-compile)
-;; Rival 3 takes Herbie's values as they are; Rival 2 takes bigfloats.
 (define/rival (rival-apply machine pt hint) r2:rival-apply r3:rival-apply/f64)
 (define/rival (rival-analyze-with-hints machine rect hint)
               r2:rival-analyze-with-hints
