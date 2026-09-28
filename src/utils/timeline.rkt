@@ -26,7 +26,7 @@
 
 (define *timeline-disabled* (make-parameter true))
 
-(define always-compact '(mixsample outcomes taylor-count))
+(define always-compact '(outcomes taylor-count))
 
 (define (timeline-event! type)
   (when (and *timeline-active-key* (pair? (unbox (*timeline*))))
@@ -192,7 +192,6 @@
 (define-timeline allocations [phase false] [memory +])
 
 (define-timeline method [method])
-(define-timeline mixsample [time +] [function false] [precision false] [memory +])
 (define-timeline times [time +] [input false])
 (define-timeline series [time +] [var false] [transform false])
 (define-timeline compiler [before +] [after +])

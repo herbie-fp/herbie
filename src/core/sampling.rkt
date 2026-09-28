@@ -142,7 +142,6 @@
   (define assemble-output (real-compiler-assemble-output compiler))
   (define exact-count (length (assemble-output (make-list (vector-length reprs) #f))))
 
-  (real-compiler-clear! compiler) ; Clear profiling vector
   (define-values (points exactss)
     (let loop ([sampled 0]
                [skipped 0]
