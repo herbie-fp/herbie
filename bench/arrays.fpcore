@@ -38,3 +38,29 @@
  :name "Return input vector"
  :precision binary64
  v)
+
+(FPCore make-pair (x y)
+ :name "Two-slot array of two scalars"
+ :precision binary64
+ :pre (and (<= (fabs x) 1e150) (<= (fabs y) 1e150))
+ (array x y))
+
+(FPCore mean-and-span (x y)
+ :name "Mean and half-difference"
+ :precision binary64
+ :pre (and (<= (fabs x) 1e150) (<= (fabs y) 1e150))
+ (array (* 0.5 (+ x y))
+        (* 0.5 (- x y))))
+
+(FPCore three-slots (x y z)
+ :name "Three-slot array"
+ :precision binary64
+ :pre (and (<= (fabs x) 1e150) (<= (fabs y) 1e150) (<= (fabs z) 1e150))
+ (array (+ x y) (- x y) (* y z)))
+
+(FPCore ((! :precision binary32 s) d)
+ :name "Mixed-precision pair: binary32 slot and binary64 slot"
+ :precision binary64
+ :pre (and (< 1e-6 s 1e6) (< 1e-6 d 1e6))
+ (array (! :precision binary32 (- (sqrt (+ s 1)) (sqrt s)))
+        (- (sqrt (+ d 1)) (sqrt d))))

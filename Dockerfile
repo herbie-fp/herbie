@@ -12,7 +12,7 @@ RUN cargo install --locked --git https://github.com/egraphs-good/egglog-experime
 
 
 # Production image
-FROM racket/racket:8.18-full AS production
+FROM racket/racket:9.3-full AS production
 LABEL maintainer="Pavel Panchekha <me@pavpanchekha.com>"
 COPY --from=egg-herbie-builder /herbie/egg-herbie /src/egg-herbie
 RUN raco pkg install --no-docs /src/egg-herbie

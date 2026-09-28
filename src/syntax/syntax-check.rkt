@@ -67,8 +67,8 @@
        (for ([elem (in-list elems)])
          (loop elem vars))]
       [#`(ref #,arr ,idx)
-       (unless (integer? idx)
-         (error! idx "Array index must be a literal integer, got ~a" idx))
+       (unless (exact-nonnegative-integer? idx)
+         (error! idx "Index must be a nonnegative integer literal, got ~a" idx))
        (loop arr vars)]
       [#`(cast #,arg) (loop arg vars)]
       [#`(cast #,args ...)
