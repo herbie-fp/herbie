@@ -8,7 +8,6 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "alt-table.rkt"
-         "bsearch.rkt"
          "../syntax/block.rkt"
          "derivations.rkt"
          "patch.rkt"
@@ -301,16 +300,8 @@
                        spec-block))
      (for/list ([opt (in-list opts)])
        (match-define (option splitindices opt-alts _ v) opt)
-       (timeline-event! 'bsearch)
-       (define use-binary?
-         (and (flag-set? 'reduce 'binary-search)
-              (> (length splitindices) 1)
-              (critical-subexpression? block start-prog v)
-              (for/and ([alt (in-list opt-alts)])
-                (critical-subexpression? block (alt-expr alt) v))))
        (cond
          [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
-         [use-binary? (combine-alts/binary block opt start-prog (*pcontext*))]
          [else (combine-alts block opt)]))]
     [else
      (define scores (block-score-alts alts))

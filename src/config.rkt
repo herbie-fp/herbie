@@ -11,7 +11,7 @@
         [setup . (search preprocess)]
         [localize . ()]
         [generate . (rr taylor proofs evaluate)]
-        [reduce . (regimes binary-search branch-expressions)]
+        [reduce . (regimes branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic special)]
         [dump . ()]))
 
@@ -133,10 +133,6 @@
 
 ;; How long of a Taylor series to generate; too long and we time out
 (define *taylor-order-limit* (make-parameter 2))
-
-;; How accurate to make the binary search
-(define *binary-search-test-points* (make-parameter 16))
-(define *binary-search-accuracy* (make-parameter 48))
 
 ;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))
