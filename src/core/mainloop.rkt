@@ -187,7 +187,8 @@
     (recurse! (val-idx root))
     seen)
 
-  (define replacement-cache (make-hasheq))
+  (define block (*global-block*))
+  (define replacement-cache (make-block-replace-cache block))
   (define (reconstruct-alt altn orig can-refer)
     (define (loop altn)
       (match altn
@@ -210,7 +211,6 @@
     (define-values (result-alt _) (loop altn))
     result-alt)
 
-  (define block (*global-block*))
   (define parents (make-vector (block-length block) '()))
   (define (walk-body v recurse)
     (define idx (val-idx v))

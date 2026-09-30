@@ -20,6 +20,7 @@
          replace-expression
          block-replace-expression!
          block-replace-subexpr
+         make-block-replace-cache
          replace-vars)
 
 ;; Programs are just lisp lists plus atoms
@@ -253,49 +254,71 @@
 
 ;; Replace all occurrences of `from` with `to` in expression `expr`, returning a new val
 ;; Only recurses into impl parts, not specs
+(struct block-replace-cache ([values #:mutable] [generations #:mutable] [generation #:mutable]))
+
+(define (make-block-replace-cache block)
+  (define capacity (max 1 (block-length block)))
+  (block-replace-cache (make-vector capacity) (make-vector capacity -1) 0))
+
+(define (prepare-block-replace-cache! cache block)
+  (define capacity (vector-length (block-replace-cache-values cache)))
+  (when (> (block-length block) capacity)
+    (define new-capacity (max (block-length block) (* 2 capacity)))
+    (set-block-replace-cache-values! cache (make-vector new-capacity))
+    (set-block-replace-cache-generations! cache (make-vector new-capacity -1)))
+  (set-block-replace-cache-generation! cache (add1 (block-replace-cache-generation cache))))
+
 (define (block-replace-subexpr block expr from to [can-refer #f] #:cache [cache #f])
-  (set! cache (or cache (make-hasheq)))
-  (hash-clear! cache)
+  (set! cache (or cache (make-block-replace-cache block)))
+  (prepare-block-replace-cache! cache block)
   (define from-idx (val-idx from))
+  (define to-idx (val-idx to))
   (letrec
-      ([loop (lambda (v)
-               (define idx (val-idx v))
+      ([loop (lambda (idx)
                (cond
-                 [(< idx from-idx) v]
-                 [(= idx from-idx) to]
-                 [(and can-refer (not (set-member? can-refer idx))) v]
+                 [(< idx from-idx) idx]
+                 [(= idx from-idx) to-idx]
+                 [(and can-refer (not (set-member? can-refer idx))) idx]
                  [else
-                  (define cached (hash-ref cache idx #f))
-                  (if cached
-                      cached
-                      (let ([result (match (val-node v)
-                                      [(approx spec impl)
-                                       (define impl* (loop (val block impl)))
-                                       (if (= (val-idx impl*) impl)
-                                           v
-                                           (block-push! block (approx spec (val-idx impl*))))]
-                                      [(list op args ...)
-                                       (define args* (replace-args args))
-                                       (if args*
-                                           (block-push! block (cons op args*))
-                                           v)]
-                                      [node v])])
-                        (hash-set! cache idx result)
+                  (define cached?
+                    (= (vector-ref (block-replace-cache-generations cache) idx)
+                       (block-replace-cache-generation cache)))
+                  (if cached?
+                      (vector-ref (block-replace-cache-values cache) idx)
+                      (let* ([node (block-node block idx)]
+                             [result
+                              (cond
+                                [(approx? node)
+                                 (define impl (approx-impl node))
+                                 (define impl* (loop impl))
+                                 (if (= impl* impl)
+                                     idx
+                                     (val-idx (block-push! block (approx (approx-spec node) impl*))))]
+                                [(pair? node)
+                                 (define args* (replace-args (cdr node)))
+                                 (if args*
+                                     (val-idx (block-push! block (cons (car node) args*)))
+                                     idx)]
+                                [else idx])])
+                        (vector-set! (block-replace-cache-generations cache)
+                                     idx
+                                     (block-replace-cache-generation cache))
+                        (vector-set! (block-replace-cache-values cache) idx result)
                         result))]))]
        [replace-tail (lambda (args)
                        (if (null? args)
                            '()
-                           (cons (val-idx (loop (val block (car args)))) (replace-tail (cdr args)))))]
+                           (cons (loop (car args)) (replace-tail (cdr args)))))]
        [replace-args (lambda (args)
                        (cond
                          [(null? args) #f]
                          [else
                           (define arg (car args))
-                          (define arg* (loop (val block arg)))
-                          (if (= (val-idx arg*) arg)
+                          (define arg* (loop arg))
+                          (if (= arg* arg)
                               (let ([rest* (replace-args (cdr args))]) (and rest* (cons arg rest*)))
-                              (cons (val-idx arg*) (replace-tail (cdr args))))]))])
-    (loop expr)))
+                              (cons arg* (replace-tail (cdr args))))]))])
+    (val block (loop (val-idx expr)))))
 
 (module+ test
   (require rackunit)
