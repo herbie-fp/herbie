@@ -96,15 +96,22 @@
 ;; Total order on expressions
 
 (define (val-expr-cmp a b)
-  (define a-node (val-node a))
-  (define-values (b-node b-block)
-    (if (val? b)
-        (values (val-node b) (val-block b))
-        (values b #f)))
-  (define (b-child idx)
+  (expr-cmp/raw (val-idx a)
+                (val-block a)
+                (if (val? b)
+                    (val-idx b)
+                    b)
+                (and (val? b) (val-block b))))
+
+(define (expr-cmp/raw a a-block b b-block)
+  (define a-node
+    (if a-block
+        (block-node a-block a)
+        a))
+  (define b-node
     (if b-block
-        (val b-block idx)
-        idx))
+        (block-node b-block b)
+        b))
   (cond
     [(and (list? a-node) (list? b-node))
      (define len-a (length a-node))
@@ -120,7 +127,7 @@
               (cond
                 [(null? a-args) 0]
                 [else
-                 (define cmp (expr-cmp (val (val-block a) (car a-args)) (b-child (car b-args))))
+                 (define cmp (expr-cmp/raw (car a-args) a-block (car b-args) b-block))
                  (if (zero? cmp)
                      (loop (cdr a-args) (cdr b-args))
                      cmp)]))
@@ -128,7 +135,7 @@
     [(and (approx? a-node) (approx? b-node))
      (define cmp-spec (expr-cmp (approx-spec a-node) (approx-spec b-node)))
      (if (zero? cmp-spec)
-         (expr-cmp (val (val-block a) (approx-impl a-node)) (b-child (approx-impl b-node)))
+         (expr-cmp/raw (approx-impl a-node) a-block (approx-impl b-node) b-block)
          cmp-spec)]
     [else (expr-cmp a-node b-node)]))
 

@@ -25,6 +25,7 @@
          jsexpr->block-exprs
 
          (struct-out val)
+         block-node
          val-node
          val-def) ; Val -> Expr
 
@@ -84,9 +85,12 @@
   (match-define (val b idx) x)
   (expr-recurse (dvector-ref (block-nodes b) idx) (lambda (ref) (val b ref))))
 
+(define (block-node b idx)
+  (dvector-ref (block-nodes b) idx))
+
 (define (val-node x)
   (match-define (val b idx) x)
-  (dvector-ref (block-nodes b) idx))
+  (block-node b idx))
 
 (define (progs->block exprs #:ctx ctx)
   (define out (block-empty ctx))
