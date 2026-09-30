@@ -151,6 +151,7 @@
   (define terms*
     (filter (λ (term)
               (match term
+                [(? number? n) (not (zero? n))]
                 [(? val? v) (not (equal? (val-def v) 0))]
                 [_ #t]))
             terms))
@@ -159,6 +160,12 @@
       ['() 0]
       [`(,x) x]
       [`(,x ,xs ...) `(+ ,x ,(loop xs))])))
+
+(define (zero-value? value)
+  (match value
+    [(? number? n) (zero? n)]
+    [(? val? v) (equal? (val-def v) 0)]
+    [_ #f]))
 
 (define (make-monomial var power)
   (cond
@@ -278,7 +285,11 @@
     (dvector-ref cache i))
   (when (>= n (dvector-length cache))
     (for ([i (in-range (dvector-length cache) (add1 n))])
-      (define value (reducer (adder (builder fetch i))))
+      (define expr (adder (builder fetch i)))
+      (define value
+        (if (equal? (val-def expr) 0)
+            expr
+            (reducer expr)))
       (dvector-set! cache i value)))
   (dvector-ref cache n))
 
@@ -343,13 +354,25 @@
   (define b (series-function normalized))
   (make-series (- offset)
                (λ (f n)
-                 (if (zero? n)
-                     `(/ 1 ,(b 0))
-                     `(neg (+ ,@(for/list ([i (in-range n)]
-                                           #:do [(define fi (f i)) (define bi (b (- n i)))]
-                                           #:unless (or (equal? (val-def fi) 0)
-                                                        (equal? (val-def bi) 0)))
-                                  `(* ,fi (/ ,bi ,(b 0))))))))))
+                 (cond
+                   [(zero? n) `(/ 1 ,(b 0))]
+                   [else
+                    (define terms
+                      (for/list ([i (in-range n)]
+                                 #:do [(define fi (f i)) (define bi (b (- n i)))]
+                                 #:unless (or (equal? (val-def fi) 0) (equal? (val-def bi) 0)))
+                        `(* ,fi (/ ,bi ,(b 0)))))
+                    (if (null? terms)
+                        0
+                        `(neg ,(make-sum terms)))]))))
+
+(define (make-difference first terms)
+  (define rest (make-sum terms))
+  (cond
+    [(and (zero-value? first) (zero-value? rest)) 0]
+    [(zero-value? rest) first]
+    [(zero-value? first) `(neg ,rest)]
+    [else `(- ,first ,rest)]))
 
 (define (taylor-quotient num denom)
   ;(-> term? term? term?)
@@ -364,14 +387,18 @@
   (define b (series-function normalized-denom))
   (make-series (- noff doff)
                (λ (f n)
-                 (if (zero? n)
-                     `(/ ,(a 0) ,(b 0))
-                     `(- (/ ,(a n) ,(b 0))
-                         (+ ,@
-                            (for/list ([i (in-range n)]
-                                       #:do [(define fi (f i)) (define bi (b (- n i)))]
-                                       #:unless (or (equal? (val-def fi) 0) (equal? (val-def bi) 0)))
-                              `(* ,fi (/ ,bi ,(b 0))))))))))
+                 (cond
+                   [(zero? n) `(/ ,(a 0) ,(b 0))]
+                   [else
+                    (define an (a n))
+                    (make-difference (if (zero-value? an)
+                                         0
+                                         `(/ ,an ,(b 0)))
+                                     (for/list ([i (in-range n)]
+                                                #:do [(define fi (f i)) (define bi (b (- n i)))]
+                                                #:unless (or (equal? (val-def fi) 0)
+                                                             (equal? (val-def bi) 0)))
+                                       `(* ,fi (/ ,bi ,(b 0)))))]))))
 
 (define (modulo-series var n series)
   ;(-> symbol? number? term? term?)
@@ -409,18 +436,32 @@
                    [(zero? n) `(sqrt ,(coeffs* 0))]
                    [(= n 1) `(/ ,(coeffs* 1) (* 2 (sqrt ,(coeffs* 0))))]
                    [(even? n)
-                    `(/ (- ,(coeffs* n)
-                           (pow ,(f (/ n 2)) 2)
-                           (+ ,@(for/list ([k (in-naturals 1)]
-                                           #:break (>= k (- n k)))
-                                  `(* 2 (* ,(f k) ,(f (- n k)))))))
-                        (* 2 ,(f 0)))]
+                    (define middle
+                      (for/list ([k (in-naturals 1)]
+                                 #:break (>= k (- n k))
+                                 #:do [(define fk (f k)) (define fnk (f (- n k)))]
+                                 #:unless (or (equal? (val-def fk) 0) (equal? (val-def fnk) 0)))
+                        `(* 2 (* ,fk ,fnk))))
+                    (define middle*
+                      (if (equal? (val-def (f (/ n 2))) 0)
+                          middle
+                          (cons `(pow ,(f (/ n 2)) 2) middle)))
+                    (define numerator (make-difference (coeffs* n) middle*))
+                    (if (zero-value? numerator)
+                        0
+                        `(/ ,numerator (* 2 ,(f 0))))]
                    [(odd? n)
-                    `(/ (- ,(coeffs* n)
-                           (+ ,@(for/list ([k (in-naturals 1)]
-                                           #:break (>= k (- n k)))
-                                  `(* 2 (* ,(f k) ,(f (- n k)))))))
-                        (* 2 ,(f 0)))]))))
+                    (define numerator
+                      (make-difference (coeffs* n)
+                                       (for/list ([k (in-naturals 1)]
+                                                  #:break (>= k (- n k))
+                                                  #:do [(define fk (f k)) (define fnk (f (- n k)))]
+                                                  #:unless (or (equal? (val-def fk) 0)
+                                                               (equal? (val-def fnk) 0)))
+                                         `(* 2 (* ,fk ,fnk)))))
+                    (if (zero-value? numerator)
+                        0
+                        `(/ ,numerator (* 2 ,(f 0))))]))))
 
 (define (taylor-cbrt var num)
   ;(-> symbol? term? term?)
@@ -433,12 +474,21 @@
                    [(zero? n) `(cbrt ,(coeffs* 0))]
                    [(= n 1) `(/ ,(coeffs* 1) (* 3 (cbrt (* ,(f 0) ,(f 0)))))]
                    [else
-                    `(/ (- ,(coeffs* n)
-                           ,@(for*/list ([terms (in-list (n-sum-to 3 n))]
-                                         #:unless (set-member? terms n))
-                               (match-define (list a b c) terms)
-                               `(* ,(f a) ,(f b) ,(f c))))
-                        (* 3 ,(f 0) ,(f 0)))]))))
+                    (define numerator
+                      (make-difference (coeffs* n)
+                                       (for*/list ([terms (in-list (n-sum-to 3 n))]
+                                                   #:unless (set-member? terms n)
+                                                   #:do [(match-define (list a b c) terms)
+                                                         (define fa (f a))
+                                                         (define fb (f b))
+                                                         (define fc (f c))]
+                                                   #:unless (or (equal? (val-def fa) 0)
+                                                                (equal? (val-def fb) 0)
+                                                                (equal? (val-def fc) 0)))
+                                         `(* ,fa ,fb ,fc))))
+                    (if (zero-value? numerator)
+                        0
+                        `(/ ,numerator (* 3 ,(f 0) ,(f 0))))]))))
 
 (define (taylor-fabs var term)
   (define normalized (normalize-series term))
@@ -499,11 +549,14 @@
                                  [coeff (in-vector coeffs*)]
                                  #:unless (equal? (val-def coeff) 0))
                         i))
-                    `(* (exp ,(coeffs 0))
-                        (+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
-                               `(* ,@(for/list ([(count num) (in-dict p)])
-                                       `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                           ,(factorial count)))))))]))))
+                    (define terms
+                      (for/list ([p (in-list (all-partitions n (sort nums >)))])
+                        `(* ,@(for/list ([(count num) (in-dict p)])
+                                `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                    ,(factorial count))))))
+                    (if (null? terms)
+                        0
+                        `(* (exp ,(coeffs 0)) ,(make-sum terms)))]))))
 
 (define (taylor-sin coeffs)
   ;(-> (-> number? val?) term?)
@@ -518,13 +571,13 @@
                                  [coeff (in-vector coeffs*)]
                                  #:unless (equal? (val-def coeff) 0))
                         i))
-                    `(+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
-                            (if (= (modulo (apply + (map car p)) 2) 1)
-                                `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
-                                    ,@(for/list ([(count num) (in-dict p)])
-                                        `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                            ,(factorial count))))
-                                0)))]))))
+                    (make-sum (for/list ([p (in-list (all-partitions n (sort nums >)))])
+                                (if (= (modulo (apply + (map car p)) 2) 1)
+                                    `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
+                                        ,@(for/list ([(count num) (in-dict p)])
+                                            `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                                ,(factorial count))))
+                                    0)))]))))
 
 (define (taylor-cos coeffs)
   ;(-> (-> number? val?) term?)
@@ -539,13 +592,13 @@
                                  [coeff (in-vector coeffs*)]
                                  #:unless (equal? (val-def coeff) 0))
                         i))
-                    `(+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
-                            (if (= (modulo (apply + (map car p)) 2) 0)
-                                `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
-                                    ,@(for/list ([(count num) (in-dict p)])
-                                        `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                            ,(factorial count))))
-                                0)))]))))
+                    (make-sum (for/list ([p (in-list (all-partitions n (sort nums >)))])
+                                (if (= (modulo (apply + (map car p)) 2) 0)
+                                    `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
+                                        ,@(for/list ([(count num) (in-dict p)])
+                                            `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                                ,(factorial count))))
+                                    0)))]))))
 
 ;; This is a hyper-specialized symbolic differentiator for log(f(x))
 
@@ -615,7 +668,9 @@
                                             `(pow (* ,(factorial i) ,(vector-ref coeffs* (sub1 i)))
                                                   ,p))))
                                  (exp (* ,(- k) ,(f 0)))))))
-                      `(/ ,(make-sum relevant-terms) ,(factorial n))]))))
+                      (if (null? relevant-terms)
+                          0
+                          `(/ ,(make-sum relevant-terms) ,(factorial n)))]))))
 
   (if (zero? shift)
       base
@@ -648,8 +703,11 @@
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
+  (check-equal? (coeffs '(/ 1 1)) '(1 0 0 0 0 0 0))
   (check-equal? (coeffs '(sqrt x)) '((sqrt x) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(sqrt 1)) '(1 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt x)) '((cbrt x) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(cbrt 1)) '(1 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt (* x x))) '((* (cbrt x) (cbrt x)) 0 0 0 0 0 0))
   (check-equal? (coeffs '(fabs (+ 2 x))) '(2 1 0 0 0 0 0))
   (check-equal? (coeffs '(fabs (+ -2 x))) '(2 -1 0 0 0 0 0)))
