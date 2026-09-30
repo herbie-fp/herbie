@@ -148,15 +148,20 @@
   (timeline-event! 'reconstruct)
 
   (define (group-equivalent-alts alts)
+    (define points (pcontext-points (*pcontext*)))
     (define fn (compile-block (*global-block*) (map alt-expr alts)))
-    (define signatures (make-vector (length alts) '()))
+    (define signatures
+      (for/vector #:length (length alts)
+                  ([_ (in-list alts)])
+        (make-vector (vector-length points))))
     (define block-cost (alt-block-costs (*global-block*)))
 
-    (for ([pt (in-vector (pcontext-points (*pcontext*)))])
+    (for ([pt (in-vector points)]
+          [pt-idx (in-naturals)])
       (define outs (fn pt))
       (for ([out (in-vector outs)]
-            [idx (in-naturals)])
-        (vector-set! signatures idx (cons out (vector-ref signatures idx)))))
+            [signature (in-vector signatures)])
+        (vector-set! signature pt-idx out)))
 
     (define (best-alt alt1 alt2)
       (define cost1 (block-cost (alt-expr alt1)))
