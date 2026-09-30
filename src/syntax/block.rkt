@@ -25,6 +25,7 @@
          jsexpr->block-exprs
 
          (struct-out val)
+         val-node
          val-def) ; Val -> Expr
 
 ;; Blocks store these recursive structures, flattened
@@ -82,6 +83,10 @@
 (define (val-def x)
   (match-define (val b idx) x)
   (expr-recurse (dvector-ref (block-nodes b) idx) (lambda (ref) (val b ref))))
+
+(define (val-node x)
+  (match-define (val b idx) x)
+  (dvector-ref (block-nodes b) idx))
 
 (define (progs->block exprs #:ctx ctx)
   (define out (block-empty ctx))

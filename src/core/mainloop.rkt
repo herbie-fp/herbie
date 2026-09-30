@@ -176,7 +176,6 @@
           [signature (in-vector signatures)])
       (define key (cons (get-starting-expr altn) signature))
       (hash-update! groups key (curry best-alt altn) altn))
-
     (sort (hash-values groups) expr<? #:key alt-expr))
 
   (define (compute-referrers parents root)
@@ -188,6 +187,7 @@
     (recurse! (val-idx root))
     seen)
 
+  (define replacement-cache (make-hasheq))
   (define (reconstruct-alt altn orig can-refer)
     (define (loop altn)
       (match altn
@@ -199,7 +199,13 @@
              [(list 'evaluate) (list 'evaluate start-expr)]
              [(list 'taylor name var order) (list 'taylor start-expr name var order)]
              [(list 'rr input proof) (list 'rr (alt-expr prev) cur-expr input proof)]))
-         (define expr* (block-replace-subexpr block (alt-expr orig) start-expr cur-expr can-refer))
+         (define expr*
+           (block-replace-subexpr block
+                                  (alt-expr orig)
+                                  start-expr
+                                  cur-expr
+                                  can-refer
+                                  #:cache replacement-cache))
          (values (alt expr* event* (list prev-altn)) start-expr)]))
     (define-values (result-alt _) (loop altn))
     result-alt)

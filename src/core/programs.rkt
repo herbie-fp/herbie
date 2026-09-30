@@ -95,50 +95,88 @@
 
 ;; Total order on expressions
 
-(define (expr-cmp a b)
-  (match* (a b)
-    [((? val?) (? val?)) (expr-cmp (val-def a) (val-def b))]
-    [((? val?) _) (expr-cmp (val-def a) b)]
-    [(_ (? val?)) (expr-cmp a (val-def b))]
-    [((? list?) (? list?))
-     (define len-a (length a))
-     (define len-b (length b))
+(define (val-expr-cmp a b)
+  (define a-node (val-node a))
+  (define-values (b-node b-block)
+    (if (val? b)
+        (values (val-node b) (val-block b))
+        (values b #f)))
+  (define (b-child idx)
+    (if b-block
+        (val b-block idx)
+        idx))
+  (cond
+    [(and (list? a-node) (list? b-node))
+     (define len-a (length a-node))
+     (define len-b (length b-node))
      (cond
        [(< len-a len-b) -1]
        [(> len-a len-b) 1]
        [else
-        (let loop ([a a]
-                   [b b])
-          (cond
-            [(null? a) 0]
-            [else
-             (define cmp (expr-cmp (car a) (car b)))
-             (if (zero? cmp)
-                 (loop (cdr a) (cdr b))
-                 cmp)]))])]
-    [((? list?) _) 1]
-    [(_ (? list?)) -1]
-    [((? approx?) (? approx?))
-     (define cmp-spec (expr-cmp (approx-spec a) (approx-spec b)))
+        (define cmp-op (expr-cmp (car a-node) (car b-node)))
+        (if (zero? cmp-op)
+            (let loop ([a-args (cdr a-node)]
+                       [b-args (cdr b-node)])
+              (cond
+                [(null? a-args) 0]
+                [else
+                 (define cmp (expr-cmp (val (val-block a) (car a-args)) (b-child (car b-args))))
+                 (if (zero? cmp)
+                     (loop (cdr a-args) (cdr b-args))
+                     cmp)]))
+            cmp-op)])]
+    [(and (approx? a-node) (approx? b-node))
+     (define cmp-spec (expr-cmp (approx-spec a-node) (approx-spec b-node)))
      (if (zero? cmp-spec)
-         (expr-cmp (approx-impl a) (approx-impl b))
+         (expr-cmp (val (val-block a) (approx-impl a-node)) (b-child (approx-impl b-node)))
          cmp-spec)]
-    [((? approx?) _) 1]
-    [(_ (? approx?)) -1]
-    [((? symbol?) (? symbol?))
-     (cond
-       [(symbol<? a b) -1]
-       [(symbol=? a b) 0]
-       [else 1])]
-    [((? symbol?) _) 1]
-    [(_ (? symbol?)) -1]
-    ;; Need both cases because `reduce` uses plain numbers
-    [((or (? literal? (app literal-value a)) (? number? a)) (or (? literal? (app literal-value b))
-                                                                (? number? b)))
-     (cond
-       [(< a b) -1]
-       [(= a b) 0]
-       [else 1])]))
+    [else (expr-cmp a-node b-node)]))
+
+(define (expr-cmp a b)
+  (cond
+    [(val? a) (val-expr-cmp a b)]
+    [(val? b) (- (val-expr-cmp b a))]
+    [else
+     (match* (a b)
+       [((? list?) (? list?))
+        (define len-a (length a))
+        (define len-b (length b))
+        (cond
+          [(< len-a len-b) -1]
+          [(> len-a len-b) 1]
+          [else
+           (let loop ([a a]
+                      [b b])
+             (cond
+               [(null? a) 0]
+               [else
+                (define cmp (expr-cmp (car a) (car b)))
+                (if (zero? cmp)
+                    (loop (cdr a) (cdr b))
+                    cmp)]))])]
+       [((? list?) _) 1]
+       [(_ (? list?)) -1]
+       [((? approx?) (? approx?))
+        (define cmp-spec (expr-cmp (approx-spec a) (approx-spec b)))
+        (if (zero? cmp-spec)
+            (expr-cmp (approx-impl a) (approx-impl b))
+            cmp-spec)]
+       [((? approx?) _) 1]
+       [(_ (? approx?)) -1]
+       [((? symbol?) (? symbol?))
+        (cond
+          [(symbol<? a b) -1]
+          [(symbol=? a b) 0]
+          [else 1])]
+       [((? symbol?) _) 1]
+       [(_ (? symbol?)) -1]
+       ;; Need both cases because `reduce` uses plain numbers
+       [((or (? literal? (app literal-value a)) (? number? a)) (or (? literal? (app literal-value b))
+                                                                   (? number? b)))
+        (cond
+          [(< a b) -1]
+          [(= a b) 0]
+          [else 1])])]))
 
 (define (expr<? a b)
   (negative? (expr-cmp a b)))
@@ -208,37 +246,49 @@
 
 ;; Replace all occurrences of `from` with `to` in expression `expr`, returning a new val
 ;; Only recurses into impl parts, not specs
-(define (block-replace-subexpr block expr from to [can-refer #f])
-  (define cache (make-hasheq))
+(define (block-replace-subexpr block expr from to [can-refer #f] #:cache [cache #f])
+  (set! cache (or cache (make-hasheq)))
+  (hash-clear! cache)
   (define from-idx (val-idx from))
-  (let loop ([v expr])
-    (define idx (val-idx v))
-    (cond
-      [(< idx from-idx) v]
-      [(= idx from-idx) to]
-      [(and can-refer (not (set-member? can-refer idx))) v]
-      [else
-       (hash-ref! cache
-                  idx
-                  (lambda ()
-                    (match (val-def v)
-                      [(approx spec impl)
-                       (define impl* (loop impl))
-                       (if (= (val-idx impl*) (val-idx impl))
-                           v
-                           (block-push! block (approx spec (val-idx impl*))))]
-                      [node
-                       (define unchanged? #t)
-                       (define node*
-                         (expr-recurse node
-                                       (lambda (arg)
-                                         (define arg* (loop arg))
-                                         (unless (= (val-idx arg*) (val-idx arg))
-                                           (set! unchanged? #f))
-                                         (val-idx arg*))))
-                       (if unchanged?
-                           v
-                           (block-push! block node*))])))])))
+  (letrec
+      ([loop (lambda (v)
+               (define idx (val-idx v))
+               (cond
+                 [(< idx from-idx) v]
+                 [(= idx from-idx) to]
+                 [(and can-refer (not (set-member? can-refer idx))) v]
+                 [else
+                  (define cached (hash-ref cache idx #f))
+                  (if cached
+                      cached
+                      (let ([result (match (val-node v)
+                                      [(approx spec impl)
+                                       (define impl* (loop (val block impl)))
+                                       (if (= (val-idx impl*) impl)
+                                           v
+                                           (block-push! block (approx spec (val-idx impl*))))]
+                                      [(list op args ...)
+                                       (define args* (replace-args args))
+                                       (if args*
+                                           (block-push! block (cons op args*))
+                                           v)]
+                                      [node v])])
+                        (hash-set! cache idx result)
+                        result))]))]
+       [replace-tail (lambda (args)
+                       (if (null? args)
+                           '()
+                           (cons (val-idx (loop (val block (car args)))) (replace-tail (cdr args)))))]
+       [replace-args (lambda (args)
+                       (cond
+                         [(null? args) #f]
+                         [else
+                          (define arg (car args))
+                          (define arg* (loop (val block arg)))
+                          (if (= (val-idx arg*) arg)
+                              (let ([rest* (replace-args (cdr args))]) (and rest* (cons arg rest*)))
+                              (cons (val-idx arg*) (replace-tail (cdr args))))]))])
+    (loop expr)))
 
 (module+ test
   (require rackunit)
