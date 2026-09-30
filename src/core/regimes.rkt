@@ -99,71 +99,6 @@
                     (baseline-errors-score err-cols (pareto-point-cost ppt)))
     opt))
 
-(define (finish-combine-alts block alts v splitindices splitpoints)
-  (define splitpoints* (append splitpoints (list (sp (si-cidx (last splitindices)) v +nan.0))))
-  (define v*
-    (for/fold ([v (alt-expr (list-ref alts (sp-cidx (last splitpoints*))))])
-              ([splitpoint (cdr (reverse splitpoints*))])
-      (define repr (block-repr-of (sp-bexpr splitpoint)))
-      (define if-impl (get-fpcore-impl 'if '() (list (get-representation 'bool) repr repr)))
-      (define <=-impl (get-fpcore-impl '<= '() (list repr repr)))
-      (define lit-v
-        (block-add! block
-                    (literal (repr->real (sp-point splitpoint) repr) (representation-name repr))))
-      (define cmp-v (block-add! block (list <=-impl (sp-bexpr splitpoint) lit-v)))
-      (block-add! block (list if-impl cmp-v (alt-expr (list-ref alts (sp-cidx splitpoint))) v))))
-
-  ;; We don't want unused alts in our history!
-  (define-values (alts* splitpoints**) (remove-unused-alts alts splitpoints*))
-  (alt v* (list 'regimes splitpoints**) alts*))
-
-(define (combine-alts block best-option)
-  (match-define (option splitindices alts pts v) best-option)
-  (define splitpoints (sindices->spoints/left block pts v splitindices))
-  (finish-combine-alts block alts v splitindices splitpoints))
-
-(define (remove-unused-alts alts splitpoints)
-  (for/fold ([alts* '()]
-             [splitpoints* '()])
-            ([splitpoint (in-list splitpoints)])
-    (define alt (list-ref alts (sp-cidx splitpoint)))
-    ;; It's important to snoc the alt in order for the indices not to change
-    (define alts** (remove-duplicates (append alts* (list alt))))
-    (define splitpoint* (struct-copy sp splitpoint [cidx (index-of alts** alt)]))
-    (define splitpoints** (append splitpoints* (list splitpoint*)))
-    (values alts** splitpoints**)))
-
-;; Accepts a list of sindices in one indexed form and returns the
-;; proper interior splitpoints in float form. A crucial constraint is that the
-;; float form always come from the range [f(idx1), f(idx2)). If the
-;; float form of a split is f(idx2), or entirely outside that range,
-;; problems may arise.
-(define/contract (sindices->spoints/left block points v sindices)
-  (-> block? (listof vector?) val? (listof si?) (listof sp?))
-  (define repr (block-repr-of v))
-  (define eval-expr (compose (curryr vector-ref 0) (compile-block block (list v))))
-
-  (define (left-point p1 p2)
-    (define left ((representation-repr->bf repr) p1))
-    (define right ((representation-repr->bf repr) p2))
-    (define out ; TODO: Try using bigfloat-pick-point here?
-      (if (bfnegative? left)
-          (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
-          (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
-    ;; It's important to return something strictly less than right
-    (if (bf= out right)
-        p1
-        ((representation-bf->repr repr) out)))
-
-  (for/list ([si1 (in-list sindices)]
-             [si2 (in-list (cdr sindices))])
-    (define p1 (eval-expr (list-ref points (sub1 (si-pidx si1)))))
-    (define p2 (eval-expr (list-ref points (si-pidx si1))))
-
-    (define split-at (left-point p1 p2))
-    (timeline-push! 'method "left-value")
-    (sp (si-cidx si1) v split-at)))
-
 (define (critical-subexpressions block root-v)
   (define var-vs (map (curry block-add! block) (block-vars block)))
   (define free-vars (block-free-vars block))
@@ -447,3 +382,52 @@
     (values splitss scores)))
 
 (require (submod "." core))
+
+(define (combine-alts block best-option)
+  (match-define (option splitindices alts pts v) best-option)
+  (define repr (block-repr-of v))
+  (define eval-expr (compose (curryr vector-ref 0) (compile-block block (list v))))
+  (define splitpoints
+    (for/list ([si1 (in-list (drop-right splitindices 1))])
+      (define p1 (eval-expr (list-ref pts (sub1 (si-pidx si1)))))
+      (define p2 (eval-expr (list-ref pts (si-pidx si1))))
+      (sp (si-cidx si1) v (left-point repr p1 p2))))
+  (define splitpoints* (append splitpoints (list (sp (si-cidx (last splitindices)) v +nan.0))))
+  (define v*
+    (for/fold ([v (alt-expr (list-ref alts (sp-cidx (last splitpoints*))))])
+              ([splitpoint (cdr (reverse splitpoints*))])
+      (define repr (block-repr-of (sp-bexpr splitpoint)))
+      (define if-impl (get-fpcore-impl 'if '() (list (get-representation 'bool) repr repr)))
+      (define <=-impl (get-fpcore-impl '<= '() (list repr repr)))
+      (define lit-v
+        (block-add! block
+                    (literal (repr->real (sp-point splitpoint) repr) (representation-name repr))))
+      (define cmp-v (block-add! block (list <=-impl (sp-bexpr splitpoint) lit-v)))
+      (block-add! block (list if-impl cmp-v (alt-expr (list-ref alts (sp-cidx splitpoint))) v))))
+
+  ;; We don't want unused alts in our history!
+  (define-values (alts* splitpoints**) (remove-unused-alts alts splitpoints*))
+  (alt v* (list 'regimes splitpoints**) alts*))
+
+(define (left-point repr p1 p2)
+  (define left ((representation-repr->bf repr) p1))
+  (define right ((representation-repr->bf repr) p2))
+  (define out ; TODO: Try using bigfloat-pick-point here?
+    (if (bfnegative? left)
+        (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
+        (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
+  ;; It's important to return something strictly less than right
+  (if (bf= out right)
+      p1
+      ((representation-bf->repr repr) out)))
+
+(define (remove-unused-alts alts splitpoints)
+  (for/fold ([alts* '()]
+             [splitpoints* '()])
+            ([splitpoint (in-list splitpoints)])
+    (define alt (list-ref alts (sp-cidx splitpoint)))
+    ;; It's important to snoc the alt in order for the indices not to change
+    (define alts** (remove-duplicates (append alts* (list alt))))
+    (define splitpoint* (struct-copy sp splitpoint [cidx (index-of alts** alt)]))
+    (define splitpoints** (append splitpoints* (list splitpoint*)))
+    (values alts** splitpoints**)))

@@ -298,11 +298,7 @@
                        start-prog
                        (*pcontext*)
                        spec-block))
-     (for/list ([opt (in-list opts)])
-       (match-define (option splitindices opt-alts _ v) opt)
-       (cond
-         [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
-         [else (combine-alts block opt)]))]
+     (map (curry combine-alts block) opts)]
     [else
      (define scores (block-score-alts alts))
      (list (cdr (argmin car (map (λ (a s) (cons s a)) alts scores))))]))
