@@ -264,7 +264,7 @@
   (make-series 0
                (λ (f n)
                  (if (< n len)
-                     (val-def (vector-ref items n))
+                     (vector-ref items n)
                      0))))
 
 (define (first-nonzero-exp f)
@@ -285,9 +285,13 @@
     (dvector-ref cache i))
   (when (>= n (dvector-length cache))
     (for ([i (in-range (dvector-length cache) (add1 n))])
-      (define expr (adder (builder fetch i)))
+      (define built (builder fetch i))
+      (define expr
+        (if (val? built)
+            built
+            (adder built)))
       (define value
-        (if (equal? (val-def expr) 0)
+        (if (or (val? built) (equal? (val-def expr) 0))
             expr
             (reducer expr)))
       (dvector-set! cache i value)))
@@ -316,16 +320,22 @@
 
 (define (taylor-negate term)
   ;(-> term? term?)
-  (make-series (series-offset term) (λ (f n) (list 'neg (series-ref term n)))))
+  (make-series (series-offset term)
+               (λ (f n)
+                 (define coeff (series-ref term n))
+                 (if (equal? (val-def coeff) 0)
+                     0
+                     (list 'neg coeff)))))
 
 (define (taylor-mult left right)
   ;(-> term? term? term?)
   (make-series (+ (series-offset left) (series-offset right))
                (λ (f n)
                  (make-sum (for/list ([i (in-range (+ n 1))]
-                                      #:unless (or (equal? (val-def (series-ref left i)) 0)
-                                                   (equal? (val-def (series-ref right (- n i))) 0)))
-                             (list '* (series-ref left i) (series-ref right (- n i))))))))
+                                      #:do [(define left* (series-ref left i))
+                                            (define right* (series-ref right (- n i)))]
+                                      #:unless (or (zero-value? left*) (zero-value? right*)))
+                             (list '* left* right*))))))
 
 (define (normalize-series s)
   ;(-> term? term?)
@@ -336,7 +346,7 @@
   (define slack (first-nonzero-exp coeffs))
   (if (zero? slack)
       s
-      (make-series (- offset slack) (λ (f n) (val-def (series-ref s (+ n slack)))))))
+      (make-series (- offset slack) (λ (f n) (series-ref s (+ n slack))))))
 
 (define ((zero-series s) n)
   ;(-> series? (-> number? val?))
@@ -423,7 +433,7 @@
              [_ (coeffs (+ (- i n) (modulo offset n)))]))
          (dvector-set! cache i res))
        (dvector-ref cache i))
-     (make-series offset* (λ (f i) (val-def (coeffs* i))))]))
+     (make-series offset* (λ (f i) (coeffs* i)))]))
 
 (define (taylor-sqrt var num)
   ;(-> symbol? term? term?)
@@ -442,10 +452,11 @@
                                  #:do [(define fk (f k)) (define fnk (f (- n k)))]
                                  #:unless (or (equal? (val-def fk) 0) (equal? (val-def fnk) 0)))
                         `(* 2 (* ,fk ,fnk))))
+                    (define middle-term (f (/ n 2)))
                     (define middle*
-                      (if (equal? (val-def (f (/ n 2))) 0)
+                      (if (zero-value? middle-term)
                           middle
-                          (cons `(pow ,(f (/ n 2)) 2) middle)))
+                          (cons `(pow ,middle-term 2) middle)))
                     (define numerator (make-difference (coeffs* n) middle*))
                     (if (zero-value? numerator)
                         0
@@ -472,7 +483,9 @@
                (λ (f n)
                  (cond
                    [(zero? n) `(cbrt ,(coeffs* 0))]
-                   [(= n 1) `(/ ,(coeffs* 1) (* 3 (cbrt (* ,(f 0) ,(f 0)))))]
+                   [(= n 1)
+                    (define f0 (f 0))
+                    `(/ ,(coeffs* 1) (* 3 (cbrt (* ,f0 ,f0))))]
                    [else
                     (define numerator
                       (make-difference (coeffs* n)
