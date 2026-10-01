@@ -163,8 +163,6 @@
 
 (define/reset n-sum-to-cache (make-hash))
 
-(define/reset log-cache (make-hash '((1 . ((1 -1 1))))))
-
 (define (n-sum-to n k)
   (hash-ref! (n-sum-to-cache)
              (cons n k)
@@ -458,21 +456,6 @@
      (define half (taylor-pow coeffs (/ (- n 1) 2)))
      (taylor-mult coeffs (taylor-mult half half))]))
 
-(define (all-partitions n options)
-  (match options
-    ['()
-     (if (= n 0)
-         '(())
-         '())]
-    [(cons k options*)
-     (reap [sow]
-           (for* ([i (in-range (/ (+ n 1) k))])
-             (define head (cons i k))
-             (if (= i 0)
-                 (map sow (all-partitions n options*))
-                 (for ([pt (all-partitions (- n (* k i)) options*)])
-                   (sow (cons head pt))))))]))
-
 (define (taylor-exp coeffs)
   ;(-> (-> number? val?) term?)
   (make-series 0
@@ -480,93 +463,52 @@
                  (cond
                    [(zero? n) `(exp ,(coeffs 0))]
                    [else
-                    (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
-                    (define nums
-                      (for/list ([i (in-range 1 (+ n 1))]
-                                 [coeff (in-vector coeffs*)]
-                                 #:unless (equal? (val-def coeff) 0))
-                        i))
-                    `(* (exp ,(coeffs 0))
-                        (+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
-                               `(* ,@(for/list ([(count num) (in-dict p)])
-                                       `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                           ,(factorial count)))))))]))))
+                    (define terms
+                      (for/list ([k (in-range 1 (add1 n))]
+                                 #:do [(define ak (coeffs k)) (define bnk (f (- n k)))]
+                                 #:unless (or (equal? (val-def ak) 0) (equal? (val-def bnk) 0)))
+                        `(* ,k ,ak ,bnk)))
+                    `(/ ,(make-sum terms) ,n)]))))
+
+(define (taylor-sincos coeffs)
+  (letrec
+      ([sin-series (make-series 0
+                                (λ (f n)
+                                  (cond
+                                    [(zero? n) 0]
+                                    [else
+                                     (define terms
+                                       (for/list ([k (in-range 1 (add1 n))]
+                                                  #:do [(define ak (coeffs k))
+                                                        (define cnk (series-ref cos-series (- n k)))]
+                                                  #:unless (or (equal? (val-def ak) 0)
+                                                               (equal? (val-def cnk) 0)))
+                                         `(* ,k ,ak ,cnk)))
+                                     `(/ ,(make-sum terms) ,n)])))]
+       [cos-series (make-series 0
+                                (λ (f n)
+                                  (cond
+                                    [(zero? n) 1]
+                                    [else
+                                     (define terms
+                                       (for/list ([k (in-range 1 (add1 n))]
+                                                  #:do [(define ak (coeffs k))
+                                                        (define snk (series-ref sin-series (- n k)))]
+                                                  #:unless (or (equal? (val-def ak) 0)
+                                                               (equal? (val-def snk) 0)))
+                                         `(* ,k ,ak ,snk)))
+                                     `(neg (/ ,(make-sum terms) ,n))])))])
+    (values sin-series cos-series)))
 
 (define (taylor-sin coeffs)
   ;(-> (-> number? val?) term?)
-  (make-series 0
-               (λ (f n)
-                 (cond
-                   [(zero? n) 0]
-                   [else
-                    (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
-                    (define nums
-                      (for/list ([i (in-range 1 (+ n 1))]
-                                 [coeff (in-vector coeffs*)]
-                                 #:unless (equal? (val-def coeff) 0))
-                        i))
-                    `(+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
-                            (if (= (modulo (apply + (map car p)) 2) 1)
-                                `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
-                                    ,@(for/list ([(count num) (in-dict p)])
-                                        `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                            ,(factorial count))))
-                                0)))]))))
+  (define-values (sin-series _) (taylor-sincos coeffs))
+  sin-series)
 
 (define (taylor-cos coeffs)
   ;(-> (-> number? val?) term?)
-  (make-series 0
-               (λ (f n)
-                 (cond
-                   [(zero? n) 1]
-                   [else
-                    (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
-                    (define nums
-                      (for/list ([i (in-range 1 (+ n 1))]
-                                 [coeff (in-vector coeffs*)]
-                                 #:unless (equal? (val-def coeff) 0))
-                        i))
-                    `(+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
-                            (if (= (modulo (apply + (map car p)) 2) 0)
-                                `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
-                                    ,@(for/list ([(count num) (in-dict p)])
-                                        `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                            ,(factorial count))))
-                                0)))]))))
-
-;; This is a hyper-specialized symbolic differentiator for log(f(x))
-
-(define (list-setinc l i)
-  (let loop ([i i]
-             [l l]
-             [rest '()])
-    (if (= i 0)
-        (if (null? (cdr l))
-            (append (reverse rest) (list (- (car l) 1) 1))
-            (append (reverse rest) (list* (- (car l) 1) (+ (cadr l) 1) (cddr l))))
-        (loop (- i 1) (cdr l) (cons (car l) rest)))))
-
-(define (loggenerate table)
-  (apply append
-         (for/list ([term table])
-           (match-define `(,coeff ,ps ...) term)
-           (filter identity
-                   (for/list ([i (in-naturals)]
-                              [p ps])
-                     (if (zero? p)
-                         #f
-                         `(,(* coeff p) ,@(list-setinc ps i))))))))
-
-(define (lognormalize table)
-  (filter (λ (entry) (not (= (car entry) 0)))
-          (for/list ([entry (group-by cdr table)])
-            (cons (apply + (map car entry)) (cdar entry)))))
-
-(define (logstep table)
-  (lognormalize (loggenerate table)))
-
-(define (logcompute i)
-  (hash-ref! (log-cache) i (λ () (logstep (logcompute (- i 1))))))
+  (define-values (_ cos-series) (taylor-sincos coeffs))
+  cos-series)
 
 (define (taylor-log var arg)
   ;(-> symbol? term? term?)
@@ -585,24 +527,12 @@
                    (cond
                      [(zero? n) `(log ,(maybe-negate (coeffs 0)))]
                      [else
-                      (define tmpl (logcompute n))
-                      (define coeffs* (list->vector (map coeffs (range 1 (add1 n)))))
-                      (define relevant-terms
-                        (for/list ([term (in-list tmpl)]
-                                   #:do [(match-define `(,coeff ,k ,ps ...) term)]
-                                   #:unless (for/or ([i (in-naturals 1)]
-                                                     [p (in-list ps)]
-                                                     #:when (not (= p 0)))
-                                              (equal? (val-def (vector-ref coeffs* (sub1 i))) 0)))
-                          `(* ,coeff
-                              (/ (* ,@(for/list ([i (in-naturals 1)]
-                                                 [p (in-list ps)])
-                                        (if (= p 0)
-                                            1
-                                            `(pow (* ,(factorial i) ,(vector-ref coeffs* (sub1 i)))
-                                                  ,p))))
-                                 (exp (* ,(- k) ,(f 0)))))))
-                      `(/ ,(make-sum relevant-terms) ,(factorial n))]))))
+                      (define terms
+                        (for/list ([k (in-range 1 n)]
+                                   #:do [(define lk (f k)) (define ank (coeffs (- n k)))]
+                                   #:unless (or (equal? (val-def lk) 0) (equal? (val-def ank) 0)))
+                          `(* ,k ,lk ,ank)))
+                      `(/ (- (* ,n ,(coeffs n)) ,(make-sum terms)) (* ,n ,(coeffs 0)))]))))
 
   (if (zero? shift)
       base
@@ -635,6 +565,10 @@
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
+  (check-equal? (coeffs '(exp (+ x (* x x)))) '(1 1 3/2 7/6 25/24 27/40 331/720))
+  (check-equal? (coeffs '(sin (+ x (* x x)))) '(0 1 1 -1/6 -1/2 -59/120 -1/8))
+  (check-equal? (coeffs '(cos (+ x (* x x)))) '(1 0 -1/2 -1 -11/24 1/6 179/720))
+  (check-equal? (coeffs '(log (+ 1 (+ x (* x x))))) '(0 1 1/2 -2/3 1/4 1/5 -1/3))
   (check-equal? (coeffs '(sqrt x)) '((sqrt x) 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt x)) '((cbrt x) 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt (* x x))) '((* (cbrt x) (cbrt x)) 0 0 0 0 0 0))
