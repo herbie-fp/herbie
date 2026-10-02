@@ -352,20 +352,15 @@
   (cond
     [(= offset offset*) normalized]
     [else
-     (define cache (make-dvector 2)) ;; never called more than twice
      (define (coeffs* i)
-       (unless (and (> (dvector-capacity cache) i) (dvector-ref cache i))
-         (define res
-           (match i
-             [0
-              (adder (make-sum (for/list ([j (in-range (modulo offset n))])
-                                 `(* ,(coeffs j) (pow ,var ,(+ j (modulo (- offset) n)))))))]
-             [_
-              #:when (< i n)
-              (adder 0)]
-             [_ (coeffs (+ (- i n) (modulo offset n)))]))
-         (dvector-set! cache i res))
-       (dvector-ref cache i))
+       (match i
+         [0
+          (adder (make-sum (for/list ([j (in-range (modulo offset n))])
+                             `(* ,(coeffs j) (pow ,var ,(+ j (modulo (- offset) n)))))))]
+         [_
+          #:when (< i n)
+          (adder 0)]
+         [_ (coeffs (+ (- i n) (modulo offset n)))]))
      (make-series offset* (λ (f i) (val-def (coeffs* i))))]))
 
 (define (taylor-sqrt var num)
