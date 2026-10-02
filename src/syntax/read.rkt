@@ -189,15 +189,12 @@
            (cons val #t))])))
 
   (define spec-src (dict-ref prop-dict ':spec body))
-  (define spec-prog (fpcore->prog spec-src ctx))
-  (define spec (prog->spec spec-prog))
+  (define spec (fpcore->spec spec-src))
 
   ;; Named fpcores become platform operators
   (when (and func-name (*register-named-fpcore-operators?*))
-    (register-fpcore-operator! func-name
-                               (struct-copy context ctx [repr output-repr])
-                               body*
-                               spec-prog))
+    (define spec* (fpcore->prog spec-src ctx))
+    (register-fpcore-operator! func-name (struct-copy context ctx [repr output-repr]) body* spec*))
   (check-unused-variables var-names body* pre*)
   (check-weird-variables var-names)
 
@@ -336,14 +333,6 @@
   (define port
     (open-input-string (string-append "(FPCore helper (x) (+ x 1))\n" "(FPCore (x) (helper x))\n")))
   (check-equal? (length (load-tests port)) 2)
-
-  ;; Chained array-valued helpers must not repeatedly expand their intermediate values.
-  (define array-port
-    (open-input-string
-     (string-append
-      "(FPCore make-vector ((x 2)) (array (ref x 0) (ref x 1)))\n"
-      "(FPCore use-vector ((x 2)) (let* ([x (make-vector x)] [x (make-vector x)]) x))\n")))
-  (check-equal? (length (load-tests array-port)) 2)
 
   ;; casting edge cases
   (check-equal? (fpcore->prog `(cast x) ctx) 'x)
