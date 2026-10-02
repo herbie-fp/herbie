@@ -1155,8 +1155,9 @@
       (for ([iter (in-list iteration-data)]
             [i (in-naturals)])
         (define cnt (iteration-data-num-nodes iter))
+        (define classes (iteration-data-num-eclasses iter))
         (define cost (for/sum ([id (in-list root-ids)]) (egraph_get_cost egg-graph* id i)))
-        (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
+        (timeline-push! 'egraph i cnt classes cost (iteration-data-time iter)))
 
       (define rewrite-initial-size*
         (if (empty? iteration-data)
