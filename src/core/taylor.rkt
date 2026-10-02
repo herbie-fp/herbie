@@ -416,7 +416,7 @@
                (λ (f n)
                  (cond
                    [(zero? n) `(cbrt ,(coeffs* 0))]
-                   [(= n 1) `(/ ,(coeffs* 1) (* 3 (cbrt (* ,(f 0) ,(f 0)))))]
+                   [(= n 1) `(/ ,(coeffs* 1) (* 3 ,(f 0) ,(f 0)))]
                    [else
                     `(/ (- ,(coeffs* n)
                            ,@(for*/list ([terms (in-list (n-sum-to 3 n))]
@@ -565,6 +565,7 @@
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
+  (check-equal? (coeffs '(cbrt (+ 8 x)) #:n 4) '(2 1/12 -1/288 5/20736))
   (check-equal? (coeffs '(exp (+ x (* x x)))) '(1 1 3/2 7/6 25/24 27/40 331/720))
   (check-equal? (coeffs '(sin (+ x (* x x)))) '(0 1 1 -1/6 -1/2 -59/120 -1/8))
   (check-equal? (coeffs '(cos (+ x (* x x)))) '(1 0 -1/2 -1 -11/24 1/6 179/720))
