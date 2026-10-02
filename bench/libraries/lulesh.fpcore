@@ -6,7 +6,7 @@
 (FPCore
  (v1 v0)
  :name
- "LULESH input 0/0"
+ "Hydro time-step constraint"
  :pre
  (and (<= 0.0999999 v1 0.10000010000000001)
       (<= -30849.32799992016 v0 69069.68545197454))
@@ -15,7 +15,7 @@
 (FPCore
  (v3 v2)
  :name
- "LULESH input 1/0"
+ "Courant time-step estimate"
  :pre
  (and (<= 0.006545220703453561 v3 0.08766407709918204)
       (<= 1.1111108888889e-37 v2 138879151.1476675))
@@ -24,7 +24,7 @@
 (FPCore
  (v5 v6 v3 v4)
  :name
- "LULESH input 2/0"
+ "Compressive Courant denominator"
  :pre
  (and (<= -30849.32799992016 v5 -6.9770166246639e-7)
       (<= 1.999998 v6 2.000002)
@@ -35,7 +35,7 @@
 (FPCore
  (v13 v12 v10 v8 v9 v11)
  :name
- "LULESH input 4"
+ "Material sound-speed calculation"
  :pre
  (and (<= 0.28312332291006465 v13 26.30958881661223)
       (<= 0.025339303906023975 v12 2.354686501325206)
@@ -50,7 +50,7 @@
 (FPCore
  (v27 v28 v29 v24 v25 v30 v31 v26)
  :name
- "LULESH input 8/0"
+ "Final energy correction"
  :pre
  (and (<= -0.038100000000000134 v27 0.36121526135266535)
       (<= 0.0 v28 1271105.7178544695)
@@ -68,7 +68,7 @@
 (FPCore
  (v36 v35 v34 v32 v33 v11)
  :name
- "LULESH input 9"
+ "Final energy sound speed"
  :pre
  (and (<= 0.28312332291006465 v36 1.0)
       (<= 0.6666666666666666 v35 2.354686501325206)
@@ -83,7 +83,7 @@
 (FPCore
  (v41 v45 v46 v43 v44 v42)
  :name
- "LULESH input 12/0"
+ "Half-step energy correction"
  :pre
  (and (<= -0.038100000000000134 v41 0.36121526135266535)
       (<= 0.0 v45 1285564.0878734537)
@@ -96,7 +96,7 @@
 (FPCore
  (v47 v48 v49 v50 v51 v11)
  :name
- "LULESH input 13"
+ "Half-step sound speed"
  :pre
  (and (<= 0.0 v47 2.495058540962401)
       (<= 0.6666666666666666 v48 2.330039027308267)
@@ -116,7 +116,7 @@
 (FPCore
  (v57 v58 v54 v55 v56)
  :name
- "LULESH input 15/0"
+ "Initial energy predictor"
  :pre
  (and (<= -1e-10 v57 1e-10)
       (<= -0.038100000000000134 v58 0.36121526135266535)
@@ -128,7 +128,7 @@
 (FPCore
  (v59 v60)
  :name
- "LULESH input 16/0"
+ "Half-step relative compression"
  :pre
  (and (<= -0.038100000000000134 v59 0.36121526135266535)
       (<= 0.28312332291006465 v60 26.30958881661223))
@@ -137,7 +137,7 @@
 (FPCore
  (v60)
  :name
- "LULESH input 17/0"
+ "Relative compression"
  :pre
  (<= 0.28312332291006465 v60 26.30958881661223)
  (+ (/ 1.0 v60) -1.0))
@@ -145,7 +145,7 @@
 (FPCore
  (v62 v61 v63 v64)
  :name
- "LULESH input 18/0"
+ "Xi monotonic-Q limiter"
  :pre
  (and (<= -24427.46429123415 v62 291.794183230792)
       (<= -52308.46640536413 v61 22648.318924938438)
@@ -162,7 +162,7 @@
 (FPCore
  (v67 v65 v63 v66)
  :name
- "LULESH input 19/0"
+ "Eta monotonic-Q limiter"
  :pre
  (and (<= -52308.46640536417 v67 22648.31892493844)
       (<= -52308.46640536417 v65 22648.31892493844)
@@ -179,7 +179,7 @@
 (FPCore
  (v70 v68 v63 v69)
  :name
- "LULESH input 20/0"
+ "Zeta monotonic-Q limiter"
  :pre
  (and (<= -52308.46640536418 v70 22648.318924938394)
       (<= -52308.46640536418 v68 22648.318924938394)
@@ -196,7 +196,7 @@
 (FPCore
  (v72 v73 v74 v75 v76 v77 v78 v79 v80 v81 v71)
  :name
- "LULESH input 21"
+ "Monotonic-Q artificial viscosity"
  :pre
  (and (<= 5.2734274999999884e-5 v72 5.2734474999999884e-5)
       (<= 0.666666 v73 0.6666673333333333)
@@ -277,7 +277,7 @@
   v98
   v99)
  :name
- "LULESH input 22"
+ "Monotonic-Q velocity gradients"
  :pre
  (and (<= 0.0375 v100 1.125)
       (<= 0.0375 v101 1.125)
@@ -497,7 +497,7 @@
 (FPCore
  (v132 v133 v134)
  :name
- "LULESH input 23/0"
+ "Element velocity divergence"
  :pre
  (and (<= -49610.97263537993 v132 23023.228483991516)
       (<= -49610.972635379934 v133 23023.22848399152)
@@ -533,7 +533,7 @@
   v143
   v141)
  :name
- "LULESH input 24"
+ "Element kinematics and gradient"
  :pre
  (and (<= 0.0375 v135 1.125)
       (<= 0.0375 v137 1.125)
@@ -918,7 +918,7 @@
   v197
   v250)
  :name
- "LULESH input 29"
+ "Hourglass mode coefficients"
  :pre
  (and (<= 1.524620169057655e-5 v194 0.0013712422357987654)
       (<= -1.0 v196 1.0)
@@ -1441,7 +1441,7 @@
   v262
   v255)
  :name
- "LULESH input 30"
+ "Hourglass force assembly"
  :pre
  (and (<= 1.524620169057655e-5 v194 0.0013712422357987654)
       (<= 2.999997 v251 3.000003)
@@ -3259,7 +3259,7 @@
   v334
   v351)
  :name
- "LULESH input 31"
+ "Element volume derivatives"
  :pre
  (and (<= 0.0375 v335 1.125)
       (<= 0.0 v336 1.0875)
@@ -3604,7 +3604,7 @@
   v364
   v362)
  :name
- "LULESH input 32"
+ "Element face normals"
  :pre
  (and (<= 0.0375 v358 1.125)
       (<= 0.0 v359 1.0875)
@@ -4374,7 +4374,7 @@
 (FPCore
  (v409 v410)
  :name
- "LULESH input 34/0"
+ "Hydro stress initialization"
  :pre
  (and (<= 0.0 v409 1285564.0878734537) (<= 0.0 v410 7799992.098765434))
  (- (+ v409 v410)))

@@ -6,7 +6,7 @@
 (FPCore
  (v0 v1 v13 v14 v18 v19 v2 v20 v24 v3 v4 v5 v6 v7 v8 v9)
  :name
- "EIG inputs 9, 8, 7, 33, 19"
+ "Reduced quadratic eigensystem"
  :pre
  (and (<= 0.811192781797955 v0 1.1006171994482068)
       (<= 0.8039029404840212 v1 1.167622720136051)
@@ -296,7 +296,7 @@
 (FPCore
  (v0 v1 v2 v25 v3 v4 v5 v6 v7 v8)
  :name
- "EIG inputs 6, 3, 2, 1"
+ "Principal eigenvalue residuals"
  :pre
  (and (<= 0.811192781797955 v0 1.1006171994482068)
       (<= 0.8039029404840212 v1 1.167622720136051)
@@ -372,7 +372,7 @@
 (FPCore
  (v0 v1 v2 v3 v4 v5 v6 v7 v8)
  :name
- "EIG inputs 5, 4, 0"
+ "Deviatoric invariant angle"
  :pre
  (and (<= 0.811192781797955 v0 1.1006171994482068)
       (<= 0.8039029404840212 v1 1.167622720136051)
@@ -450,7 +450,7 @@
 (FPCore
  (v28 v0 v1 v2)
  :name
- "EIG input 36"
+ "Trace-shifted eigenvalue 36"
  :pre
  (and (<= -0.1297651586608873 v28 0.27427507875089546)
       (<= 0.811192781797955 v0 1.1006171994482068)
@@ -461,7 +461,7 @@
 (FPCore
  (v27 v0 v1 v2)
  :name
- "EIG input 35"
+ "Trace-shifted eigenvalue 35"
  :pre
  (and (<= -0.043207411246015806 v27 0.07402514020534519)
       (<= 0.811192781797955 v0 1.1006171994482068)
@@ -472,7 +472,7 @@
 (FPCore
  (v26 v0 v1 v2)
  :name
- "EIG input 34"
+ "Trace-shifted eigenvalue 34"
  :pre
  (and (<= -0.28574592749487193 v26 0.14454004670536585)
       (<= 0.811192781797955 v0 1.1006171994482068)
@@ -483,7 +483,7 @@
 (FPCore
  (v13 v14 v19 v20 v21 v22 v23 v24 v9)
  :name
- "EIG inputs 32, 28, 27, 26, 25, 24"
+ "Remaining normalized eigenvectors"
  :pre
  (and (<= -0.14980139970515421 v13 0.16745781454975034)
       (<= -0.2734871590314741 v14 0.30547247817728274)
@@ -763,7 +763,7 @@
 (FPCore
  (v24 v20 v19 v9 v13 v14)
  :name
- "EIG inputs 31, 29, 23"
+ "First eigenvector cross product"
  :pre
  (and (<= -0.1435357617855705 v24 0.13564776879114981)
       (<= -0.1864053897759289 v20 0.16489542783063038)
@@ -797,7 +797,7 @@
 (FPCore
  (v24 v20 v19)
  :name
- "EIG inputs 30, 22, 21"
+ "Normalized second basis vector"
  :pre
  (and (<= -0.1435357617855705 v24 0.13564776879114981)
       (<= -0.1864053897759289 v20 0.16489542783063038)
@@ -810,7 +810,7 @@
 (FPCore
  (v0 v1 v13 v14 v19 v2 v20 v24 v3 v4 v5 v6 v7 v8 v9)
  :name
- "EIG input 20"
+ "Reduced eigenvalue gap"
  :pre
  (and (<= 0.811192781797955 v0 1.1006171994482068)
       (<= 0.8039029404840212 v1 1.167622720136051)
@@ -861,7 +861,7 @@
 (FPCore
  (v17 v9 v13 v14 v16 v15)
  :name
- "EIG inputs 18, 17, 16"
+ "Second Gram-Schmidt residual"
  :pre
  (and (<= -0.14980139970515421 v17 0.14251164455807527)
       (<= -0.25002929661308493 v9 0.4880441370926184)
@@ -889,7 +889,7 @@
 (FPCore
  (v9 v13 v14)
  :name
- "EIG inputs 15, 14, 10"
+ "Normalized first residual"
  :pre
  (and (<= -0.25002929661308493 v9 0.4880441370926184)
       (<= -0.14980139970515421 v13 0.16745781454975034)
@@ -902,7 +902,7 @@
 (FPCore
  (v9 v13 v14 v10 v12 v11)
  :name
- "EIG inputs 13, 12, 11"
+ "First Gram-Schmidt residual"
  :pre
  (and (<= -0.25002929661308493 v9 0.4880441370926184)
       (<= -0.14980139970515421 v13 0.16745781454975034)
