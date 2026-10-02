@@ -43,6 +43,13 @@ impl<'a> CostFunction<Math> for AltCost<'a> {
     where
         C: FnMut(Id) -> Self::Cost,
     {
+        if let Math::Other(op, _) = enode {
+            let op = op.as_str();
+            if op.starts_with("$do-lower.") && !op.starts_with("$do-lower-leaf.") {
+                return usize::MAX;
+            }
+        }
+
         if let Math::Pow([_, i]) = enode {
             if let Some((n, _reason)) = &self.egraph[*i].data {
                 if !n.denom().is_one() && n.denom().is_odd() {
