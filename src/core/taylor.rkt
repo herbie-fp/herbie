@@ -161,21 +161,6 @@
     [(positive? power) `(pow ,var ,power)]
     [(negative? power) `(pow ,var ,power)]))
 
-(define/reset n-sum-to-cache (make-hash))
-
-(define (n-sum-to n k)
-  (hash-ref! (n-sum-to-cache)
-             (cons n k)
-             (λ ()
-               (cond
-                 [(= k 0) (list (make-list n 0))]
-                 [(= n 1) (list (list k))]
-                 [(= n 0) '()]
-                 [else
-                  (for*/list ([i (in-range 0 (+ k 1))]
-                              [v (in-list (map (curry cons i) (n-sum-to (- n 1) (- k i))))])
-                    v)]))))
-
 (define (taylor var expr-block)
   "Return a pair (e, n), such that expr ~= e var^n"
   (block-recurse
@@ -414,16 +399,17 @@
   (define coeffs* (series-function normalized))
   (make-series (/ offset* 3)
                (λ (f n)
-                 (cond
-                   [(zero? n) `(cbrt ,(coeffs* 0))]
-                   [(= n 1) `(/ ,(coeffs* 1) (* 3 ,(f 0) ,(f 0)))]
-                   [else
-                    `(/ (- ,(coeffs* n)
-                           ,@(for*/list ([terms (in-list (n-sum-to 3 n))]
-                                         #:unless (set-member? terms n))
-                               (match-define (list a b c) terms)
-                               `(* ,(f a) ,(f b) ,(f c))))
-                        (* 3 ,(f 0) ,(f 0)))]))))
+                 (if (zero? n)
+                     `(cbrt ,(coeffs* 0))
+                     (let ([terms (for/list ([k (in-range 1 (add1 n))]
+                                             #:do [(define scale (- (* 4 k) (* 3 n)))
+                                                   (define ak (coeffs* k))
+                                                   (define ynk (f (- n k)))]
+                                             #:unless (or (zero? scale)
+                                                          (equal? (val-def ak) 0)
+                                                          (equal? (val-def ynk) 0)))
+                                    `(* ,scale ,ak ,ynk))])
+                       `(/ ,(make-sum terms) (* 3 ,n ,(coeffs* 0))))))))
 
 (define (taylor-fabs var term)
   (define normalized (normalize-series term))
@@ -566,6 +552,7 @@
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
   (check-equal? (coeffs '(cbrt (+ 8 x)) #:n 4) '(2 1/12 -1/288 5/20736))
+  (check-equal? (coeffs '(cbrt (+ 8 (+ (* 4 x) (* 2 (* x x))))) #:n 4) '(2 1/3 1/9 -13/324))
   (check-equal? (coeffs '(exp (+ x (* x x)))) '(1 1 3/2 7/6 25/24 27/40 331/720))
   (check-equal? (coeffs '(sin (+ x (* x x)))) '(0 1 1 -1/6 -1/2 -59/120 -1/8))
   (check-equal? (coeffs '(cos (+ x (* x x)))) '(1 0 -1/2 -1 -11/24 1/6 179/720))
