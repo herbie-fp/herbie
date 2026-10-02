@@ -148,18 +148,14 @@
      (adder `(* ,(make-monomial var (- n start)) (+ ,c ,(make-horner var rest n))))]))
 
 (define (make-sum terms)
-  (define terms*
-    (filter (λ (term)
-              (match term
-                [(? number? n) (not (zero? n))]
-                [(? val? v) (not (equal? (val-def v) 0))]
-                [_ #t]))
-            terms))
-  (let loop ([terms terms*])
+  (let loop ([terms terms])
     (match terms
       ['() 0]
       [`(,x) x]
-      [`(,x ,xs ...) `(+ ,x ,(loop xs))])))
+      [`(,x ,xs ...)
+       (if (zero-value? x)
+           (loop xs)
+           `(+ ,x ,(loop xs)))])))
 
 (define (zero-value? value)
   (match value
@@ -170,7 +166,6 @@
 (define (make-difference first terms)
   (define rest (make-sum terms))
   (cond
-    [(and (zero-value? first) (zero-value? rest)) 0]
     [(zero-value? rest) first]
     [(zero-value? first) `(neg ,rest)]
     [else `(- ,first ,rest)]))
@@ -278,7 +273,7 @@
     (for ([i (in-range (dvector-length cache) (add1 n))])
       (define expr (adder (builder fetch i)))
       (define value
-        (if (equal? (val-def expr) 0)
+        (if (zero-value? expr)
             expr
             (reducer expr)))
       (dvector-set! cache i value)))
@@ -307,12 +302,7 @@
 
 (define (taylor-negate term)
   ;(-> term? term?)
-  (make-series (series-offset term)
-               (λ (f n)
-                 (define coeff (series-ref term n))
-                 (if (zero-value? coeff)
-                     0
-                     (list 'neg coeff)))))
+  (make-series (series-offset term) (λ (f n) (make-difference 0 (list (series-ref term n))))))
 
 (define (taylor-mult left right)
   ;(-> term? term? term?)
@@ -439,21 +429,20 @@
   (define normalized (modulo-series var 3 num))
   (define offset* (series-offset normalized))
   (define coeffs* (series-function normalized))
-  (make-series (/ offset* 3)
-               (λ (f n)
-                 (if (zero? n)
-                     `(cbrt ,(coeffs* 0))
-                     (let ([terms (for/list ([k (in-range 1 (add1 n))]
-                                             #:do [(define scale (- (* 4 k) (* 3 n)))
-                                                   (define ak (coeffs* k))
-                                                   (define ynk (f (- n k)))]
-                                             #:unless (or (zero? scale)
-                                                          (equal? (val-def ak) 0)
-                                                          (equal? (val-def ynk) 0)))
-                                    `(* ,scale ,ak ,ynk))])
-                       (if (null? terms)
-                           0
-                           `(/ ,(make-sum terms) (* 3 ,n ,(coeffs* 0)))))))))
+  (make-series
+   (/ offset* 3)
+   (λ (f n)
+     (if (zero? n)
+         `(cbrt ,(coeffs* 0))
+         (let ([terms (for/list ([k (in-range 1 (add1 n))]
+                                 #:do [(define scale (- (* 4 k) (* 3 n)))
+                                       (define ak (coeffs* k))
+                                       (define ynk (f (- n k)))]
+                                 #:unless (or (zero-value? scale) (zero-value? ak) (zero-value? ynk)))
+                        `(* ,scale ,ak ,ynk))])
+           (if (null? terms)
+               0
+               `(/ ,(make-sum terms) (* 3 ,n ,(coeffs* 0)))))))))
 
 (define (taylor-fabs var term)
   (define normalized (normalize-series term))
