@@ -569,6 +569,7 @@
   (check-equal? (coeffs '(sin (+ x (* x x)))) '(0 1 1 -1/6 -1/2 -59/120 -1/8))
   (check-equal? (coeffs '(cos (+ x (* x x)))) '(1 0 -1/2 -1 -11/24 1/6 179/720))
   (check-equal? (coeffs '(log (+ 1 (+ x (* x x))))) '(0 1 1/2 -2/3 1/4 1/5 -1/3))
+  (check-equal? (coeffs '(exp (* 2 (log x)))) '((* x x) 0 0 0 0 0 0))
   (check-equal? (coeffs '(sqrt x)) '((sqrt x) 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt x)) '((cbrt x) 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt (* x x))) '((* (cbrt x) (cbrt x)) 0 0 0 0 0 0))
