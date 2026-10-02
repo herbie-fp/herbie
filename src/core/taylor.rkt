@@ -163,7 +163,7 @@
     [(? val? v) (equal? (val-def v) 0)]
     [_ #f]))
 
-(define (make-difference first terms)
+(define (make-difference first . terms)
   (define rest (make-sum terms))
   (cond
     [(zero-value? rest) first]
@@ -302,7 +302,7 @@
 
 (define (taylor-negate term)
   ;(-> term? term?)
-  (make-series (series-offset term) (λ (f n) (make-difference 0 (list (series-ref term n))))))
+  (make-series (series-offset term) (λ (f n) (make-difference 0 (series-ref term n)))))
 
 (define (taylor-mult left right)
   ;(-> term? term? term?)
@@ -349,10 +349,10 @@
                       (for/list ([i (in-range n)]
                                  #:do [(define fi (f i)) (define bi (b (- n i)))]
                                  #:unless (or (zero-value? fi) (zero-value? bi)))
-                        `(* ,fi (/ ,bi ,b0))))
+                        `(* ,fi ,bi)))
                     (if (null? terms)
                         0
-                        `(neg ,(make-sum terms)))]))))
+                        `(/ ,(apply make-difference 0 terms) ,b0))]))))
 
 (define (taylor-quotient num denom)
   ;(-> term? term? term?)
@@ -372,13 +372,15 @@
                    [(zero? n) `(/ ,(a 0) ,b0)]
                    [else
                     (define an (a n))
-                    (make-difference (if (zero-value? an)
-                                         0
-                                         `(/ ,an ,b0))
-                                     (for/list ([i (in-range n)]
-                                                #:do [(define fi (f i)) (define bi (b (- n i)))]
-                                                #:unless (or (zero-value? fi) (zero-value? bi)))
-                                       `(* ,fi (/ ,bi ,b0))))]))))
+                    (define terms
+                      (for/list ([i (in-range n)]
+                                 #:do [(define fi (f i)) (define bi (b (- n i)))]
+                                 #:unless (or (zero-value? fi) (zero-value? bi)))
+                        `(* ,fi ,bi)))
+                    (define numerator (apply make-difference an terms))
+                    (if (zero-value? numerator)
+                        0
+                        `(/ ,numerator ,b0))]))))
 
 (define (modulo-series var n series)
   ;(-> symbol? number? term? term?)
@@ -559,10 +561,11 @@
                           `(* ,k ,lk ,ank)))
                       (define an (coeffs n))
                       (define numerator
-                        (make-difference (if (zero-value? an)
-                                             0
-                                             `(* ,n ,an))
-                                         terms))
+                        (apply make-difference
+                               (if (zero-value? an)
+                                   0
+                                   `(* ,n ,an))
+                               terms))
                       (if (zero-value? numerator)
                           0
                           `(/ ,numerator (* ,n ,(coeffs 0))))]))))
