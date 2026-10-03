@@ -21,11 +21,9 @@
 
 (require "../utils/common.rkt"
          "../syntax/read.rkt"
-         "../core/programs.rkt"
          "../syntax/types.rkt"
          "../syntax/sugar.rkt"
-         "../syntax/platform.rkt"
-         "../syntax/syntax.rkt")
+         "../syntax/platform.rkt")
 
 (provide format-accuracy
          render-menu

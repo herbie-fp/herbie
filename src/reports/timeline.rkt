@@ -6,8 +6,6 @@
          "data.rkt"
          "common.rkt"
          "../syntax/platform.rkt"
-         "../syntax/types.rkt"
-         "../syntax/float.rkt"
          "../config.rkt"
          "../syntax/block.rkt")
 (provide make-timeline)

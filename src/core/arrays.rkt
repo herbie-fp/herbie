@@ -1,7 +1,6 @@
 #lang racket
 
-(require racket/hash
-         racket/list
+(require racket/list
          "../syntax/types.rkt")
 
 (provide flatten-arrays-for-rival)
