@@ -16,7 +16,8 @@
 ;; Dependencies
 
 (define deps
-  '(("base" #:version "8.0") "math-lib"
+  '("egg-herbie-linux"
+    ("base" #:version "8.0") "math-lib"
                              "typed-racket-lib"
                              "profile-lib"
                              "cover"
