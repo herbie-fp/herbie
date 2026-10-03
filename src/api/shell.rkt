@@ -1,7 +1,6 @@
 #lang racket
 
-(require "../syntax/platform.rkt"
-         "../syntax/load-platform.rkt"
+(require "../syntax/load-platform.rkt"
          "../syntax/read.rkt"
          "../utils/common.rkt"
          "server.rkt")

@@ -2,7 +2,6 @@
 
 (require "syntax.rkt"
          "types.rkt"
-         "../utils/common.rkt"
          "../utils/dvector.rkt")
 
 (provide progs->block ; List<Expr> -> (Block, List<Val>)

@@ -5,7 +5,6 @@
 (require "../utils/common.rkt"
          "../syntax/platform-state.rkt"
          "../syntax/platform.rkt"
-         "../syntax/syntax.rkt"
          "../syntax/types.rkt")
 
 (provide *rules*
