@@ -156,7 +156,7 @@
          (for/or ([i (in-naturals)])
            (with-handlers ([exn:fail:filesystem:exists? (const #f)])
              (open-output-file (build-path dump-dir (format "~a.rival" i)) #:exists 'error))))
-       (pretty-print `(precision ,@(map representation-name flattened-reprs)) dump-file 1)
+       (pretty-print `(set-precision ,@(map representation-name flattened-reprs)) dump-file 1)
        (pretty-print `(define (f ,@vars)
                         ,@exprs)
                      dump-file
@@ -204,7 +204,7 @@
         (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
         (values 'valid value))))
   (when dump-file
-    (fprintf dump-file "(answer ~a)\n" (string-join (map ~a (cons status (or value '()))) " "))
+    (fprintf dump-file "(check-answer ~a)\n" (string-join (map ~a (cons status (or value '()))) " "))
     (flush-output dump-file))
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth
@@ -234,10 +234,10 @@
 (module+ test
   (require rackunit)
   (define <b64> <binary64>)
-  (define arr-repr (make-array-representation #:elem <b64> #:len 3))
-  (define arr-ctx (context '(v) arr-repr (list arr-repr)))
+  (define vec-repr (make-array-representation <b64> <b64> <b64>))
+  (define vec-ctx (context '(v) vec-repr (list vec-repr)))
   (define-values (specs* ctxs* pre* _assemble-pt _assemble-out reprs*)
-    (flatten-arrays-for-rival (list 'v) (list arr-ctx) 'TRUE))
+    (flatten-arrays-for-rival (list 'v) (list vec-ctx) 'TRUE))
   (check-equal? specs* '(v_0 v_1 v_2))
   (check-equal? (map context-vars ctxs*) '((v_0 v_1 v_2)))
   (check-equal? (map context-var-reprs ctxs*) (list (list <b64> <b64> <b64>)))

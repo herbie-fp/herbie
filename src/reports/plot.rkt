@@ -7,8 +7,7 @@
          "../core/programs.rkt"
          "../syntax/types.rkt"
          "../syntax/read.rkt"
-         "../core/alternative.rkt"
-         "../core/bsearch.rkt")
+         "../core/alternative.rkt")
 
 (provide make-points-json
          regime-var

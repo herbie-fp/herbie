@@ -41,6 +41,18 @@
   (check-equal? (precondition->hyperrects pre '#(a b) (vector binary64 binary64))
                 (list (list (ival 0.bf 1.bf) (ival 0.bf 1.bf)))))
 
+(module+ test
+  (define bool (get-representation 'bool))
+  (define ctx (context '(x) bool (list binary64)))
+  (define-values (block vs) (progs->block (list '(< x 0)) #:ctx ctx))
+  (define results
+    (parameterize ([*num-points* 4]
+                   [*max-find-range-depth* 2])
+      (sample-points '(and (<= -1 x) (<= x 1)) block vs (list bool))))
+  (check-equal? (length (first results)) 4)
+  (check-equal? (length (second results)) 4)
+  (check-true (andmap boolean? (second results))))
+
 ;; Part 2: using subdivision search to find valid intervals
 
 ;; we want a index i such that vector[i] > num and vector[i-1] <= num
@@ -104,7 +116,7 @@
   (cond
     [(and (flag-set? 'setup 'search)
           (not (vector-empty? var-reprs))
-          (for/and ([repr (in-vector (vector-append var-reprs reprs))])
+          (for/and ([repr (in-vector var-reprs)])
             (equal? (representation-type repr) 'real)))
      (timeline-push! 'method "search")
      (define hyperrects-analysis (precondition->hyperrects pre vars var-reprs))

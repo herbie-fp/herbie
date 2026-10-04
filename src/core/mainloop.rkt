@@ -8,7 +8,6 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "alt-table.rkt"
-         "bsearch.rkt"
          "../syntax/block.rkt"
          "derivations.rkt"
          "patch.rkt"
@@ -149,15 +148,20 @@
   (timeline-event! 'reconstruct)
 
   (define (group-equivalent-alts alts)
+    (define points (pcontext-points (*pcontext*)))
     (define fn (compile-block (*global-block*) (map alt-expr alts)))
-    (define signatures (make-vector (length alts) '()))
+    (define signatures
+      (for/vector #:length (length alts)
+                  ([_ (in-list alts)])
+        (make-vector (vector-length points))))
     (define block-cost (alt-block-costs (*global-block*)))
 
-    (for ([pt (in-vector (pcontext-points (*pcontext*)))])
+    (for ([pt (in-vector points)]
+          [pt-idx (in-naturals)])
       (define outs (fn pt))
       (for ([out (in-vector outs)]
-            [idx (in-naturals)])
-        (vector-set! signatures idx (cons out (vector-ref signatures idx)))))
+            [signature (in-vector signatures)])
+        (vector-set! signature pt-idx out)))
 
     (define (best-alt alt1 alt2)
       (define cost1 (block-cost (alt-expr alt1)))
@@ -299,19 +303,7 @@
                        start-prog
                        (*pcontext*)
                        spec-block))
-     (for/list ([opt (in-list opts)])
-       (match-define (option splitindices opt-alts _ v) opt)
-       (timeline-event! 'bsearch)
-       (define use-binary?
-         (and (flag-set? 'reduce 'binary-search)
-              (> (length splitindices) 1)
-              (critical-subexpression? block start-prog v)
-              (for/and ([alt (in-list opt-alts)])
-                (critical-subexpression? block (alt-expr alt) v))))
-       (cond
-         [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
-         [use-binary? (combine-alts/binary block opt start-prog (*pcontext*))]
-         [else (combine-alts block opt)]))]
+     (map (curry combine-alts block) opts)]
     [else
      (define scores (block-score-alts alts))
      (list (cdr (argmin car (map (λ (a s) (cons s a)) alts scores))))]))

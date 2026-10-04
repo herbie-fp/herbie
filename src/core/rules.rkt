@@ -3,10 +3,14 @@
 ;; Arithmetic identities for rewriting programs.
 
 (require "../utils/common.rkt"
-         "../syntax/syntax.rkt")
+         "../syntax/platform-state.rkt"
+         "../syntax/platform.rkt"
+         "../syntax/syntax.rkt"
+         "../syntax/types.rkt")
 
 (provide *rules*
          *sound-removal-rules*
+         array-lowering-rules
          (struct-out rule))
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
@@ -32,6 +36,31 @@
   (begin
     (define-rule rname group input output flags ...) ...))
 
+(define (array-lowering-rules [pform (*active-platform*)])
+  (define helper-impls
+    (for/seteq ([extension (in-list (*platform-extensions*))])
+      (fpcore-extension-name extension)))
+  (for ([impl (in-list (platform-impls pform))]
+        #:unless (set-member? helper-impls impl))
+    (define output-repr (impl-info impl 'otype))
+    (when (array-representation? output-repr)
+      (ensure-array-impls! output-repr)))
+  (define rules
+    (append* (for/list ([impl (in-list (platform-impls pform))]
+                        #:unless (set-member? helper-impls impl))
+               (define elems
+                 (match (impl-info impl 'spec)
+                   [`(array ,elems ...) elems]
+                   [_ '()]))
+               (for/list ([elem (in-list elems)]
+                          [idx (in-naturals)]
+                          #:when (pair? elem))
+                 (rule (sym-append 'lower- impl '-array- idx)
+                       elem
+                       `(ref (array ,@elems) ,idx)
+                       '(lowering))))))
+  (remove-duplicates rules #:key (λ (rule) (list (rule-input rule) (rule-output rule)))))
+
 ; Commutativity
 (define-rules arithmetic
   [+-commutative (+ a b) (+ b a)]
@@ -54,7 +83,8 @@
   [associate-/r* (/ a (* b c)) (/ (/ a b) c)]
   [associate-/r/ (/ a (/ b c)) (* (/ a b) c)]
   [associate-/l/ (/ (/ b c) a) (/ b (* c a))]
-  [associate-/l* (/ (* b c) a) (* b (/ c a))])
+  [associate-/l* (/ (* b c) a) (* b (/ c a))]
+  [associate-*cross (* (* a b) (* c d)) (* (* a c) (* b d))])
 
 ; Identity
 (define-rules arithmetic
@@ -80,6 +110,7 @@
 (define-rules arithmetic
   [count-2 (+ x x) (* 2 x)]
   [2-split 2 (+ 1 1)]
+  [4-split 4 (* 2 2)]
   [count-2-rev (* 2 x) (+ x x)]
   [1-split 1 (* 2 1/2)])
 
@@ -182,6 +213,7 @@
 ; Dealing with fractions
 (define-rules fractions
   [div-sub (/ (- a b) c) (- (/ a c) (/ b c))]
+  [cancel-sound-/ (/ (sound-/ (* a b) c fallback) a) (sound-/ b c (/ fallback a))]
   [times-frac (/ (* a b) (* c d)) (* (/ a c) (/ b d))]
   [div-add (/ (+ a b) c) (+ (/ a c) (/ b c))]
   [div-add-rev (+ (/ a c) (/ b c)) (/ (+ a b) c)]
