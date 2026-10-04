@@ -72,7 +72,6 @@
             ,@(dict-call curr render-phase-inputs 'inputs 'outputs)
             ,@(dict-call curr render-phase-times 'times)
             ,@(dict-call curr render-phase-series 'series)
-            ,@(dict-call curr render-phase-bstep 'bstep)
             ,@(dict-call curr render-phase-branches 'branch 'block)
             ,@(dict-call curr render-phase-sampling 'sampling)
             ,@(dict-call curr (curryr simple-render-phase "Preprocessing") 'preprocessing)
@@ -115,24 +114,6 @@
                                                   tag
                                                   (format-percent (hash-ref domain-info tag 0)
                                                                   total))])))))))
-
-(define (format-value v)
-  (cond
-    [(real? v) (~a v)]
-    [(equal? (hash-ref v 'type) "real") (hash-ref v 'value)]
-    [else
-     (define repr-name (hash-ref v 'type))
-     (define repr (get-representation (read (open-input-string repr-name))))
-     (value->string ((representation-ordinal->repr repr) (string->number (hash-ref v 'ordinal)))
-                    repr)]))
-
-(define (render-phase-bstep iters)
-  `((dt "Steps") (dd (table (tr (th "Time") (th "Left") (th "Right"))
-                            ,@(for/list ([rec (in-list iters)])
-                                (match-define (list time v1 v2) rec)
-                                `(tr (td ,(format-time time))
-                                     (td (pre ,(format-value v1)))
-                                     (td (pre ,(format-value v2)))))))))
 
 (define (render-phase-egraph iters)
   (define costs (map third iters))

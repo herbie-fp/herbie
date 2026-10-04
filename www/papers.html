@@ -237,6 +237,39 @@ received 🏆&nbsp;awards.</p>
   talk slides</a> are available.
 </p>
 
+<h2>SC’20: Satire <span class="badges">★ 🏆</span></h2>
+
+<details>
+  <summary>
+    <a href="https://dl.acm.org/doi/10.5555/3433701.3433768">Scalable yet
+    Rigorous Floating-Point Error Analysis</a> was published at
+    <a href="https://sc20.supercomputing.org/">★&nbsp;SC 2020</a>, where it
+    won the 🏆&nbsp;<em>Best Student Paper Award</em>. The paper introduces
+    Satire, a tool for rigorous floating-point error analysis that scales to
+    much larger expressions than previous tools.
+  </summary>
+  <blockquote class="abstract">
+    <p>Automated techniques for rigorous floating-point round-off error
+    analysis are a prerequisite to placing important activities in HPC such as
+    precision allocation, verification, and code optimization on a formal
+    footing. Yet existing techniques cannot provide tight bounds for
+    expressions beyond a few dozen operators—barely enough for HPC. In this
+    work, we offer an approach embedded in a new tool called Satire that scales
+    error analysis by four orders of magnitude compared to today's
+    best-of-class tools. We explain how three key ideas underlying Satire help
+    it attain such scale: path strength reduction, bound optimization, and
+    abstraction. Satire provides tight bounds and rigorous guarantees on
+    significantly larger expressions with well over a hundred thousand
+    operators, covering important examples including FFT, matrix
+    multiplication, and PDE stencils.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="https://dl.acm.org/doi/10.5555/3433701.3433768">paper</a>
+  is available.
+</p>
+
 <h2>POPL’21: Egg <span class="badges">★ 🏆</span></h2>
 
 <details>
@@ -613,6 +646,45 @@ received 🏆&nbsp;awards.</p>
   available.
 </p>
 
+<h2>ASPLOS’25: Chassis <span class="badges">★</span></h2>
+
+<details>
+  <summary>
+    <a href="https://dl.acm.org/doi/10.1145/3669940.3707277">Target-Aware
+    Implementation of Real Expressions</a> was published at
+    <a href="https://www.asplos-conference.org/asplos2025/">★&nbsp;ASPLOS
+    2025</a>. This paper explains Herbie's backend abstraction and how Herbie
+    was extended to support platform-specific operations.
+  </summary>
+  <blockquote class="abstract">
+    <p>New low-precision accelerators, vector instruction sets, and library
+    functions make maximizing accuracy and performance of numerical code
+    increasingly challenging. Two lines of work—traditional compilers and
+    numerical compilers—attack this problem from opposite directions.
+    Traditional compiler backends optimize for specific target environments
+    but are limited in their ability to balance performance and accuracy.
+    Numerical compilers trade off accuracy and performance, or even improve
+    both, but ignore the target environment. We join aspects of both to produce
+    Chassis, a target-aware numerical compiler.</p>
+    <p>Chassis compiles mathematical expressions to operators from a target
+    description, which lists the real expressions each operator approximates
+    and estimates its cost and accuracy. Chassis then uses an iterative
+    improvement loop to optimize for speed and accuracy. Specifically, a new
+    instruction selection modulo equivalence algorithm efficiently searches
+    for faster target-specific programs, while a new cost-opportunity heuristic
+    supports iterative improvement. We demonstrate Chassis' capabilities on 9
+    different targets, including hardware ISAs, math libraries, and programming
+    languages. Chassis finds better accuracy and performance trade-offs than
+    both Clang (by 3.5×) or Herbie (by up to 2.0×) by leveraging low-precision
+    accelerators, accuracy-optimized numerical helper functions, and library
+    subcomponents.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="https://arxiv.org/abs/2410.14025">paper</a> is available.
+</p>
+
 <h2>ARITH’25: <span style="font-variant: small-caps;">ExplaniFloat</span>
 </h2>
 
@@ -650,4 +722,49 @@ received 🏆&nbsp;awards.</p>
   A <a href="https://arxiv.org/abs/2503.11884">paper</a>,
   and <a href="https://github.com/herbie-fp/herbie/tree/bhargav-nobigfloat">source code</a> are
   available.
+</p>
+
+<h2>OOPSLA’26: Accurate Residues <span class="badges">★</span></h2>
+
+<details>
+  <summary>
+    <a href="https://arxiv.org/abs/2604.06258">Accurate Residues for
+    Floating-Point Debugging</a> was published at ★&nbsp;OOPSLA 2026. The
+    paper introduces a new method to compute floating-point residuals—the
+    difference between floating-point computations and their ideal real
+    values—more accurately and with lower overhead.
+  </summary>
+  <blockquote class="abstract">
+    <p>Floating-point arithmetic is error-prone and unintuitive.
+    Floating-point debuggers instrument programs to monitor floating-point
+    arithmetic at run time and flag numerical issues. They estimate residues,
+    i.e., the difference between actual floating-point and ideal real values,
+    for every floating-point value in the program. Prior work explores various
+    approaches for computing these residues accurately and efficiently.
+    Unfortunately, the most efficient methods, based on “error-free
+    transformations”, have a high rate of false reports, while the most
+    accurate methods, based on high-precision arithmetic, are very slow. This
+    paper builds on error-free-transformations-based approaches and aims to
+    improve their accuracy while preserving efficiency. To more accurately
+    compute residues, this paper divides residue computation into two steps
+    (rounding error computation and residue function evaluation) and shows how
+    to perform each step accurately via careful improvements to the current
+    state of the art. We evaluate on 44 large scientific computing workloads,
+    focusing on the 14 benchmarks where prior tools produce false reports: our
+    approach eliminates false reports on 10 benchmarks and substantially
+    reduces them on the remaining 3 benchmarks. Moreover, complex numerical
+    issues require additional care due to absorption, where two
+    machine-precision residues cannot both be computed accurately in a single
+    execution. This paper introduces residue override, which re-executes the
+    program multiple times, computing different residues in different
+    executions and assembling a final “patchwork” execution. We evaluate on
+    169 standard benchmarks drawn from numerical analysis papers and textbooks,
+    requiring only 3.6 re-executions on average. Among 34 benchmarks with false
+    reports in the initial run, residue override is triggered on 29 of them and
+    reduces false reports on 25 of them, averaging 7.1 re-executions.</p>
+  </blockquote>
+</details>
+
+<p>
+  A <a href="https://arxiv.org/abs/2604.06258">preprint</a> is available.
 </p>

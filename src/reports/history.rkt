@@ -5,11 +5,11 @@
          json
          math/flonum)
 (require "../core/rules.rkt"
+         "../core/compiler.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../syntax/platform.rkt"
-         "../core/bsearch.rkt"
          "../core/alternative.rkt"
          "../utils/common.rkt"
          "../syntax/float.rkt"
@@ -117,6 +117,22 @@
 
 (define (make-mask pcontext)
   (make-vector (pcontext-length pcontext) #t))
+
+(define (regimes-pcontext-masks pcontext splitpoints alts ctx)
+  (define num-alts (length alts))
+  (define num-points (pcontext-length pcontext))
+  (define bexpr (sp-bexpr (car splitpoints)))
+  (define repr (repr-of bexpr ctx))
+  (define ctx* (struct-copy context ctx [repr repr]))
+  (define prog (compile-prog bexpr ctx*))
+  (define masks (build-vector num-alts (λ (_) (make-vector num-points #f))))
+  (for ([(pt _) (in-pcontext pcontext)]
+        [idx (in-naturals)])
+    (define val (prog pt))
+    (for/first ([right (in-list splitpoints)]
+                #:when (or (equal? (sp-point right) +nan.0) (<=/total val (sp-point right) repr)))
+      (vector-set! (vector-ref masks (sp-cidx right)) idx #t)))
+  masks)
 
 ;; HTML renderer for derivations
 (define (render-history json repr)
