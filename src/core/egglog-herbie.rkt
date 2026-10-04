@@ -1,16 +1,13 @@
 #lang racket
 
-(require racket/file
-         racket/set
+(require racket/set
          "rules.rkt"
          "../syntax/platform.rkt"
          "../syntax/platform-state.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../config.rkt"
          "../syntax/block.rkt"
          "../utils/common.rkt"
-         "../utils/errors.rkt"
          "egglog-subprocess.rkt")
 
 (provide (struct-out egglog-runner)

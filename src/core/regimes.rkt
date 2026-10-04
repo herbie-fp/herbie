@@ -38,8 +38,8 @@
   [(define (write-proc opt port mode)
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
-;; CONSIDER: move start-prog and the "branch-vs" computation into caller.
-(define (pareto-regimes block sorted start-prog pcontext spec-block)
+;; CONSIDER: move initial-v and the "branch-vs" computation into caller.
+(define (pareto-regimes block sorted initial-v pcontext spec-block)
   (timeline-event! 'regimes)
   (define alts-vec (list->vector sorted))
   (define alt-count (vector-length alts-vec))
@@ -49,7 +49,7 @@
   (define branch-vs
     (filter real-v?
             (if (flag-set? 'reduce 'branch-expressions)
-                (critical-subexpressions block start-prog)
+                (critical-subexpressions block initial-v)
                 (map (curry block-add! block) (block-vars block)))))
 
   (define v-vals (v-values* block branch-vs pcontext))
@@ -251,11 +251,6 @@
               (*.f64 (ref.1.array<binary64:binary64> a) (ref.1.array<binary64:binary64> b))))
     (define-values (block vs) (progs->block (list dot-product) #:ctx vec2-ctx))
     (check-true (set-member? (critical-subexpressions block (first vs)) (first vs)))))
-
-(define (valid-splitindices? can-split? split-indices)
-  (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
-         (and (> pidx 0) (list-ref can-split? pidx)))
-       (= (si-pidx (last split-indices)) (length can-split?))))
 
 (module core typed/racket
   (provide (struct-out si)

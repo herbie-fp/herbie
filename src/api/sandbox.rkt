@@ -1,8 +1,7 @@
 #lang racket
 
 (require racket/engine
-         math/flonum
-         json)
+         math/flonum)
 
 (require "../syntax/read.rkt"
          "../syntax/platform-state.rkt"
@@ -13,14 +12,12 @@
          "../syntax/block.rkt"
          "../core/localize.rkt"
          "../core/alternative.rkt"
-         "../core/compiler.rkt"
          "../utils/common.rkt"
          "datafile.rkt"
          "../utils/errors.rkt"
          "../core/sampling.rkt"
          "../core/mainloop.rkt"
          "../syntax/platform.rkt"
-         "../core/programs.rkt"
          "../core/points.rkt"
          "../core/explain.rkt"
          "../utils/profile.rkt"

@@ -5,7 +5,6 @@
          "../syntax/float.rkt"
          "../syntax/types.rkt"
          "../syntax/block.rkt"
-         "../syntax/rival.rkt"
          "rules.rkt"
          "programs.rkt"
          "../syntax/platform.rkt"

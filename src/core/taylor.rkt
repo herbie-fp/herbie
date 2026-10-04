@@ -1,9 +1,6 @@
 #lang racket
 
-(require math/number-theory)
-(require "../utils/common.rkt"
-         "../utils/dvector.rkt"
-         "../syntax/syntax.rkt"
+(require "../utils/dvector.rkt"
          "../syntax/types.rkt"
          "../syntax/block.rkt"
          "programs.rkt")

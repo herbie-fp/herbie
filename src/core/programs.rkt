@@ -9,7 +9,6 @@
 (provide expr?
          expr<?
          all-subexpressions
-         ops-in-expr
          spec-prog?
          impl-prog?
          node-is-impl?
@@ -71,9 +70,6 @@
   (remove-duplicates (if reverse?
                          (reverse subexprs)
                          subexprs)))
-
-(define (ops-in-expr expr)
-  (remove-duplicates (filter-map (lambda (e) (and (pair? e) (first e))) (all-subexpressions expr))))
 
 ;; Is the expression in LSpec (real expressions)?
 (define (spec-prog? expr)

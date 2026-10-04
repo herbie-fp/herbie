@@ -1,11 +1,9 @@
 #lang racket
 
-(require racket/lazy-require
-         racket/runtime-path)
+(require racket/lazy-require)
 (require "config.rkt"
          "utils/multi-command-line.rkt"
-         "utils/errors.rkt"
-         "syntax/load-platform.rkt")
+         "utils/errors.rkt")
 
 ;; Define the built-in platforms to force bundling them
 (lazy-require ["api/demo.rkt" (run-demo)]
