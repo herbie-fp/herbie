@@ -2,10 +2,11 @@
 
 (require math/base
          math/bigfloat
-         math/flonum)
+         (except-in math/flonum flonums-between))
 (require "../utils/common.rkt"
          "../syntax/types.rkt"
-         "../utils/errors.rkt")
+         "../utils/errors.rkt"
+         "../utils/unsafe.rkt")
 
 (provide repr-ulps
          ulps->bits
@@ -67,7 +68,7 @@
        (cons lower higher)))
 
 (define (ulps->bits x)
-  (real->double-flonum (log x 2)))
+  (fl/ (fllog (fl x)) (fllog 2.0)))
 
 (define (random-generate repr)
   (match (representation-type repr)

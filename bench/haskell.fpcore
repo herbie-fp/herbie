@@ -21,28 +21,10 @@
  (+ x (/ (* y (- z x)) t)))
 
 (FPCore  (x y z t a)
- :name "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, E"
- :alt 
- (! :herbie-platform default 
-  (if (< y -1.0761266216389975e-10)
-   (+ x (/ 1 (/ (/ a (- z t)) y)))
-    (if (< y 2.894426862792089e-49)
-     (+ x (/ (* y (- z t)) a))
-     (+ x (/ y (/ a (- z t)))))))
- 
- (+ x (/ (* y (- z t)) a)))
-
-(FPCore  (x y z t a)
- :name "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, F"
- :alt 
- (! :herbie-platform default
-  (if (< y -1.0761266216389975e-10)
-    (- x (/ 1 (/ (/ a (- z t)) y)))
-    (if (< y 2.894426862792089e-49)
-      (- x (/ (* y (- z t)) a))
-      (- x (/ y (/ a (- z t)))))))
-
- (- x (/ (* y (- z t)) a)))
+ :name "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, E/F"
+ (array
+  (+ x (/ (* y (- z t)) a))
+  (- x (/ (* y (- z t)) a))))
 
 (FPCore  (x y z)
  :name "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, G"
@@ -194,13 +176,11 @@
  :name "Data.Colour.CIE:cieLABView from colour-2.3.3, A"
  (+ (* (/ 841.0 108.0) x) (/ 4.0 29.0)))
 
-(FPCore  (x y)
- :name "Data.Colour.CIE:cieLABView from colour-2.3.3, B"
- (* 500.0 (- x y)))
-
-(FPCore  (x y)
- :name "Data.Colour.CIE:cieLABView from colour-2.3.3, C"
- (* 200.0 (- x y)))
+(FPCore  (fx fy fz)
+ :name "Data.Colour.CIE:cieLABView from colour-2.3.3, B/C"
+ (array
+  (* 500.0 (- fx fy))
+  (* 200.0 (- fy fz))))
 
 (FPCore  (x y)
  :name "Data.Colour.CIE:cieLAB from colour-2.3.3, A"
@@ -499,25 +479,11 @@
  (+ (+ (+ (* x y) (* z z)) (* z z)) (* z z)))
 
 (FPCore  (x y z)
- :name "Linear.Quaternion:$c/ from linear-1.19.1.3, B"
- :alt 
- (! :herbie-platform default (* (- x z) y))
-
- (+ (- (- (* x y) (* y z)) (* y y)) (* y y)))
-
-(FPCore  (x y z)
- :name "Linear.Quaternion:$c/ from linear-1.19.1.3, C"
- :alt 
- (! :herbie-platform default (* (- x z) y))
-
- (- (- (+ (* x y) (* y y)) (* y z)) (* y y)))
-
-(FPCore  (x y z)
- :name "Linear.Quaternion:$c/ from linear-1.19.1.3, D"
- :alt 
- (! :herbie-platform default (* (- x z) y))
-
- (- (+ (- (* x y) (* y y)) (* y y)) (* y z)))
+ :name "Linear.Quaternion:$c/ from linear-1.19.1.3, B/C/D"
+ (array
+  (+ (- (- (* x y) (* y z)) (* y y)) (* y y))
+  (- (- (+ (* x y) (* y y)) (* y z)) (* y y))
+  (- (+ (- (* x y) (* y y)) (* y y)) (* y z))))
 
 (FPCore  (x y)
  :name "Linear.Quaternion:$c/ from linear-1.19.1.3, E"
@@ -728,20 +694,10 @@
   (* j (- (* c t) (* i y)))))
 
 (FPCore  (x y)
- :name "Linear.Matrix:fromQuaternion from linear-1.19.1.3, A"
- :alt 
- (! :herbie-platform default
-  (* (* x 2.0) (- x y)))
-
- (* 2.0 (- (* x x) (* x y))))
-
-(FPCore  (x y)
- :name "Linear.Matrix:fromQuaternion from linear-1.19.1.3, B"
- :alt 
- (! :herbie-platform default
-  (* (* x 2.0) (+ x y)))
-
- (* 2.0 (+ (* x x) (* x y))))
+ :name "Linear.Matrix:fromQuaternion from linear-1.19.1.3"
+ (array
+  (* 2.0 (- (* x x) (* x y)))
+  (* 2.0 (+ (* x x) (* x y)))))
 
 (FPCore  (x y z t)
  :name "Linear.Projection:inverseInfinitePerspective from linear-1.19.1.3"
@@ -766,40 +722,16 @@
  (/ (* x 2.0) (- (* y z) (* t z))))
 
 (FPCore  (x y)
- :name "Linear.Projection:inversePerspective from linear-1.19.1.3, B"
- :alt 
- (! :herbie-platform default
-  (- (/ 0.5 y) (/ 0.5 x)))
-
- (/ (- x y) (* (* x 2.0) y)))
+ :name "Linear.Projection:inversePerspective from linear-1.19.1.3"
+ (array
+  (/ (- x y) (* (* x 2.0) y))
+  (/ (+ x y) (* (* x 2.0) y))))
 
 (FPCore  (x y)
- :name "Linear.Projection:inversePerspective from linear-1.19.1.3, C"
- :alt 
- (! :herbie-platform default
-  (+ (/ 0.5 x) (/ 0.5 y)))
-
- (/ (+ x y) (* (* x 2.0) y)))
-
-(FPCore  (x y)
- :name "Linear.Projection:perspective from linear-1.19.1.3, A"
- :alt 
- (! :herbie-platform default
-  (/ 1 (- (/ x (+ x y)) (/ y (+ x y)))))
-
- (/ (+ x y) (- x y)))
-
-(FPCore  (x y)
- :name "Linear.Projection:perspective from linear-1.19.1.3, B"
- :alt 
- (! :herbie-platform default
-  (if (< x -1.7210442634149447e+81)
-   (* (/ (* 2.0 x) (- x y)) y)
-   (if (< x 8.364504563556443e+16)
-     (/ (* x 2.0) (/ (- x y) y))
-     (* (/ (* 2.0 x) (- x y)) y))))
-
- (/ (* (* x 2.0) y) (- x y)))
+ :name "Linear.Projection:perspective from linear-1.19.1.3"
+ (array
+  (/ (+ x y) (- x y))
+  (/ (* (* x 2.0) y) (- x y))))
 
 (FPCore  (x y)
  :name "Physics.ForceLayout:coulombForce from force-layout-0.4.0.2"
@@ -865,12 +797,10 @@
  (+ (* x (cos y)) (* z (sin y))))
 
 (FPCore  (x y z)
- :name "Diagrams.ThreeD.Transform:aboutX from diagrams-lib-1.3.0.3, A"
- (- (* x (cos y)) (* z (sin y))))
-
-(FPCore  (x y z)
- :name "Diagrams.ThreeD.Transform:aboutX from diagrams-lib-1.3.0.3, B"
- (+ (* x (sin y)) (* z (cos y))))
+ :name "Diagrams.ThreeD.Transform:aboutX from diagrams-lib-1.3.0.3"
+ (array
+  (- (* x (cos y)) (* z (sin y)))
+  (+ (* x (sin y)) (* z (cos y)))))
 
 (FPCore  (x y z)
  :name "Diagrams.Color.HSV:lerp  from diagrams-contrib-1.3.0.5"
@@ -1267,13 +1197,11 @@
 
  (/ (* (* (/ 8.0 3.0) (sin (* x 0.5))) (sin (* x 0.5))) (sin x)))
 
-(FPCore  (x y z)
- :name "Graphics.Rasterific.Svg.PathConverter:segmentToBezier from rasterific-svg-0.2.3.1, B"
- (- (+ x (cos y)) (* z (sin y))))
-
-(FPCore  (x y z)
- :name "Graphics.Rasterific.Svg.PathConverter:segmentToBezier from rasterific-svg-0.2.3.1, C"
- (+ (+ x (sin y)) (* z (cos y))))
+(FPCore  (cx cy th0 t)
+ :name "Graphics.Rasterific.Svg.PathConverter:segmentToBezier from rasterific-svg-0.2.3.1, B/C"
+ (array
+  (- (+ cx (cos th0)) (* t (sin th0)))
+  (+ (+ cy (sin th0)) (* t (cos th0)))))
 
 (FPCore  (x y z t)
  :name "Graphics.Rasterific.Svg.PathConverter:arcToSegments from rasterific-svg-0.2.3.1"

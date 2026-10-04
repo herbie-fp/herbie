@@ -3,7 +3,6 @@
 (require math/flonum
          "../syntax/float.rkt"
          "../syntax/types.rkt"
-         "../syntax/block.rkt"
          "programs.rkt"
          "compiler.rkt")
 

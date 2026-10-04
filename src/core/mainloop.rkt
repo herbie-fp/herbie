@@ -1,14 +1,12 @@
 #lang racket
 
-(require "../config.rkt"
-         "../core/alternative.rkt"
+(require "../core/alternative.rkt"
          "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "alt-table.rkt"
-         "bsearch.rkt"
          "../syntax/block.rkt"
          "derivations.rkt"
          "patch.rkt"
@@ -31,8 +29,7 @@
 
 (define/reset ^table^ #f)
 
-;; Starting program for the current run
-(define *start-v* (make-parameter #f))
+;; State for the current run
 (define *pcontext* (make-parameter #f))
 (define *preprocessing* (make-parameter '()))
 
@@ -64,24 +61,23 @@
     (define spec-reducer (block-reduce global-spec-block))
 
     (*preprocessing* preprocessing)
-    (*start-v* initial-v)
     (define start-alt (alt initial-v 'start '()))
     (^table^ (make-alt-table (*global-block*) train-pcontext start-alt))
 
     (for ([_ (in-range (*num-iterations*))]
           #:break (atab-completed? (^table^)))
       (run-iteration! global-spec-block spec-reducer))
-    (define alternatives (extract! global-spec-block))
+    (define alternatives (extract! global-spec-block initial-v))
     (timeline-event! 'preprocess)
     (for/list ([altn alternatives])
       (define expr (alt-expr altn))
       (define expr* (compile-useful-preprocessing expr context validation-pcontext (*preprocessing*)))
       (alt expr* 'add-preprocessing (list altn)))))
 
-(define (extract! spec-block)
+(define (extract! spec-block initial-v)
   (timeline-push-alts! '() spec-block)
   (define all-alts (atab-all-alts (^table^)))
-  (define joined-alts (make-regime! (*global-block*) all-alts (*start-v*) spec-block))
+  (define joined-alts (make-regime! (*global-block*) all-alts initial-v spec-block))
   (define annotated-alts (add-derivations! joined-alts))
   (define scores (block-errors (*global-block*) (map alt-expr annotated-alts) (*pcontext*)))
   (define sorted-alts (map car (sort-alts (*global-block*) annotated-alts scores)))
@@ -149,15 +145,20 @@
   (timeline-event! 'reconstruct)
 
   (define (group-equivalent-alts alts)
+    (define points (pcontext-points (*pcontext*)))
     (define fn (compile-block (*global-block*) (map alt-expr alts)))
-    (define signatures (make-vector (length alts) '()))
+    (define signatures
+      (for/vector #:length (length alts)
+                  ([_ (in-list alts)])
+        (make-vector (vector-length points))))
     (define block-cost (alt-block-costs (*global-block*)))
 
-    (for ([pt (in-vector (pcontext-points (*pcontext*)))])
+    (for ([pt (in-vector points)]
+          [pt-idx (in-naturals)])
       (define outs (fn pt))
       (for ([out (in-vector outs)]
-            [idx (in-naturals)])
-        (vector-set! signatures idx (cons out (vector-ref signatures idx)))))
+            [signature (in-vector signatures)])
+        (vector-set! signature pt-idx out)))
 
     (define (best-alt alt1 alt2)
       (define cost1 (block-cost (alt-expr alt1)))
@@ -263,7 +264,7 @@
        (timeline-push! 'taylor-count (~a transform) order nvars 1 (if kept? 1 0))]
       [#f (void)]))
 
-  (define repr (block-repr-of (*start-v*)))
+  (define repr (context-repr (*context*)))
   (timeline-push! 'min-error
                   (errors-score (atab-min-errors (^table^)))
                   (format "~a" (representation-name repr)))
@@ -282,8 +283,8 @@
   (finalize-iter! pending-alts patched global-spec-block)
   (void))
 
-(define (make-regime! block alts start-prog spec-block)
-  (define repr (block-repr-of start-prog))
+(define (make-regime! block alts initial-v spec-block)
+  (define repr (context-repr (*context*)))
   (define alt-costs (alt-block-costs block))
 
   (cond
@@ -296,22 +297,10 @@
      (define opts
        (pareto-regimes block
                        (sort alts < #:key (compose alt-costs alt-expr))
-                       start-prog
+                       initial-v
                        (*pcontext*)
                        spec-block))
-     (for/list ([opt (in-list opts)])
-       (match-define (option splitindices opt-alts _ v) opt)
-       (timeline-event! 'bsearch)
-       (define use-binary?
-         (and (flag-set? 'reduce 'binary-search)
-              (> (length splitindices) 1)
-              (critical-subexpression? block start-prog v)
-              (for/and ([alt (in-list opt-alts)])
-                (critical-subexpression? block (alt-expr alt) v))))
-       (cond
-         [(= (length splitindices) 1) (list-ref opt-alts (si-cidx (first splitindices)))]
-         [use-binary? (combine-alts/binary block opt start-prog (*pcontext*))]
-         [else (combine-alts block opt)]))]
+     (map (curry combine-alts block) opts)]
     [else
      (define scores (block-score-alts alts))
      (list (cdr (argmin car (map (λ (a s) (cons s a)) alts scores))))]))

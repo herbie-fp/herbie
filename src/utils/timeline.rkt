@@ -26,7 +26,7 @@
 
 (define *timeline-disabled* (make-parameter true))
 
-(define always-compact '(mixsample outcomes taylor-count))
+(define always-compact '(outcomes taylor-count))
 
 (define (timeline-event! type)
   (when (and *timeline-active-key* (pair? (unbox (*timeline*))))
@@ -192,7 +192,6 @@
 (define-timeline allocations [phase false] [memory +])
 
 (define-timeline method [method])
-(define-timeline mixsample [time +] [function false] [precision false] [memory +])
 (define-timeline times [time +] [input false])
 (define-timeline series [time +] [var false] [transform false])
 (define-timeline compiler [before +] [after +])
@@ -206,7 +205,6 @@
 (define-timeline sampling #:custom merge-sampling-tables)
 (define-timeline bogosity #:custom (λ (x y) (list (hash-union (car x) (car y) #:combine +))))
 (define-timeline preprocessing #:unmergable)
-(define-timeline bstep #:unmergable)
 (define-timeline kept #:unmergable)
 (define-timeline taylor-count [transform false] [order false] [vars false] [generated +] [kept +])
 (define-timeline min-error #:unmergable)

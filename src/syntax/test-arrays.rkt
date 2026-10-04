@@ -48,6 +48,11 @@
     (check-equal? (ulps (vector 1.0 1.0) (vector (repr-next <b32> 1.0) 1.0)) 3)
     (check-equal? (ulps (vector 1.0 1.0) (vector 1.0 (repr-next <b64> 1.0))) 3))
 
+  (let ([ulps (repr-ulps <b64>)])
+    (for ([x (in-list (list -inf.0 -1.0 -0.0 0.0 1.0 +inf.0))]
+          [y (in-list (list 1.0 1.1 0.0 -0.0 -1.0 -inf.0))])
+      (check-equal? (ulps x y) (+ 1 (abs (flonums-between x y))))))
+
   (let ([v (real->repr (vector 1/3 1/3) mixed)])
     (check-equal? (vector-ref v 0) (flsingle (exact->inexact 1/3)))
     (check-equal? (vector-ref v 1) (exact->inexact 1/3)))
