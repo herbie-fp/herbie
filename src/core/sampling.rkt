@@ -132,14 +132,6 @@
 ;; Returns an evaluator for a list of expressions.
 ;; Part 3: compute exact values using Rival's algorithm
 
-(define (output-infinite? repr ex)
-  (cond
-    [(flonum? ex) (infinite? ex)]
-    [else
-     ; The `bool` representation does not produce bigfloats
-     (define maybe-bf ((representation-repr->bf repr) ex))
-     (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))]))
-
 (define (block-prepare-points compiler sampler)
   ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
@@ -166,7 +158,9 @@
         [(valid)
          (for ([ex (in-list exs)]
                [repr (in-vector reprs)])
-           (when (output-infinite? repr ex)
+           ; The `bool` representation does not produce bigfloats
+           (define maybe-bf ((representation-repr->bf repr) ex))
+           (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
              (set! status 'infinite)))])
 
       (hash-update! outcomes status add1 0)
