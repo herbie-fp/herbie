@@ -1,10 +1,10 @@
-.PHONY: help install egg-herbie rival3 nightly index start-server deploy coverage
+.PHONY: help install egg-herbie nightly index start-server deploy coverage
 
 help:
 	@echo "Type 'make install' to install Herbie"
 	@echo "Then type 'racket -l herbie web' to run it."
 
-install: clean egg-herbie egglog-herbie rival3 update
+install: clean egg-herbie egglog-herbie update
 
 clean:
 	raco pkg remove --force --no-docs herbie && echo "Uninstalled old herbie" || :
@@ -31,15 +31,6 @@ egg-herbie:
 
 egglog-herbie:
 	cargo install --locked --git "https://github.com/egraphs-good/egglog-experimental" egglog-experimental
-
-RIVAL3_BRANCH ?= apply-floats
-
-rival3:
-	rm -rf rival3-src
-	git clone --depth 1 --branch $(RIVAL3_BRANCH) https://github.com/herbie-fp/rival3.git rival3-src
-	$(MAKE) -C rival3-src build
-	raco pkg remove --force --no-docs rival3 && echo "Warning: uninstalling rival3 and reinstalling local version" || :
-	raco pkg install --no-docs --auto --name rival3 ./rival3-src/rival3-racket
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/
