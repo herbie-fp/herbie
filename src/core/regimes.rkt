@@ -37,8 +37,8 @@
   [(define (write-proc opt port mode)
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
-;; CONSIDER: move start-prog and the "branch-vs" computation into caller.
-(define (pareto-regimes block sorted start-prog pcontext spec-block)
+;; CONSIDER: move initial-v and the "branch-vs" computation into caller.
+(define (pareto-regimes block sorted initial-v pcontext spec-block)
   (timeline-event! 'regimes)
   (define alts-vec (list->vector sorted))
   (define alt-count (vector-length alts-vec))
@@ -49,7 +49,7 @@
   (define branch-vs
     (filter real-v?
             (if (flag-set? 'reduce 'branch-expressions)
-                (block-reachable block (cons start-prog (map alt-expr sorted)))
+                (block-reachable block (cons initial-v (map alt-expr sorted)))
                 var-vs)))
   (define candidates (branch-candidates block branch-vs err-cols pcontext))
   (define var-candidates (filter (lambda (c) (member (candidate-expr c) var-vs)) candidates))
@@ -92,7 +92,7 @@
                                [sidx (in-list (option-split-indices (pareto-point-data ppt)))])
                      (alt-expr (list-ref (option-alts (pareto-point-data ppt)) (si-cidx sidx)))))))
   (timeline-push! 'accuracy
-                  (errors-score (first (block-errors block (list start-prog) pcontext)))
+                  (errors-score (first (block-errors block (list initial-v) pcontext)))
                   (baseline-errors-score err-cols alt-count)
                   (for/fold ([best +inf.0]) ([ppt (in-list combined-option-curve)])
                     (min best (option-error ppt)))

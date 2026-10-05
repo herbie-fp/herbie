@@ -1,7 +1,6 @@
 #lang racket
 
 (require math/flonum
-         "../config.rkt"
          "../core/alternative.rkt"
          "../utils/common.rkt"
          "../utils/pareto.rkt"

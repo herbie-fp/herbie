@@ -1,7 +1,6 @@
 #lang racket
 
-(require math/flonum
-         math/bigfloat
+(require math/bigfloat
          ffi/unsafe)
 
 (require "rival.rkt"

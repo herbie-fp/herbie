@@ -1,13 +1,6 @@
 #lang racket
 
-(require math/bigfloat
-         racket/hash
-         (only-in rival/eval/main rival-functions))
-
-(require "../utils/common.rkt"
-         "../utils/errors.rkt"
-         "matcher.rkt"
-         "types.rkt")
+(require (only-in rival/eval/main rival-functions))
 
 (provide (struct-out literal)
          (struct-out approx)

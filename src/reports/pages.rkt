@@ -2,8 +2,7 @@
 
 (require json
          racket/engine)
-(require "../syntax/read.rkt"
-         "timeline.rkt"
+(require "timeline.rkt"
          "plot.rkt"
          "make-graph.rkt"
          "traceback.rkt"

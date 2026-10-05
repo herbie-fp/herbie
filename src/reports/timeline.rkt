@@ -6,8 +6,6 @@
          "data.rkt"
          "common.rkt"
          "../syntax/platform.rkt"
-         "../syntax/types.rkt"
-         "../syntax/float.rkt"
          "../config.rkt"
          "../syntax/block.rkt")
 (provide make-timeline)
@@ -391,6 +389,7 @@
                            (substring commit 0 8)))
                   " on "
                   ,branch))
+          (tr (th "Racket version:") (td ,(version)))
           (tr (th "Seed:") (td ,(~a seed)))
           (tr (th "Parameters:")
               (td ,(~a (*num-points*)) " points for " ,(~a (*num-iterations*)) " iterations"))
