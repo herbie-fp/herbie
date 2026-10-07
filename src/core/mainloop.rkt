@@ -76,8 +76,8 @@
 
 (define (extract! spec-block initial-v)
   (timeline-push-alts! '() spec-block)
-  (define all-alts (atab-all-alts (^table^)))
-  (define joined-alts (make-regime! (*global-block*) all-alts initial-v spec-block))
+  (define active-alts (atab-active-alts (^table^)))
+  (define joined-alts (make-regime! (*global-block*) active-alts initial-v spec-block))
   (define annotated-alts (add-derivations! joined-alts))
   (define scores (block-errors (*global-block*) (map alt-expr annotated-alts) (*pcontext*)))
   (define sorted-alts (map car (sort-alts (*global-block*) annotated-alts scores)))
