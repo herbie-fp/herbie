@@ -30,7 +30,7 @@
         (error "egglog-experimental executable not found in PATH")))
 
   (define-values (egglog-process egglog-output egglog-in err)
-    (subprocess #f #f (current-error-port) egglog-path "--mode=interactive"))
+    (subprocess #f #f (current-error-port) egglog-path "--mode=interactive" "--no-decomp"))
 
   ;; Create dump file if flag is set
   (define dump-file
