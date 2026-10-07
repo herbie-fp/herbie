@@ -186,12 +186,13 @@
 ;; an order of magnitude).
 (define (egglog-multi-extract subproc variants extract-bindings reprs output-block)
   (define response
-    (egglog-send/read subproc
-                      `(multi-extract ,variants
-                                      :dag
-                                      ,@(for/list ([n (in-list extract-bindings)]
-                                                   [repr (in-list reprs)])
-                                          `(do-lower (herbie-const ,n) ,(egglog-repr-token repr))))))
+    (first (first (egglog-send subproc
+                               `(multi-extract ,variants
+                                               :dag
+                                               ,@(for/list ([n (in-list extract-bindings)]
+                                                            [repr (in-list reprs)])
+                                                   `(do-lower (herbie-const ,n)
+                                                              ,(egglog-repr-token repr))))))))
   (match-define `(let ,dag-bindings ,dag-body) response)
   (egglog-dag->blockrefs dag-bindings dag-body output-block))
 
