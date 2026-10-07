@@ -281,7 +281,8 @@
         (canvas ([title
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
         (script "histogram(document.currentScript.previousElementSibling, "
-                ,(jsexpr->string (map first times)) ")")
+                ,(jsexpr->string (map first times))
+                ")")
         (table ((class "times"))
                ,@(for/list ([rec (in-list (sort times > #:key first))]
                             [_ (in-range 5)])
@@ -294,7 +295,8 @@
         (canvas ([title
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
         (script "histogram(document.currentScript.previousElementSibling, "
-                ,(jsexpr->string (map first times)) ")")
+                ,(jsexpr->string (map first times))
+                ")")
         (table ((class "times"))
                (thead (tr (th "Time") (th "Variable") (th "Point")))
                ,@(for/list ([rec (in-list (sort times > #:key first))]
