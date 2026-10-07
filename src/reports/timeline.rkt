@@ -78,12 +78,6 @@
             ,@(dict-call curr render-phase-bogosity 'bogosity)
             ,@(dict-call curr render-phase-allocations 'allocations))))
 
-(define/reset id-counter 0)
-
-(define (make-id)
-  (id-counter (+ 1 (id-counter)))
-  (id-counter))
-
 (define (dict-call d f . args)
   (if (andmap (curry dict-has-key? d) args)
       (apply f (map (curry dict-ref d) args))
@@ -282,13 +276,12 @@
                                (td (pre ,(jsexpr->block-exprs (single-root-jsexpr root)))))))))))
 
 (define (render-phase-times times)
-  (define hist-id (make-id))
   `((dt "Calls")
     (dd (p ,(~r (length times) #:group-sep " ") " calls:")
-        (canvas ([id ,(format "calls-~a" hist-id)]
-                 [title
+        (canvas ([title
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script ,(format "histogram('calls-~a', " hist-id) ,(jsexpr->string (map first times)) ")")
+        (script "histogram(document.currentScript.previousElementSibling, "
+                ,(jsexpr->string (map first times)) ")")
         (table ((class "times"))
                ,@(for/list ([rec (in-list (sort times > #:key first))]
                             [_ (in-range 5)])
@@ -296,13 +289,12 @@
                    `(tr (td ,(format-time time)) (td (pre ,(jsexpr->block-exprs block-jsexpr)))))))))
 
 (define (render-phase-series times)
-  (define hist-id (make-id))
   `((dt "Calls")
     (dd (p ,(~a (length times)) " calls:")
-        (canvas ([id ,(format "calls-~a" hist-id)]
-                 [title
+        (canvas ([title
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script ,(format "histogram('calls-~a', " hist-id) ,(jsexpr->string (map first times)) ")")
+        (script "histogram(document.currentScript.previousElementSibling, "
+                ,(jsexpr->string (map first times)) ")")
         (table ((class "times"))
                (thead (tr (th "Time") (th "Variable") (th "Point")))
                ,@(for/list ([rec (in-list (sort times > #:key first))]

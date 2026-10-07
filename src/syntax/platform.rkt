@@ -62,7 +62,8 @@
   (struct-copy $platform
                platform
                [representations (hash-copy (platform-representations platform))]
-               [implementations (hash-copy (platform-implementations platform))]))
+               [implementations (hash-copy (platform-implementations platform))]
+               [representation-costs (hash-copy (platform-representation-costs platform))]))
 
 (define (make-empty-platform)
   (define reprs (make-hash))
