@@ -883,14 +883,6 @@
             (hash-ref best-exprs (cons (egraph_find egg-graph id) arg-repr) #f)))
         (and (andmap values arg-vals) (block-push! block (cons op (map val-idx arg-vals))))])]))
 
-(define (egraph-best-from-lower-root runner block root-lower-ids repr)
-  (define lower-id (hash-ref root-lower-ids repr #f))
-  (if lower-id
-      (match (egg-best-expression runner block lower-id repr)
-        [#f '()]
-        [val (list val)])
-      '()))
-
 (define (egraph-variations-from-lower-root runner block root-lower-ids repr)
   (define lower-id (hash-ref root-lower-ids repr #f))
   (if lower-id
@@ -922,9 +914,22 @@
     [else
      (define lower-roots (egg-runner-lower-roots runner))
      (if lower-roots
-         (for/list ([root-lower-ids (in-list lower-roots)]
-                    [repr (in-list reprs)])
-           (egraph-best-from-lower-root runner block root-lower-ids repr))
+         (let* ([requests (for/list ([root-lower-ids (in-list lower-roots)]
+                                     [repr (in-list reprs)]
+                                     [i (in-naturals)]
+                                     #:do [(define id (hash-ref root-lower-ids repr #f))]
+                                     #:when id)
+                            (list i id repr))]
+                [vals (egg-best-expressions runner block (map second requests) (map third requests))]
+                [out (make-vector (min (length lower-roots) (length reprs)) '())])
+           (for ([request (in-list requests)]
+                 [val (in-list vals)])
+             (vector-set! out
+                          (first request)
+                          (if val
+                              (list val)
+                              '())))
+           (vector->list out))
          (for/list ([id (in-list (egg-runner-new-roots runner))]
                     [repr (in-list reprs)])
            (match (egg-best-expression runner block id repr)
