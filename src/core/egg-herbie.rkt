@@ -42,24 +42,35 @@
      (define len (u32vector-length vec))
      (values (lambda (i) (u32vector-ref vec i)) add1 0 (lambda (i) (< i len)) #f #f))))
 
-(define (repr-token repr)
-  (match (representation-name repr)
+(define (repr-name-token name)
+  (match name
     [(? symbol? name) (~a name)]
-    [`(array ,slots ...) (format "array_~a" (string-join (map ~a slots) "_"))]))
+    [`(array ,slots ...) (format "array_~a" (string-join (map repr-name-token slots) "_"))]))
+
+(define (repr-token repr)
+  (repr-name-token (representation-name repr)))
 
 (define do-lower-prefix "$do-lower.")
-(define do-lower-leaf-prefix "$do-lower-leaf.")
 
 (define (do-lower-op repr)
   (string->symbol (format "~a~a" do-lower-prefix (repr-token repr))))
 
 (define (do-lower-op? op)
-  (and (symbol? op)
-       (string-prefix? (symbol->string op) do-lower-prefix)
-       (not (do-lower-leaf-op? op))))
+  (and (symbol? op) (string-prefix? (symbol->string op) do-lower-prefix) (not (typed-leaf-op? op))))
 
-(define (do-lower-leaf-op? op)
-  (and (symbol? op) (string-prefix? (symbol->string op) do-lower-leaf-prefix)))
+(define typed-constant-prefix "$do-lower-constant.")
+(define typed-variable-prefix "$do-lower-variable.")
+
+(define (typed-constant-op repr)
+  (string->symbol (format "~a~a" typed-constant-prefix (repr-token repr))))
+
+(define (typed-variable-op repr)
+  (string->symbol (format "~a~a" typed-variable-prefix (repr-token repr))))
+
+(define (typed-leaf-op? op)
+  (and (symbol? op)
+       (or (string-prefix? (symbol->string op) typed-constant-prefix)
+           (string-prefix? (symbol->string op) typed-variable-prefix))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; egg FFI shim
@@ -119,13 +130,6 @@
     (egraph_add_root ptr v-id)
     v-id))
 
-(define do-lower-leaf-counter 0)
-
-(define (fresh-do-lower-leaf-op!)
-  (define op (string->symbol (format "~a~a" do-lower-leaf-prefix do-lower-leaf-counter)))
-  (set! do-lower-leaf-counter (add1 do-lower-leaf-counter))
-  op)
-
 (define (seed-do-lower-eclasses! ptr ctx root-ids)
   (define reprs (platform-reprs (*active-platform*)))
   (define real-reprs (filter (lambda (repr) (equal? (representation-type repr) 'real)) reprs))
@@ -152,6 +156,7 @@
          [(operator-exists? f) (type-reprs (operator-info f 'otype))]
          [else '()])]))
   (define repr->ids (make-hash))
+  (define repr->leaves (make-hash))
   (define id->enodes (make-hash))
   (let loop ([pending (remove-duplicates (map (curry egraph_find ptr) root-ids))])
     (unless (empty? pending)
@@ -168,7 +173,11 @@
   (for ([(id enodes) (in-hash id->enodes)])
     (define reprs-for-id (remove-duplicates (append-map enode-reprs (vector->list enodes))))
     (for ([repr (in-list reprs-for-id)])
-      (hash-update! repr->ids repr (lambda (ids) (cons id ids)) '())))
+      (hash-update! repr->ids repr (lambda (ids) (cons id ids)) '())
+      (for ([leaf (in-vector enodes)]
+            #:when (or (number? leaf)
+                       (and (symbol? leaf) (string-prefix? (symbol->string leaf) "$var"))))
+        (hash-update! repr->leaves repr (lambda (leaves) (cons leaf leaves)) '()))))
 
   (define root-lower-ids
     (for/list ([_ (in-list root-ids)])
@@ -180,25 +189,33 @@
                   (egraph_find ptr root-id)
                   (lambda (lower-idss) (cons lower-ids lower-idss))
                   '()))
-  (define leaf-ops (make-hash))
   (for ([(repr ids) (in-hash repr->ids)])
-    (define marker-ids (egraph_seed_do_lower ptr (~s (do-lower-op repr)) (list->u32vector ids)))
+    (define marker-ids
+      (egraph_seed_do_lower ptr (symbol->string (do-lower-op repr)) (list->u32vector ids)))
     (for ([id (in-list ids)]
           [marker-id (in-u32vector marker-ids)])
       (define root-lower-id (hash-ref root-id->lower-ids id #f))
       (when root-lower-id
         (for ([lower-ids (in-list root-lower-id)])
-          (hash-set! lower-ids repr marker-id)))
-      (define leaf
-        (for/first ([enode (in-vector (hash-ref id->enodes id))]
-                    #:when (or (number? enode)
-                               (and (symbol? enode) (string-prefix? (symbol->string enode) "$var"))))
-          enode))
-      (when leaf
-        (define leaf-op (fresh-do-lower-leaf-op!))
-        (hash-set! leaf-ops leaf-op leaf)
-        (egraph_add_node_to_eclass ptr marker-id (~s leaf-op) empty-u32vec))))
-  (values root-lower-ids leaf-ops))
+          (hash-set! lower-ids repr marker-id)))))
+
+  ;; Egglog has explicit rules for lowering constants and variables. Egg can
+  ;; match concrete leaves directly, so generate the equivalent rules for the
+  ;; leaves reachable from this run.
+  (define leaf-rules
+    (append*
+     (for/list ([(repr leaves) (in-hash repr->leaves)])
+       (for/list ([leaf (in-list (remove-duplicates leaves))])
+         (define typed-op
+           (if (number? leaf)
+               (typed-constant-op repr)
+               (typed-variable-op repr)))
+         (make-ffi-rule
+          (format "lower-~a-~a-~a" (if (number? leaf) 'constant 'variable) (repr-token repr) leaf)
+          (~s (list (do-lower-op repr) leaf))
+          (~s (list typed-op leaf)))))))
+
+  (values root-lower-ids leaf-rules))
 
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run ptr ffi-rules node-limit iter-limit scheduler)
@@ -516,6 +533,7 @@
   (define helper-impls
     (for/seteq ([extension (in-list (*platform-extensions*))])
       (fpcore-extension-name extension)))
+  (define array-rules (array-lowering-rules pform))
   (define normal-rules
     (append* (for/list ([impl (in-list (platform-impls pform))]
                         #:unless (set-member? helper-impls impl))
@@ -530,7 +548,7 @@
                                  (for/list ([var (in-list vars)])
                                    (list (do-lower-op (dict-ref var-reprs var)) var)))
                            '(lowering))))))
-  (append normal-rules (array-lowering-rules pform)))
+  (append normal-rules array-rules))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Scheduler
@@ -590,7 +608,6 @@
 
   ; run the schedule
   (define lower-roots #f)
-  (define lower-leaf-ops (make-hash))
   (define egg-graph*
     (for/fold ([egg-graph egg-graph0]
                [rewrite-initial-size (iteration-data-num-nodes (last rebuild-data))]
@@ -602,12 +619,10 @@
            (define rules (convert-rules (platform-lifting-rules)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['lower
-           (define-values (lower-roots* leaf-ops) (seed-do-lower-eclasses! egg-graph ctx root-ids))
+           (define-values (lower-roots* leaf-rules) (seed-do-lower-eclasses! egg-graph ctx root-ids))
            (set! lower-roots lower-roots*)
-           (for ([(op enode) (in-hash leaf-ops)])
-             (hash-set! lower-leaf-ops op enode))
            (define rules (convert-rules (platform-do-lowering-rules)))
-           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
+           (egraph-run-rules egg-graph (append leaf-rules rules) #:iter-limit 1 #:scheduler 'simple)]
           ['unsound
            (define rules (convert-rules (*sound-removal-rules*)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
@@ -638,7 +653,7 @@
            (for/hash ([(repr id) (in-hash root-lower-ids)])
              (values repr (egraph_find egg-graph* id))))))
   ; return what we need
-  (values root-ids* lower-roots* lower-leaf-ops egg-graph*))
+  (values root-ids* lower-roots* egg-graph*))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public API
@@ -652,7 +667,7 @@
 
 ;; Herbie's version of an egg runner.
 ;; Defines parameters for running rewrite rules with egg
-(struct egg-runner (block schedule ctx new-roots lower-roots lower-leaf-ops egg-graph)
+(struct egg-runner (block schedule ctx new-roots lower-roots egg-graph)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -673,11 +688,10 @@
     (unless (memq step '(lift lower unsound rewrite))
       (oops! "unknown schedule step `~a`" step)))
 
-  (define-values (root-ids lower-roots lower-leaf-ops egg-graph)
-    (egraph-run-schedule block vs schedule ctx))
+  (define-values (root-ids lower-roots egg-graph) (egraph-run-schedule block vs schedule ctx))
 
   ; make the runner
-  (egg-runner block schedule ctx root-ids lower-roots lower-leaf-ops egg-graph))
+  (egg-runner block schedule ctx root-ids lower-roots egg-graph))
 
 (module+ test
   (require "../syntax/load-platform.rkt")
@@ -696,7 +710,24 @@
     (define-values (block vs) (progs->block (list '(PI)) #:ctx ctx))
     (define runner (make-egraph block vs '(lower) ctx))
     (define vals (egraph-best runner block (list <binary64>)))
-    (check-equal? ((block-exprs block) (first (first vals))) '(PI.f64))))
+    (check-equal? ((block-exprs block) (first (first vals))) '(PI.f64)))
+
+  (test-case "do-lower terms use typed leaf rules"
+    (define ctx (context '(x) <binary64> (list <binary64>)))
+    (define-values (block vs) (progs->block (list 'x 1) #:ctx ctx))
+    (define runner (make-egraph block vs '(lower) ctx))
+    (define vals (egraph-best runner block (list <binary64> <binary64>)))
+    (check-equal? (val-def (first (first vals))) 'x)
+    (check-equal? (val-def (first (second vals))) (literal 1 'binary64)))
+
+  (test-case "do-lower terms support nested array representations"
+    (define vec (make-array-representation <binary64> <binary64> <binary64>))
+    (define mat (make-array-representation vec vec vec))
+    (define ctx (context '(x) mat (list mat)))
+    (define-values (block vs) (progs->block (list 'x) #:ctx ctx))
+    (define runner (make-egraph block vs '(lower) ctx))
+    (define vals (egraph-best runner block (list mat)))
+    (check-equal? (val-def (first (first vals))) 'x)))
 
 (module+ test
   (require "../syntax/load-platform.rkt")
@@ -741,22 +772,18 @@
 
 (define max-extraction-cost (sub1 (expt 2 64)))
 
-(define (egg-leaf->block block leaf ctx type leaf-ops)
-  (define leaf*
-    (if (symbol? leaf)
-        (hash-ref leaf-ops leaf leaf)
-        leaf))
+(define (egg-leaf->block block leaf ctx type)
   (block-push!
    block
    (cond
-     [(number? leaf*)
+     [(number? leaf)
       (if (representation? type)
-          (literal leaf* (representation-name type))
-          leaf*)]
-     [(and (symbol? leaf*) (string-prefix? (symbol->string leaf*) "$var")) (egg-var->var leaf* ctx)]
-     [else (list leaf*)])))
+          (literal leaf (representation-name type))
+          leaf)]
+     [(and (symbol? leaf) (string-prefix? (symbol->string leaf) "$var")) (egg-var->var leaf ctx)]
+     [else (list leaf)])))
 
-(define (egg-batch-nodes->block nodes results block ctx repr leaf-ops)
+(define (egg-batch-nodes->block nodes results block ctx repr)
   (define vals (make-vector (length nodes) #f))
 
   (define (add-node idx type)
@@ -774,7 +801,8 @@
                                  (if (representation? type)
                                      (literal n (representation-name type))
                                      n))]
-                   [(? symbol? op) (egg-leaf->block block op ctx type leaf-ops)]
+                   [(? symbol? op) (egg-leaf->block block op ctx type)]
+                   [(list (? typed-leaf-op?) child) (add-node child type)]
                    [(list '$approx spec impl)
                     (block-push! block
                                  (approx (val-idx (add-node spec
@@ -817,12 +845,7 @@
           (match results
             [(list batch-results nodes)
              (define batch-vals
-               (egg-batch-nodes->block nodes
-                                       batch-results
-                                       block
-                                       (egg-runner-ctx runner)
-                                       repr
-                                       (egg-runner-lower-leaf-ops runner)))
+               (egg-batch-nodes->block nodes batch-results block (egg-runner-ctx runner) repr))
              (for ([i (in-list positions)]
                    [val (in-list batch-vals)])
                (vector-set! out i val))]))
@@ -831,11 +854,13 @@
 (define (egg-best-expression runner block id repr)
   (first (egg-best-expressions runner block (list id) (list repr))))
 
-(define (lower-enode-requests runner enode)
+(define (lower-enode-requests runner enode repr)
   (match enode
     [(cons op ids)
      (cond
-       [(or (do-lower-op? op) (do-lower-leaf-op? op)) '()]
+       [(do-lower-op? op) '()]
+       [(typed-leaf-op? op)
+        (list (cons (egraph_find (egg-runner-egg-graph runner) (u32vector-ref ids 0)) repr))]
        [else
         (for/list ([id (in-u32vector ids)]
                    [arg-repr (in-list (impl-info op 'itype))])
@@ -844,15 +869,15 @@
 
 (define (lower-enode->block runner block enode repr best-exprs)
   (define ctx (egg-runner-ctx runner))
-  (define leaf-ops (egg-runner-lower-leaf-ops runner))
   (define egg-graph (egg-runner-egg-graph runner))
   (match enode
-    [(? number? n) (egg-leaf->block block n ctx repr leaf-ops)]
-    [(? symbol? op) (egg-leaf->block block op ctx repr leaf-ops)]
+    [(? number? n) (egg-leaf->block block n ctx repr)]
+    [(? symbol? op) (egg-leaf->block block op ctx repr)]
     [(cons op ids)
      (cond
        [(do-lower-op? op) #f]
-       [(do-lower-leaf-op? op) (egg-leaf->block block op ctx repr leaf-ops)]
+       [(typed-leaf-op? op)
+        (hash-ref best-exprs (cons (egraph_find egg-graph (u32vector-ref ids 0)) repr) #f)]
        [else
         (define arg-vals
           (for/list ([id (in-u32vector ids)]
@@ -873,7 +898,7 @@
   (if lower-id
       (let* ([enodes (egraph-get-eclass (egg-runner-egg-graph runner) lower-id)]
              [requests (remove-duplicates (append* (for/list ([enode (in-vector enodes)])
-                                                     (lower-enode-requests runner enode))))]
+                                                     (lower-enode-requests runner enode repr))))]
              [best-exprs (for/hash ([request (in-list requests)]
                                     [expr (in-list (egg-best-expressions runner
                                                                          block

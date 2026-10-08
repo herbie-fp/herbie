@@ -45,7 +45,7 @@ impl<'a> CostFunction<Math> for AltCost<'a> {
     {
         if let Math::Other(op, _) = enode {
             let op = op.as_str();
-            if op.starts_with("$do-lower.") && !op.starts_with("$do-lower-leaf.") {
+            if op.starts_with("$do-lower.") {
                 return usize::MAX;
             }
         }
