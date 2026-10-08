@@ -64,13 +64,6 @@
 (define (merge-profile-jsons ps)
   (profile->json (apply profile-merge (map json->profile ps))))
 
-(define (prepare-report-directory! dir)
-  (cond
-    [(directory-exists? dir)
-     (unless (null? (directory-list dir))
-       (error 'make-report "output directory is not empty: ~a" dir))]
-    [else (make-directory* dir)]))
-
 (define (generate-bench-report result bench-name test-number dir total-tests)
   (define report-path (bench-folder-path bench-name test-number))
   (define report-directory (build-path dir report-path))
@@ -88,7 +81,8 @@
 
 (define (run-tests tests #:dir dir #:threads threads)
   (define seed (get-seed))
-  (prepare-report-directory! dir)
+  (unless (directory-exists? dir)
+    (make-directory* dir))
 
   (server-start threads)
   (define job-ids
@@ -123,22 +117,6 @@
    (build-path dir "timeline.html")
    #:exists 'replace
    (λ (out) (write-html (make-timeline "Herbie run" timeline #:info info #:path ".") out))))
-
-(module+ test
-  (require rackunit
-           racket/file)
-
-  (define temp-dir (make-temporary-file "herbie-report~a" 'directory))
-  (dynamic-wind void
-                (λ ()
-                  (check-not-exn (λ () (prepare-report-directory! temp-dir)))
-                  (define nested-dir (build-path temp-dir "nested" "output"))
-                  (prepare-report-directory! nested-dir)
-                  (define sentinel (build-path nested-dir "sentinel"))
-                  (call-with-output-file sentinel #:exists 'replace void)
-                  (check-exn exn:fail? (λ () (prepare-report-directory! nested-dir)))
-                  (check-true (file-exists? sentinel)))
-                (λ () (delete-directory/files temp-dir))))
 
 ;; Generate a path for a given benchmark name
 (define (bench-folder-path bench-name index)
