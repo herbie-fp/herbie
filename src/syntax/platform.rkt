@@ -19,7 +19,7 @@
 ;;;
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
-(struct platform (representations implementations representation-costs)
+(struct platform (representations implementations representation-costs [fpcore-op-hash #:mutable])
   #:name $platform
   #:constructor-name create-platform
   #:methods gen:custom-write
@@ -62,13 +62,15 @@
   (struct-copy $platform
                platform
                [representations (hash-copy (platform-representations platform))]
-               [implementations (hash-copy (platform-implementations platform))]))
+               [implementations (hash-copy (platform-implementations platform))]
+               [representation-costs (hash-copy (platform-representation-costs platform))]
+               [fpcore-op-hash #f]))
 
 (define (make-empty-platform)
   (define reprs (make-hash))
   (define repr-costs (make-hash))
   (define impls (make-hash))
-  (create-platform reprs impls repr-costs))
+  (create-platform reprs impls repr-costs #f))
 
 ;; Returns the representation associated with `name`
 ;; attempts to generate the repr if not initially found
@@ -194,8 +196,9 @@
                         (platform-repr-cost pform slot)))))
 
 (define (register-array-impl! impl)
-  (hash-set! (platform-implementations (*active-platform*)) (operator-impl-name impl) impl)
-  (reset-fpcore-op-cache!))
+  (define platform (*active-platform*))
+  (hash-set! (platform-implementations platform) (operator-impl-name impl) impl)
+  (reset-fpcore-op-cache! platform))
 
 (define (ensure-array-constructor! repr)
   (define name (array-impl-name repr))
@@ -385,28 +388,29 @@
               (list body)
               body)))
 
-(define/reset op-hash #f)
-
-(define (reset-fpcore-op-cache!)
-  (op-hash #f))
+(define (reset-fpcore-op-cache! platform)
+  (set-platform-fpcore-op-hash! platform #f))
 
 ;; For a given FPCore operator, rounding context, and input representations,
 ;; finds the best operator implementation. Panics if none can be found.
 (define/contract (get-fpcore-impl op prop-dict ireprs)
   (-> symbol? prop-dict/c (listof representation?) (or/c symbol? #f))
-  (unless (op-hash)
-    (define h (make-hash))
-    (for ([impl (in-list (platform-impls (*active-platform*)))])
-      (define-values (_ expr) (impl->fpcore impl))
-      (when (list? expr)
-        (hash-update! h (car expr) (curry cons impl) '())))
-    (op-hash h))
+  (define platform (*active-platform*))
+  (define op-hash
+    (or (platform-fpcore-op-hash platform)
+        (let ([h (make-hash)])
+          (for ([impl (in-list (platform-impls platform))])
+            (define-values (_ expr) (impl->fpcore impl))
+            (when (list? expr)
+              (hash-update! h (car expr) (curry cons impl) '())))
+          (set-platform-fpcore-op-hash! platform h)
+          h)))
 
   ; gather all implementations that have the same spec, input representations,
   ; and its FPCore translation has properties that are found in `prop-dict`
   (define impls
     (reap [sow]
-          (for ([impl (in-list (hash-ref (op-hash) op '()))]
+          (for ([impl (in-list (hash-ref op-hash op '()))]
                 #:when (equal? ireprs (impl-info impl 'itype)))
             (define-values (prop-dict* expr) (impl->fpcore impl))
             (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))

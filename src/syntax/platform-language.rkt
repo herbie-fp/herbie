@@ -160,7 +160,7 @@
                         (*platform-name*)))
   ; Update table
   (hash-set! impls (operator-impl-name impl) impl)
-  (reset-fpcore-op-cache!))
+  (reset-fpcore-op-cache! platform))
 
 ;; Macros for the core operations
 
