@@ -10,6 +10,7 @@
                   u32vector->list))
 
 (require racket/set
+         data/queue
          "../utils/common.rkt"
          "../utils/errors.rkt"
          "../utils/timeline.rkt"
@@ -153,18 +154,20 @@
   (define repr->ids (make-hash))
   (define repr->leaves (make-hash))
   (define id->enodes (make-hash))
-  (let loop ([pending (remove-duplicates (map (curry egraph_find ptr) root-ids))])
-    (unless (empty? pending)
-      (define id (first pending))
-      (if (hash-has-key? id->enodes id)
-          (loop (rest pending))
-          (let ([enodes (egraph-get-eclass ptr id)])
-            (hash-set! id->enodes id enodes)
-            (loop (append (rest pending)
-                          (for*/list ([enode (in-vector enodes)]
-                                      #:when (pair? enode)
-                                      [child-id (in-u32vector (cdr enode))])
-                            (egraph_find ptr child-id))))))))
+  (define pending (make-queue))
+  (for ([id (in-list (remove-duplicates (map (curry egraph_find ptr) root-ids)))])
+    (enqueue! pending id))
+  (let loop ()
+    (unless (queue-empty? pending)
+      (define id (dequeue! pending))
+      (unless (hash-has-key? id->enodes id)
+        (define enodes (egraph-get-eclass ptr id))
+        (hash-set! id->enodes id enodes)
+        (for* ([enode (in-vector enodes)]
+               #:when (pair? enode)
+               [child-id (in-u32vector (cdr enode))])
+          (enqueue! pending (egraph_find ptr child-id))))
+      (loop)))
   (for ([(id enodes) (in-hash id->enodes)])
     (define reprs-for-id (remove-duplicates (append-map enode-reprs (vector->list enodes))))
     (for ([repr (in-list reprs-for-id)])
