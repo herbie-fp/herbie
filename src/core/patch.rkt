@@ -11,7 +11,6 @@
          "egg-herbie.rkt"
          "egglog-herbie.rkt"
          "programs.rkt"
-         "rules.rkt"
          "../syntax/rival.rkt"
          "taylor.rkt")
 
@@ -183,7 +182,7 @@
 
   (define valss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog runner global-block reprs 'rewrite #:extract 1000000) ; "infinity"
+        (run-egglog runner global-block reprs 'rewrite #:extract (*egglog-variants-limit*))
         (egraph-variations runner global-block reprs)))
 
   ; apply changelists

@@ -2,23 +2,16 @@
 
 (require json)
 (require racket/exn)
-(require openssl/sha1
-         (rename-in xml [location? xml-location?]))
 (require web-server/configuration/responders
-         web-server/dispatch
          web-server/dispatch/extend
          web-server/dispatchers/dispatch
-         web-server/http/bindings
          web-server/managers/none
          web-server/safety-limits
          web-server/servlet
          web-server/servlet-env)
 
-(require "../config.rkt"
-         "../syntax/types.rkt"
+(require "../syntax/types.rkt"
          "../syntax/read.rkt"
-         "../syntax/sugar.rkt"
-         "../syntax/platform.rkt"
          "../syntax/load-platform.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"

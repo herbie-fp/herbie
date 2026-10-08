@@ -10,6 +10,11 @@ RUST_VERSION=1.88.0
 
 log_step() {
   printf '\n==> %s\n' "$1"
+  step_started=$SECONDS
+}
+
+log_step_done() {
+  printf '    completed in %ss\n' "$((SECONDS - step_started))"
 }
 
 missing_packages=()
@@ -23,12 +28,14 @@ if ((${#missing_packages[@]})); then
   log_step "Installing system packages"
   sudo apt-get update
   sudo apt-get install -y --no-install-recommends "${missing_packages[@]}"
+  log_step_done
 fi
 
 mkdir -p "$HOME/.local/bin"
 
 log_step "Pre-installing Nightlies CLI"
 uvx nightlies --help >/dev/null
+log_step_done
 
 if [[ ! -x "$RACKET_BIN/racket" ]]; then
   log_step "Installing Racket $RACKET_VERSION"
@@ -38,12 +45,15 @@ if [[ ! -x "$RACKET_BIN/racket" ]]; then
   sh "$installer_path" --unix-style --dest "$RACKET_PREFIX" --create-dir
   rm -f "$installer_path"
   trap - EXIT
+  log_step_done
 fi
 
 if [[ ! -x "$HOME/.cargo/bin/rustup" ]]; then
   log_step "Installing Rust"
+  # Install only rustup here; the pinned toolchain is installed below.
   curl --fail --location --retry 3 --silent --show-error https://sh.rustup.rs |
-    sh -s -- -y --profile minimal
+    sh -s -- -y --profile minimal --default-toolchain none
+  log_step_done
 fi
 
 profile_marker='# Herbie orb toolchains'
@@ -60,6 +70,7 @@ export PATH="$RACKET_BIN:$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
 if ! rustup toolchain list | grep -q "^$RUST_VERSION"; then
   log_step "Installing Rust $RUST_VERSION"
   rustup toolchain install "$RUST_VERSION" --profile minimal
+  log_step_done
 fi
 rustup default "$RUST_VERSION"
 
@@ -77,11 +88,14 @@ if [[ ! -f "$fingerprint_file" ]] || [[ "$(<"$fingerprint_file")" != "$fingerpri
   log_step "Building Herbie and installing Racket dependencies"
   make install
   printf '%s\n' "$fingerprint" > "$fingerprint_file"
+  log_step_done
 else
   log_step "Herbie dependencies are current"
+  log_step_done
 fi
 
 log_step "Verifying toolchains"
 racket --version
 cargo --version
 racket -l herbie -- --help >/dev/null
+log_step_done

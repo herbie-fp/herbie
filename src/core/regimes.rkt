@@ -7,11 +7,14 @@
 ;;   Except critical-subexpressions. Converting it to vectors makes it slow.
 ;; - Everything else is overhead and should be minimized.
 
-(require math/flonum
+(require math/bigfloat
+         math/flonum
          "../core/alternative.rkt"
          "../utils/common.rkt"
+         "../utils/pretty-print.rkt"
          "../utils/pareto.rkt"
          "../syntax/float.rkt"
+         "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
@@ -22,20 +25,12 @@
 (provide pareto-regimes
          (struct-out option)
          (struct-out si)
-         critical-subexpression?)
+         combine-alts)
 
 (module+ test
   (require rackunit
            "../syntax/syntax.rkt"
-           "../syntax/sugar.rkt")
-
-  (define (check-critical expr subexpr)
-    (define ctx
-      (context (free-variables expr)
-               <binary64>
-               (make-list (length (free-variables expr)) <binary64>)))
-    (define-values (block vs) (progs->block (list expr) #:ctx ctx))
-    (critical-subexpression? block (first vs) (block-add! block subexpr))))
+           "../syntax/sugar.rkt"))
 
 (struct option (split-indices alts pts expr)
   #:transparent
@@ -43,8 +38,8 @@
   [(define (write-proc opt port mode)
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
-;; CONSIDER: move start-prog and the "branch-vs" computation into caller.
-(define (pareto-regimes block sorted start-prog pcontext spec-block)
+;; CONSIDER: move initial-v and the "branch-vs" computation into caller.
+(define (pareto-regimes block sorted initial-v pcontext spec-block)
   (timeline-event! 'regimes)
   (define alts-vec (list->vector sorted))
   (define alt-count (vector-length alts-vec))
@@ -54,7 +49,7 @@
   (define branch-vs
     (filter real-v?
             (if (flag-set? 'reduce 'branch-expressions)
-                (critical-subexpressions block start-prog)
+                (critical-subexpressions block initial-v)
                 (map (curry block-add! block) (block-vars block)))))
 
   (define v-vals (v-values* block branch-vs pcontext))
@@ -103,9 +98,6 @@
                     (oracle-errors-score err-cols (pareto-point-cost ppt))
                     (baseline-errors-score err-cols (pareto-point-cost ppt)))
     opt))
-
-(define (critical-subexpression? block root-v sub-v)
-  (set-member? (critical-subexpressions block root-v) sub-v))
 
 (define (critical-subexpressions block root-v)
   (define var-vs (map (curry block-add! block) (block-vars block)))
@@ -251,23 +243,6 @@
   (check-equal? (baseline-errors-score err-cols 2) 26.5)
   (check-equal? (oracle-errors-score err-cols 2) 0.0)
 
-  (check-true (check-critical '(+.f64 (sin.f64 x) y) '(sin.f64 x)))
-  (check-false (check-critical '(+.f64 (sin.f64 x) x) '(sin.f64 x)))
-  (check-true (check-critical '(+.f64 x x) 'x))
-  (check-true (check-critical '(+.f64 x x) '(+.f64 x x)))
-  (check-true (check-critical '(sin.f64 x) '(sin.f64 x)))
-
-  (let ()
-    (define xy-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
-    (define-values (block vs) (progs->block (list 'x) #:ctx xy-ctx))
-    (check-true (critical-subexpression? block (first vs) (block-add! block 'x)))
-    (check-false (critical-subexpression? block (first vs) (block-add! block 'y))))
-
-  (let ()
-    (define xyz-ctx (context '(x y z) <binary64> (list <binary64> <binary64> <binary64>)))
-    (define-values (block vs) (progs->block (list '(* (+ x y) (/ x z))) #:ctx xyz-ctx))
-    (check-false (critical-subexpression? block (first vs) (block-add! block '(+ x y)))))
-
   (let ()
     (define vec2 (make-array-representation <binary64> <binary64>))
     (define vec2-ctx (context '(a b) <binary64> (list vec2 vec2)))
@@ -276,11 +251,6 @@
               (*.f64 (ref.1.array<binary64:binary64> a) (ref.1.array<binary64:binary64> b))))
     (define-values (block vs) (progs->block (list dot-product) #:ctx vec2-ctx))
     (check-true (set-member? (critical-subexpressions block (first vs)) (first vs)))))
-
-(define (valid-splitindices? can-split? split-indices)
-  (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
-         (and (> pidx 0) (list-ref can-split? pidx)))
-       (= (si-pidx (last split-indices)) (length can-split?))))
 
 (module core typed/racket
   (provide (struct-out si)
@@ -407,3 +377,52 @@
     (values splitss scores)))
 
 (require (submod "." core))
+
+(define (combine-alts block best-option)
+  (match-define (option splitindices alts pts v) best-option)
+  (define repr (block-repr-of v))
+  (define eval-expr (compose (curryr vector-ref 0) (compile-block block (list v))))
+  (define splitpoints
+    (for/list ([si1 (in-list (drop-right splitindices 1))])
+      (define p1 (eval-expr (list-ref pts (sub1 (si-pidx si1)))))
+      (define p2 (eval-expr (list-ref pts (si-pidx si1))))
+      (sp (si-cidx si1) v (left-point repr p1 p2))))
+  (define v*
+    (for/fold ([v (alt-expr (list-ref alts (si-cidx (last splitindices))))])
+              ([splitpoint (in-list (reverse splitpoints))])
+      (define repr (block-repr-of (sp-bexpr splitpoint)))
+      (define if-impl (get-fpcore-impl 'if '() (list (get-representation 'bool) repr repr)))
+      (define <=-impl (get-fpcore-impl '<= '() (list repr repr)))
+      (define lit-v
+        (block-add! block
+                    (literal (repr->real (sp-point splitpoint) repr) (representation-name repr))))
+      (define cmp-v (block-add! block (list <=-impl (sp-bexpr splitpoint) lit-v)))
+      (block-add! block (list if-impl cmp-v (alt-expr (list-ref alts (sp-cidx splitpoint))) v))))
+
+  ;; We don't want unused alts in our history!
+  (define-values (alts* splitpoints**)
+    (remove-unused-alts alts (append splitpoints (list (sp (si-cidx (last splitindices)) v +nan.0)))))
+  (alt v* (list 'regimes splitpoints**) alts*))
+
+(define (left-point repr p1 p2)
+  (define left ((representation-repr->bf repr) p1))
+  (define right ((representation-repr->bf repr) p2))
+  (define out ; TODO: Try using bigfloat-pick-point here?
+    (if (bfnegative? left)
+        (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
+        (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
+  ;; It's important to return something strictly less than right
+  (if (bf= out right)
+      p1
+      ((representation-bf->repr repr) out)))
+
+(define (remove-unused-alts alts splitpoints)
+  (for/fold ([alts* '()]
+             [splitpoints* '()])
+            ([splitpoint (in-list splitpoints)])
+    (define alt (list-ref alts (sp-cidx splitpoint)))
+    ;; It's important to snoc the alt in order for the indices not to change
+    (define alts** (remove-duplicates (append alts* (list alt))))
+    (define splitpoint* (struct-copy sp splitpoint [cidx (index-of alts** alt)]))
+    (define splitpoints** (append splitpoints* (list splitpoint*)))
+    (values alts** splitpoints**)))

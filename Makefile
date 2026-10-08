@@ -30,7 +30,8 @@ egg-herbie:
 	raco pkg install ./egg-herbie
 
 egglog-herbie:
-	cargo install --locked --git "https://github.com/egraphs-good/egglog-experimental" egglog-experimental
+# Keep egglog's release artifacts in the user cache for fast rebuilds.
+	cargo install --locked --target-dir "$(HOME)/.cache/herbie/egglog-target" --git "https://github.com/egraphs-good/egglog-experimental" egglog-experimental
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/
@@ -46,7 +47,13 @@ minimal-distribution:
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 nightly:
-	bash infra/nightly.sh bench reports --threads 2
+	bash infra/nightly.sh bench reports --threads 2 --timeout 60
+
+points.tar.xz:
+	rm -rf dump-rival
+	racket -y src/main.rkt report --threads yes --seed 1 --num-iters 0 --num-points 256/1000 \
+		-o setup:preprocess -o reduce:regimes +o dump:rival bench reports/points
+	tar -cJf $@ dump-rival
 
 upgrade:
 	git pull

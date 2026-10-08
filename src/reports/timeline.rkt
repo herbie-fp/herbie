@@ -6,8 +6,6 @@
          "data.rkt"
          "common.rkt"
          "../syntax/platform.rkt"
-         "../syntax/types.rkt"
-         "../syntax/float.rkt"
          "../config.rkt"
          "../syntax/block.rkt")
 (provide make-timeline)
@@ -72,21 +70,13 @@
             ,@(dict-call curr render-phase-inputs 'inputs 'outputs)
             ,@(dict-call curr render-phase-times 'times)
             ,@(dict-call curr render-phase-series 'series)
-            ,@(dict-call curr render-phase-bstep 'bstep)
             ,@(dict-call curr render-phase-branches 'branch 'block)
             ,@(dict-call curr render-phase-sampling 'sampling)
             ,@(dict-call curr (curryr simple-render-phase "Preprocessing") 'preprocessing)
             ,@(dict-call curr render-phase-outcomes 'outcomes)
             ,@(dict-call curr render-phase-compiler 'compiler)
-            ,@(dict-call curr render-phase-mixed-sampling 'mixsample)
             ,@(dict-call curr render-phase-bogosity 'bogosity)
             ,@(dict-call curr render-phase-allocations 'allocations))))
-
-(define/reset id-counter 0)
-
-(define (make-id)
-  (id-counter (+ 1 (id-counter)))
-  (id-counter))
 
 (define (dict-call d f . args)
   (if (andmap (curry dict-has-key? d) args)
@@ -117,24 +107,6 @@
                                                   (format-percent (hash-ref domain-info tag 0)
                                                                   total))])))))))
 
-(define (format-value v)
-  (cond
-    [(real? v) (~a v)]
-    [(equal? (hash-ref v 'type) "real") (hash-ref v 'value)]
-    [else
-     (define repr-name (hash-ref v 'type))
-     (define repr (get-representation (read (open-input-string repr-name))))
-     (value->string ((representation-ordinal->repr repr) (string->number (hash-ref v 'ordinal)))
-                    repr)]))
-
-(define (render-phase-bstep iters)
-  `((dt "Steps") (dd (table (tr (th "Time") (th "Left") (th "Right"))
-                            ,@(for/list ([rec (in-list iters)])
-                                (match-define (list time v1 v2) rec)
-                                `(tr (td ,(format-time time))
-                                     (td (pre ,(format-value v1)))
-                                     (td (pre ,(format-value v2)))))))))
-
 (define (render-phase-egraph iters)
   (define costs (map third iters))
   (define last-useful-iter (last (filter (compose (curry = (apply min costs)) third) iters)))
@@ -158,51 +130,6 @@
 
 (define (average . values)
   (/ (apply + values) (length values)))
-
-(define (render-phase-mixed-sampling mixsample)
-  (define total-time (apply + (map first mixsample)))
-  (define (format-memory-bytes bytes)
-    (format "~a MiB" (~r (/ bytes (expt 2 20)) #:precision '(= 1))))
-  `((dt "Precisions")
-    (dd (details
-         (summary "Click to see histograms. Total time spent on operations: "
-                  ,(format-time total-time))
-         ,@(map first
-                (sort (for/list ([rec (in-list (group-by second mixsample))]) ; group by operator
-                        ; rec = '('(time op precision) ... '(time op precision))
-                        (define n (random 100000))
-                        (define op (second (car rec)))
-                        (define precisions (map third rec))
-                        (define times (map first rec))
-                        (define memories (map fourth rec))
-
-                        (define time-per-op (round (apply + times)))
-                        (define memory-per-op (apply + memories))
-
-                        (list `(details (summary (code ,op)
-                                                 ": "
-                                                 ,(format-time time-per-op)
-                                                 " ("
-                                                 ,(format-percent time-per-op total-time)
-                                                 " of total, "
-                                                 ,(format-memory-bytes memory-per-op)
-                                                 ")")
-                                        (canvas ([id ,(format "calls-~a" n)]
-                                                 [title
-                                                  "Histogram of precisions of the used operation"]))
-                                        (script "histogram(\""
-                                                ,(format "calls-~a" n)
-                                                "\", "
-                                                ,(jsexpr->string precisions)
-                                                ", "
-                                                ,(jsexpr->string times)
-                                                ", "
-                                                "{\"max\" : "
-                                                ,(~a (*max-mpfr-prec*))
-                                                "})"))
-                              time-per-op))
-                      >
-                      #:key second))))))
 
 (define (render-phase-sampling sampling)
   (define total (round (apply + (hash-values (cadr (car sampling))))))
@@ -349,13 +276,13 @@
                                (td (pre ,(jsexpr->block-exprs (single-root-jsexpr root)))))))))))
 
 (define (render-phase-times times)
-  (define hist-id (make-id))
   `((dt "Calls")
     (dd (p ,(~r (length times) #:group-sep " ") " calls:")
-        (canvas ([id ,(format "calls-~a" hist-id)]
-                 [title
+        (canvas ([title
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script ,(format "histogram('calls-~a', " hist-id) ,(jsexpr->string (map first times)) ")")
+        (script "histogram(document.currentScript.previousElementSibling, "
+                ,(jsexpr->string (map first times))
+                ")")
         (table ((class "times"))
                ,@(for/list ([rec (in-list (sort times > #:key first))]
                             [_ (in-range 5)])
@@ -363,13 +290,13 @@
                    `(tr (td ,(format-time time)) (td (pre ,(jsexpr->block-exprs block-jsexpr)))))))))
 
 (define (render-phase-series times)
-  (define hist-id (make-id))
   `((dt "Calls")
     (dd (p ,(~a (length times)) " calls:")
-        (canvas ([id ,(format "calls-~a" hist-id)]
-                 [title
+        (canvas ([title
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script ,(format "histogram('calls-~a', " hist-id) ,(jsexpr->string (map first times)) ")")
+        (script "histogram(document.currentScript.previousElementSibling, "
+                ,(jsexpr->string (map first times))
+                ")")
         (table ((class "times"))
                (thead (tr (th "Time") (th "Variable") (th "Point")))
                ,@(for/list ([rec (in-list (sort times > #:key first))]
@@ -475,6 +402,7 @@
                            (substring commit 0 8)))
                   " on "
                   ,branch))
+          (tr (th "Racket version:") (td ,(version)))
           (tr (th "Seed:") (td ,(~a seed)))
           (tr (th "Parameters:")
               (td ,(~a (*num-points*)) " points for " ,(~a (*num-iterations*)) " iterations"))

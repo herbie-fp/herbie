@@ -5,8 +5,6 @@
 (provide (struct-out egglog-subprocess)
          create-new-egglog-subprocess
          egglog-send
-         egglog-extract
-         egglog-multi-extract
          egglog-subprocess-close)
 
 ;; Struct to hold egglog subprocess handles
@@ -49,6 +47,8 @@
 
   (egglog-subprocess egglog-process egglog-output egglog-in err dump-file))
 
+;; Send commands and parse each response directly from the subprocess port.
+;; Each result contains all datums before the command's (done) marker.
 (define (egglog-send subproc . commands)
   (match-define (egglog-subprocess egglog-process egglog-output egglog-in err dump-file) subproc)
 
@@ -61,22 +61,6 @@
     (writeln command egglog-in)
     (flush-output egglog-in)
 
-    (let loop ([out '()])
-      (define next (read-line egglog-output 'any))
-      (if (equal? next "(done)")
-          (reverse out)
-          (loop (cons next out))))))
-
-;; Send extract commands and read results
-(define (egglog-extract subproc extract-command)
-  (match-define (list "(" results ... ")") (first (egglog-send subproc extract-command)))
-  (for/list ([result (in-list results)])
-    (read (open-input-string result))))
-
-(define (egglog-multi-extract subproc extract-command)
-  (define raw-lines (first (egglog-send subproc extract-command)))
-  (define combined (string-join raw-lines " "))
-  (define parsed (read (open-input-string combined)))
-  (for/list ([result-list (in-list parsed)])
-    (for/list ([result (in-list result-list)])
+    (for/list ([result (in-port read egglog-output)]
+               #:break (equal? result '(done)))
       result)))
