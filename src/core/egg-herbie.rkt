@@ -42,13 +42,8 @@
      (define len (u32vector-length vec))
      (values (lambda (i) (u32vector-ref vec i)) add1 0 (lambda (i) (< i len)) #f #f))))
 
-(define (repr-name-token name)
-  (match name
-    [(? symbol? name) (~a name)]
-    [`(array ,slots ...) (format "array_~a" (string-join (map repr-name-token slots) "_"))]))
-
 (define (repr-token repr)
-  (repr-name-token (representation-name repr)))
+  (representation-name->token (representation-name repr)))
 
 (define do-lower-prefix "$do-lower.")
 

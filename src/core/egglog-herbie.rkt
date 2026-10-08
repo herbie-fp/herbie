@@ -35,16 +35,17 @@
   (map representation-name (platform-reprs pform)))
 
 (define (egglog-repr-token repr-name)
-  (match repr-name
-    [(? representation?) (egglog-repr-token (representation-name repr-name))]
-    [(? symbol?) (format "sym_~a" repr-name)]
-    [`(array ,slots ...) (format "arr_~a" (string-join (map egglog-repr-token slots) "_"))]))
+  (representation-name->token (if (representation? repr-name)
+                                  (representation-name repr-name)
+                                  repr-name)))
 
 (define (egglog-repr-name token)
-  (cond
-    [(string-prefix? token "sym_") (string->symbol (substring token 4))]
-    ;; Legacy scalar encoding used in older tests and dumps.
-    [else (string->symbol token)]))
+  (if (string-prefix? token "repr-")
+      (representation-token->name token)
+      (cond
+        [(string-prefix? token "sym_") (string->symbol (substring token 4))]
+        ;; Legacy scalar encoding used in older tests and dumps.
+        [else (string->symbol token)])))
 
 (define (real->bigrat val)
   `(bigrat (from-string ,(~s (numerator val))) (from-string ,(~s (denominator val)))))
