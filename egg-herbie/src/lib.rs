@@ -283,7 +283,7 @@ pub unsafe extern "C" fn egraph_get_eclasses(ptr: *mut Context, ids_ptr: *mut u3
     ids.sort();
 
     for (i, id) in ids.iter().enumerate() {
-        std::ptr::write(ids_ptr.offset(i as isize), *id);
+        std::ptr::write(ids_ptr.add(i), *id);
     }
 }
 
@@ -300,7 +300,7 @@ pub unsafe extern "C" fn egraph_get_node(
 
     let node = &context.runner.egraph[id].nodes[idx];
     for (i, id) in node.children().iter().enumerate() {
-        std::ptr::write(ids.offset(i as isize), usize::from(*id) as u32);
+        std::ptr::write(ids.add(i), usize::from(*id) as u32);
     }
 
     let c_string = ManuallyDrop::new(CString::new(node.to_string()).unwrap());
