@@ -2,72 +2,22 @@
 
 pub mod math;
 
-use egg::{
-    BackoffScheduler, Extractor, FromOp, Id, Language, RewriteScheduler, SearchMatches,
-    SimpleScheduler, StopReason,
-};
+use egg::{BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason};
 use libc::{c_void, strlen};
 use math::*;
 
-use std::cell::RefCell;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::mem::{self, ManuallyDrop};
 use std::os::raw::c_char;
-use std::rc::Rc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
 
 pub struct Context {
     runner: Runner,
     rules: Vec<Rewrite>,
     best: Option<HashMap<u32, (usize, Math)>>,
-}
-
-struct TimingScheduler<S> {
-    inner: S,
-    search_times: Rc<RefCell<HashMap<String, (f64, usize, usize, usize)>>>,
-}
-
-impl<S> RewriteScheduler<Math, ConstantFold> for TimingScheduler<S>
-where
-    S: RewriteScheduler<Math, ConstantFold>,
-{
-    fn can_stop(&mut self, iteration: usize) -> bool {
-        self.inner.can_stop(iteration)
-    }
-
-    fn search_rewrite<'a>(
-        &mut self,
-        iteration: usize,
-        egraph: &EGraph,
-        rewrite: &'a Rewrite,
-    ) -> Vec<SearchMatches<'a, Math>> {
-        let started = Instant::now();
-        let matches = self.inner.search_rewrite(iteration, egraph, rewrite);
-        let mut search_times = self.search_times.borrow_mut();
-        let stats = search_times.entry(rewrite.name.to_string()).or_default();
-        stats.0 += started.elapsed().as_secs_f64() * 1000.0;
-        stats.1 += 1;
-        stats.2 += matches.len();
-        stats.3 += matches
-            .iter()
-            .map(|matched| matched.substs.len())
-            .sum::<usize>();
-        matches
-    }
-
-    fn apply_rewrite(
-        &mut self,
-        iteration: usize,
-        egraph: &mut EGraph,
-        rewrite: &Rewrite,
-        matches: Vec<SearchMatches<Math>>,
-    ) -> usize {
-        self.inner
-            .apply_rewrite(iteration, egraph, rewrite, matches)
-    }
 }
 
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
@@ -152,13 +102,10 @@ pub unsafe extern "C" fn egraph_seed_do_lower(
     num_ids: u32,
     output_ptr: *mut u32,
 ) {
-    let timing = timing_enabled();
-    let started = timing.then(Instant::now);
     let f = CStr::from_ptr(f).to_str().unwrap();
     let ids = slice::from_raw_parts(ids_ptr, num_ids as usize);
     let mut context = ManuallyDrop::new(Box::from_raw(ptr));
     context.best = None;
-    let nodes_before = timing.then(|| context.runner.egraph.total_size());
     for (i, id) in ids.iter().enumerate() {
         let spec_id = Id::from(*id as usize);
         let do_lower_id = context
@@ -168,16 +115,6 @@ pub unsafe extern "C" fn egraph_seed_do_lower(
         std::ptr::write(
             output_ptr.offset(i as isize),
             usize::from(do_lower_id) as u32,
-        );
-    }
-    if let (Some(started), Some(nodes_before)) = (started, nodes_before) {
-        eprintln!(
-            "EGG_TIMING seed op={} ids={} nodes_before={} nodes_after={} elapsed_ms={:.3}",
-            f,
-            ids.len(),
-            nodes_before,
-            context.runner.egraph.total_size(),
-            started.elapsed().as_secs_f64() * 1000.0,
         );
     }
 }
@@ -273,20 +210,10 @@ pub unsafe extern "C" fn egraph_run(
     node_limit: u32,
     simple_scheduler: bool,
 ) -> *const EGraphIter {
-    let timing = timing_enabled();
-    let ffi_started = timing.then(Instant::now);
     // Safety: `ptr` was box allocated by `egraph_create`
     let mut context = Box::from_raw(ptr);
-    let nodes_before = timing.then(|| context.runner.egraph.total_size());
-    let classes_before = timing.then(|| context.runner.egraph.number_of_classes());
-    let mut parse_ms = 0.0;
-    let mut runner_ms = 0.0;
-    let mut rule_count = 0;
-    let mut lower_rule_count = 0;
-    let mut search_times = None;
 
     if context.runner.stop_reason.is_none() {
-        let parse_started = timing.then(Instant::now);
         let length: usize = rules_array_length as usize;
         let ffi_rules: &[*mut FFIRule] = slice::from_raw_parts(rules_array_ptr, length);
         let mut ffi_tuples: Vec<(&str, &str, &str)> = vec![];
@@ -300,29 +227,13 @@ pub unsafe extern "C" fn egraph_run(
             ffi_tuples.push((&ffi_string.0, &ffi_string.1, &ffi_string.2));
         }
 
-        rule_count = ffi_strings.len();
-        lower_rule_count = ffi_strings
-            .iter()
-            .filter(|(name, _, _)| name.contains("lower"))
-            .count();
         let rules: Vec<Rewrite> = math::mk_rules(&ffi_tuples);
-        parse_ms = parse_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
         context.rules = rules;
 
-        let search_times_for_scheduler = timing.then(|| Rc::new(RefCell::new(HashMap::new())));
-        search_times = search_times_for_scheduler.clone();
-        let runner_started = timing.then(Instant::now);
-        context.runner = match (timing, simple_scheduler) {
-            (true, true) => context.runner.with_scheduler(TimingScheduler {
-                inner: SimpleScheduler,
-                search_times: Rc::clone(search_times_for_scheduler.as_ref().unwrap()),
-            }),
-            (true, false) => context.runner.with_scheduler(TimingScheduler {
-                inner: BackoffScheduler::default(),
-                search_times: Rc::clone(search_times_for_scheduler.as_ref().unwrap()),
-            }),
-            (false, true) => context.runner.with_scheduler(SimpleScheduler),
-            (false, false) => context.runner.with_scheduler(BackoffScheduler::default()),
+        context.runner = if simple_scheduler {
+            context.runner.with_scheduler(SimpleScheduler)
+        } else {
+            context.runner.with_scheduler(BackoffScheduler::default())
         };
 
         context.runner = context
@@ -338,7 +249,6 @@ pub unsafe extern "C" fn egraph_run(
                 }
             })
             .run(&context.rules);
-        runner_ms = runner_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
     }
 
     context.best = None;
@@ -346,106 +256,11 @@ pub unsafe extern "C" fn egraph_run(
     // Prune all e-nodes with children where its e-class has a leaf node (with no children). Pruning
     // safely improves performance because pruning occurs right before extraction and leaf e-nodes
     // always have a lower cost.
-    let nodes_after_run = timing.then(|| context.runner.egraph.total_size());
-    let classes_after_run = timing.then(|| context.runner.egraph.number_of_classes());
-    let prune_started = timing.then(Instant::now);
     context.runner.egraph.classes_mut().for_each(|eclass| {
         if eclass.nodes.iter().any(|n| n.is_leaf()) {
             eclass.nodes.retain(|n| n.is_leaf());
         }
     });
-    let prune_ms = prune_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
-
-    if let (
-        Some(ffi_started),
-        Some(nodes_before),
-        Some(classes_before),
-        Some(nodes_after_run),
-        Some(classes_after_run),
-    ) = (
-        ffi_started,
-        nodes_before,
-        classes_before,
-        nodes_after_run,
-        classes_after_run,
-    ) {
-        let iterations = &context.runner.iterations;
-        let search_ms: f64 = iterations.iter().map(|it| it.search_time * 1000.0).sum();
-        let apply_ms: f64 = iterations.iter().map(|it| it.apply_time * 1000.0).sum();
-        let rebuild_ms: f64 = iterations.iter().map(|it| it.rebuild_time * 1000.0).sum();
-        let iteration_ms: f64 = iterations.iter().map(|it| it.total_time * 1000.0).sum();
-        let iteration_other_ms = iteration_ms - search_ms - apply_ms - rebuild_ms;
-        let mut applied_by_rule = HashMap::<String, usize>::new();
-        for iteration in iterations {
-            for (name, count) in &iteration.applied {
-                *applied_by_rule.entry(name.to_string()).or_default() += count;
-            }
-        }
-        let mut applied_by_rule: Vec<_> = applied_by_rule.into_iter().collect();
-        applied_by_rule.sort_by_key(|(_, count)| std::cmp::Reverse(*count));
-        applied_by_rule.truncate(5);
-        let mut top_search_times = search_times
-            .as_ref()
-            .map(|search_times| {
-                search_times
-                    .borrow()
-                    .iter()
-                    .map(|(name, (time, calls, _, _))| (name.clone(), *time, *calls))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        top_search_times.sort_by(|a, b| b.1.total_cmp(&a.1));
-        top_search_times.truncate(10);
-        let mut search_by_family = HashMap::<&str, (usize, usize, usize, usize, f64)>::new();
-        if let Some(search_times) = &search_times {
-            for (name, (time, calls, matched_classes, substitutions)) in
-                search_times.borrow().iter()
-            {
-                let family = if name.starts_with("lower-constant-repr-") {
-                    "constant_repr"
-                } else if name.starts_with("lower-variable-repr-") {
-                    "variable_repr"
-                } else if name.starts_with("do-lower-") {
-                    "operator_lower"
-                } else {
-                    "other"
-                };
-                let stats = search_by_family.entry(family).or_default();
-                stats.0 += 1;
-                stats.1 += calls;
-                stats.2 += matched_classes;
-                stats.3 += substitutions;
-                stats.4 += time;
-            }
-        }
-        let mut search_by_family: Vec<_> = search_by_family.into_iter().collect();
-        search_by_family.sort_by(|a, b| b.1 .4.total_cmp(&a.1 .4));
-        eprintln!(
-            "EGG_TIMING run scheduler={} rules={} lower_rules={} nodes_before={} classes_before={} nodes_after_run={} classes_after_run={} nodes_after_prune={} iterations={} parse_ms={:.3} runner_wall_ms={:.3} runner_iteration_ms={:.3} search_ms={:.3} apply_ms={:.3} rebuild_ms={:.3} iteration_other_ms={:.3} prune_ms={:.3} total_ms={:.3} search_by_family={:?} top_search_ms={:?} top_applied={:?} stop={:?}",
-            if simple_scheduler { "simple" } else { "backoff" },
-            rule_count,
-            lower_rule_count,
-            nodes_before,
-            classes_before,
-            nodes_after_run,
-            classes_after_run,
-            context.runner.egraph.total_size(),
-            iterations.len(),
-            parse_ms,
-            runner_ms,
-            iteration_ms,
-            search_ms,
-            apply_ms,
-            rebuild_ms,
-            iteration_other_ms,
-            prune_ms,
-            ffi_started.elapsed().as_secs_f64() * 1000.0,
-            search_by_family,
-            top_search_times,
-            applied_by_rule,
-            context.runner.stop_reason,
-        );
-    }
 
     let iterations = context
         .runner
@@ -658,22 +473,12 @@ pub unsafe extern "C" fn egraph_extract_best_batch(
     ids_ptr: *const u32,
     num_ids: u32,
 ) -> *const c_char {
-    let timing = timing_enabled();
-    let started = timing.then(Instant::now);
     let mut context = ManuallyDrop::new(Box::from_raw(ptr));
-    let egraph_nodes = timing.then(|| context.runner.egraph.total_size());
-    let egraph_classes = timing.then(|| context.runner.egraph.number_of_classes());
-    let mut costs_ms = 0.0;
-    let mut best_nodes_ms = 0.0;
     if context.best.is_none() {
-        let costs_started = timing.then(Instant::now);
         let best = {
             let extractor =
                 Extractor::new(&context.runner.egraph, AltCost::new(&context.runner.egraph));
-            costs_ms =
-                costs_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
-            let best_nodes_started = timing.then(Instant::now);
-            let best = context
+            context
                 .runner
                 .egraph
                 .classes()
@@ -682,14 +487,10 @@ pub unsafe extern "C" fn egraph_extract_best_batch(
                     let best = extractor.find_best_node(eclass.id).clone();
                     (usize::from(eclass.id) as u32, (cost, best))
                 })
-                .collect::<HashMap<_, _>>();
-            best_nodes_ms =
-                best_nodes_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
-            best
+                .collect::<HashMap<_, _>>()
         };
         context.best = Some(best);
     }
-    let roots_started = timing.then(Instant::now);
     let ids = slice::from_raw_parts(ids_ptr, num_ids as usize);
     let mut expr = RecExpr::default();
     let mut seen = HashMap::new();
@@ -714,10 +515,6 @@ pub unsafe extern "C" fn egraph_extract_best_batch(
             }
         })
         .collect::<Vec<_>>();
-    let roots_ms = roots_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
-    let missing_roots = roots.iter().filter(|root| root.is_none()).count();
-    let expr_nodes = expr.as_ref().len();
-    let serialize_started = timing.then(Instant::now);
     let roots = roots
         .iter()
         .map(|root| match root {
@@ -733,28 +530,6 @@ pub unsafe extern "C" fn egraph_extract_best_batch(
         .collect::<Vec<_>>()
         .join(" ");
     let output = format!("(({}) ({}))", roots, nodes);
-    let output_bytes = output.len();
     let output = CString::new(output).unwrap();
-    let serialize_ms =
-        serialize_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
-    if let (Some(started), Some(egraph_nodes), Some(egraph_classes)) =
-        (started, egraph_nodes, egraph_classes)
-    {
-        eprintln!(
-            "EGG_TIMING batch_extract roots={} missing_roots={} nodes={} classes={} best_nodes={} expr_nodes={} costs_ms={:.3} best_nodes_ms={:.3} roots_ms={:.3} serialize_ms={:.3} output_bytes={} total_ms={:.3}",
-            num_ids,
-            missing_roots,
-            egraph_nodes,
-            egraph_classes,
-            context.best.as_ref().unwrap().len(),
-            expr_nodes,
-            costs_ms,
-            best_nodes_ms,
-            roots_ms,
-            serialize_ms,
-            output_bytes,
-            started.elapsed().as_secs_f64() * 1000.0,
-        );
-    }
     CString::into_raw(output)
 }
