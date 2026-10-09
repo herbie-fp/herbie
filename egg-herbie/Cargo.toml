@@ -5,7 +5,8 @@ authors = [ "Oliver Flatt <oflatt@gmail.com>", "Max Willsey <me@mwillsey.com>" ]
 edition = "2021"
 
 [dependencies]
-egg = { git = "https://github.com/egraphs-good/egg.git", rev = "6f2ac1ee72d0ec6b51d12c9ca59e94ada6615e87" }
+# Avoid architecture-dependent e-graph traversal and rewrite ordering.
+egg = { git = "https://github.com/egraphs-good/egg.git", rev = "fb6167957beb5dd7c784121459e08ebd1ccb1a00", features = ["deterministic"] }
 
 log = "0.4"
 libc = "0.2.125"
