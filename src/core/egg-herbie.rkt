@@ -159,6 +159,8 @@
   (define repr->leaf-classes (make-hash))
   (define repr->marker-ids (make-hash))
   (define id->enodes (make-hash))
+  (define repr-order '())
+  (define id-order '())
   (define pending (make-queue))
   (for ([id (in-list (remove-duplicates (map (curry egraph_find ptr) root-ids)))])
     (enqueue! pending id))
@@ -168,14 +170,18 @@
       (unless (hash-has-key? id->enodes id)
         (define enodes (egraph-get-eclass ptr id))
         (hash-set! id->enodes id enodes)
+        (set! id-order (cons id id-order))
         (for* ([enode (in-vector enodes)]
                #:when (pair? enode)
                [child-id (in-u32vector (cdr enode))])
           (enqueue! pending (egraph_find ptr child-id))))
       (loop)))
-  (for ([(id enodes) (in-hash id->enodes)])
+  (for ([id (in-list (reverse id-order))])
+    (define enodes (hash-ref id->enodes id))
     (define reprs-for-id (remove-duplicates (append-map enode-reprs (vector->list enodes))))
     (for ([repr (in-list reprs-for-id)])
+      (unless (hash-has-key? repr->ids repr)
+        (set! repr-order (cons repr repr-order)))
       (hash-update! repr->ids repr (lambda (ids) (cons id ids)) '())
       (for ([leaf (in-vector enodes)]
             #:when (or (number? leaf)
@@ -195,7 +201,10 @@
                   (egraph_find ptr root-id)
                   (lambda (lower-idss) (cons lower-ids lower-idss))
                   '()))
-  (for ([(repr ids) (in-hash repr->ids)])
+  ;; Hash iteration order affects egg's insertion order and can change which
+  ;; equal-cost expression extraction picks, so preserve the traversal order.
+  (for ([repr (in-list (reverse repr-order))])
+    (define ids (reverse (hash-ref repr->ids repr)))
     (define marker-ids
       (egraph_seed_do_lower ptr (symbol->string (do-lower-op repr)) (list->u32vector ids)))
     (define marker-ids-by-id (make-hash))
@@ -210,7 +219,9 @@
 
   ;; Apply leaf lowerings directly: each concrete leaf already has a known
   ;; marker e-class, so running one search per leaf only rescans that index.
-  (for ([(repr leaf-classes) (in-hash repr->leaf-classes)])
+  (for ([repr (in-list (reverse repr-order))]
+        #:when (hash-has-key? repr->leaf-classes repr))
+    (define leaf-classes (reverse (hash-ref repr->leaf-classes repr)))
     (for ([leaf-class (in-list (remove-duplicates leaf-classes))])
       (define leaf (car leaf-class))
       (define id (cdr leaf-class))
