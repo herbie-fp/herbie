@@ -75,9 +75,8 @@ impl IterationData<Math, ConstantFold> for IterData {
         let total_started = timing.then(Instant::now);
         let extractor_started = timing.then(Instant::now);
         let extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
-        let extractor_ms = extractor_started.map_or(0.0, |started| {
-            started.elapsed().as_secs_f64() * 1000.0
-        });
+        let extractor_ms =
+            extractor_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
         let roots_started = timing.then(Instant::now);
         let extracted = runner
             .roots

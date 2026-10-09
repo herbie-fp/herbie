@@ -51,7 +51,10 @@ where
         stats.0 += started.elapsed().as_secs_f64() * 1000.0;
         stats.1 += 1;
         stats.2 += matches.len();
-        stats.3 += matches.iter().map(|matched| matched.substs.len()).sum::<usize>();
+        stats.3 += matches
+            .iter()
+            .map(|matched| matched.substs.len())
+            .sum::<usize>();
         matches
     }
 
@@ -162,7 +165,10 @@ pub unsafe extern "C" fn egraph_seed_do_lower(
             .runner
             .egraph
             .add(Math::from_op(f, vec![spec_id]).unwrap());
-        std::ptr::write(output_ptr.offset(i as isize), usize::from(do_lower_id) as u32);
+        std::ptr::write(
+            output_ptr.offset(i as isize),
+            usize::from(do_lower_id) as u32,
+        );
     }
     if let (Some(started), Some(nodes_before)) = (started, nodes_before) {
         eprintln!(
@@ -191,10 +197,7 @@ pub unsafe extern "C" fn egraph_add_node_to_eclass(
         .collect();
     let mut context = ManuallyDrop::new(Box::from_raw(ptr));
     context.best = None;
-    let node_id = context
-        .runner
-        .egraph
-        .add(Math::from_op(f, ids).unwrap());
+    let node_id = context.runner.egraph.add(Math::from_op(f, ids).unwrap());
     context
         .runner
         .egraph
@@ -218,10 +221,7 @@ pub unsafe extern "C" fn egraph_add_node_to_eclass_with_reason(
         .collect();
     let mut context = ManuallyDrop::new(Box::from_raw(ptr));
     context.best = None;
-    let node_id = context
-        .runner
-        .egraph
-        .add(Math::from_op(f, ids).unwrap());
+    let node_id = context.runner.egraph.add(Math::from_op(f, ids).unwrap());
     context
         .runner
         .egraph
@@ -306,12 +306,10 @@ pub unsafe extern "C" fn egraph_run(
             .filter(|(name, _, _)| name.contains("lower"))
             .count();
         let rules: Vec<Rewrite> = math::mk_rules(&ffi_tuples);
-        parse_ms = parse_started
-            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        parse_ms = parse_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
         context.rules = rules;
 
-        let search_times_for_scheduler =
-            timing.then(|| Rc::new(RefCell::new(HashMap::new())));
+        let search_times_for_scheduler = timing.then(|| Rc::new(RefCell::new(HashMap::new())));
         search_times = search_times_for_scheduler.clone();
         let runner_started = timing.then(Instant::now);
         context.runner = match (timing, simple_scheduler) {
@@ -324,9 +322,7 @@ pub unsafe extern "C" fn egraph_run(
                 search_times: Rc::clone(search_times_for_scheduler.as_ref().unwrap()),
             }),
             (false, true) => context.runner.with_scheduler(SimpleScheduler),
-            (false, false) => {
-                context.runner.with_scheduler(BackoffScheduler::default())
-            }
+            (false, false) => context.runner.with_scheduler(BackoffScheduler::default()),
         };
 
         context.runner = context
@@ -342,8 +338,7 @@ pub unsafe extern "C" fn egraph_run(
                 }
             })
             .run(&context.rules);
-        runner_ms = runner_started
-            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        runner_ms = runner_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
     }
 
     context.best = None;
@@ -359,8 +354,7 @@ pub unsafe extern "C" fn egraph_run(
             eclass.nodes.retain(|n| n.is_leaf());
         }
     });
-    let prune_ms = prune_started
-        .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+    let prune_ms = prune_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
 
     if let (
         Some(ffi_started),
@@ -676,8 +670,8 @@ pub unsafe extern "C" fn egraph_extract_best_batch(
         let best = {
             let extractor =
                 Extractor::new(&context.runner.egraph, AltCost::new(&context.runner.egraph));
-            costs_ms = costs_started
-                .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+            costs_ms =
+                costs_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
             let best_nodes_started = timing.then(Instant::now);
             let best = context
                 .runner
@@ -689,8 +683,8 @@ pub unsafe extern "C" fn egraph_extract_best_batch(
                     (usize::from(eclass.id) as u32, (cost, best))
                 })
                 .collect::<HashMap<_, _>>();
-            best_nodes_ms = best_nodes_started
-                .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+            best_nodes_ms =
+                best_nodes_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
             best
         };
         context.best = Some(best);
@@ -707,18 +701,20 @@ pub unsafe extern "C" fn egraph_extract_best_batch(
             if cost == usize::MAX {
                 None
             } else {
-                Some((cost, build_best(
-                    &context.runner.egraph,
-                    context.best.as_ref().unwrap(),
-                    &mut expr,
-                    &mut seen,
-                    id,
-                )))
+                Some((
+                    cost,
+                    build_best(
+                        &context.runner.egraph,
+                        context.best.as_ref().unwrap(),
+                        &mut expr,
+                        &mut seen,
+                        id,
+                    ),
+                ))
             }
         })
         .collect::<Vec<_>>();
-    let roots_ms = roots_started
-        .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+    let roots_ms = roots_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
     let missing_roots = roots.iter().filter(|root| root.is_none()).count();
     let expr_nodes = expr.as_ref().len();
     let serialize_started = timing.then(Instant::now);
@@ -739,8 +735,8 @@ pub unsafe extern "C" fn egraph_extract_best_batch(
     let output = format!("(({}) ({}))", roots, nodes);
     let output_bytes = output.len();
     let output = CString::new(output).unwrap();
-    let serialize_ms = serialize_started
-        .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+    let serialize_ms =
+        serialize_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
     if let (Some(started), Some(egraph_nodes), Some(egraph_classes)) =
         (started, egraph_nodes, egraph_classes)
     {
