@@ -126,9 +126,13 @@
     (egraph_add_root ptr v-id)
     v-id))
 
-(define (seed-do-lower-eclasses! ptr ctx root-ids)
+(define (seed-do-lower-eclasses! ptr ctx root-ids [root-reprs #f])
   (define reprs (platform-reprs (*active-platform*)))
-  (define real-reprs (filter (lambda (repr) (equal? (representation-type repr) 'real)) reprs))
+  (define real-reprs
+    (filter (lambda (repr)
+              (and (equal? (representation-type repr) 'real)
+                   (or (not root-reprs) (member repr root-reprs))))
+            reprs))
   (define bool-reprs (filter (lambda (repr) (equal? (representation-type repr) 'bool)) reprs))
   (define array-reprs (filter array-representation? reprs))
   (define (type-reprs type)
@@ -601,7 +605,7 @@
       (iteration-data-num-nodes (last (if (empty? iter-data6) iter-data3 iter-data6)))))
   (values initial-size final-size results))
 
-(define (egraph-run-schedule block vs schedule ctx)
+(define (egraph-run-schedule block vs schedule ctx root-reprs)
   ; allocate the e-graph
   (define egg-graph (egraph_create))
 
@@ -627,7 +631,7 @@
            (define rules (convert-rules (platform-lifting-rules)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['lower
-           (define lower-roots* (seed-do-lower-eclasses! egg-graph ctx root-ids))
+           (define lower-roots* (seed-do-lower-eclasses! egg-graph ctx root-ids root-reprs))
            (set! lower-roots lower-roots*)
            (define rules (convert-rules (platform-do-lowering-rules)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
@@ -688,7 +692,7 @@
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
 ;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
 ;;  - `lower`: seed and run do-lower rules for 1 iteration
-(define (make-egraph block vs schedule ctx)
+(define (make-egraph block vs schedule ctx #:root-reprs [root-reprs #f])
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -696,7 +700,8 @@
     (unless (memq step '(lift lower unsound rewrite))
       (oops! "unknown schedule step `~a`" step)))
 
-  (define-values (root-ids lower-roots egg-graph) (egraph-run-schedule block vs schedule ctx))
+  (define-values (root-ids lower-roots egg-graph)
+    (egraph-run-schedule block vs schedule ctx root-reprs))
 
   ; make the runner
   (egg-runner block schedule ctx root-ids lower-roots egg-graph))
