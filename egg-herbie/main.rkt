@@ -11,6 +11,7 @@
          egraph_add_node
          egraph_seed_do_lower
          egraph_add_node_to_eclass
+         egraph_add_node_to_eclass_with_reason
          egraph_run
          egraph_copy
          egraph_get_stop_reason
@@ -186,6 +187,16 @@
                       [f : _rust/string]
                       [ids : _u32vector]
                       [_uint = (u32vector-length ids)]
+                      ->
+                      _void))
+
+(define-eggmath egraph_add_node_to_eclass_with_reason
+                (_fun [p : _egraph-pointer]
+                      [class-id : _uint]
+                      [f : _rust/string]
+                      [ids : _u32vector]
+                      [_uint = (u32vector-length ids)]
+                      [reason : _rust/string]
                       ->
                       _void))
 

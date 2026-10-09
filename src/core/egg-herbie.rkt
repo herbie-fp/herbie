@@ -152,7 +152,8 @@
          [(operator-exists? f) (type-reprs (operator-info f 'otype))]
          [else '()])]))
   (define repr->ids (make-hash))
-  (define repr->leaves (make-hash))
+  (define repr->leaf-classes (make-hash))
+  (define repr->marker-ids (make-hash))
   (define id->enodes (make-hash))
   (define pending (make-queue))
   (for ([id (in-list (remove-duplicates (map (curry egraph_find ptr) root-ids)))])
@@ -175,7 +176,10 @@
       (for ([leaf (in-vector enodes)]
             #:when (or (number? leaf)
                        (and (symbol? leaf) (string-prefix? (symbol->string leaf) "$var"))))
-        (hash-update! repr->leaves repr (lambda (leaves) (cons leaf leaves)) '()))))
+        (hash-update! repr->leaf-classes
+                      repr
+                      (lambda (leaf-classes) (cons (cons leaf id) leaf-classes))
+                      '()))))
 
   (define root-lower-ids
     (for/list ([_ (in-list root-ids)])
@@ -190,30 +194,36 @@
   (for ([(repr ids) (in-hash repr->ids)])
     (define marker-ids
       (egraph_seed_do_lower ptr (symbol->string (do-lower-op repr)) (list->u32vector ids)))
+    (define marker-ids-by-id (make-hash))
+    (hash-set! repr->marker-ids repr marker-ids-by-id)
     (for ([id (in-list ids)]
           [marker-id (in-u32vector marker-ids)])
+      (hash-set! marker-ids-by-id id marker-id)
       (define root-lower-id (hash-ref root-id->lower-ids id #f))
       (when root-lower-id
         (for ([lower-ids (in-list root-lower-id)])
           (hash-set! lower-ids repr marker-id)))))
 
-  ;; Egglog has explicit rules for lowering constants and variables. Egg can
-  ;; match concrete leaves directly, so generate the equivalent rules for the
-  ;; leaves reachable from this run.
-  (define leaf-rules
-    (append*
-     (for/list ([(repr leaves) (in-hash repr->leaves)])
-       (for/list ([leaf (in-list (remove-duplicates leaves))])
-         (define typed-op
-           (if (number? leaf)
-               (typed-constant-op repr)
-               (typed-variable-op repr)))
-         (make-ffi-rule
-          (format "lower-~a-~a-~a" (if (number? leaf) 'constant 'variable) (repr-token repr) leaf)
-          (~s (list (do-lower-op repr) leaf))
-          (~s (list typed-op leaf)))))))
+  ;; Apply leaf lowerings directly: each concrete leaf already has a known
+  ;; marker e-class, so running one search per leaf only rescans that index.
+  (for ([(repr leaf-classes) (in-hash repr->leaf-classes)])
+    (for ([leaf-class (in-list (remove-duplicates leaf-classes))])
+      (define leaf (car leaf-class))
+      (define id (cdr leaf-class))
+      (define marker-id (hash-ref (hash-ref repr->marker-ids repr) id))
+      (define typed-op
+        (if (number? leaf)
+            (typed-constant-op repr)
+            (typed-variable-op repr)))
+      (define rule-name
+        (format "lower-~a-~a-~a" (if (number? leaf) 'constant 'variable) (repr-token repr) leaf))
+      (egraph_add_node_to_eclass_with_reason ptr
+                                             marker-id
+                                             (~s typed-op)
+                                             (list->u32vector (list id))
+                                             rule-name)))
 
-  (values root-lower-ids leaf-rules))
+  root-lower-ids)
 
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run ptr ffi-rules node-limit iter-limit scheduler)
@@ -617,10 +627,10 @@
            (define rules (convert-rules (platform-lifting-rules)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['lower
-           (define-values (lower-roots* leaf-rules) (seed-do-lower-eclasses! egg-graph ctx root-ids))
+           (define lower-roots* (seed-do-lower-eclasses! egg-graph ctx root-ids))
            (set! lower-roots lower-roots*)
            (define rules (convert-rules (platform-do-lowering-rules)))
-           (egraph-run-rules egg-graph (append leaf-rules rules) #:iter-limit 1 #:scheduler 'simple)]
+           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['unsound
            (define rules (convert-rules (*sound-removal-rules*)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]

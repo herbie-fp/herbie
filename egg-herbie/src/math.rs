@@ -6,6 +6,8 @@ use num_integer::Integer;
 use num_rational::Ratio;
 use num_traits::{One, Pow, Signed, Zero};
 use std::str::FromStr;
+use std::sync::OnceLock;
+use std::time::Instant;
 
 pub type Constant = num_rational::BigRational;
 pub type RecExpr = egg::RecExpr<Math>;
@@ -14,6 +16,11 @@ pub type EGraph = egg::EGraph<Math, ConstantFold>;
 pub type Rewrite = egg::Rewrite<Math, ConstantFold>;
 pub type Runner = egg::Runner<Math, ConstantFold, IterData>;
 pub type Iteration = egg::Iteration<IterData>;
+
+pub fn timing_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("HERBIE_EGRAPH_TIMING").is_some())
+}
 
 pub struct IterData {
     pub extracted: Vec<(Id, Extracted)>,
@@ -64,7 +71,14 @@ impl<'a> CostFunction<Math> for AltCost<'a> {
 
 impl IterationData<Math, ConstantFold> for IterData {
     fn make(runner: &Runner) -> Self {
+        let timing = timing_enabled();
+        let total_started = timing.then(Instant::now);
+        let extractor_started = timing.then(Instant::now);
         let extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
+        let extractor_ms = extractor_started.map_or(0.0, |started| {
+            started.elapsed().as_secs_f64() * 1000.0
+        });
+        let roots_started = timing.then(Instant::now);
         let extracted = runner
             .roots
             .iter()
@@ -74,6 +88,18 @@ impl IterationData<Math, ConstantFold> for IterData {
                 (root, ext)
             })
             .collect();
+        if let Some(started) = total_started {
+            eprintln!(
+                "EGG_TIMING iteration_data nodes={} classes={} roots={} costs_ms={:.3} root_exprs_ms={:.3} total_ms={:.3}",
+                runner.egraph.total_size(),
+                runner.egraph.number_of_classes(),
+                runner.roots.len(),
+                extractor_ms,
+                roots_started
+                    .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0),
+                started.elapsed().as_secs_f64() * 1000.0,
+            );
+        }
         Self { extracted }
     }
 }
