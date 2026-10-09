@@ -257,7 +257,7 @@ impl Analysis<Math> for ConstantFold {
         if let Some((c, (pat, subst))) = class.data.clone() {
             egraph.union_instantiations(
                 &pat,
-                &format!("{}", c).parse().unwrap(),
+                &format!("{c}").parse().unwrap(),
                 &subst,
                 "metadata-eval".to_string(),
             );
