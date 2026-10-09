@@ -51,10 +51,7 @@
             (if (flag-set? 'reduce 'branch-expressions)
                 (block-reachable block (cons initial-v (map alt-expr sorted)))
                 var-vs)))
-  (define candidates (branch-candidates block branch-vs err-cols pcontext))
-  (define var-candidates (filter (lambda (c) (member (candidate-expr c) var-vs)) candidates))
-  (define branches
-    (remove-duplicates (append var-candidates (list (argmin candidate-score candidates)))))
+  (define branches (branch-candidates block branch-vs pcontext))
   (define pts-vec (pcontext-points pcontext))
 
   ;; For timeline
@@ -105,10 +102,10 @@
 (define (option-error ppt)
   (- (pareto-point-error ppt) (length (option-split-indices (pareto-point-data ppt)))))
 
-;; A branch expression, the point order along it, and its optimal split using every alt.
-(struct candidate (expr sorted-indices can-split-vec splits score))
+;; A branch expression, the point order along it, and where splitting is legal.
+(struct candidate (expr sorted-indices can-split-vec))
 
-(define (branch-candidates block vs err-cols pcontext)
+(define (branch-candidates block vs pcontext)
   ;; Expressions that sort the points identically give identical splits.
   (define orders
     (remove-duplicates (for/list ([v (in-list vs)]
@@ -117,8 +114,7 @@
                        #:key cdr))
   (for/list ([order (in-list orders)])
     (match-define (cons v (cons sorted-indices can-split-vec)) order)
-    (define-values (splits score) (infer-option err-cols sorted-indices can-split-vec))
-    (candidate v sorted-indices can-split-vec splits score)))
+    (candidate v sorted-indices can-split-vec)))
 
 (define (baseline-errors-score err-cols count)
   (for/fold ([best +inf.0]) ([err-col (in-list (take err-cols count))])
@@ -159,11 +155,12 @@
   (cons order can-split-vec))
 
 (define (branch-options c alts-vec err-cols pts-vec)
-  (match-define (candidate v sorted-indices can-split-vec splits score) c)
+  (match-define (candidate v sorted-indices can-split-vec) c)
   (define pts*
     (for/list ([i (in-vector sorted-indices)])
       (vector-ref pts-vec i)))
 
+  (define-values (splits score) (infer-option err-cols sorted-indices can-split-vec))
   (define-values (splitss scores)
     (infer-option-prefixes err-cols sorted-indices can-split-vec splits score))
 
@@ -188,14 +185,14 @@
 
   (define (test-regimes expr goal)
     (define-values (block vs) (progs->block (list expr) #:ctx ctx))
-    (define c (first (branch-candidates block vs err-cols pctx)))
+    (define c (first (branch-candidates block vs pctx)))
     (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
            (pareto-point-data (first (branch-options c (list->vector alts) err-cols pts-vec)))
            goal))
 
   (define (test-regimes/prefixes expr goals)
     (define-values (block vs) (progs->block (list expr) #:ctx ctx))
-    (define c (first (branch-candidates block vs err-cols pctx)))
+    (define c (first (branch-candidates block vs pctx)))
     (define options
       (map pareto-point-data (reverse (branch-options c (list->vector alts) err-cols pts-vec))))
     (for ([goal (in-list goals)]
