@@ -99,7 +99,7 @@
   (define runner
     (cond
       [(flag-set? 'generate 'egglog) (make-egglog-runner spec-block impl-specs schedule (*context*))]
-      [else (make-egraph spec-block impl-specs schedule (*context*))]))
+      [else (make-egraph spec-block impl-specs schedule (*context*) #:root-reprs reprs)]))
 
   (define valss
     (if (flag-set? 'generate 'egglog)
