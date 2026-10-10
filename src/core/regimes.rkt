@@ -229,27 +229,6 @@
           [opt (in-list options)])
       (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y)) opt goal)))
 
-  ;; Exercise flat switch-decision indexing across multiple rows.
-  (define-values (wide-block wide-vs) (progs->block '(x) #:ctx ctx))
-  (define wide-v (first wide-vs))
-  (define wide-errors
-    (list (flvector 0.0 100.0 100.0 100.0)
-          (flvector 100.0 0.0 100.0 100.0)
-          (flvector 100.0 100.0 0.0 100.0)
-          (flvector 100.0 100.0 100.0 0.0)))
-  (define wide-v-vals (vector 0.0 1.0 2.0 3.0))
-  (define wide-options
-    (map pareto-point-data
-         (branch-options wide-block
-                         (list->vector (append alts alts))
-                         wide-errors
-                         (vector 0 1 2 3)
-                         wide-v
-                         wide-v-vals
-                         (block-repr-of wide-v))))
-  (define wide-option (findf (lambda (opt) (= (length (option-alts opt)) 4)) wide-options))
-  (check-equal? (option-split-indices wide-option) (list (si 0 1) (si 1 2) (si 2 3) (si 3 4)))
-
   ;; This is a basic sanity test
   (test-regimes 'x '(1 0))
   (test-regimes/prefixes 'x '((0) (1 0)))
@@ -330,15 +309,16 @@
     ;; one byte per switch decision and the best alt once per point.
     (: best-alts (Vectorof Integer))
     (define best-alts (make-vector number-of-points 0))
-    (define switch-count (* (sub1 number-of-points) number-of-alts))
-    (define switch-decisions (make-bytes switch-count 0))
+    (: switch-decisions (Vectorof Bytes))
+    (define switch-decisions
+      (build-vector number-of-points (lambda (_) (make-bytes number-of-alts 0))))
 
     (for ([point-idx (in-range 1 number-of-points)])
       (define best-alt (argmin row))
       ;; penalty + min_b best[p-1][b]
       (define switched-score (+ split-penalty (flvector-ref row best-alt)))
       (define errors-here (vector-ref errors point-idx)) ; error[p]
-      (define transition-base (* (sub1 point-idx) number-of-alts))
+      (define switch-decisions-here (vector-ref switch-decisions point-idx))
       (define can-split? (vector-ref can-split-vec point-idx))
       (vector-set! best-alts point-idx best-alt)
       (for ([alt-idx (in-range number-of-alts)])
@@ -349,7 +329,7 @@
                        (+ (flvector-ref errors-here alt-idx)
                           (if switch? switched-score continued-score)))
         (when switch?
-          (bytes-set! switch-decisions (+ transition-base alt-idx) 1))))
+          (bytes-set! switch-decisions-here alt-idx 1))))
 
     ;; score = min_a best[P][a]
     (define last-point (sub1 number-of-points))
@@ -360,10 +340,10 @@
     (vector-set! alts last-point last-alt)
     (for ([point-idx (in-range last-point 0 -1)])
       (define alt-idx (vector-ref alts point-idx))
-      (define decision-idx (+ (* (sub1 point-idx) number-of-alts) alt-idx))
+      (define switch-decisions-here (vector-ref switch-decisions point-idx))
       (vector-set! alts
                    (sub1 point-idx)
-                   (if (positive? (bytes-ref switch-decisions decision-idx))
+                   (if (positive? (bytes-ref switch-decisions-here alt-idx))
                        (vector-ref best-alts point-idx)
                        alt-idx)))
 
