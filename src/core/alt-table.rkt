@@ -108,7 +108,7 @@
 ;; before iterating so search decisions do not depend on table iteration order.
 ;;
 (define (order-altns altns)
-  (sort altns expr<? #:key alt-expr))
+  (sort altns val-id<? #:key alt-expr))
 
 (define (atab-active-alts atab)
   (order-altns (hash-keys (alt-table-alt->point-idxs atab))))
@@ -175,7 +175,7 @@
         (cond
           [(< alt1-cost alt2-cost) #f]
           [(< alt2-cost alt1-cost) #t]
-          [else (expr<? (alt-expr alt1) (alt-expr alt2))])])]))
+          [else (val-id<? (alt-expr alt1) (alt-expr alt2))])])]))
 
 (define (atab-prune atab)
   (define sc (atab->set-cover atab))

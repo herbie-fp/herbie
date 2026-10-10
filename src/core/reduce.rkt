@@ -2,8 +2,7 @@
 
 (require "../syntax/types.rkt"
          "../syntax/block.rkt"
-         "../utils/common.rkt"
-         "programs.rkt")
+         "../utils/common.rkt")
 
 (provide block-reduce)
 
@@ -243,7 +242,7 @@
               (for ([(k v) (in-hash h)]
                     #:when (not (= v 0)))
                 (sow (cons v k))))
-        expr<?
+        val-id<?
         #:key cdr))
 
 (define (combine-mterms terms)
@@ -255,7 +254,7 @@
                       (for ([(k v) (in-hash h)]
                             #:unless (= v 0))
                         (sow (cons v k))))
-                expr<?
+                val-id<?
                 #:key cdr))))
 
 (define (aterm->expr term)
