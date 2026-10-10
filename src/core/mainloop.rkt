@@ -159,7 +159,7 @@
     (define (best-alt alt1 alt2)
       (define cost1 (block-cost (alt-expr alt1)))
       (define cost2 (block-cost (alt-expr alt2)))
-      (if (or (< cost1 cost2) (and (= cost1 cost2) (expr<? (alt-expr alt1) (alt-expr alt2))))
+      (if (or (< cost1 cost2) (and (= cost1 cost2) (val-id<? (alt-expr alt1) (alt-expr alt2))))
           alt1
           alt2))
 
@@ -169,7 +169,7 @@
       (define key (cons (get-starting-expr altn) signature))
       (hash-update! groups key (curry best-alt altn) altn))
 
-    (sort (hash-values groups) expr<? #:key alt-expr))
+    (sort (hash-values groups) val-id<? #:key alt-expr))
 
   (define (compute-referrers parents root)
     (define seen (mutable-seteq))
