@@ -31,7 +31,7 @@ egg-herbie:
 
 egglog-herbie:
 # Keep egglog's release artifacts in the user cache for fast rebuilds.
-	cargo install --locked --target-dir "$(HOME)/.cache/herbie/egglog-target" --git "https://github.com/egraphs-good/egglog-experimental" egglog-experimental
+	cargo install --locked --target-dir "$(HOME)/.cache/herbie/egglog-target" --git "https://github.com/egraphs-good/egglog-experimental" --rev "72e2aa39292fcf3882738072b0caa2b897d1efd0" egglog-experimental
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/
