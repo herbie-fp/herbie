@@ -1,9 +1,6 @@
 #lang racket
 
-(require math/number-theory)
-(require "../utils/common.rkt"
-         "../utils/dvector.rkt"
-         "../syntax/syntax.rkt"
+(require "../utils/dvector.rkt"
          "../syntax/types.rkt"
          "../syntax/block.rkt"
          "programs.rkt")
@@ -431,20 +428,21 @@
   (define normalized (modulo-series var 3 num))
   (define offset* (series-offset normalized))
   (define coeffs* (series-function normalized))
-  (make-series
-   (/ offset* 3)
-   (λ (f n)
-     (if (zero? n)
-         `(cbrt ,(coeffs* 0))
-         (let ([terms (for/list ([k (in-range 1 (add1 n))]
+  (make-series (/ offset* 3)
+               (λ (f n)
+                 (cond
+                   [(zero? n) `(cbrt ,(coeffs* 0))]
+                   [else
+                    (define terms
+                      (for/list ([k (in-range 1 (add1 n))]
                                  #:do [(define scale (- (* 4 k) (* 3 n)))
                                        (define ak (coeffs* k))
                                        (define ynk (f (- n k)))]
                                  #:unless (or (zero-value? scale) (zero-value? ak) (zero-value? ynk)))
-                        `(* ,scale ,ak ,ynk))])
-           (if (null? terms)
-               0
-               `(/ ,(make-sum terms) (* 3 ,n ,(coeffs* 0)))))))))
+                        `(* ,scale ,ak ,ynk)))
+                    (if (null? terms)
+                        0
+                        `(/ ,(make-sum terms) (* 3 ,n ,(coeffs* 0))))]))))
 
 (define (taylor-fabs var term)
   (define normalized (normalize-series term))

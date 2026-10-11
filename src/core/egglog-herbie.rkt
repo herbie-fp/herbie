@@ -1,16 +1,13 @@
 #lang racket
 
-(require racket/file
-         racket/set
+(require racket/set
          "rules.rkt"
          "../syntax/platform.rkt"
          "../syntax/platform-state.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../config.rkt"
          "../syntax/block.rkt"
          "../utils/common.rkt"
-         "../utils/errors.rkt"
          "egglog-subprocess.rkt")
 
 (provide (struct-out egglog-runner)
@@ -189,12 +186,13 @@
 ;; an order of magnitude).
 (define (egglog-multi-extract subproc variants extract-bindings reprs output-block)
   (define response
-    (egglog-send/read subproc
-                      `(multi-extract ,variants
-                                      :dag
-                                      ,@(for/list ([n (in-list extract-bindings)]
-                                                   [repr (in-list reprs)])
-                                          `(do-lower (herbie-const ,n) ,(egglog-repr-token repr))))))
+    (first (first (egglog-send subproc
+                               `(multi-extract ,variants
+                                               :dag
+                                               ,@(for/list ([n (in-list extract-bindings)]
+                                                            [repr (in-list reprs)])
+                                                   `(do-lower (herbie-const ,n)
+                                                              ,(egglog-repr-token repr))))))))
   (match-define `(let ,dag-bindings ,dag-body) response)
   (egglog-dag->blockrefs dag-bindings dag-body output-block))
 

@@ -11,7 +11,6 @@
          "egg-herbie.rkt"
          "points.rkt"
          "programs.rkt"
-         "rules.rkt"
          "taylor-cover.rkt")
 
 (provide find-preprocessing

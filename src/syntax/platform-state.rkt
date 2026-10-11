@@ -6,8 +6,6 @@
          "../utils/timeline.rkt"
          "platform.rkt"
          (only-in "platform-language.rkt" create-operator-impl! platform-register-implementation!)
-         "sugar.rkt"
-         "syntax.rkt"
          "types.rkt")
 
 (provide *platform-extensions*

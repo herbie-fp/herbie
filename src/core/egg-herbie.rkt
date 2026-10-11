@@ -19,7 +19,6 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../syntax/block.rkt"
-         "programs.rkt"
          "rules.rkt")
 
 (provide (struct-out egg-runner)

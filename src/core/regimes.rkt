@@ -38,8 +38,8 @@
   [(define (write-proc opt port mode)
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
-;; CONSIDER: move start-prog and the "branch-vs" computation into caller.
-(define (pareto-regimes block sorted start-prog pcontext spec-block)
+;; CONSIDER: move initial-v and the "branch-vs" computation into caller.
+(define (pareto-regimes block sorted initial-v pcontext spec-block)
   (timeline-event! 'regimes)
   (define alts-vec (list->vector sorted))
   (define alt-count (vector-length alts-vec))
@@ -49,7 +49,7 @@
   (define branch-vs
     (filter real-v?
             (if (flag-set? 'reduce 'branch-expressions)
-                (critical-subexpressions block start-prog)
+                (critical-subexpressions block initial-v)
                 (map (curry block-add! block) (block-vars block)))))
 
   (define v-vals (v-values* block branch-vs pcontext))
@@ -252,11 +252,6 @@
     (define-values (block vs) (progs->block (list dot-product) #:ctx vec2-ctx))
     (check-true (set-member? (critical-subexpressions block (first vs)) (first vs)))))
 
-(define (valid-splitindices? can-split? split-indices)
-  (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
-         (and (> pidx 0) (list-ref can-split? pidx)))
-       (= (si-pidx (last split-indices)) (length can-split?))))
-
 (module core typed/racket
   (provide (struct-out si)
            infer-option-prefixes)
@@ -310,17 +305,22 @@
     ;; row = best[p-1] going in to point p, best[p] coming out; updated in place
     (: row FlVector)
     (define row (flvector-copy (vector-ref errors 0))) ; best[0][a] = error[0][a]
-    ;; previous-alts[p][a] = the alt at p-1 on the best path ending on a at p
-    (: previous-alts (Vectorof (Vectorof Integer)))
-    (define previous-alts (build-vector number-of-points (lambda (_) (make-vector number-of-alts 0))))
+    ;; A predecessor is either the same alt or the row's best alt, so store
+    ;; one byte per switch decision and the best alt once per point.
+    (: best-alts (Vectorof Integer))
+    (define best-alts (make-vector number-of-points 0))
+    (: switch-decisions (Vectorof Bytes))
+    (define switch-decisions
+      (build-vector number-of-points (lambda (_) (make-bytes number-of-alts 0))))
 
     (for ([point-idx (in-range 1 number-of-points)])
       (define best-alt (argmin row))
       ;; penalty + min_b best[p-1][b]
       (define switched-score (+ split-penalty (flvector-ref row best-alt)))
       (define errors-here (vector-ref errors point-idx)) ; error[p]
-      (define previous-here (vector-ref previous-alts point-idx))
+      (define switch-decisions-here (vector-ref switch-decisions point-idx))
       (define can-split? (vector-ref can-split-vec point-idx))
+      (vector-set! best-alts point-idx best-alt)
       (for ([alt-idx (in-range number-of-alts)])
         (define continued-score (flvector-ref row alt-idx)) ; best[p-1][a]
         (define switch? (and can-split? (< switched-score continued-score)))
@@ -328,7 +328,8 @@
                        alt-idx
                        (+ (flvector-ref errors-here alt-idx)
                           (if switch? switched-score continued-score)))
-        (vector-set! previous-here alt-idx (if switch? best-alt alt-idx))))
+        (when switch?
+          (bytes-set! switch-decisions-here alt-idx 1))))
 
     ;; score = min_a best[P][a]
     (define last-point (sub1 number-of-points))
@@ -338,9 +339,13 @@
     (define alts (make-vector number-of-points 0))
     (vector-set! alts last-point last-alt)
     (for ([point-idx (in-range last-point 0 -1)])
+      (define alt-idx (vector-ref alts point-idx))
+      (define switch-decisions-here (vector-ref switch-decisions point-idx))
       (vector-set! alts
                    (sub1 point-idx)
-                   (vector-ref (vector-ref previous-alts point-idx) (vector-ref alts point-idx))))
+                   (if (positive? (bytes-ref switch-decisions-here alt-idx))
+                       (vector-ref best-alts point-idx)
+                       alt-idx)))
 
     (define splits
       (for/list :

@@ -1,12 +1,8 @@
 #lang racket
 
-(require (only-in xml write-xexpr xexpr?)
-         (only-in fpbench core->tex supported-by-lang?)
-         json
+(require json
          math/flonum)
-(require "../core/rules.rkt"
-         "../core/compiler.rkt"
-         "../syntax/sugar.rkt"
+(require "../core/compiler.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../syntax/platform.rkt"

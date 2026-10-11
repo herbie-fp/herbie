@@ -1,11 +1,9 @@
 #lang racket
 
-(require racket/lazy-require
-         racket/runtime-path)
+(require racket/lazy-require)
 (require "config.rkt"
          "utils/multi-command-line.rkt"
-         "utils/errors.rkt"
-         "syntax/load-platform.rkt")
+         "utils/errors.rkt")
 
 ;; Define the built-in platforms to force bundling them
 (lazy-require ["api/demo.rkt" (run-demo)]
@@ -39,6 +37,10 @@
                    (~a category #:min-width 10)
                    (~a flag #:min-width 20)
                    (if (flag-set? category flag) "\u2714" "")))))
+
+(define (check-report-directory dir)
+  (when (and (directory-exists? dir) (pair? (directory-list dir)))
+    (raise-herbie-error "Output directory `~a` is not empty" dir #:url "options.html")))
 
 (module+ main
   (define quiet? #f)
@@ -150,6 +152,7 @@
    [report
     "Run Herbie on an FPCore file, producing an HTML report"
     #:args (input output)
+    (check-report-directory output)
     (make-report (list input) #:dir output #:threads threads)]
    #:args files
    (match files

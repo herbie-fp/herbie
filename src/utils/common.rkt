@@ -1,7 +1,6 @@
 #lang racket
 
-(require math/base
-         "../config.rkt")
+(require "../config.rkt")
 
 (provide reap
          drop-at
