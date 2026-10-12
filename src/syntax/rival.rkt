@@ -177,9 +177,9 @@
                  assemble-output))
 
 (define (value->readable-string x)
-  (if (flonum? x)
-      (format "#i~a" x) ; The #i explicitly means nearest float
-      (~a x)))
+  (match x
+    [(? flonum?) (format "#i~a" x)] ; The #i explicitly means nearest float
+    [(? boolean?) (~a x)]))
 
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
