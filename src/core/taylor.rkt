@@ -25,12 +25,8 @@
 (define taylor-transforms
   (let ([invert-x (λ (x) `(/ 1 ,x))]
         [exp-x (λ (x) `(exp ,x))]
-        [log-x (λ (x) `(log ,x))]
-        [ninvert-x (λ (x) `(/ 1 (neg ,x)))])
-    `((0 ,identity ,identity) (inf ,invert-x ,invert-x)
-                              (-inf ,ninvert-x ,ninvert-x)
-                              #;(exp ,exp-x ,log-x)
-                              #;(log ,log-x ,exp-x))))
+        [log-x (λ (x) `(log ,x))])
+    `((0 ,identity ,identity) (inf ,invert-x ,invert-x) #;(exp ,exp-x ,log-x) #;(log ,log-x ,exp-x))))
 
 (define (taylor-coefficients block vs vars transforms-to-try)
   (define expander (expand-taylor! block))
@@ -405,28 +401,38 @@
 
 (define (taylor-sqrt var num)
   ;(-> symbol? term? term?)
-  (define normalized (modulo-series var 2 num))
-  (define offset* (series-offset normalized))
-  (define coeffs* (series-function normalized))
-  (make-series 'sqrt
-               (/ offset* 2)
-               (λ (f n)
-                 (cond
-                   [(zero? n) `(sqrt ,(coeffs* 0))]
-                   [(= n 1) `(/ ,(coeffs* 1) (* 2 (sqrt ,(coeffs* 0))))]
-                   [(even? n)
-                    `(/ (- ,(coeffs* n)
-                           (pow ,(f (/ n 2)) 2)
-                           (+ ,@(for/list ([k (in-naturals 1)]
-                                           #:break (>= k (- n k)))
-                                  `(* 2 (* ,(f k) ,(f (- n k)))))))
-                        (* 2 ,(f 0)))]
-                   [(odd? n)
-                    `(/ (- ,(coeffs* n)
-                           (+ ,@(for/list ([k (in-naturals 1)]
-                                           #:break (>= k (- n k)))
-                                  `(* 2 (* ,(f k) ,(f (- n k)))))))
-                        (* 2 ,(f 0)))]))))
+  (define normalized (normalize-series num))
+  (define offset (series-offset normalized))
+  (define exponent-class (modulo (- offset) 4))
+  ;; A leading power 2 modulo 4 has an odd half-power, so sqrt contributes fabs(x).
+  (define (root-series offset coeffs*)
+    (make-series 'sqrt
+                 (/ offset 2)
+                 (λ (f n)
+                   (cond
+                     [(zero? n) `(sqrt ,(coeffs* 0))]
+                     [(= n 1) `(/ ,(coeffs* 1) (* 2 (sqrt ,(coeffs* 0))))]
+                     [(even? n)
+                      `(/ (- ,(coeffs* n)
+                             (pow ,(f (/ n 2)) 2)
+                             (+ ,@(for/list ([k (in-naturals 1)]
+                                             #:break (>= k (- n k)))
+                                    `(* 2 (* ,(f k) ,(f (- n k)))))))
+                          (* 2 ,(f 0)))]
+                     [(odd? n)
+                      `(/ (- ,(coeffs* n)
+                             (+ ,@(for/list ([k (in-naturals 1)]
+                                             #:break (>= k (- n k)))
+                                    `(* 2 (* ,(f k) ,(f (- n k)))))))
+                          (* 2 ,(f 0)))]))))
+  (cond
+    [(= exponent-class 2)
+     (define root-power (/ (- offset) 2))
+     (define root (root-series 0 (series-function normalized)))
+     (make-series 'sqrt (- 1 root-power) (λ (f n) `(* (fabs ,var) ,(series-ref root n))))]
+    [else
+     (define normalized* (modulo-series var 4 normalized))
+     (root-series (series-offset normalized*) (series-function normalized*))]))
 
 (define (taylor-cbrt var num)
   ;(-> symbol? term? term?)
@@ -459,14 +465,11 @@
     [(and (even? offset) (negative? a0)) (taylor-negate normalized)]
     [(and (even? offset) (positive? a0)) normalized]
     [(odd? offset)
-     (define scale-factor (adder `(* (fabs ,var) ,(if (negative? a0) -1 1))))
+     (define sign (if (negative? a0) -1 1))
      (define new-offset (add1 offset))
      (make-series 'fabs
                   new-offset
-                  (λ (f n)
-                    (if (zero? n)
-                        scale-factor
-                        (series-ref normalized (+ n (- new-offset offset))))))]
+                  (λ (f n) (adder `(* ,sign (fabs ,var) ,(series-ref normalized n)))))]
     [else #f]))
 
 (define (taylor-pow coeffs n)
@@ -608,6 +611,7 @@
       (define v (car vs*))
       (define fn (zero-series ((taylor 'x block) v)))
       (map (block-exprs block) (build-list n fn))))
+  (check-equal? (map car taylor-transforms) '(0 inf))
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
@@ -620,9 +624,18 @@
   (check-equal? (coeffs '(exp (* 2 (log x)))) '((* x x) 0 0 0 0 0 0))
   (check-equal? (coeffs '(/ 1 1)) '(1 0 0 0 0 0 0))
   (check-equal? (coeffs '(sqrt x)) '((sqrt x) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(sqrt (* x x))) '((fabs x) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(sqrt (* (* x x) (* x x)))) '(0 0 1 0 0 0 0))
+  (check-equal? (coeffs '(sqrt (* (* (* x x) (* x x)) (* x x)))) '(0 0 (fabs x) 0 0 0 0))
+  (check-equal? (coeffs '(sqrt (+ (* x x) (* (* x x) x))) #:n 4)
+                '((fabs x) (* 1/2 (fabs x)) (* -1/8 (fabs x)) (* 1/16 (fabs x))))
   (check-equal? (coeffs '(sqrt 1)) '(1 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt x)) '((cbrt x) 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt 1)) '(1 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt (* x x))) '((* (cbrt x) (cbrt x)) 0 0 0 0 0 0))
   (check-equal? (coeffs '(fabs (+ 2 x))) '(2 1 0 0 0 0 0))
-  (check-equal? (coeffs '(fabs (+ -2 x))) '(2 -1 0 0 0 0 0)))
+  (check-equal? (coeffs '(fabs (+ -2 x))) '(2 -1 0 0 0 0 0))
+  (check-equal? (coeffs '(fabs (neg x))) '((fabs x) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(fabs (* 2 x))) '((* 2 (fabs x)) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(fabs (+ (neg (* 2 x)) (* 3 (* x x)))))
+                '((* 2 (fabs x)) (* -3 (fabs x)) 0 0 0 0 0)))

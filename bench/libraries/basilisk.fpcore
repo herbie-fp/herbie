@@ -1,68 +1,68 @@
 ; -*- mode: scheme -*-
 
-(FPCore (Ecc e)
+(FPCore (Ecc ecc)
   :name "E2f"
-  :pre (and (>= e 0) (< e 1))
+  :pre (and (>= ecc 0) (< ecc 1))
   (* 2
      (atan2
-       (* (sqrt (+ 1 e)) (sin (/ Ecc 2)))
-       (* (sqrt (- 1 e)) (cos (/ Ecc 2))))))
+       (* (sqrt (+ 1 ecc)) (sin (/ Ecc 2)))
+       (* (sqrt (- 1 ecc)) (cos (/ Ecc 2))))))
 
-(FPCore (Ecc e)
+(FPCore (Ecc ecc)
   :name "E2M"
-  :pre (and (>= e 0) (< e 1))
-  (- Ecc (* e (sin Ecc))))
+  :pre (and (>= ecc 0) (< ecc 1))
+  (- Ecc (* ecc (sin Ecc))))
 
-(FPCore (f e)
+(FPCore (f ecc)
   :name "f2E"
-  :pre (and (>= e 0) (< e 1))
+  :pre (and (>= ecc 0) (< ecc 1))
   (* 2
      (atan2
-       (* (sqrt (- 1 e)) (sin (/ f 2)))
-       (* (sqrt (+ 1 e)) (cos (/ f 2))))))
+       (* (sqrt (- 1 ecc)) (sin (/ f 2)))
+       (* (sqrt (+ 1 ecc)) (cos (/ f 2))))))
 
-(FPCore (f e)
+(FPCore (f ecc)
   :name "f2H"
-  :pre (> e 1)
+  :pre (> ecc 1)
   (* 2
      (atanh
-       (* (sqrt (/ (- e 1) (+ e 1)))
+       (* (sqrt (/ (- ecc 1) (+ ecc 1)))
           (tan (/ f 2))))))
 
-(FPCore (H e)
+(FPCore (H ecc)
   :name "H2f"
-  :pre (> e 1)
+  :pre (> ecc 1)
   (* 2
      (atan
-       (* (sqrt (/ (+ e 1) (- e 1)))
+       (* (sqrt (/ (+ ecc 1) (- ecc 1)))
           (tanh (/ H 2))))))
 
-(FPCore (H e)
+(FPCore (H ecc)
   :name "H2N"
-  :pre (> e 1)
-  (- (* e (sinh H)) H))
+  :pre (> ecc 1)
+  (- (* ecc (sinh H)) H))
 
-(FPCore (M e)
+(FPCore (M ecc)
   :name "M2E"
-  :pre (and (>= e 0) (< e 1))
+  :pre (and (>= ecc 0) (< ecc 1))
   (- M
-     (/ (- (- M (* e (sin M))) M)
-        (- 1 (* e (cos M))))))
+     (/ (- (- M (* ecc (sin M))) M)
+        (- 1 (* ecc (cos M))))))
 
-(FPCore (N e)
+(FPCore (N ecc)
   :name "N2H"
-  :pre (> e 1)
+  :pre (> ecc 1)
   (- N
-     (/ (- (- (* e (sinh N)) N) N)
-        (- (* e (cosh N)) 1))))
+     (/ (- (- (* ecc (sinh N)) N) N)
+        (- (* ecc (cosh N)) 1))))
 
-(FPCore (a e)
+(FPCore (a ecc)
   :name "semi_latus_rectum"
-  (* a (- 1 (* e e))))
+  (* a (- 1 (* ecc ecc))))
 
-(FPCore (p e f)
+(FPCore (p ecc f)
   :name "orbit_radius"
-  (/ p (+ 1 (* e (cos f)))))
+  (/ p (+ 1 (* ecc (cos f)))))
 
 (FPCore (mu p)
   :name "angular_momentum"
@@ -87,24 +87,24 @@
   (* r
      (* (sin theta) (sin i))))
 
-(FPCore (mu h AN theta e AP i)
+(FPCore (mu h AN theta ecc AP i)
   :name "vVec_x"
   (* (- (/ mu h))
-     (+ (* (cos AN) (+ (sin theta) (* e (sin AP))))
-        (* (* (sin AN) (+ (cos theta) (* e (cos AP))))
+     (+ (* (cos AN) (+ (sin theta) (* ecc (sin AP))))
+        (* (* (sin AN) (+ (cos theta) (* ecc (cos AP))))
            (cos i)))))
 
-(FPCore (mu h AN theta e AP i)
+(FPCore (mu h AN theta ecc AP i)
   :name "vVec_y"
   (* (- (/ mu h))
-     (- (* (sin AN) (+ (sin theta) (* e (sin AP))))
-        (* (* (cos AN) (+ (cos theta) (* e (cos AP))))
+     (- (* (sin AN) (+ (sin theta) (* ecc (sin AP))))
+        (* (* (cos AN) (+ (cos theta) (* ecc (cos AP))))
            (cos i)))))
 
-(FPCore (mu h theta e AP i)
+(FPCore (mu h theta ecc AP i)
   :name "vVec_z"
   (* (- (/ mu h))
-     (* (- (+ (cos theta) (* e (cos AP))))
+     (* (- (+ (cos theta) (* ecc (cos AP))))
         (sin i))))
 
 (FPCore (alt)
@@ -125,13 +125,13 @@
         (pow (* v 1000) 2))
      1000))
 
-(FPCore (a e i omega f sgn J2 req)
+(FPCore (a ecc i omega f sgn J2 req)
   :name "clMeanOscMap-ap"
-  (let ([eta (sqrt (- 1 (pow e 2)))]
+  (let ([eta (sqrt (- 1 (pow ecc 2)))]
         [gamma2 (* (/ (* sgn J2) 2)
                    (pow (/ req a) 2))]
-        [a_r (/ (+ 1 (* e (cos f)))
-                (pow (sqrt (- 1 (pow e 2))) 2))])
+        [a_r (/ (+ 1 (* ecc (cos f)))
+                (pow (sqrt (- 1 (pow ecc 2))) 2))])
     (+ a
        (* a
           (* gamma2
@@ -143,67 +143,67 @@
                       (cos (+ (* 2 omega)
                               (* 2 f)))))))))))
 
-(FPCore clMeanOscMap-de1 (e i omega sgn J2 req a)
-  (let ([eta (sqrt (- 1 (pow e 2)))]
+(FPCore clMeanOscMap-de1 (ecc i omega sgn J2 req a)
+  (let ([eta (sqrt (- 1 (pow ecc 2)))]
         [gamma2p
          (/ (* (/ (* sgn J2) 2)
                (pow (/ req a) 2))
-            (pow (sqrt (- 1 (pow e 2))) 4))])
-    (* (* (* (/ gamma2p 8) e)
+            (pow (sqrt (- 1 (pow ecc 2))) 4))])
+    (* (* (* (/ gamma2p 8) ecc)
           (pow eta 2))
        (* (+ (- 1 (* 11 (pow (cos i) 2)))
              (- (/ (* 40 (pow (cos i) 4))
                    (- 1 (* 5 (pow (cos i) 2))))))
           (cos (* 2 omega))))))
 
-(FPCore (e i omega f sgn J2 req a)
+(FPCore (ecc i omega f sgn J2 req a)
   :name "clMeanOscMap-de"
-  (let ([eta (sqrt (- 1 (pow e 2)))]
+  (let ([eta (sqrt (- 1 (pow ecc 2)))]
         [gamma2 (* (/ (* sgn J2) 2)
                    (pow (/ req a) 2))]
         [gamma2p
          (/ (* (/ (* sgn J2) 2)
                (pow (/ req a) 2))
-            (pow (sqrt (- 1 (pow e 2))) 4))])
-    (+ (clMeanOscMap-de1 e i omega sgn J2 req a)
+            (pow (sqrt (- 1 (pow ecc 2))) 4))])
+    (+ (clMeanOscMap-de1 ecc i omega sgn J2 req a)
        (* (/ (pow eta 2) 2)
           (- (* gamma2
-                (+ (+ (+ (* e eta)
-                         (/ e (+ 1 eta)))
+                (+ (+ (+ (* ecc eta)
+                         (/ ecc (+ 1 eta)))
                       (+ (* 3 (cos f))
-                         (* (* 3 e) (pow (cos f) 2))))
-                   (* (pow e 2) (pow (cos f) 3))))
+                         (* (* 3 ecc) (pow (cos f) 2))))
+                   (* (pow ecc 2) (pow (cos f) 3))))
              (* gamma2p
                 (* (* (/ (* 3 (- 1 (pow (cos i) 2)))
                          (pow eta 6))
-                      (+ (+ e
+                      (+ (+ ecc
                             (+ (* 3 (cos f))
-                               (* (* 3 e) (pow (cos f) 2))))
-                         (* (pow e 2) (pow (cos f) 3))))
+                               (* (* 3 ecc) (pow (cos f) 2))))
+                         (* (pow ecc 2) (pow (cos f) 3))))
                    (cos (+ (* 2 omega) (* 2 f))))))))))
 
-(FPCore (e i omega f sgn J2 req a)
+(FPCore (ecc i omega f sgn J2 req a)
   :name "clMeanOscMap-di"
-  (let ([eta (sqrt (- 1 (pow e 2)))]
+  (let ([eta (sqrt (- 1 (pow ecc 2)))]
         [gamma2p
          (/ (* (/ (* sgn J2) 2)
                (pow (/ req a) 2))
-            (pow (sqrt (- 1 (pow e 2))) 4))])
-    (+ (- (/ (* (- e) (clMeanOscMap-de1 e i omega sgn J2 req a)) 
+            (pow (sqrt (- 1 (pow ecc 2))) 4))])
+    (+ (- (/ (* (- ecc) (clMeanOscMap-de1 ecc i omega sgn J2 req a))
              (* (pow eta 2) (tan i))))
        (* (/ gamma2p 2)
           (* (cos i)
              (* (sqrt (- 1 (pow (cos i) 2)))
                 (+ (+ (* 3 (cos (+ (* 2 omega) (* 2 f))))
-                      (* (* 3 e) (cos (+ (* 2 omega) f))))
-                   (* e (cos (+ (* 2 omega) (* 3 f)))))))))))
-(FPCore (M omega Omega f e i sgn J2 req a)
+                      (* (* 3 ecc) (cos (+ (* 2 omega) f))))
+                   (* ecc (cos (+ (* 2 omega) (* 3 f)))))))))))
+(FPCore (M omega Omega f ecc i sgn J2 req a)
   :name "clMeanOscMap-MpopOp"
-  (let ([eta (sqrt (- 1 (pow e 2)))]
+  (let ([eta (sqrt (- 1 (pow ecc 2)))]
         [gamma2p
          (/ (* (/ (* sgn J2) 2)
                (pow (/ req a) 2))
-            (pow (sqrt (- 1 (pow e 2))) 4))])
+            (pow (sqrt (- 1 (pow ecc 2))) 4))])
     (let ([termA
            (* (/ gamma2p 8)
               (* (* (pow eta 3)
@@ -213,13 +213,13 @@
                  (sin (* 2 omega))))]
           [termB
            (* (/ gamma2p 16)
-              (* (+ (+ (+ 2 (pow e 2))
-                       (- (* (* 11 (+ 2 (* 3 (pow e 2))))
+              (* (+ (+ (+ 2 (pow ecc 2))
+                       (- (* (* 11 (+ 2 (* 3 (pow ecc 2))))
                              (pow (cos i) 2))))
-                    (- (- (/ (* (* 40 (+ 2 (* 5 (pow e 2))))
+                    (- (- (/ (* (* 40 (+ 2 (* 5 (pow ecc 2))))
                                 (pow (cos i) 4))
                              (- 1 (* 5 (pow (cos i) 2))))
-                          (/ (* (* 400 (pow e 2))
+                          (/ (* (* 400 (pow ecc 2))
                                 (pow (cos i) 6))
                              (pow (- 1 (* 5 (pow (cos i) 2))) 2)))))
                  (sin (* 2 omega))))]
@@ -227,14 +227,14 @@
            (* (/ gamma2p 4)
               (+ (* (- (* 6 (- 1 (* 5 (pow (cos i) 2)))))
                     (+ (- f M)
-                       (* e (sin f))))
+                       (* ecc (sin f))))
                  (* (- 3 (* 5 (pow (cos i) 2)))
                     (+ (+ (* 3 (sin (+ (* 2 omega) (* 2 f))))
-                          (* (* 3 e) (sin (+ (* 2 omega) f))))
-                       (* e (sin (+ (* 2 omega) (* 3 f))))))))]
+                          (* (* 3 ecc) (sin (+ (* 2 omega) f))))
+                       (* ecc (sin (+ (* 2 omega) (* 3 f))))))))]
           [termD
            (* (/ gamma2p 8)
-              (* (* (pow e 2)
+              (* (* (pow ecc 2)
                     (* (cos i)
                        (+ (+ 11
                              (/ (* 80 (pow (cos i) 2))
@@ -246,23 +246,23 @@
            (* (/ gamma2p 2)
               (* (cos i)
                  (+ (+ (+ (* 6 (+ (- f M)
-                                  (* e (sin f))))
+                                  (* ecc (sin f))))
                           (- (* 3 (sin (+ (* 2 omega) (* 2 f))))))
-                       (- (* (* 3 e) (sin (+ (* 2 omega) f)))))
-                    (- (* e (sin (+ (* 2 omega) (* 3 f))))))))])
+                       (- (* (* 3 ecc) (sin (+ (* 2 omega) f)))))
+                    (- (* ecc (sin (+ (* 2 omega) (* 3 f))))))))])
       (- (+ (+ (+ (+ M omega) Omega) termA) termC)
          (+ (+ termB termD) termE)))))
 
-(FPCore (e i omega f sgn J2 req a)
+(FPCore (ecc i omega f sgn J2 req a)
   :name "clMeanOscMap-edM"
-  (let ([eta (sqrt (- 1 (pow e 2)))]
+  (let ([eta (sqrt (- 1 (pow ecc 2)))]
         [gamma2p
          (/ (* (/ (* sgn J2) 2)
                (pow (/ req a) 2))
-            (pow (sqrt (- 1 (pow e 2))) 4))]
-        [a_r (/ (+ 1 (* e (cos f)))
-                (pow (sqrt (- 1 (pow e 2))) 2))])
-    (- (* (* (* (/ gamma2p 8) e)
+            (pow (sqrt (- 1 (pow ecc 2))) 4))]
+        [a_r (/ (+ 1 (* ecc (cos f)))
+                (pow (sqrt (- 1 (pow ecc 2))) 2))])
+    (- (* (* (* (/ gamma2p 8) ecc)
              (pow eta 3))
           (* (+ (- 1 (* 11 (pow (cos i) 2)))
                 (- (/ (* 40 (pow (cos i) 4))
@@ -279,14 +279,14 @@
                       (* (+ (+ (pow (* a_r eta) 2) a_r) (/ 1 3))
                          (sin (+ (* 2 omega) (* 3 f))))))))))))
 
-(FPCore (e i omega f M sgn J2 req a)
+(FPCore (ecc i omega f M sgn J2 req a)
   :name "clMeanOscMap-dOmega"
   (let ([gamma2p
          (/ (* (/ (* sgn J2) 2)
                (pow (/ req a) 2))
-            (pow (sqrt (- 1 (pow e 2))) 4))])
+            (pow (sqrt (- 1 (pow ecc 2))) 4))])
     (- (- (* (/ gamma2p 8)
-             (* (* (pow e 2)
+             (* (* (pow ecc 2)
                    (* (cos i)
                       (+ (+ 11
                             (/ (* 80 (pow (cos i) 2))
@@ -296,10 +296,10 @@
                 (sin (* 2 omega)))))
        (* (/ gamma2p 2)
           (* (cos i)
-             (+ (+ (+ (* 6 (+ (- f M) (* e (sin f))))
+             (+ (+ (+ (* 6 (+ (- f M) (* ecc (sin f))))
                       (- (* 3 (sin (+ (* 2 omega) (* 2 f))))))
-                   (- (* (* 3 e) (sin (+ (* 2 omega) f)))))
-                (- (* e (sin (+ (* 2 omega) (* 3 f)))))))))))
+                   (- (* (* 3 ecc) (sin (+ (* 2 omega) f)))))
+                (- (* ecc (sin (+ (* 2 omega) (* 3 f)))))))))))
 
 (FPCore (i Omega di dOmega)
   :name "clMeanOscMap-d3"

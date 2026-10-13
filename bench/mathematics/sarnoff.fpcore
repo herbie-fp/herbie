@@ -62,10 +62,10 @@
   :pre (<= 0 b a 1)
   (sqrt (fabs (/ (- (* a a) (* b b)) (* a a)))))
 
-(FPCore (e v)
+(FPCore (ecc v)
   :name "Trigonometry A"
-  :pre (<= 0 e 1)
-  (/ (* e (sin v)) (+ 1 (* e (cos v)))))
+  :pre (<= 0 ecc 1)
+  (/ (* ecc (sin v)) (+ 1 (* ecc (cos v)))))
 
 (FPCore (x)
   :name "Trigonometry B"
