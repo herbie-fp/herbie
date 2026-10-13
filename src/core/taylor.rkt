@@ -240,7 +240,8 @@
   ;(->* () #:rest (listof val?) term?)
   (define items (list->vector (map reducer terms)))
   (define len (vector-length items))
-  (make-series 0
+  (make-series 'exact
+               0
                (λ (f n)
                  (if (< n len)
                      (val-def (vector-ref items n))
@@ -254,7 +255,7 @@
         (loop (+ n 1))
         n)))
 
-(define (make-series offset builder)
+(define (make-series function-name offset builder)
   (series offset builder (make-dvector 10)))
 
 (define (series-ref s n)
@@ -291,15 +292,16 @@
              (series-ref series (+ n shift))))]))
   (define left* (align left-offset left))
   (define right* (align right-offset right))
-  (make-series target-offset (λ (f n) (make-sum (list (left* n) (right* n))))))
+  (make-series 'add target-offset (λ (f n) (make-sum (list (left* n) (right* n))))))
 
 (define (taylor-negate term)
   ;(-> term? term?)
-  (make-series (series-offset term) (λ (f n) (make-difference 0 (series-ref term n)))))
+  (make-series 'negate (series-offset term) (λ (f n) (make-difference 0 (series-ref term n)))))
 
 (define (taylor-mult left right)
   ;(-> term? term? term?)
-  (make-series (+ (series-offset left) (series-offset right))
+  (make-series 'multiply
+               (+ (series-offset left) (series-offset right))
                (λ (f n)
                  (make-sum (for/list ([i (in-range (+ n 1))]
                                       #:do [(define left* (series-ref left i))
@@ -316,7 +318,7 @@
   (define slack (first-nonzero-exp coeffs))
   (if (zero? slack)
       s
-      (make-series (- offset slack) (λ (f n) (val-def (series-ref s (+ n slack)))))))
+      (make-series 'normalize (- offset slack) (λ (f n) (val-def (series-ref s (+ n slack)))))))
 
 (define ((zero-series s) n)
   ;(-> series? (-> number? val?))
@@ -332,7 +334,8 @@
   (define normalized (normalize-series term))
   (define offset (series-offset normalized))
   (define b (series-function normalized))
-  (make-series (- offset)
+  (make-series 'invert
+               (- offset)
                (λ (f n)
                  (define b0 (b 0))
                  (cond
@@ -358,7 +361,8 @@
   (define doff (series-offset normalized-denom))
   (define a (series-function normalized-num))
   (define b (series-function normalized-denom))
-  (make-series (- noff doff)
+  (make-series 'quotient
+               (- noff doff)
                (λ (f n)
                  (define b0 (b 0))
                  (cond
@@ -393,7 +397,7 @@
           #:when (< i n)
           (adder 0)]
          [_ (coeffs (+ (- i n) (modulo offset n)))]))
-     (make-series offset* (λ (f i) (val-def (coeffs* i))))]))
+     (make-series 'modulo offset* (λ (f i) (val-def (coeffs* i))))]))
 
 (define (taylor-sqrt var num)
   ;(-> symbol? term? term?)
@@ -402,7 +406,8 @@
   (define exponent-class (modulo (- offset) 4))
   ;; A leading power 2 modulo 4 has an odd half-power, so sqrt contributes fabs(x).
   (define (root-series offset coeffs*)
-    (make-series (/ offset 2)
+    (make-series 'sqrt
+                 (/ offset 2)
                  (λ (f n)
                    (cond
                      [(zero? n) `(sqrt ,(coeffs* 0))]
@@ -424,7 +429,7 @@
     [(= exponent-class 2)
      (define root-power (/ (- offset) 2))
      (define root (root-series 0 (series-function normalized)))
-     (make-series (- 1 root-power) (λ (f n) `(* (fabs ,var) ,(series-ref root n))))]
+     (make-series 'sqrt (- 1 root-power) (λ (f n) `(* (fabs ,var) ,(series-ref root n))))]
     [else
      (define normalized* (modulo-series var 4 normalized))
      (root-series (series-offset normalized*) (series-function normalized*))]))
@@ -434,7 +439,8 @@
   (define normalized (modulo-series var 3 num))
   (define offset* (series-offset normalized))
   (define coeffs* (series-function normalized))
-  (make-series (/ offset* 3)
+  (make-series 'cbrt
+               (/ offset* 3)
                (λ (f n)
                  (cond
                    [(zero? n) `(cbrt ,(coeffs* 0))]
@@ -461,7 +467,9 @@
     [(odd? offset)
      (define sign (if (negative? a0) -1 1))
      (define new-offset (add1 offset))
-     (make-series new-offset (λ (f n) (adder `(* ,sign (fabs ,var) ,(series-ref normalized n)))))]
+     (make-series 'fabs
+                  new-offset
+                  (λ (f n) (adder `(* ,sign (fabs ,var) ,(series-ref normalized n)))))]
     [else #f]))
 
 (define (taylor-pow coeffs n)
@@ -479,7 +487,8 @@
 
 (define (taylor-exp coeffs)
   ;(-> (-> number? val?) term?)
-  (make-series 0
+  (make-series 'exp
+               0
                (λ (f n)
                  (cond
                    [(zero? n) `(exp ,(coeffs 0))]
@@ -495,7 +504,8 @@
 
 (define (taylor-sincos coeffs)
   (letrec
-      ([sin-series (make-series 0
+      ([sin-series (make-series 'sin
+                                0
                                 (λ (f n)
                                   (cond
                                     [(zero? n) 0]
@@ -510,7 +520,8 @@
                                      (if (null? terms)
                                          0
                                          `(/ ,(make-sum terms) ,n))])))]
-       [cos-series (make-series 0
+       [cos-series (make-series 'cos
+                                0
                                 (λ (f n)
                                   (cond
                                     [(zero? n) 1]
@@ -549,7 +560,8 @@
         x))
 
   (define base
-    (make-series 0
+    (make-series 'log
+                 0
                  (λ (f n)
                    (cond
                      [(zero? n) `(log ,(maybe-negate (coeffs 0)))]
@@ -573,7 +585,8 @@
   (if (zero? shift)
       base
       (taylor-add base
-                  (make-series 0
+                  (make-series 'log
+                               0
                                (λ (f n)
                                  (if (zero? n)
                                      `(* (neg ,shift) (log ,(maybe-negate var)))
