@@ -9,6 +9,13 @@
          "generators.rkt"
          "block.rkt")
 
+;; Serializable platform cost aggregate used by the Rust extractor.
+(struct cost-aggregate (base)
+  #:transparent
+  #:property prop:procedure
+  (lambda (self condition then otherwise)
+    (+ (cost-aggregate-base self) condition (max then otherwise))))
+
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
 ;;; a "type signature" - they provide no implementations of floating-point
@@ -32,6 +39,7 @@
          get-representation
          impl-exists?
          impl-info
+         (struct-out cost-aggregate)
          prog->spec
          block-to-spec!
          get-fpcore-impl
