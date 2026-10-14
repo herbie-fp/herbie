@@ -18,6 +18,7 @@ pub struct Context {
     runner: Runner,
     rules: Vec<Rewrite>,
     best: Option<HashMap<u32, (usize, Math)>>,
+    extraction_costs: ExtractionCosts,
 }
 
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
@@ -27,7 +28,15 @@ pub unsafe extern "C" fn egraph_create() -> *mut Context {
         runner: Runner::new(Default::default()).with_explanations_enabled(),
         rules: vec![],
         best: None,
+        extraction_costs: ExtractionCosts::default(),
     }))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_set_extraction_costs(ptr: *mut Context, costs: *const c_char) {
+    let mut context = ManuallyDrop::new(Box::from_raw(ptr));
+    context.extraction_costs = ExtractionCosts::parse(CStr::from_ptr(costs).to_str().unwrap());
+    context.best = None;
 }
 
 #[no_mangle]
@@ -174,6 +183,7 @@ pub unsafe extern "C" fn egraph_copy(ptr: *mut Context) -> *mut Context {
         .with_egraph(context.runner.egraph.clone());
     runner.roots = context.runner.roots.clone();
     runner.egraph.rebuild();
+    let extraction_costs = context.extraction_costs.clone();
 
     mem::forget(context);
 
@@ -181,6 +191,7 @@ pub unsafe extern "C" fn egraph_copy(ptr: *mut Context) -> *mut Context {
         rules: vec![],
         runner,
         best: None,
+        extraction_costs,
     }))
 }
 
@@ -476,8 +487,10 @@ pub unsafe extern "C" fn egraph_extract_best_batch(
     let mut context = ManuallyDrop::new(Box::from_raw(ptr));
     if context.best.is_none() {
         let best = {
-            let extractor =
-                Extractor::new(&context.runner.egraph, AltCost::new(&context.runner.egraph));
+            let extractor = Extractor::new(
+                &context.runner.egraph,
+                PlatformCost::new(&context.runner.egraph, &context.extraction_costs),
+            );
             context
                 .runner
                 .egraph

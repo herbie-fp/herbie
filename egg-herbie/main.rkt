@@ -19,6 +19,7 @@
          egraph_get_eclasses
          egraph_get_eclass
          egraph_get_cost
+         egraph_set_extraction_costs
          egraph_extract_best_batch
          egraph_is_unsound_detected
          egraph_get_proof
@@ -291,6 +292,12 @@
                       _uint ;; iteration
                       ->
                       _uint))
+
+(define-eggmath egraph_set_extraction_costs
+                (_fun _egraph-pointer
+                      _rust/string ;; serialized platform costs
+                      ->
+                      _void))
 
 (define-eggmath
  egraph_extract_best_batch

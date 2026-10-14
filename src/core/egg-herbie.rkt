@@ -619,6 +619,7 @@
 (define (egraph-run-schedule block vs schedule ctx root-reprs)
   ; allocate the e-graph
   (define egg-graph (egraph_create))
+  (egraph_set_extraction_costs egg-graph (platform-extraction-cost-table))
 
   ; insert expressions into the e-graph
   (define root-ids (egraph-add-exprs egg-graph block vs ctx))
@@ -795,6 +796,44 @@
   proof)
 
 (define max-extraction-cost (sub1 (expt 2 64)))
+
+(define/reset *platform-extraction-cost-cache* (make-hasheq))
+
+(define (platform-extraction-cost-table)
+  (hash-ref!
+   (*platform-extraction-cost-cache*)
+   (*active-platform*)
+   (lambda ()
+     (define (scaled-cost cost)
+       (inexact->exact (round (* cost 1000))))
+     (define repr-costs
+       (for/list ([repr (in-list (platform-reprs (*active-platform*)))])
+         (format "repr\t~a\t~a"
+                 (repr-token repr)
+                 (scaled-cost (platform-repr-cost (*active-platform*) repr)))))
+     (define impl-costs
+       (filter values
+               (for/list ([impl (in-list (platform-impls (*active-platform*)))])
+                 (define cost (impl-info impl 'cost))
+                 (match (impl-info impl 'aggregate)
+                   [(cost-aggregate base) (format "impl\t~a\tif\t~a" impl (scaled-cost base))]
+                   [(? procedure? aggregate)
+                    #:when (eq? aggregate +)
+                    (format "impl\t~a\tsum\t~a" impl (scaled-cost cost))]
+                   ;; Preserve the existing AstSize fallback for arbitrary Racket aggregates.
+                   [_ #f]))))
+     (define pow-exponents
+       (for/list ([impl (in-list (platform-impls (*active-platform*)))])
+         (match (impl-info impl 'spec)
+           [(list 'pow _ exponent)
+            (define exponent-idx
+              (for/first ([var (in-list (impl-info impl 'vars))]
+                          [i (in-naturals)]
+                          #:when (equal? var exponent))
+                i))
+            (and exponent-idx (format "pow\t~a\t~a" impl exponent-idx))]
+           [_ #f])))
+     (string-join (append repr-costs impl-costs (filter values pow-exponents)) "\n"))))
 
 (define (egg-leaf->block block leaf ctx type)
   (block-push!
