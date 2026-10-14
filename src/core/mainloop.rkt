@@ -159,7 +159,7 @@
     (define (best-alt alt1 alt2)
       (define cost1 (block-cost (alt-expr alt1)))
       (define cost2 (block-cost (alt-expr alt2)))
-      (if (or (< cost1 cost2) (and (= cost1 cost2) (expr<? (alt-expr alt1) (alt-expr alt2))))
+      (if (or (< cost1 cost2) (and (= cost1 cost2) (val-id<? (alt-expr alt1) (alt-expr alt2))))
           alt1
           alt2))
 
@@ -169,7 +169,15 @@
       (define key (cons (get-starting-expr altn) signature))
       (hash-update! groups key (curry best-alt altn) altn))
 
-    (sort (hash-values groups) expr<? #:key alt-expr))
+    ;; The result and start value IDs uniquely identify each group.
+    (define (group<? alt1 alt2)
+      (define result1 (alt-expr alt1))
+      (define result2 (alt-expr alt2))
+      (or (val-id<? result1 result2)
+          (and (= (val-idx result1) (val-idx result2))
+               (val-id<? (get-starting-expr alt1) (get-starting-expr alt2)))))
+
+    (sort (hash-values groups) group<?))
 
   (define (compute-referrers parents root)
     (define seen (mutable-seteq))
