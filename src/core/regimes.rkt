@@ -56,57 +56,47 @@
   (define pts-vec (pcontext-points pcontext))
 
   ;; For timeline
-  (define block-jsexpr
-    (and (not (*timeline-disabled*))
-         (block->jsexpr block spec-block (append (map alt-expr sorted) branch-vs))))
-  (when block-jsexpr
-    (timeline-push! 'block block-jsexpr))
-  (define branch-root-map
-    (and block-jsexpr
-         (make-immutable-hash (map cons branch-vs (drop (hash-ref block-jsexpr 'roots) alt-count)))))
+  (define block-jsexpr (block->jsexpr block spec-block (append (map alt-expr sorted) branch-vs)))
+  (timeline-push! 'block block-jsexpr)
+  (define branch-roots (drop (hash-ref block-jsexpr 'roots) alt-count))
+  (define branch-root-map (make-immutable-hash (map cons branch-vs branch-roots)))
 
   (define option-curves
     (for/list ([v (in-list branch-vs)]
                [v-vals-vec (in-list v-vals)])
-      (define timeline-stop!
-        (if (*timeline-disabled*)
-            void
-            (timeline-start! 'times (block->jsexpr block spec-block (list v)))))
+      (define timeline-stop! (timeline-start! 'times (block->jsexpr block spec-block (list v))))
       (define repr (block-repr-of v))
       (define curve (branch-options block alts-vec err-cols pts-vec v v-vals-vec repr))
       (define last-point (last curve))
       (timeline-stop!)
-      (unless (*timeline-disabled*)
-        (timeline-push! 'branch
-                        (hash-ref branch-root-map v)
-                        (- (pareto-point-error last-point)
-                           (length (option-split-indices (pareto-point-data last-point))))
-                        (length (option-split-indices (pareto-point-data last-point)))
-                        (~a (representation-name repr))))
+      (timeline-push! 'branch
+                      (hash-ref branch-root-map v)
+                      (- (pareto-point-error last-point)
+                         (length (option-split-indices (pareto-point-data last-point))))
+                      (length (option-split-indices (pareto-point-data last-point)))
+                      (~a (representation-name repr)))
       curve))
   (define combined-option-curve
     (for/fold ([curve '()]) ([branch-curve (in-list option-curves)])
       (pareto-union curve branch-curve #:combine (lambda (old _new) old))))
 
   ;; Timeline
-  (unless (*timeline-disabled*)
-    (timeline-push! 'inputs (block->jsexpr block spec-block (map alt-expr sorted)))
-    (timeline-push!
-     'outputs
-     (block->jsexpr block
-                    spec-block
-                    (remove-duplicates
-                     (for*/list ([ppt (in-list combined-option-curve)]
-                                 [sidx (in-list (option-split-indices (pareto-point-data ppt)))])
-                       (alt-expr (list-ref (option-alts (pareto-point-data ppt)) (si-cidx sidx))))))))
+  (timeline-push! 'inputs (block->jsexpr block spec-block (map alt-expr sorted)))
+  (timeline-push!
+   'outputs
+   (block->jsexpr block
+                  spec-block
+                  (remove-duplicates
+                   (for*/list ([ppt (in-list combined-option-curve)]
+                               [sidx (in-list (option-split-indices (pareto-point-data ppt)))])
+                     (alt-expr (list-ref (option-alts (pareto-point-data ppt)) (si-cidx sidx)))))))
   (for/list ([ppt (in-list combined-option-curve)])
     (define opt (pareto-point-data ppt))
-    (unless (*timeline-disabled*)
-      (timeline-push! 'count (length (option-alts opt)) (length (option-split-indices opt)))
-      (timeline-push! 'accuracy
-                      (- (pareto-point-error ppt) (length (option-split-indices opt)))
-                      (oracle-errors-score err-cols (pareto-point-cost ppt))
-                      (baseline-errors-score err-cols (pareto-point-cost ppt))))
+    (timeline-push! 'count (length (option-alts opt)) (length (option-split-indices opt)))
+    (timeline-push! 'accuracy
+                    (- (pareto-point-error ppt) (length (option-split-indices opt)))
+                    (oracle-errors-score err-cols (pareto-point-cost ppt))
+                    (baseline-errors-score err-cols (pareto-point-cost ppt)))
     opt))
 
 (define (critical-subexpressions block root-v)

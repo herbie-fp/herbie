@@ -105,25 +105,24 @@
   (map errors-score (block-errors (*global-block*) (map alt-expr altns) (*pcontext*))))
 
 (define (timeline-push-alts! table next-alts spec-block)
-  (unless (*timeline-disabled*)
-    (define pending-alts (atab-not-done-alts table))
-    (define active-alts (atab-active-alts table))
-    (define scores (block-score-alts active-alts))
-    (define block-jsexpr (block->jsexpr (*global-block*) spec-block (map alt-expr active-alts)))
-    (define roots (hash-ref block-jsexpr 'roots))
-    (define repr (context-repr (*context*)))
-    (timeline-push! 'block block-jsexpr)
-    (for ([alt (in-list active-alts)]
-          [score (in-list scores)]
-          [root (in-list roots)])
-      (timeline-push! 'alts
-                      root
-                      (cond
-                        [(set-member? next-alts alt) "next"]
-                        [(set-member? pending-alts alt) "fresh"]
-                        [else "done"])
-                      score
-                      (~a (representation-name repr))))))
+  (define pending-alts (atab-not-done-alts table))
+  (define active-alts (atab-active-alts table))
+  (define scores (block-score-alts active-alts))
+  (define block-jsexpr (block->jsexpr (*global-block*) spec-block (map alt-expr active-alts)))
+  (define roots (hash-ref block-jsexpr 'roots))
+  (define repr (context-repr (*context*)))
+  (timeline-push! 'block block-jsexpr)
+  (for ([alt (in-list active-alts)]
+        [score (in-list scores)]
+        [root (in-list roots)])
+    (timeline-push! 'alts
+                    root
+                    (cond
+                      [(set-member? next-alts alt) "next"]
+                      [(set-member? pending-alts alt) "fresh"]
+                      [else "done"])
+                    score
+                    (~a (representation-name repr)))))
 
 (define (set-intersect-size keys set)
   (for/sum ([key (in-list keys)] #:when (set-member? set key)) 1))

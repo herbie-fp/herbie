@@ -76,9 +76,8 @@
     (remove-duplicates (taylor-alts altns global-block spec-block reducer) #:key taylor-key))
   (define approxs*
     (remove-duplicates (run-lowering approxs global-block spec-block) #:key approx-key))
-  (unless (*timeline-disabled*)
-    (timeline-push! 'inputs (block->jsexpr global-block spec-block (map alt-expr altns)))
-    (timeline-push! 'outputs (block->jsexpr global-block spec-block (map alt-expr approxs*))))
+  (timeline-push! 'inputs (block->jsexpr global-block spec-block (map alt-expr altns)))
+  (timeline-push! 'outputs (block->jsexpr global-block spec-block (map alt-expr approxs*)))
   (timeline-push! 'count (length altns) (length approxs*))
   approxs*)
 
@@ -161,9 +160,8 @@
       (define v (block-add! global-block literal))
       (alt v '(evaluate) (list altn))))
 
-  (unless (*timeline-disabled*)
-    (timeline-push! 'inputs (block->jsexpr constant-block constant-block real-spec-vs))
-    (timeline-push! 'outputs (map ~a literals)))
+  (timeline-push! 'inputs (block->jsexpr constant-block constant-block real-spec-vs))
+  (timeline-push! 'outputs (map ~a literals))
   final-altns)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -195,9 +193,8 @@
             (for ([val* (in-list vals)])
               (sow (alt val* (list 'rr runner #f) (list altn)))))))
 
-  (unless (*timeline-disabled*)
-    (timeline-push! 'inputs (block->jsexpr global-block spec-block (map alt-expr altns)))
-    (timeline-push! 'outputs (block->jsexpr global-block spec-block (map alt-expr rewritten))))
+  (timeline-push! 'inputs (block->jsexpr global-block spec-block (map alt-expr altns)))
+  (timeline-push! 'outputs (block->jsexpr global-block spec-block (map alt-expr rewritten)))
   (timeline-push! 'count (length altns) (length rewritten))
 
   rewritten)
