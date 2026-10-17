@@ -168,19 +168,18 @@
   (define block* (block-empty (context (block-vars b) #f (block-var-reprs b))))
   (for ([var (in-list (block-vars b))])
     (block-push! block* var))
-  ;; Expanded subexpressions are shared across roots. Avoid walking and
-  ;; rebuilding them again when many roots use the same specification.
-  (define add-expr-cache (make-hasheq))
-  (define (add-expr expr)
-    (hash-ref! add-expr-cache
-               expr
-               (λ ()
-                 (block-push! block*
-                              (expr-recurse-spec (compose val-idx add-expr)
-                                                 (expr-recurse expr (compose val-idx add-expr)))))))
-  (define spec-f (block-exprs spec-block))
-  (define exprs (block-exprs b #:spec-f spec-f))
-  (define vs* (map add-expr (map exprs vs)))
+  ;; Re-index reachable nodes directly instead of materializing nested expressions.
+  (define (add-spec-block-node v recurse)
+    (define node (expr-recurse (val-def v) (compose val-idx recurse)))
+    ;; Match block-exprs' default spec callback for approximate nodes in spec-block.
+    (block-push! block* (expr-recurse-spec (λ (_) (val-idx (block-push! block* (void)))) node)))
+  (define spec->output (block-recurse spec-block add-spec-block-node))
+  (define (add-block-node v recurse)
+    (block-push! block*
+                 (expr-recurse-spec (compose val-idx spec->output)
+                                    (expr-recurse (val-def v) (compose val-idx recurse)))))
+  (define block->output (block-recurse b add-block-node))
+  (define vs* (map block->output vs))
   (define nodes
     (for/list ([node (in-block block*)])
       (match node
