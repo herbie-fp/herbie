@@ -21,6 +21,8 @@
          context-extend
          context-lookup
          contexts-union
+         representation-name->token
+         representation-token->name
          make-representation
          make-array-representation)
 
@@ -34,6 +36,27 @@
      (fprintf port "#<representation ~a>" (representation-name repr)))])
 
 (struct array-representation representation (slots) #:transparent)
+
+;; Make names injective and safe to embed in Egg and Egglog identifiers.
+(define representation-token-prefix "repr-")
+(define hex-digits "0123456789abcdef")
+
+(define (bytes->hex bytes)
+  (apply string-append
+         (for/list ([byte (in-bytes bytes)])
+           (string (string-ref hex-digits (quotient byte 16))
+                   (string-ref hex-digits (remainder byte 16))))))
+
+(define (hex->bytes hex)
+  (list->bytes (for/list ([i (in-range 0 (string-length hex) 2)])
+                 (string->number (substring hex i (+ i 2)) 16))))
+
+(define (representation-name->token name)
+  (string-append representation-token-prefix (bytes->hex (string->bytes/utf-8 (~s name)))))
+
+(define (representation-token->name token)
+  (define hex (substring token (string-length representation-token-prefix)))
+  (read (open-input-string (bytes->string/utf-8 (hex->bytes hex)))))
 
 (define (array-representation-base repr)
   (cond
@@ -184,6 +207,13 @@
   (check-equal? (context-vars ctx*) '(x y z))
   (check-equal? (context-var-reprs ctx*) (list <binary64> <binary64> <binary64>))
   (check-equal? (context-repr ctx*) <binary64>)
+
+  (define nested-array-name '(array (array binary64) binary64))
+  (define scalar-array-name '(array array_binary64 binary64))
+  (check-not-equal? (representation-name->token nested-array-name)
+                    (representation-name->token scalar-array-name))
+  (for ([name (in-list (list 'binary64 nested-array-name scalar-array-name))])
+    (check-equal? (representation-token->name (representation-name->token name)) name))
 
   (check-exn exn:fail?
              (lambda () (contexts-union (list ctx1 (context '(y) <binary64> (list <binary32>))))))

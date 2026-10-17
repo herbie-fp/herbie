@@ -99,6 +99,7 @@
 (define (check-cost! name cost)
   (match cost
     [(? number?) (values cost +)]
+    [(? cost-aggregate?) (values 0 cost)]
     [(? procedure?) (values 0 cost)]
     [_ (error 'define-operation "Invalid cost for ~a: ~a" name cost)]))
 
@@ -267,5 +268,5 @@
 (define (if-impl c t f)
   (if c t f))
 
-(define ((if-cost base) c t f)
-  (+ base c (max t f)))
+(define (if-cost base)
+  (cost-aggregate base))
