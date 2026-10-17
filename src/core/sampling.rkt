@@ -11,8 +11,7 @@
          "searchreals.rkt"
          "../syntax/rival.rkt")
 
-(provide block-prepare-points
-         sample-points)
+(provide sample-points)
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
 
@@ -129,18 +128,26 @@
      ; sampler return false hint since rival-analyze has not been called in random method
      (values (λ () (values (vector-map random-generate var-reprs) #f)) (hash 'unknown 1.0))]))
 
-;; Returns an evaluator for a list of expressions.
-;; Part 3: compute exact values using Rival's algorithm
+(define (combine-tables t1 t2)
+  (define t2-total (apply + (hash-values t2)))
+  (define t1-base (+ (hash-ref t1 'unknown 0) (hash-ref t1 'valid 0)))
+  (for/fold ([t1 (hash-remove (hash-remove t1 'unknown) 'valid)]) ([(k v) (in-hash t2)])
+    (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
 
-(define (block-prepare-points compiler sampler)
-  ;; If we're using the bf fallback, start at the max precision
+(define (sample-points pre block vs reprs)
+  (timeline-event! 'analyze)
+  (define compiler (make-real-compiler block vs reprs #:pre pre))
+  (define-values (sampler table) (make-sampler compiler))
+  (timeline-event! 'sample)
+
+  ;; Part 3: sample points and compute exact outputs using Rival.
   (define outcomes (make-hash))
   (define vars (real-compiler-vars compiler))
   (define var-reprs (real-compiler-var-reprs compiler))
-  (define reprs (real-compiler-reprs compiler))
+  (define output-reprs (real-compiler-reprs compiler))
   (define assemble-point (real-compiler-assemble-point compiler))
   (define assemble-output (real-compiler-assemble-output compiler))
-  (define exact-count (length (assemble-output (make-list (vector-length reprs) #f))))
+  (define exact-count (length (assemble-output (make-list (vector-length output-reprs) #f))))
 
   (define-values (points exactss)
     (let loop ([sampled 0]
@@ -157,7 +164,7 @@
                #:extra (vector->list (vector-map (curry format "~a = ~a") vars pt)))]
         [(valid)
          (for ([ex (in-list exs)]
-               [repr (in-vector reprs)])
+               [repr (in-vector output-reprs)])
            ; The `bool` representation does not produce bigfloats
            (define maybe-bf ((representation-repr->bf repr) ex))
            (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
@@ -183,25 +190,12 @@
            (raise-herbie-sampling-error "Cannot sample enough valid points."
                                         #:url "faq.html#sample-valid-points"))
          (loop sampled (+ 1 skipped) points exactss)])))
-  (values (cons points exactss) outcomes))
 
-(define (combine-tables t1 t2)
-  (define t2-total (apply + (hash-values t2)))
-  (define t1-base (+ (hash-ref t1 'unknown 0) (hash-ref t1 'valid 0)))
-  (for/fold ([t1 (hash-remove (hash-remove t1 'unknown) 'valid)]) ([(k v) (in-hash t2)])
-    (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
-
-(define (sample-points pre block vs reprs)
-  (timeline-event! 'analyze)
-  (define compiler (make-real-compiler block vs reprs #:pre pre))
-  (define-values (sampler table) (make-sampler compiler))
-  (timeline-event! 'sample)
-  (define-values (results table2) (block-prepare-points compiler sampler))
-  (define total (apply + (hash-values table2)))
-  (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
+  (define total (apply + (hash-values outcomes)))
+  (when (> (hash-ref outcomes 'infinite 0.0) (* 0.2 total))
     (warn 'inf-points
           #:url "faq.html#inf-points"
           "~a% of points produce a very large (infinite) output. You may want to add a precondition."
-          (~r (/ (- total (hash-ref table2 'infinite)) total 0.01) #:precision '(= 1))))
-  (timeline-push! 'bogosity (combine-tables table table2))
-  results)
+          (~r (/ (- total (hash-ref outcomes 'infinite)) total 0.01) #:precision '(= 1))))
+  (timeline-push! 'bogosity (combine-tables table outcomes))
+  (cons points exactss))
