@@ -168,10 +168,16 @@
   (define block* (block-empty (context (block-vars b) #f (block-var-reprs b))))
   (for ([var (in-list (block-vars b))])
     (block-push! block* var))
+  ;; Expanded subexpressions are shared across roots. Avoid walking and
+  ;; rebuilding them again when many roots use the same specification.
+  (define add-expr-cache (make-hasheq))
   (define (add-expr expr)
-    (block-push! block*
-                 (expr-recurse-spec (compose val-idx add-expr)
-                                    (expr-recurse expr (compose val-idx add-expr)))))
+    (hash-ref! add-expr-cache
+               expr
+               (λ ()
+                 (block-push! block*
+                              (expr-recurse-spec (compose val-idx add-expr)
+                                                 (expr-recurse expr (compose val-idx add-expr)))))))
   (define spec-f (block-exprs spec-block))
   (define exprs (block-exprs b #:spec-f spec-f))
   (define vs* (map add-expr (map exprs vs)))
@@ -342,4 +348,15 @@
   (test-json-tostring '(* 1/2 (+ (exp x) (neg (/ 1 (exp x)))))
                       "%2 = (exp x)\n(* 1/2 (+ %2 (neg (/ 1 %2))))")
   ; Shared constants/variables are inlined
-  (test-json-tostring '(sqrt (+ (* x x) (* y y))) "(sqrt (+ (* x x) (* y y)))"))
+  (test-json-tostring '(sqrt (+ (* x x) (* y y))) "(sqrt (+ (* x x) (* y y)))")
+
+  ; Shared specs across roots should be copied once into the output graph.
+  (define-values (shared-spec-block shared-spec-vs)
+    (progs->block (list '(+ x y)) #:ctx test-empty-ctx))
+  (define shared-block (block-empty test-empty-ctx))
+  (define shared-roots
+    (list (block-add! shared-block (approx (first shared-spec-vs) '(+ x y)))
+          (block-add! shared-block (approx (first shared-spec-vs) '(- x y)))))
+  (define shared-jsexpr (block->jsexpr shared-block shared-spec-block shared-roots))
+  (check-equal? (jsexpr->block-exprs shared-jsexpr)
+                "%2 = (+ x y)\n(approx %2 %2)\n(approx %2 (- x y))"))
