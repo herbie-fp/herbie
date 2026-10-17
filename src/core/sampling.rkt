@@ -86,6 +86,15 @@
             (loop (+ (arithmetic-shift prefix more-bits) (random-bits more-bits))
                   (+ bits more-bits)))))))
 
+;; Rejection avoids bias when bound is not a power of two.
+(define (random-below bound)
+  (define bits (integer-length (sub1 bound)))
+  (let loop ()
+    (define candidate (random-bits bits))
+    (if (< candidate bound)
+        candidate
+        (loop))))
+
 (module+ test
   (define arr (partial-sums (build-vector 50 (lambda (_) (random-integer 1 100)))))
   (define max-num (vector-ref arr (- (vector-length arr) 1)))
@@ -94,99 +103,30 @@
     (check-true (> (vector-ref arr search-result) search-for))
     (check-true (or (zero? search-result) (<= (vector-ref arr (- search-result 1)) search-for)))))
 
-;; Binary64 ordinals are wider than a fixnum. Bias them by 2^63 and keep the key in
-;; two 32-bit fixnums so sampling a coordinate doesn't allocate a bignum.
-(struct ordinal-key (hi lo))
-
-(define ordinal-key-mask #xffffffff)
-
-(define (binary64-ordinal->key ordinal)
-  (ordinal-key (+ #x80000000 (arithmetic-shift ordinal -32)) (bitwise-and ordinal ordinal-key-mask)))
-
-(define (ordinal-key<? a b)
-  (or (< (ordinal-key-hi a) (ordinal-key-hi b))
-      (and (= (ordinal-key-hi a) (ordinal-key-hi b)) (< (ordinal-key-lo a) (ordinal-key-lo b)))))
-
-(define (ordinal-key-difference hi lo)
-  (define lo-diff (- (ordinal-key-lo hi) (ordinal-key-lo lo)))
-  (ordinal-key (- (ordinal-key-hi hi) (ordinal-key-hi lo) (if (negative? lo-diff) 1 0))
-               (bitwise-and lo-diff ordinal-key-mask)))
-
-(define (ordinal-key-width-bits width)
-  (define hi (ordinal-key-hi width))
-  (define lo (ordinal-key-lo width))
-  (cond
-    [(zero? hi) (integer-length (sub1 lo))]
-    [(zero? lo) (+ 32 (integer-length (sub1 hi)))]
-    [else (+ 32 (integer-length hi))]))
-
-(define (random-ordinal-key-below width)
-  (define bits (ordinal-key-width-bits width))
-  (define (random-key)
-    (cond
-      [(zero? bits) (ordinal-key 0 0)]
-      [else
-       (define value (random-bits bits))
-       (ordinal-key (arithmetic-shift value -32) (bitwise-and value ordinal-key-mask))]))
-  (let loop ()
-    (define candidate (random-key))
-    (if (ordinal-key<? candidate width)
-        candidate
-        (loop))))
-
-(define (ordinal-key+ a b)
-  (define lo (+ (ordinal-key-lo a) (ordinal-key-lo b)))
-  (ordinal-key (bitwise-and (+ (ordinal-key-hi a) (ordinal-key-hi b) (if (> lo ordinal-key-mask) 1 0))
-                            ordinal-key-mask)
-               (bitwise-and lo ordinal-key-mask)))
-
-(define (ordinal-key->binary64 key bytes)
-  (define hi (ordinal-key-hi key))
-  (define lo (ordinal-key-lo key))
-  (define-values (raw-hi raw-lo)
-    (if (>= hi #x80000000)
-        (values (- hi #x80000000) lo)
-        (values (+ #x80000000 (- #x80000000 hi (if (zero? lo) 0 1)))
-                (if (zero? lo)
-                    0
-                    (- (arithmetic-shift 1 32) lo)))))
-  (integer->integer-bytes raw-lo 4 #f #f bytes 0)
-  (integer->integer-bytes raw-hi 4 #f #f bytes 4)
-  (floating-point-bytes->real bytes #f))
-
-(define (sample-binary64 lo hi bytes)
-  (define width (ordinal-key-difference hi lo))
-  (ordinal-key->binary64 (ordinal-key+ lo (random-ordinal-key-below width)) bytes))
-
 (define (make-hyperrect-sampler hyperrects* hints* reprs)
   (when (null? hyperrects*)
     (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
   (define hints (list->vector hints*))
   (define hyperrects (list->vector hyperrects*))
-  (define (ordinal-endpoint interval repr upper?)
-    (define ordinal
-      ((representation-repr->ordinal repr) ((representation-bf->repr repr) (if upper?
-                                                                               (ival-hi interval)
-                                                                               (ival-lo interval)))))
-    (define endpoint
-      (if upper?
-          (add1 ordinal)
-          ordinal))
-    (if (and (equal? repr <binary64>) (fixnum? ordinal-key-mask))
-        (binary64-ordinal->key endpoint)
-        endpoint))
   (define lo-ends
     (for/vector #:length (vector-length hyperrects)
                 ([hyperrect (in-vector hyperrects)])
       (for/list ([interval (in-list hyperrect)]
                  [repr (in-vector reprs)])
-        (ordinal-endpoint interval repr #f))))
+        ((representation-repr->ordinal repr) ((representation-bf->repr repr) (ival-lo interval))))))
   (define hi-ends
     (for/vector #:length (vector-length hyperrects)
                 ([hyperrect (in-vector hyperrects)])
       (for/list ([interval (in-list hyperrect)]
                  [repr (in-vector reprs)])
-        (ordinal-endpoint interval repr #t))))
+        (+ 1
+           ((representation-repr->ordinal repr)
+            ((representation-bf->repr repr) (ival-hi interval)))))))
+  (define widths
+    (for/vector #:length (vector-length hyperrects)
+                ([los (in-vector lo-ends)]
+                 [his (in-vector hi-ends)])
+      (map - his los)))
   (define rect-weights (vector-map (curryr hyperrect-weight reprs) hyperrects))
   (define weight-gcd
     (for/fold ([common-divisor 0]) ([weight (in-vector rect-weights)])
@@ -197,19 +137,13 @@
 
   ;; returns pt and hint
   (define num-vars (vector-length reprs))
-  (define has-binary64?
-    (for/or ([repr (in-vector reprs)])
-      (equal? repr <binary64>)))
   (define (hyperrect-sampler)
     (define idx (sample-weighted-index weights weight-max))
-    (define bytes (and has-binary64? (make-bytes 8)))
     (values (for/vector #:length num-vars
                         ([lo (in-list (vector-ref lo-ends idx))]
-                         [hi (in-list (vector-ref hi-ends idx))]
+                         [width (in-list (vector-ref widths idx))]
                          [repr (in-vector reprs)])
-              (if (ordinal-key? lo)
-                  (sample-binary64 lo hi bytes)
-                  ((representation-ordinal->repr repr) (random-integer lo hi))))
+              ((representation-ordinal->repr repr) (+ lo (random-below width))))
             (vector-ref hints idx)))
   hyperrect-sampler)
 
@@ -236,8 +170,16 @@
       (check-true (<= 50 num-occurrences 150))))
 
   (sample-ordinal-range -1 1)
-  (define one-ordinal (binary64->ordinal 1.0))
-  (sample-ordinal-range one-ordinal (+ one-ordinal 3))
+  (define broad-interval (ival (binary64->bf -1.0) (binary64->bf 1.0)))
+  (define broad-width (- (add1 (binary64->ordinal 1.0)) (binary64->ordinal -1.0)))
+  (check-true (> broad-width (expt 2 60)))
+  (define broad-sampler
+    (make-hyperrect-sampler (list (list broad-interval)) '(broad) (vector binary64)))
+  (check-true (parameterize ([current-pseudo-random-generator (make-pseudo-random-generator)])
+                (random-seed 4)
+                (for/and ([i (in-range 100)])
+                  (define-values (point hint) (broad-sampler))
+                  (and (eq? hint 'broad) (<= -1.0 (vector-ref point 0) 1.0)))))
 
   (define multi-reprs (vector binary64 binary64))
   (define base-ordinal (binary64->ordinal 1.0))
