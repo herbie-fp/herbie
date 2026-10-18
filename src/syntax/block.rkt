@@ -169,16 +169,16 @@
   (for ([var (in-list (block-vars b))])
     (block-push! block* var))
   ;; Re-index reachable nodes directly instead of materializing nested expressions.
-  (define (add-spec-block-node v recurse)
-    (define node (expr-recurse (val-def v) (compose val-idx recurse)))
-    ;; Match block-exprs' default spec callback for approximate nodes in spec-block.
-    (block-push! block* (expr-recurse-spec (λ (_) (val-idx (block-push! block* (void)))) node)))
-  (define spec->output (block-recurse spec-block add-spec-block-node))
-  (define (add-block-node v recurse)
-    (block-push! block*
-                 (expr-recurse-spec (compose val-idx spec->output)
-                                    (expr-recurse (val-def v) (compose val-idx recurse)))))
-  (define block->output (block-recurse b add-block-node))
+  (define (reindex-block source spec->output)
+    (block-recurse source
+                   (λ (v recurse)
+                     (block-push! block*
+                                  (expr-recurse-spec (compose val-idx spec->output)
+                                                     (expr-recurse (val-def v)
+                                                                   (compose val-idx recurse)))))))
+  ;; Match block-exprs' default spec callback for approximate nodes in spec-block.
+  (define spec->output (reindex-block spec-block (λ (_) (block-push! block* (void)))))
+  (define block->output (reindex-block b spec->output))
   (define vs* (map block->output vs))
   (define nodes
     (for/list ([node (in-block block*)])
