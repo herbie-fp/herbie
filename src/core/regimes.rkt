@@ -254,36 +254,47 @@
     (define number-of-points (vector-length sorted-indices))
     (define split-penalty (fl number-of-points))
 
-    ;; error[p][a] = (flvector-ref (vector-ref err-vec a) (vector-ref sorted-indices p))
-    (: err-vec (Vectorof FlVector))
-    (define err-vec (list->vector err-cols))
+    ;; errors[p][a]
+    (: errors (Vectorof FlVector))
+    (define errors
+      (for/vector #:length number-of-points
+                  ([original-idx (in-vector sorted-indices)])
+        :
+        FlVector
+        (define row (make-flvector number-of-alts))
+        (for ([alt-idx (in-naturals)]
+              [err-col (in-list err-cols)])
+          (flvector-set! row alt-idx (flvector-ref err-col original-idx)))
+        row))
 
     ;; row = best[p-1] going in to point p, best[p] coming out; updated in place
     (: row FlVector)
-    (define row ; best[0][a] = error[0][a]
-      (for/flvector #:length number-of-alts
-                    ([err-col (in-vector err-vec)])
-                    (flvector-ref err-col (vector-ref sorted-indices 0))))
-    ;; previous-alts[p][a] = the alt at p-1 on the best path ending on a at p
-    (: previous-alts (Vectorof (Vectorof Integer)))
-    (define previous-alts (build-vector number-of-points (lambda (_) (make-vector number-of-alts 0))))
+    (define row (flvector-copy (vector-ref errors 0))) ; best[0][a] = error[0][a]
+    ;; A predecessor is either the same alt or the row's best alt, so store
+    ;; one byte per switch decision and the best alt once per point.
+    (: best-alts (Vectorof Integer))
+    (define best-alts (make-vector number-of-points 0))
+    (: switch-decisions (Vectorof Bytes))
+    (define switch-decisions
+      (build-vector number-of-points (lambda (_) (make-bytes number-of-alts 0))))
 
     (for ([point-idx (in-range 1 number-of-points)])
       (define best-alt (argmin row))
       ;; penalty + min_b best[p-1][b]
       (define switched-score (+ split-penalty (flvector-ref row best-alt)))
-      (define original-idx (vector-ref sorted-indices point-idx))
-      (define previous-here (vector-ref previous-alts point-idx))
+      (define errors-here (vector-ref errors point-idx)) ; error[p]
+      (define switch-decisions-here (vector-ref switch-decisions point-idx))
       (define can-split? (vector-ref can-split-vec point-idx))
-      (for ([alt-idx (in-naturals)]
-            [err-col (in-vector err-vec)])
+      (vector-set! best-alts point-idx best-alt)
+      (for ([alt-idx (in-range number-of-alts)])
         (define continued-score (flvector-ref row alt-idx)) ; best[p-1][a]
         (define switch? (and can-split? (< switched-score continued-score)))
         (flvector-set! row
                        alt-idx
-                       (+ (flvector-ref err-col original-idx) ; error[p][a]
+                       (+ (flvector-ref errors-here alt-idx)
                           (if switch? switched-score continued-score)))
-        (vector-set! previous-here alt-idx (if switch? best-alt alt-idx))))
+        (when switch?
+          (bytes-set! switch-decisions-here alt-idx 1))))
 
     ;; score = min_a best[P][a]
     (define last-point (sub1 number-of-points))
@@ -293,15 +304,20 @@
     (define alts (make-vector number-of-points 0))
     (vector-set! alts last-point last-alt)
     (for ([point-idx (in-range last-point 0 -1)])
+      (define alt-idx (vector-ref alts point-idx))
+      (define switch-decisions-here (vector-ref switch-decisions point-idx))
       (vector-set! alts
                    (sub1 point-idx)
-                   (vector-ref (vector-ref previous-alts point-idx) (vector-ref alts point-idx))))
+                   (if (positive? (bytes-ref switch-decisions-here alt-idx))
+                       (vector-ref best-alts point-idx)
+                       alt-idx)))
 
-    (: splits (Listof si))
     (define splits
-      (for/list ([point-idx (in-range 1 (add1 number-of-points))]
-                 #:unless (and (< point-idx number-of-points)
-                               (= (vector-ref alts point-idx) (vector-ref alts (sub1 point-idx)))))
+      (for/list :
+        (Listof si)
+        ([point-idx (in-range 1 (add1 number-of-points))]
+         #:unless (and (< point-idx number-of-points)
+                       (= (vector-ref alts point-idx) (vector-ref alts (sub1 point-idx)))))
         (si (vector-ref alts (sub1 point-idx)) point-idx)))
     (values splits (flvector-ref row last-alt))) ; (splits, score)
 

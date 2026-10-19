@@ -221,10 +221,11 @@
   pass the correct symbol name; for single-precision functions, add the
   "<code>f</code>" suffix.</p>
 
-  <p>For other libraries, open them with
-  <code>ffi-lib</code> and use <code>from-ffi</code>, which
-  generalizes <code>from-libm</code>. For example, to load functions
-  from the GNU Scientific Library:</p>
+  <p>To use another library, load it with either
+  <code>ffi/unsafe</code>'s <code>ffi-lib</code> or, on Racket 9.2 or
+  later with <code>ffi2-lib</code> installed, <code>ffi2</code>'s
+  <code>ffi2-lib</code>. Then use <code>from-ffi</code>. For example,
+  to load functions from the GNU Scientific Library:</p>
 
   <pre>(require ffi/unsafe)
 (define libgsl (ffi-lib "gsl"))

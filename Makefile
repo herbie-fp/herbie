@@ -30,7 +30,8 @@ egg-herbie:
 	raco pkg install ./egg-herbie
 
 egglog-herbie:
-	cargo install --locked --git "https://github.com/egraphs-good/egglog-experimental" egglog-experimental
+# Keep egglog's release artifacts in the user cache for fast rebuilds.
+	cargo install --locked --target-dir "$(HOME)/.cache/herbie/egglog-target" --git "https://github.com/egraphs-good/egglog-experimental" egglog-experimental
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/

@@ -7,7 +7,6 @@
          "../syntax/block.rkt")
 
 (provide expr?
-         expr<?
          all-subexpressions
          spec-prog?
          impl-prog?
@@ -88,56 +87,6 @@
     [(approx spec impl) (and (spec-prog? spec) (impl-prog? impl))]
     [(list (? impl-exists?) args ...) (andmap impl-prog? args)]
     [_ #f]))
-
-;; Total order on expressions
-
-(define (expr-cmp a b)
-  (match* (a b)
-    [((? val?) (? val?)) (expr-cmp (val-def a) (val-def b))]
-    [((? val?) _) (expr-cmp (val-def a) b)]
-    [(_ (? val?)) (expr-cmp a (val-def b))]
-    [((? list?) (? list?))
-     (define len-a (length a))
-     (define len-b (length b))
-     (cond
-       [(< len-a len-b) -1]
-       [(> len-a len-b) 1]
-       [else
-        (let loop ([a a]
-                   [b b])
-          (cond
-            [(null? a) 0]
-            [else
-             (define cmp (expr-cmp (car a) (car b)))
-             (if (zero? cmp)
-                 (loop (cdr a) (cdr b))
-                 cmp)]))])]
-    [((? list?) _) 1]
-    [(_ (? list?)) -1]
-    [((? approx?) (? approx?))
-     (define cmp-spec (expr-cmp (approx-spec a) (approx-spec b)))
-     (if (zero? cmp-spec)
-         (expr-cmp (approx-impl a) (approx-impl b))
-         cmp-spec)]
-    [((? approx?) _) 1]
-    [(_ (? approx?)) -1]
-    [((? symbol?) (? symbol?))
-     (cond
-       [(symbol<? a b) -1]
-       [(symbol=? a b) 0]
-       [else 1])]
-    [((? symbol?) _) 1]
-    [(_ (? symbol?)) -1]
-    ;; Need both cases because `reduce` uses plain numbers
-    [((or (? literal? (app literal-value a)) (? number? a)) (or (? literal? (app literal-value b))
-                                                                (? number? b)))
-     (cond
-       [(< a b) -1]
-       [(= a b) 0]
-       [else 1])]))
-
-(define (expr<? a b)
-  (negative? (expr-cmp a b)))
 
 ;; Converting constants
 

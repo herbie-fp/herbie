@@ -535,7 +535,7 @@ function makelabel(i, base, factor) {
     return num / den;
 }
 
-function histogram(id, xdata, ydata, options) {
+function histogram(canvas, xdata, ydata, options) {
     var width = options?.width ?? 676;
     var height = options?.height ?? 60;
     var margin = 5;
@@ -544,7 +544,6 @@ function histogram(id, xdata, ydata, options) {
     var bucketnum = options?.buckets ?? 25;
     var bucketwidth = Math.round(width / bucketnum);
 
-    var canvas = document.getElementById(id);
     if (xdata.length == 0 || (ydata && xdata.length != ydata.length)) { return canvas.remove(); }
 
     canvas.setAttribute("width", margin + width + margin + "px");
