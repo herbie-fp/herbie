@@ -34,8 +34,8 @@
 - Use runs on benchmarks, not unit tests, as primary correctness
   check, with `racket -y src/main.rkt report <flags> <bench> <out>`.
 - `bench/tutorial.fpcore` is a ~5s check for obvious issues.
-  `bench/hamming.fpcore` is a longer ~1min check for significant
-  algorithmic changes. For more intensive tests, start a nightly.
+  The benchmarks in `bench/hamming/` are a longer (~1min) check for
+  significant algorithmic changes. For more intensive tests, start a nightly.
 - Pass `--seed N` for reproducibility and `--timeout T` to set a
   per-benchmark timeout.
 - The `<out>` will have one directory per benchmark. The directory
