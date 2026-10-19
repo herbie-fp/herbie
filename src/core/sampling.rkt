@@ -69,6 +69,32 @@
            (loop (+ 1 mid) right)
            (loop left mid))])))
 
+;; Draw from exact integer weights without generating a random integer as wide as
+;; their sum. Refine a uniform binary prefix until its interval belongs to one
+;; weight; only prefixes that straddle a boundary need more random bits.
+(define (sample-weighted-index weights total)
+  (let ([initial-bits (min 60 (+ (integer-length (vector-length weights)) 4))])
+    (let loop ([prefix (random-bits initial-bits)]
+               [bits initial-bits])
+      (define lower-product (* prefix total))
+      (define upper-product (+ lower-product total))
+      (define index (binary-search weights (arithmetic-shift lower-product (- bits))))
+      ;; The prefix interval must stay below the selected cumulative weight.
+      (if (<= upper-product (arithmetic-shift (vector-ref weights index) bits))
+          index
+          (let ([more-bits 30])
+            (loop (+ (arithmetic-shift prefix more-bits) (random-bits more-bits))
+                  (+ bits more-bits)))))))
+
+;; Rejection avoids bias when bound is not a power of two.
+(define (random-below bound)
+  (define bits (integer-length (sub1 bound)))
+  (let loop ()
+    (define candidate (random-bits bits))
+    (if (< candidate bound)
+        candidate
+        (loop))))
+
 (module+ test
   (define arr (partial-sums (build-vector 50 (lambda (_) (random-integer 1 100)))))
   (define max-num (vector-ref arr (- (vector-length arr) 1)))
@@ -96,20 +122,129 @@
         (+ 1
            ((representation-repr->ordinal repr)
             ((representation-bf->repr repr) (ival-hi interval)))))))
-  (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
+  (define widths
+    (for/vector #:length (vector-length hyperrects)
+                ([los (in-vector lo-ends)]
+                 [his (in-vector hi-ends)])
+      (map - his los)))
+  (define rect-weights (vector-map (curryr hyperrect-weight reprs) hyperrects))
+  (define weight-gcd
+    (for/fold ([common-divisor 0]) ([weight (in-vector rect-weights)])
+      (gcd common-divisor weight)))
+  ;; Removing a common factor preserves probabilities and shrinks the draw bound.
+  (define weights (partial-sums (vector-map (curryr quotient weight-gcd) rect-weights)))
   (define weight-max (vector-ref weights (- (vector-length weights) 1)))
 
   ;; returns pt and hint
   (define num-vars (vector-length reprs))
   (define (hyperrect-sampler)
-    (define idx (binary-search weights (random-natural weight-max)))
+    (define idx (sample-weighted-index weights weight-max))
     (values (for/vector #:length num-vars
                         ([lo (in-list (vector-ref lo-ends idx))]
-                         [hi (in-list (vector-ref hi-ends idx))]
+                         [width (in-list (vector-ref widths idx))]
                          [repr (in-vector reprs)])
-              ((representation-ordinal->repr repr) (random-integer lo hi)))
+              ((representation-ordinal->repr repr) (+ lo (random-below width))))
             (vector-ref hints idx)))
   hyperrect-sampler)
+
+(module+ test
+  (define ordinal->binary64 (representation-ordinal->repr binary64))
+  (define binary64->ordinal (representation-repr->ordinal binary64))
+  (define binary64->bf (representation-repr->bf binary64))
+
+  (define (sample-ordinal-range lo-ordinal hi-ordinal)
+    (define expected
+      (for/list ([ordinal (in-range lo-ordinal (add1 hi-ordinal))])
+        (ordinal->binary64 ordinal)))
+    (define interval (ival (binary64->bf (first expected)) (binary64->bf (last expected))))
+    (define sampler (make-hyperrect-sampler (list (list interval)) '(#f) (vector binary64)))
+    (define samples
+      (parameterize ([current-pseudo-random-generator (make-pseudo-random-generator)])
+        (random-seed 1)
+        (for/list ([i (in-range 400)])
+          (define-values (point hint) (sampler))
+          (vector-ref point 0))))
+    (check-equal? (sort (remove-duplicates samples) <) (sort expected <))
+    (for ([value (in-list expected)])
+      (define num-occurrences (count (curry = value) samples))
+      (check-true (<= 50 num-occurrences 150))))
+
+  (sample-ordinal-range -1 1)
+  (define broad-interval (ival (binary64->bf -1.0) (binary64->bf 1.0)))
+  (define broad-width (- (add1 (binary64->ordinal 1.0)) (binary64->ordinal -1.0)))
+  (check-true (> broad-width (expt 2 60)))
+  (define broad-sampler
+    (make-hyperrect-sampler (list (list broad-interval)) '(broad) (vector binary64)))
+  (check-true (parameterize ([current-pseudo-random-generator (make-pseudo-random-generator)])
+                (random-seed 4)
+                (for/and ([i (in-range 100)])
+                  (define-values (point hint) (broad-sampler))
+                  (and (eq? hint 'broad) (<= -1.0 (vector-ref point 0) 1.0)))))
+
+  (define multi-reprs (vector binary64 binary64))
+  (define base-ordinal (binary64->ordinal 1.0))
+  (define (ordinal-interval lo count)
+    (ival (binary64->bf (ordinal->binary64 lo))
+          (binary64->bf (ordinal->binary64 (+ lo (sub1 count))))))
+  (define full-interval (ordinal-interval base-ordinal #x100000000))
+  (define half-interval (ordinal-interval base-ordinal #x80000000))
+  (define full-rect (list full-interval full-interval))
+  (define half-rect (list half-interval full-interval))
+  (define full-weight (hyperrect-weight full-rect multi-reprs))
+  (define half-weight (hyperrect-weight half-rect multi-reprs))
+  (check-true (> full-weight (expt 2 63)))
+  (check-equal? full-weight (* 2 half-weight))
+  (define multi-sampler (make-hyperrect-sampler (list full-rect half-rect) '(full half) multi-reprs))
+  (define full-hi-ordinal (+ base-ordinal #xffffffff))
+  (define half-hi-ordinal (+ base-ordinal #x7fffffff))
+  (define full-count
+    (parameterize ([current-pseudo-random-generator (make-pseudo-random-generator)])
+      (random-seed 2)
+      (for/fold ([full-count 0]) ([i (in-range 1000)])
+        (define-values (point hint) (multi-sampler))
+        (check-equal? (vector-length point) 2)
+        (for ([value (in-vector point)]
+              [var-idx (in-naturals)])
+          (define ordinal (binary64->ordinal value))
+          (define hi-ordinal
+            (if (and (eq? hint 'half) (zero? var-idx)) half-hi-ordinal full-hi-ordinal))
+          (check-true (<= base-ordinal ordinal hi-ordinal)))
+        (check-true (or (eq? hint 'full) (eq? hint 'half)))
+        (if (eq? hint 'full)
+            (add1 full-count)
+            full-count))))
+  (check-true (<= 620 full-count 715)))
+
+(module+ test
+  (define many-reprs (make-vector 8 binary64))
+  (define wide-interval (ordinal-interval base-ordinal #x100000000))
+  (define almost-wide-interval (ordinal-interval base-ordinal #xffffffff))
+  (define wide-rect (make-list 8 wide-interval))
+  (define almost-wide-rect (make-list 8 almost-wide-interval))
+  (define wide-weight (hyperrect-weight wide-rect many-reprs))
+  (define almost-wide-weight (hyperrect-weight almost-wide-rect many-reprs))
+  (check-true (> wide-weight (expt 2 255)))
+  (check-equal? (gcd wide-weight almost-wide-weight) 1)
+  (define wide-sampler
+    (make-hyperrect-sampler (list wide-rect almost-wide-rect) '(wide almost-wide) many-reprs))
+  (define wide-count
+    (parameterize ([current-pseudo-random-generator (make-pseudo-random-generator)])
+      (random-seed 3)
+      (for/fold ([wide-count 0]) ([i (in-range 1000)])
+        (define-values (point hint) (wide-sampler))
+        (check-equal? (vector-length point) 8)
+        (for ([value (in-vector point)])
+          (define ordinal (binary64->ordinal value))
+          (define hi-ordinal
+            (if (eq? hint 'wide)
+                (+ base-ordinal #xffffffff)
+                (+ base-ordinal #xfffffffe)))
+          (check-true (<= base-ordinal ordinal hi-ordinal)))
+        (check-true (or (eq? hint 'wide) (eq? hint 'almost-wide)))
+        (if (eq? hint 'wide)
+            (add1 wide-count)
+            wide-count))))
+  (check-true (<= 450 wide-count 550)))
 
 (define (make-sampler compiler)
   (match-define (real-compiler pre vars var-reprs _ reprs _ _ _ _) compiler)
