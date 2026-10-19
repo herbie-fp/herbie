@@ -69,6 +69,7 @@
 (define (exn:rival:unsamplable? e)
   (or (r2:exn:rival:unsamplable? e) (r3:exn:rival:unsamplable? e)))
 
+;; Both Rival backends capture their maximum precision when compiling.
 (define *rival-max-precision*
   (make-derived-parameter r2:*rival-max-precision*
                           identity
@@ -142,7 +143,9 @@
   ; create the machine
   (define exprs (cons `(assert ,pre*) specs*))
   (define discs (make-discretizations flattened-reprs))
-  (define machine (rival-compile exprs vars discs))
+  (define machine
+    (parameterize ([*rival-max-precision* (*max-mpfr-prec*)])
+      (rival-compile exprs vars discs)))
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre*) (map expr-size specs*))
                   (+ (length vars) (rival-profile machine 'instructions)))
@@ -199,8 +202,7 @@
   (define-values (status value)
     (with-handlers ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
                     [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
-      (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
-                     [*rival-max-iterations* 5])
+      (parameterize ([*rival-max-iterations* 5])
         (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
         (values 'valid value))))
   (when dump-file
