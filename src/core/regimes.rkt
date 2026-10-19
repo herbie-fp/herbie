@@ -51,7 +51,8 @@
             (if (flag-set? 'reduce 'branch-expressions)
                 (block-reachable block (cons initial-v (map alt-expr sorted)))
                 var-vs)))
-  (define candidates (branch-candidates block branch-vs err-cols pcontext))
+  (define v-vals (v-values* block branch-vs pcontext))
+  (define candidates (branch-candidates block branch-vs v-vals err-cols))
   (define var-candidates (filter (lambda (c) (member (candidate-expr c) var-vs)) candidates))
   (define branches
     (remove-duplicates (append var-candidates (list (argmin candidate-score candidates)))))
@@ -106,19 +107,19 @@
   (- (pareto-point-error ppt) (length (option-split-indices (pareto-point-data ppt)))))
 
 ;; A branch expression, the point order along it, and its optimal split using every alt.
-(struct candidate (expr sorted-indices can-split-vec splits score))
+(struct candidate (expr sorted-indices can-split splits score))
 
-(define (branch-candidates block vs err-cols pcontext)
+(define (branch-candidates block vs v-vals err-cols)
   ;; Expressions that sort the points identically give identical splits.
   (define orders
     (remove-duplicates (for/list ([v (in-list vs)]
-                                  [v-vals-vec (in-list (v-values* block vs pcontext))])
+                                  [v-vals-vec (in-list v-vals)])
                          (cons v (branch-order v-vals-vec (block-repr-of v))))
                        #:key cdr))
   (for/list ([order (in-list orders)])
-    (match-define (cons v (cons sorted-indices can-split-vec)) order)
-    (define-values (splits score) (infer-option err-cols sorted-indices can-split-vec))
-    (candidate v sorted-indices can-split-vec splits score)))
+    (match-define (cons v (cons sorted-indices can-split)) order)
+    (define-values (splits score) (infer-option err-cols sorted-indices can-split))
+    (candidate v sorted-indices can-split splits score)))
 
 (define (baseline-errors-score err-cols count)
   (for/fold ([best +inf.0]) ([err-col (in-list (take err-cols count))])
@@ -148,24 +149,21 @@
   (define order
     (vector-sort (build-vector (vector-length v-vals-vec) values)
                  (lambda (i j) (</total (vector-ref v-vals-vec i) (vector-ref v-vals-vec j) repr))))
-  (define can-split-vec
-    (for/vector #:length (vector-length order)
-                ([idx (in-vector order)]
-                 [k (in-naturals)])
-      (and (> k 0)
-           (</total (vector-ref v-vals-vec (vector-ref order (sub1 k)))
-                    (vector-ref v-vals-vec idx)
-                    repr))))
-  (cons order can-split-vec))
+  (define can-split
+    (cons #f
+          (for/list ([idx (in-vector order 1)]
+                     [prev-idx (in-vector order 0)])
+            (</total (vector-ref v-vals-vec prev-idx) (vector-ref v-vals-vec idx) repr))))
+  (cons order can-split))
 
 (define (branch-options c alts-vec err-cols pts-vec)
-  (match-define (candidate v sorted-indices can-split-vec splits score) c)
+  (match-define (candidate v sorted-indices can-split splits score) c)
   (define pts*
     (for/list ([i (in-vector sorted-indices)])
       (vector-ref pts-vec i)))
 
   (define-values (splitss scores)
-    (infer-option-prefixes err-cols sorted-indices can-split-vec splits score))
+    (infer-option-prefixes err-cols sorted-indices can-split splits score))
 
   (define points
     (for/list ([count (in-range 1 (add1 (vector-length splitss)))])
@@ -188,14 +186,16 @@
 
   (define (test-regimes expr goal)
     (define-values (block vs) (progs->block (list expr) #:ctx ctx))
-    (define c (first (branch-candidates block vs err-cols pctx)))
+    (define v-vals (v-values* block vs pctx))
+    (define c (first (branch-candidates block vs v-vals err-cols)))
     (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
            (pareto-point-data (first (branch-options c (list->vector alts) err-cols pts-vec)))
            goal))
 
   (define (test-regimes/prefixes expr goals)
     (define-values (block vs) (progs->block (list expr) #:ctx ctx))
-    (define c (first (branch-candidates block vs err-cols pctx)))
+    (define v-vals (v-values* block vs pctx))
+    (define c (first (branch-candidates block vs v-vals err-cols)))
     (define options
       (map pareto-point-data (reverse (branch-options c (list->vector alts) err-cols pts-vec))))
     (for ([goal (in-list goals)]
@@ -240,7 +240,7 @@
         [else (loop (add1 alt-idx) best best-score)])))
 
   ;; This is the core main loop of the regimes algorithm.
-  ;; Takes in alt-major error columns, point-sorting indices, and a vector
+  ;; Takes in alt-major error columns, point-sorting indices, and a list
   ;; of booleans to determine when it's ok to split for another alt.
   ;; Returns a list of split indices saying which alt to use for which
   ;; range of points, starting at 1 going up to num-points, and the score
@@ -248,11 +248,12 @@
   ;; regimes split is calculated using the following DP recurrence:
   ;; best[p][a] = error[p][a] + min(best[p-1][a], penalty + min_b best[p-1][b])
   (: infer-option
-     (-> (Listof FlVector) (Vectorof Integer) (Vectorof Boolean) (Values (Listof si) Float)))
-  (define (infer-option err-cols sorted-indices can-split-vec)
+     (-> (Listof FlVector) (Vectorof Integer) (Listof Boolean) (Values (Listof si) Float)))
+  (define (infer-option err-cols sorted-indices can-split)
     (define number-of-alts (length err-cols))
     (define number-of-points (vector-length sorted-indices))
     (define split-penalty (fl number-of-points))
+    (define can-split-vec (list->vector can-split))
 
     ;; errors[p][a]
     (: errors (Vectorof FlVector))
@@ -328,11 +329,11 @@
   (: infer-option-prefixes
      (-> (Listof FlVector)
          (Vectorof Integer)
-         (Vectorof Boolean)
+         (Listof Boolean)
          (Listof si)
          Float
          (Values (Vectorof (Listof si)) FlVector)))
-  (define (infer-option-prefixes err-cols sorted-indices can-split-vec splits score)
+  (define (infer-option-prefixes err-cols sorted-indices can-split splits score)
     (define number-of-alts (length err-cols))
     (: splitss (Vectorof (Listof si)))
     (define splitss (make-vector number-of-alts (ann null (Listof si))))
@@ -346,7 +347,7 @@
         (flvector-set! scores alt-idx score))
       (when (> highest-used-alt 0)
         (define-values (splits* score*)
-          (infer-option (take err-cols highest-used-alt) sorted-indices can-split-vec))
+          (infer-option (take err-cols highest-used-alt) sorted-indices can-split))
         (loop (sub1 highest-used-alt) splits* score*)))
     (values splitss scores)))
 
