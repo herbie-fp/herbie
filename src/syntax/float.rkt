@@ -84,11 +84,13 @@
 
 (define (</total x1 x2 repr)
   (define special? (representation-special-value? repr))
-  (define ->ordinal (representation-repr->ordinal repr))
   (cond
     [(special? x1) #f]
     [(special? x2) #t]
-    [else (< (->ordinal x1) (->ordinal x2))]))
+    [(or (eq? repr <binary32>) (eq? repr <binary64>)) (< x1 x2)]
+    [else
+     (define ->ordinal (representation-repr->ordinal repr))
+     (< (->ordinal x1) (->ordinal x2))]))
 
 (define (<=/total x1 x2 repr)
   (or (</total x1 x2 repr) (=/total x1 x2 repr)))

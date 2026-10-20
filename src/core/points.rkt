@@ -16,6 +16,7 @@
          pcontext-length
          errors
          block-errors
+         block-eval
          exprs-errors
          errors-score)
 
@@ -74,6 +75,18 @@
   (define fn (compile-block block vs))
   (define num-exprs (length vs))
   (generate-errors fn pcontext (block-repr-of (first vs)) num-exprs))
+
+(define (block-eval block vs pcontext)
+  (define fn (compile-block block vs))
+  (define num-exprs (length vs))
+  (define num-points (pcontext-length pcontext))
+  (define results (build-vector num-exprs (lambda (_) (make-vector num-points))))
+  (for ([point (in-vector (pcontext-points pcontext))]
+        [pidx (in-naturals)])
+    (for ([out (in-vector (fn point))]
+          [result (in-vector results)])
+      (vector-set! result pidx out)))
+  results)
 
 (define (generate-errors fn pcontext repr num-exprs)
   (define ulps (repr-ulps repr))

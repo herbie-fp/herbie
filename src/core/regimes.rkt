@@ -51,7 +51,7 @@
             (if (flag-set? 'reduce 'branch-expressions)
                 (block-reachable block (cons initial-v (map alt-expr sorted)))
                 var-vs)))
-  (define v-vals (v-values* block branch-vs pcontext))
+  (define v-vals (block-eval block branch-vs pcontext))
   (define candidates (branch-candidates block branch-vs v-vals err-cols))
   (define var-candidates (filter (lambda (c) (member (candidate-expr c) var-vs)) candidates))
   (define branches
@@ -113,7 +113,7 @@
   ;; Expressions that sort the points identically give identical splits.
   (define orders
     (remove-duplicates (for/list ([v (in-list vs)]
-                                  [v-vals-vec (in-list v-vals)])
+                                  [v-vals-vec (in-vector v-vals)])
                          (cons v (branch-order v-vals-vec (block-repr-of v))))
                        #:key cdr))
   (for/list ([order (in-list orders)])
@@ -131,18 +131,6 @@
               (for/fold ([best-err +inf.0]) ([err-col (in-list (take err-cols count))])
                 (min best-err (flvector-ref err-col point-idx))))
      num-points))
-
-(define (v-values* block vs pcontext)
-  (define count (length vs))
-  (define fn (compile-block block vs))
-  (define num-points (pcontext-length pcontext))
-  (define vals (build-vector count (lambda (_) (make-vector num-points))))
-  (for ([pt (in-vector (pcontext-points pcontext))]
-        [p (in-naturals)])
-    (for ([out (in-vector (fn pt))]
-          [i (in-naturals)])
-      (vector-set! (vector-ref vals i) p out)))
-  (vector->list vals))
 
 ;; The point order along a branch expression, and where splitting it is legal.
 (define (branch-order v-vals-vec repr)
@@ -184,9 +172,19 @@
   (define err-cols (list (flvector 53.0 0.0) (flvector 0.0 53.0)))
   (define pts-vec (pcontext-points pctx))
 
+  (for* ([repr (in-list (list <binary32> <binary64>))]
+         [x (in-list (list -inf.0 -1.0 -0.0 0.0 1.0 +inf.0 +nan.0))]
+         [y (in-list (list -inf.0 -1.0 -0.0 0.0 1.0 +inf.0 +nan.0))])
+    (check-equal? (</total x y repr) (and (not (nan? x)) (or (nan? y) (< x y)))))
+
+  (define-values (argmin-splits argmin-score)
+    (infer-option (list (flvector 0.0 10.0 0.0) (flvector 4.0 0.0 10.0)) #(0 1 2) '(#f #t #t)))
+  (check-equal? argmin-splits (list (si 0 1) (si 1 2) (si 0 3)))
+  (check-equal? argmin-score 6.0)
+
   (define (test-regimes expr goal)
     (define-values (block vs) (progs->block (list expr) #:ctx ctx))
-    (define v-vals (v-values* block vs pctx))
+    (define v-vals (block-eval block vs pctx))
     (define c (first (branch-candidates block vs v-vals err-cols)))
     (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
            (pareto-point-data (first (branch-options c (list->vector alts) err-cols pts-vec)))
@@ -194,7 +192,7 @@
 
   (define (test-regimes/prefixes expr goals)
     (define-values (block vs) (progs->block (list expr) #:ctx ctx))
-    (define v-vals (v-values* block vs pctx))
+    (define v-vals (block-eval block vs pctx))
     (define c (first (branch-candidates block vs v-vals err-cols)))
     (define options
       (map pareto-point-data (reverse (branch-options c (list->vector alts) err-cols pts-vec))))
@@ -271,6 +269,8 @@
     ;; row = best[p-1] going in to point p, best[p] coming out; updated in place
     (: row FlVector)
     (define row (flvector-copy (vector-ref errors 0))) ; best[0][a] = error[0][a]
+    (: best-alt Integer)
+    (define best-alt (argmin row))
     ;; A predecessor is either the same alt or the row's best alt, so store
     ;; one byte per switch decision and the best alt once per point.
     (: best-alts (Vectorof Integer))
@@ -280,26 +280,30 @@
       (build-vector number-of-points (lambda (_) (make-bytes number-of-alts 0))))
 
     (for ([point-idx (in-range 1 number-of-points)])
-      (define best-alt (argmin row))
       ;; penalty + min_b best[p-1][b]
       (define switched-score (+ split-penalty (flvector-ref row best-alt)))
       (define errors-here (vector-ref errors point-idx)) ; error[p]
       (define switch-decisions-here (vector-ref switch-decisions point-idx))
       (define can-split? (vector-ref can-split-vec point-idx))
       (vector-set! best-alts point-idx best-alt)
+      (define next-best-alt 0)
+      (define next-best-score +inf.0)
       (for ([alt-idx (in-range number-of-alts)])
         (define continued-score (flvector-ref row alt-idx)) ; best[p-1][a]
         (define switch? (and can-split? (< switched-score continued-score)))
-        (flvector-set! row
-                       alt-idx
-                       (+ (flvector-ref errors-here alt-idx)
-                          (if switch? switched-score continued-score)))
+        (define score-here
+          (+ (flvector-ref errors-here alt-idx) (if switch? switched-score continued-score)))
+        (flvector-set! row alt-idx score-here)
+        (when (< score-here next-best-score)
+          (set! next-best-alt alt-idx)
+          (set! next-best-score score-here))
         (when switch?
-          (bytes-set! switch-decisions-here alt-idx 1))))
+          (bytes-set! switch-decisions-here alt-idx 1)))
+      (set! best-alt next-best-alt))
 
     ;; score = min_a best[P][a]
     (define last-point (sub1 number-of-points))
-    (define last-alt (argmin row))
+    (define last-alt best-alt)
 
     (: alts (Vectorof Integer))
     (define alts (make-vector number-of-points 0))
