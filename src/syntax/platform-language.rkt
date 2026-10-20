@@ -19,7 +19,10 @@
          (rename-out [platform-module-begin #%module-begin])
          (except-out (all-from-out racket) #%module-begin)
          (all-from-out "platform.rkt")
-         (all-from-out "generators.rkt")
+         from-rival
+         from-ffi
+         from-libm
+         from-bigfloat
          (all-from-out "types.rkt"))
 
 ;; Core error checking code
@@ -217,12 +220,13 @@
                      [fpcore-val (hash-ref keywords 'fpcore (hash-ref keywords 'spec))]
                      [impl-val (hash-ref keywords 'impl)]
                      [cost-val (hash-ref keywords 'cost)])
-         #'(create-operator-impl! 'id
-                                  (context '(var ...) rtype (list repr ...))
-                                  #:spec 'spec-val
-                                  #:impl impl-val
-                                  #:fpcore 'fpcore-val
-                                  #:cost cost-val)))]
+         #'(create-operator-impl!
+            'id
+            (context '(var ...) rtype (list repr ...))
+            #:spec 'spec-val
+            #:impl (with-operator-signature (context '(var ...) rtype (list repr ...)) impl-val)
+            #:fpcore 'fpcore-val
+            #:cost cost-val)))]
     [_ (oops! "bad syntax")]))
 
 (define platform-being-defined (make-parameter #f))

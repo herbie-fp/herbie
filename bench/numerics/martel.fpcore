@@ -19,14 +19,14 @@
 
  (* a (+ (+ b c) d)))
 
-(FPCore (a b c d e)
- :pre (<= 1 a 2 b 4 c 8 d 16 e 32)
+(FPCore (a b c d e1)
+ :pre (<= 1 a 2 b 4 c 8 d 16 e1 32)
  :name "Expression 1, p15"
  :alt 
  (! :herbie-platform c
-  (+ (+ d (+ c (+ a b))) e))
+  (+ (+ d (+ c (+ a b))) e1))
 
- (+ (+ (+ (+ e d) c) b) a))
+ (+ (+ (+ (+ e1 d) c) b) a))
 
 (FPCore (x)
  :pre (<= 0 x 2)
