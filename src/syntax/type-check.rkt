@@ -183,7 +183,8 @@
                  [representations (hash-copy (platform-representations (*active-platform*)))]
                  [implementations (hash-copy (platform-implementations (*active-platform*)))]
                  [representation-costs
-                  (hash-copy (platform-representation-costs (*active-platform*)))]))
+                  (hash-copy (platform-representation-costs (*active-platform*)))]
+                 [fpcore-op-hash #f]))
   (parameterize ([*active-platform* pf])
     (define dummy-repr
       (make-representation #:name 'dummy

@@ -82,7 +82,7 @@
 (define (run-tests tests #:dir dir #:threads threads)
   (define seed (get-seed))
   (unless (directory-exists? dir)
-    (make-directory dir))
+    (make-directory* dir))
 
   (server-start threads)
   (define job-ids
@@ -116,17 +116,7 @@
   (call-with-output-file
    (build-path dir "timeline.html")
    #:exists 'replace
-   (λ (out) (write-html (make-timeline "Herbie run" timeline #:info info #:path ".") out)))
-
-  ; Delete old files
-  (define expected-dirs
-    (map string->path (filter identity (map table-row-link (report-info-tests info)))))
-  (define actual-dirs
-    (filter (λ (name) (directory-exists? (build-path dir name))) (directory-list dir)))
-  (define extra-dirs (filter (λ (name) (not (member name expected-dirs))) actual-dirs))
-  (for ([subdir extra-dirs])
-    (with-handlers ([exn:fail:filesystem? (const true)])
-      (delete-directory/files (build-path dir subdir)))))
+   (λ (out) (write-html (make-timeline "Herbie run" timeline #:info info #:path ".") out))))
 
 ;; Generate a path for a given benchmark name
 (define (bench-folder-path bench-name index)

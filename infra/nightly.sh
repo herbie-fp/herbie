@@ -9,6 +9,9 @@ rustup default stable
 
 # Keep nightly installs isolated and consistent across install/run steps.
 export PLTADDONDIR="${PLTADDONDIR:-pltlibs}"
+# Keep ffi2 optional for general installs; nightlies should exercise the ffi2 path.
+raco pkg remove --force --no-docs ffi2 && echo "Removed old ffi2" || :
+raco pkg install --auto --no-docs ffi2
 make install
 
 # Seed is fixed for the whole day; this way two branches run the same seed

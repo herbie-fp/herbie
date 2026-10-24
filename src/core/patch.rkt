@@ -11,7 +11,6 @@
          "egg-herbie.rkt"
          "egglog-herbie.rkt"
          "programs.rkt"
-         "rules.rkt"
          "../syntax/rival.rkt"
          "taylor.rkt")
 

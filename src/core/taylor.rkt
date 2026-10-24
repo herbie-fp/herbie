@@ -1,9 +1,6 @@
 #lang racket
 
-(require math/number-theory)
-(require "../utils/common.rkt"
-         "../utils/dvector.rkt"
-         "../syntax/syntax.rkt"
+(require "../utils/dvector.rkt"
          "../syntax/types.rkt"
          "../syntax/block.rkt"
          "programs.rkt")
@@ -28,12 +25,8 @@
 (define taylor-transforms
   (let ([invert-x (λ (x) `(/ 1 ,x))]
         [exp-x (λ (x) `(exp ,x))]
-        [log-x (λ (x) `(log ,x))]
-        [ninvert-x (λ (x) `(/ 1 (neg ,x)))])
-    `((0 ,identity ,identity) (inf ,invert-x ,invert-x)
-                              (-inf ,ninvert-x ,ninvert-x)
-                              #;(exp ,exp-x ,log-x)
-                              #;(log ,log-x ,exp-x))))
+        [log-x (λ (x) `(log ,x))])
+    `((0 ,identity ,identity) (inf ,invert-x ,invert-x) #;(exp ,exp-x ,log-x) #;(log ,log-x ,exp-x))))
 
 (define (taylor-coefficients block vs vars transforms-to-try)
   (define expander (expand-taylor! block))
@@ -148,10 +141,27 @@
      (adder `(* ,(make-monomial var (- n start)) (+ ,c ,(make-horner var rest n))))]))
 
 (define (make-sum terms)
-  (match terms
-    ['() 0]
-    [`(,x) x]
-    [`(,x ,xs ...) `(+ ,x ,(make-sum xs))]))
+  (let loop ([terms terms])
+    (match terms
+      ['() 0]
+      [`(,x) x]
+      [`(,x ,xs ...)
+       (if (zero-value? x)
+           (loop xs)
+           `(+ ,x ,(loop xs)))])))
+
+(define (zero-value? value)
+  (match value
+    [(? number? n) (zero? n)]
+    [(? val? v) (equal? (val-def v) 0)]
+    [_ #f]))
+
+(define (make-difference first . terms)
+  (define rest (make-sum terms))
+  (cond
+    [(zero-value? rest) first]
+    [(zero-value? first) `(neg ,rest)]
+    [else `(- ,first ,rest)]))
 
 (define (make-monomial var power)
   (cond
@@ -160,23 +170,6 @@
     [(equal? power -1) `(/ 1 ,var)]
     [(positive? power) `(pow ,var ,power)]
     [(negative? power) `(pow ,var ,power)]))
-
-(define/reset n-sum-to-cache (make-hash))
-
-(define/reset log-cache (make-hash '((1 . ((1 -1 1))))))
-
-(define (n-sum-to n k)
-  (hash-ref! (n-sum-to-cache)
-             (cons n k)
-             (λ ()
-               (cond
-                 [(= k 0) (list (make-list n 0))]
-                 [(= n 1) (list (list k))]
-                 [(= n 0) '()]
-                 [else
-                  (for*/list ([i (in-range 0 (+ k 1))]
-                              [v (in-list (map (curry cons i) (n-sum-to (- n 1) (- k i))))])
-                    v)]))))
 
 (define (taylor var expr-block)
   "Return a pair (e, n), such that expr ~= e var^n"
@@ -247,7 +240,8 @@
   ;(->* () #:rest (listof val?) term?)
   (define items (list->vector (map reducer terms)))
   (define len (vector-length items))
-  (make-series 0
+  (make-series 'exact
+               0
                (λ (f n)
                  (if (< n len)
                      (val-def (vector-ref items n))
@@ -261,7 +255,7 @@
         (loop (+ n 1))
         n)))
 
-(define (make-series offset builder)
+(define (make-series function-name offset builder)
   (series offset builder (make-dvector 10)))
 
 (define (series-ref s n)
@@ -271,7 +265,11 @@
     (dvector-ref cache i))
   (when (>= n (dvector-length cache))
     (for ([i (in-range (dvector-length cache) (add1 n))])
-      (define value (reducer (adder (builder fetch i))))
+      (define expr (adder (builder fetch i)))
+      (define value
+        (if (zero-value? expr)
+            expr
+            (reducer expr)))
       (dvector-set! cache i value)))
   (dvector-ref cache n))
 
@@ -294,20 +292,22 @@
              (series-ref series (+ n shift))))]))
   (define left* (align left-offset left))
   (define right* (align right-offset right))
-  (make-series target-offset (λ (f n) (make-sum (list (left* n) (right* n))))))
+  (make-series 'add target-offset (λ (f n) (make-sum (list (left* n) (right* n))))))
 
 (define (taylor-negate term)
   ;(-> term? term?)
-  (make-series (series-offset term) (λ (f n) (list 'neg (series-ref term n)))))
+  (make-series 'negate (series-offset term) (λ (f n) (make-difference 0 (series-ref term n)))))
 
 (define (taylor-mult left right)
   ;(-> term? term? term?)
-  (make-series (+ (series-offset left) (series-offset right))
+  (make-series 'multiply
+               (+ (series-offset left) (series-offset right))
                (λ (f n)
                  (make-sum (for/list ([i (in-range (+ n 1))]
-                                      #:unless (or (equal? (val-def (series-ref left i)) 0)
-                                                   (equal? (val-def (series-ref right (- n i))) 0)))
-                             (list '* (series-ref left i) (series-ref right (- n i))))))))
+                                      #:do [(define left* (series-ref left i))
+                                            (define right* (series-ref right (- n i)))]
+                                      #:unless (or (zero-value? left*) (zero-value? right*)))
+                             (list '* left* right*))))))
 
 (define (normalize-series s)
   ;(-> term? term?)
@@ -318,7 +318,7 @@
   (define slack (first-nonzero-exp coeffs))
   (if (zero? slack)
       s
-      (make-series (- offset slack) (λ (f n) (val-def (series-ref s (+ n slack)))))))
+      (make-series 'normalize (- offset slack) (λ (f n) (val-def (series-ref s (+ n slack)))))))
 
 (define ((zero-series s) n)
   ;(-> series? (-> number? val?))
@@ -334,12 +334,21 @@
   (define normalized (normalize-series term))
   (define offset (series-offset normalized))
   (define b (series-function normalized))
-  (make-series (- offset)
+  (make-series 'invert
+               (- offset)
                (λ (f n)
-                 (if (zero? n)
-                     `(/ 1 ,(b 0))
-                     `(neg (+ ,@(for/list ([i (in-range n)])
-                                  `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))
+                 (define b0 (b 0))
+                 (cond
+                   [(zero? n) `(/ 1 ,b0)]
+                   [else
+                    (define terms
+                      (for/list ([i (in-range n)]
+                                 #:do [(define fi (f i)) (define bi (b (- n i)))]
+                                 #:unless (or (zero-value? fi) (zero-value? bi)))
+                        `(* ,fi ,bi)))
+                    (if (null? terms)
+                        0
+                        `(/ ,(apply make-difference 0 terms) ,b0))]))))
 
 (define (taylor-quotient num denom)
   ;(-> term? term? term?)
@@ -352,13 +361,23 @@
   (define doff (series-offset normalized-denom))
   (define a (series-function normalized-num))
   (define b (series-function normalized-denom))
-  (make-series (- noff doff)
+  (make-series 'quotient
+               (- noff doff)
                (λ (f n)
-                 (if (zero? n)
-                     `(/ ,(a 0) ,(b 0))
-                     `(- (/ ,(a n) ,(b 0))
-                         (+ ,@(for/list ([i (in-range n)])
-                                `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))
+                 (define b0 (b 0))
+                 (cond
+                   [(zero? n) `(/ ,(a 0) ,b0)]
+                   [else
+                    (define an (a n))
+                    (define terms
+                      (for/list ([i (in-range n)]
+                                 #:do [(define fi (f i)) (define bi (b (- n i)))]
+                                 #:unless (or (zero-value? fi) (zero-value? bi)))
+                        `(* ,fi ,bi)))
+                    (define numerator (apply make-difference an terms))
+                    (if (zero-value? numerator)
+                        0
+                        `(/ ,numerator ,b0))]))))
 
 (define (modulo-series var n series)
   ;(-> symbol? number? term? term?)
@@ -369,63 +388,73 @@
   (cond
     [(= offset offset*) normalized]
     [else
-     (define cache (make-dvector 2)) ;; never called more than twice
      (define (coeffs* i)
-       (unless (and (> (dvector-capacity cache) i) (dvector-ref cache i))
-         (define res
-           (match i
-             [0
-              (adder (make-sum (for/list ([j (in-range (modulo offset n))])
-                                 `(* ,(coeffs j) (pow ,var ,(+ j (modulo (- offset) n)))))))]
-             [_
-              #:when (< i n)
-              (adder 0)]
-             [_ (coeffs (+ (- i n) (modulo offset n)))]))
-         (dvector-set! cache i res))
-       (dvector-ref cache i))
-     (make-series offset* (λ (f i) (val-def (coeffs* i))))]))
+       (match i
+         [0
+          (adder (make-sum (for/list ([j (in-range (modulo offset n))])
+                             `(* ,(coeffs j) (pow ,var ,(+ j (modulo (- offset) n)))))))]
+         [_
+          #:when (< i n)
+          (adder 0)]
+         [_ (coeffs (+ (- i n) (modulo offset n)))]))
+     (make-series 'modulo offset* (λ (f i) (val-def (coeffs* i))))]))
 
 (define (taylor-sqrt var num)
   ;(-> symbol? term? term?)
-  (define normalized (modulo-series var 2 num))
-  (define offset* (series-offset normalized))
-  (define coeffs* (series-function normalized))
-  (make-series (/ offset* 2)
-               (λ (f n)
-                 (cond
-                   [(zero? n) `(sqrt ,(coeffs* 0))]
-                   [(= n 1) `(/ ,(coeffs* 1) (* 2 (sqrt ,(coeffs* 0))))]
-                   [(even? n)
-                    `(/ (- ,(coeffs* n)
-                           (pow ,(f (/ n 2)) 2)
-                           (+ ,@(for/list ([k (in-naturals 1)]
-                                           #:break (>= k (- n k)))
-                                  `(* 2 (* ,(f k) ,(f (- n k)))))))
-                        (* 2 ,(f 0)))]
-                   [(odd? n)
-                    `(/ (- ,(coeffs* n)
-                           (+ ,@(for/list ([k (in-naturals 1)]
-                                           #:break (>= k (- n k)))
-                                  `(* 2 (* ,(f k) ,(f (- n k)))))))
-                        (* 2 ,(f 0)))]))))
+  (define normalized (normalize-series num))
+  (define offset (series-offset normalized))
+  (define exponent-class (modulo (- offset) 4))
+  ;; A leading power 2 modulo 4 has an odd half-power, so sqrt contributes fabs(x).
+  (define (root-series offset coeffs*)
+    (make-series 'sqrt
+                 (/ offset 2)
+                 (λ (f n)
+                   (cond
+                     [(zero? n) `(sqrt ,(coeffs* 0))]
+                     [(= n 1) `(/ ,(coeffs* 1) (* 2 (sqrt ,(coeffs* 0))))]
+                     [(even? n)
+                      `(/ (- ,(coeffs* n)
+                             (pow ,(f (/ n 2)) 2)
+                             (+ ,@(for/list ([k (in-naturals 1)]
+                                             #:break (>= k (- n k)))
+                                    `(* 2 (* ,(f k) ,(f (- n k)))))))
+                          (* 2 ,(f 0)))]
+                     [(odd? n)
+                      `(/ (- ,(coeffs* n)
+                             (+ ,@(for/list ([k (in-naturals 1)]
+                                             #:break (>= k (- n k)))
+                                    `(* 2 (* ,(f k) ,(f (- n k)))))))
+                          (* 2 ,(f 0)))]))))
+  (cond
+    [(= exponent-class 2)
+     (define root-power (/ (- offset) 2))
+     (define root (root-series 0 (series-function normalized)))
+     (make-series 'sqrt (- 1 root-power) (λ (f n) `(* (fabs ,var) ,(series-ref root n))))]
+    [else
+     (define normalized* (modulo-series var 4 normalized))
+     (root-series (series-offset normalized*) (series-function normalized*))]))
 
 (define (taylor-cbrt var num)
   ;(-> symbol? term? term?)
   (define normalized (modulo-series var 3 num))
   (define offset* (series-offset normalized))
   (define coeffs* (series-function normalized))
-  (make-series (/ offset* 3)
+  (make-series 'cbrt
+               (/ offset* 3)
                (λ (f n)
                  (cond
                    [(zero? n) `(cbrt ,(coeffs* 0))]
-                   [(= n 1) `(/ ,(coeffs* 1) (* 3 (cbrt (* ,(f 0) ,(f 0)))))]
                    [else
-                    `(/ (- ,(coeffs* n)
-                           ,@(for*/list ([terms (in-list (n-sum-to 3 n))]
-                                         #:unless (set-member? terms n))
-                               (match-define (list a b c) terms)
-                               `(* ,(f a) ,(f b) ,(f c))))
-                        (* 3 ,(f 0) ,(f 0)))]))))
+                    (define terms
+                      (for/list ([k (in-range 1 (add1 n))]
+                                 #:do [(define scale (- (* 4 k) (* 3 n)))
+                                       (define ak (coeffs* k))
+                                       (define ynk (f (- n k)))]
+                                 #:unless (or (zero-value? scale) (zero-value? ak) (zero-value? ynk)))
+                        `(* ,scale ,ak ,ynk)))
+                    (if (null? terms)
+                        0
+                        `(/ ,(make-sum terms) (* 3 ,n ,(coeffs* 0))))]))))
 
 (define (taylor-fabs var term)
   (define normalized (normalize-series term))
@@ -436,13 +465,11 @@
     [(and (even? offset) (negative? a0)) (taylor-negate normalized)]
     [(and (even? offset) (positive? a0)) normalized]
     [(odd? offset)
-     (define scale-factor (adder `(* (fabs ,var) ,(if (negative? a0) -1 1))))
+     (define sign (if (negative? a0) -1 1))
      (define new-offset (add1 offset))
-     (make-series new-offset
-                  (λ (f n)
-                    (if (zero? n)
-                        scale-factor
-                        (series-ref normalized (+ n (- new-offset offset))))))]
+     (make-series 'fabs
+                  new-offset
+                  (λ (f n) (adder `(* ,sign (fabs ,var) ,(series-ref normalized n)))))]
     [else #f]))
 
 (define (taylor-pow coeffs n)
@@ -458,115 +485,68 @@
      (define half (taylor-pow coeffs (/ (- n 1) 2)))
      (taylor-mult coeffs (taylor-mult half half))]))
 
-(define (all-partitions n options)
-  (match options
-    ['()
-     (if (= n 0)
-         '(())
-         '())]
-    [(cons k options*)
-     (reap [sow]
-           (for* ([i (in-range (/ (+ n 1) k))])
-             (define head (cons i k))
-             (if (= i 0)
-                 (map sow (all-partitions n options*))
-                 (for ([pt (all-partitions (- n (* k i)) options*)])
-                   (sow (cons head pt))))))]))
-
 (define (taylor-exp coeffs)
   ;(-> (-> number? val?) term?)
-  (make-series 0
+  (make-series 'exp
+               0
                (λ (f n)
                  (cond
                    [(zero? n) `(exp ,(coeffs 0))]
                    [else
-                    (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
-                    (define nums
-                      (for/list ([i (in-range 1 (+ n 1))]
-                                 [coeff (in-vector coeffs*)]
-                                 #:unless (equal? (val-def coeff) 0))
-                        i))
-                    `(* (exp ,(coeffs 0))
-                        (+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
-                               `(* ,@(for/list ([(count num) (in-dict p)])
-                                       `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                           ,(factorial count)))))))]))))
+                    (define terms
+                      (for/list ([k (in-range 1 (add1 n))]
+                                 #:do [(define ak (coeffs k)) (define bnk (f (- n k)))]
+                                 #:unless (or (equal? (val-def ak) 0) (equal? (val-def bnk) 0)))
+                        `(* ,k ,ak ,bnk)))
+                    (if (null? terms)
+                        0
+                        `(/ ,(make-sum terms) ,n))]))))
+
+(define (taylor-sincos coeffs)
+  (letrec
+      ([sin-series (make-series 'sin
+                                0
+                                (λ (f n)
+                                  (cond
+                                    [(zero? n) 0]
+                                    [else
+                                     (define terms
+                                       (for/list ([k (in-range 1 (add1 n))]
+                                                  #:do [(define ak (coeffs k))
+                                                        (define cnk (series-ref cos-series (- n k)))]
+                                                  #:unless (or (equal? (val-def ak) 0)
+                                                               (equal? (val-def cnk) 0)))
+                                         `(* ,k ,ak ,cnk)))
+                                     (if (null? terms)
+                                         0
+                                         `(/ ,(make-sum terms) ,n))])))]
+       [cos-series (make-series 'cos
+                                0
+                                (λ (f n)
+                                  (cond
+                                    [(zero? n) 1]
+                                    [else
+                                     (define terms
+                                       (for/list ([k (in-range 1 (add1 n))]
+                                                  #:do [(define ak (coeffs k))
+                                                        (define snk (series-ref sin-series (- n k)))]
+                                                  #:unless (or (equal? (val-def ak) 0)
+                                                               (equal? (val-def snk) 0)))
+                                         `(* ,k ,ak ,snk)))
+                                     (if (null? terms)
+                                         0
+                                         `(neg (/ ,(make-sum terms) ,n)))])))])
+    (values sin-series cos-series)))
 
 (define (taylor-sin coeffs)
   ;(-> (-> number? val?) term?)
-  (make-series 0
-               (λ (f n)
-                 (cond
-                   [(zero? n) 0]
-                   [else
-                    (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
-                    (define nums
-                      (for/list ([i (in-range 1 (+ n 1))]
-                                 [coeff (in-vector coeffs*)]
-                                 #:unless (equal? (val-def coeff) 0))
-                        i))
-                    `(+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
-                            (if (= (modulo (apply + (map car p)) 2) 1)
-                                `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
-                                    ,@(for/list ([(count num) (in-dict p)])
-                                        `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                            ,(factorial count))))
-                                0)))]))))
+  (define-values (sin-series _) (taylor-sincos coeffs))
+  sin-series)
 
 (define (taylor-cos coeffs)
   ;(-> (-> number? val?) term?)
-  (make-series 0
-               (λ (f n)
-                 (cond
-                   [(zero? n) 1]
-                   [else
-                    (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
-                    (define nums
-                      (for/list ([i (in-range 1 (+ n 1))]
-                                 [coeff (in-vector coeffs*)]
-                                 #:unless (equal? (val-def coeff) 0))
-                        i))
-                    `(+ ,@(for/list ([p (in-list (all-partitions n (sort nums >)))])
-                            (if (= (modulo (apply + (map car p)) 2) 0)
-                                `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
-                                    ,@(for/list ([(count num) (in-dict p)])
-                                        `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                            ,(factorial count))))
-                                0)))]))))
-
-;; This is a hyper-specialized symbolic differentiator for log(f(x))
-
-(define (list-setinc l i)
-  (let loop ([i i]
-             [l l]
-             [rest '()])
-    (if (= i 0)
-        (if (null? (cdr l))
-            (append (reverse rest) (list (- (car l) 1) 1))
-            (append (reverse rest) (list* (- (car l) 1) (+ (cadr l) 1) (cddr l))))
-        (loop (- i 1) (cdr l) (cons (car l) rest)))))
-
-(define (loggenerate table)
-  (apply append
-         (for/list ([term table])
-           (match-define `(,coeff ,ps ...) term)
-           (filter identity
-                   (for/list ([i (in-naturals)]
-                              [p ps])
-                     (if (zero? p)
-                         #f
-                         `(,(* coeff p) ,@(list-setinc ps i))))))))
-
-(define (lognormalize table)
-  (filter (λ (entry) (not (= (car entry) 0)))
-          (for/list ([entry (group-by cdr table)])
-            (cons (apply + (map car entry)) (cdar entry)))))
-
-(define (logstep table)
-  (lognormalize (loggenerate table)))
-
-(define (logcompute i)
-  (hash-ref! (log-cache) i (λ () (logstep (logcompute (- i 1))))))
+  (define-values (_ cos-series) (taylor-sincos coeffs))
+  cos-series)
 
 (define (taylor-log var arg)
   ;(-> symbol? term? term?)
@@ -580,34 +560,33 @@
         x))
 
   (define base
-    (make-series 0
+    (make-series 'log
+                 0
                  (λ (f n)
                    (cond
                      [(zero? n) `(log ,(maybe-negate (coeffs 0)))]
                      [else
-                      (define tmpl (logcompute n))
-                      (define coeffs* (list->vector (map coeffs (range 1 (add1 n)))))
-                      (define relevant-terms
-                        (for/list ([term (in-list tmpl)]
-                                   #:do [(match-define `(,coeff ,k ,ps ...) term)]
-                                   #:unless (for/or ([i (in-naturals 1)]
-                                                     [p (in-list ps)]
-                                                     #:when (not (= p 0)))
-                                              (equal? (val-def (vector-ref coeffs* (sub1 i))) 0)))
-                          `(* ,coeff
-                              (/ (* ,@(for/list ([i (in-naturals 1)]
-                                                 [p (in-list ps)])
-                                        (if (= p 0)
-                                            1
-                                            `(pow (* ,(factorial i) ,(vector-ref coeffs* (sub1 i)))
-                                                  ,p))))
-                                 (exp (* ,(- k) ,(f 0)))))))
-                      `(/ ,(make-sum relevant-terms) ,(factorial n))]))))
+                      (define terms
+                        (for/list ([k (in-range 1 n)]
+                                   #:do [(define lk (f k)) (define ank (coeffs (- n k)))]
+                                   #:unless (or (equal? (val-def lk) 0) (equal? (val-def ank) 0)))
+                          `(* ,k ,lk ,ank)))
+                      (define an (coeffs n))
+                      (define numerator
+                        (apply make-difference
+                               (if (zero-value? an)
+                                   0
+                                   `(* ,n ,an))
+                               terms))
+                      (if (zero-value? numerator)
+                          0
+                          `(/ ,numerator (* ,n ,(coeffs 0))))]))))
 
   (if (zero? shift)
       base
       (taylor-add base
-                  (make-series 0
+                  (make-series 'log
+                               0
                                (λ (f n)
                                  (if (zero? n)
                                      `(* (neg ,shift) (log ,(maybe-negate var)))
@@ -632,11 +611,31 @@
       (define v (car vs*))
       (define fn (zero-series ((taylor 'x block) v)))
       (map (block-exprs block) (build-list n fn))))
+  (check-equal? (map car taylor-transforms) '(0 inf))
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
+  (check-equal? (coeffs '(cbrt (+ 8 x)) #:n 4) '(2 1/12 -1/288 5/20736))
+  (check-equal? (coeffs '(cbrt (+ 8 (+ (* 4 x) (* 2 (* x x))))) #:n 4) '(2 1/3 1/9 -13/324))
+  (check-equal? (coeffs '(exp (+ x (* x x)))) '(1 1 3/2 7/6 25/24 27/40 331/720))
+  (check-equal? (coeffs '(sin (+ x (* x x)))) '(0 1 1 -1/6 -1/2 -59/120 -1/8))
+  (check-equal? (coeffs '(cos (+ x (* x x)))) '(1 0 -1/2 -1 -11/24 1/6 179/720))
+  (check-equal? (coeffs '(log (+ 1 (+ x (* x x))))) '(0 1 1/2 -2/3 1/4 1/5 -1/3))
+  (check-equal? (coeffs '(exp (* 2 (log x)))) '((* x x) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(/ 1 1)) '(1 0 0 0 0 0 0))
   (check-equal? (coeffs '(sqrt x)) '((sqrt x) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(sqrt (* x x))) '((fabs x) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(sqrt (* (* x x) (* x x)))) '(0 0 1 0 0 0 0))
+  (check-equal? (coeffs '(sqrt (* (* (* x x) (* x x)) (* x x)))) '(0 0 (fabs x) 0 0 0 0))
+  (check-equal? (coeffs '(sqrt (+ (* x x) (* (* x x) x))) #:n 4)
+                '((fabs x) (* 1/2 (fabs x)) (* -1/8 (fabs x)) (* 1/16 (fabs x))))
+  (check-equal? (coeffs '(sqrt 1)) '(1 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt x)) '((cbrt x) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(cbrt 1)) '(1 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt (* x x))) '((* (cbrt x) (cbrt x)) 0 0 0 0 0 0))
   (check-equal? (coeffs '(fabs (+ 2 x))) '(2 1 0 0 0 0 0))
-  (check-equal? (coeffs '(fabs (+ -2 x))) '(2 -1 0 0 0 0 0)))
+  (check-equal? (coeffs '(fabs (+ -2 x))) '(2 -1 0 0 0 0 0))
+  (check-equal? (coeffs '(fabs (neg x))) '((fabs x) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(fabs (* 2 x))) '((* 2 (fabs x)) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(fabs (+ (neg (* 2 x)) (* 3 (* x x)))))
+                '((* 2 (fabs x)) (* -3 (fabs x)) 0 0 0 0 0)))

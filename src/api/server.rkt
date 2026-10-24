@@ -1,7 +1,6 @@
 #lang racket
 
 (require openssl/sha1)
-(require (only-in xml write-xexpr))
 (require json)
 (require data/queue)
 (require math/flonum)
@@ -9,21 +8,16 @@
 (require "../syntax/read.rkt"
          "../syntax/platform-state.rkt"
          "../syntax/sugar.rkt"
-         "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../syntax/platform.rkt"
          "../syntax/load-platform.rkt"
          "../core/alternative.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
          "../syntax/float.rkt"
          "../core/points.rkt"
-         "../reports/common.rkt"
          "../reports/history.rkt"
-         "../reports/pages.rkt"
          "../reports/plot.rkt"
          "../config.rkt"
-         "datafile.rkt"
          "sandbox.rkt"
          (submod "../utils/timeline.rkt" debug))
 

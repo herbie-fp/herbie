@@ -1,16 +1,13 @@
 #lang racket
 
-(require racket/file
-         racket/set
+(require racket/set
          "rules.rkt"
          "../syntax/platform.rkt"
          "../syntax/platform-state.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../config.rkt"
          "../syntax/block.rkt"
          "../utils/common.rkt"
-         "../utils/errors.rkt"
          "egglog-subprocess.rkt")
 
 (provide (struct-out egglog-runner)
@@ -183,12 +180,13 @@
 ;; an order of magnitude).
 (define (egglog-multi-extract subproc variants extract-bindings reprs output-block)
   (define response
-    (egglog-send/read subproc
-                      `(multi-extract ,variants
-                                      :dag
-                                      ,@(for/list ([n (in-list extract-bindings)]
-                                                   [repr (in-list reprs)])
-                                          `(do-lower (herbie-const ,n) ,(egglog-repr-token repr))))))
+    (first (first (egglog-send subproc
+                               `(multi-extract ,variants
+                                               :dag
+                                               ,@(for/list ([n (in-list extract-bindings)]
+                                                            [repr (in-list reprs)])
+                                                   `(do-lower (herbie-const ,n)
+                                                              ,(egglog-repr-token repr))))))))
   (match-define `(let ,dag-bindings ,dag-body) response)
   (egglog-dag->blockrefs dag-bindings dag-body output-block))
 
@@ -273,7 +271,7 @@
         `(set (bad-merge?) false)
         `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (bad-merge?) true)) :ruleset bad-merge-rule)))
 
-(define (prelude subproc)
+(define (prelude subproc #:mixed-egraph? [mixed-egraph? #t])
   (apply egglog-send subproc (prelude-commands (*active-platform*)))
   (void))
 
@@ -336,8 +334,8 @@
 
 (define (spec-array-arities expr)
   (match expr
-    [(list 'array args ...) (cons (length args) (append* (map spec-array-arities args)))]
-    [(list _ args ...) (append* (map spec-array-arities args))]
+    [(list 'array args ...) (cons (length args) (append-map spec-array-arities args))]
+    [(list _ args ...) (append-map spec-array-arities args)]
     [_ '()]))
 
 ;; Every M constructor with its argument sorts, e.g. (Num BigRat), also
@@ -465,7 +463,7 @@
     (match expr
       [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) (string->symbol (string-append s (symbol->string expr)))]
-      [(list 'ref arr idx) `(,(hash-ref (id->e1) 'ref) ,(loop arr) ,idx)]
+      [(list 'ref arr idx) (list (hash-ref (id->e1) 'ref) (loop arr) idx)]
       [(list op args ...)
        `(,(if (hash-has-key? (id->e1) op)
               (serialize-spec-op op (length args))
@@ -491,7 +489,7 @@
     (match expr
       [(? number?) `(Num ,(real->bigrat expr))]
       [(? symbol?) expr]
-      [(list 'ref arr idx) `(,(hash-ref (id->e1) 'ref) ,(loop arr) ,idx)]
+      [(list 'ref arr idx) (list (hash-ref (id->e1) 'ref) (loop arr) idx)]
       [(list op args ...) `(,(serialize-spec-op op (length args)) ,@(map loop args))])))
 
 (define (egglog-rewrite-rules rules tag pform)
@@ -545,11 +543,8 @@
          (match node
            [(? number?) `(Num ,(real->bigrat node))]
            [(? symbol?) #f]
-           ;; Ref indices are i64 literals in the egglog encoding,
-           ;; but blocks may store the index as a reference to a
-           ;; literal node (e.g. blocks built by the taylor pass).
-           [(list 'ref arr (? val? idx)) `(,(hash-ref (id->e1) 'ref) ,(recurse arr) ,(val-def idx))]
-           [(list 'ref arr (? exact-integer? idx)) `(,(hash-ref (id->e1) 'ref) ,(recurse arr) ,idx)]
+           [(list 'ref arr (? val? idx)) (list (hash-ref (id->e1) 'ref) (recurse arr) (val-def idx))]
+           [(list 'ref arr (? exact-integer? idx)) (list (hash-ref (id->e1) 'ref) (recurse arr) idx)]
            [(list impl args ...)
             `(,(if (eq? impl 'array)
                    (serialize-spec-op impl (length args))

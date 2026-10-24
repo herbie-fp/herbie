@@ -7,13 +7,11 @@
 (require "../utils/common.rkt"
          "../syntax/float.rkt"
          "../syntax/types.rkt"
-         "../syntax/syntax.rkt"
          "../syntax/platform.rkt"
          "../syntax/block.rkt"
          "localize.rkt"
          "points.rkt"
-         "programs.rkt"
-         "sampling.rkt")
+         "programs.rkt")
 
 (provide explain)
 

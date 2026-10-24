@@ -17,8 +17,8 @@
 (define default-seed "1")
 (define default-benchmark "bench/hamming")
 ;; The full core RackUnit suite does not currently complete under `cover`;
-;; `bsearch` and `regimes` currently trigger `cover` internal errors.
-(define skipped-rackunit-coverage-files '("src/core/bsearch.rkt" "src/core/regimes.rkt"))
+;; `regimes` currently triggers a `cover` internal error.
+(define skipped-rackunit-coverage-files '("src/core/regimes.rkt"))
 
 ;; These core test modules were probed individually and completed cleanly
 ;; in the merged tutorial run, so include them by default.

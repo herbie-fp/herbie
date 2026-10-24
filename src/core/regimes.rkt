@@ -4,14 +4,16 @@
 ;; - The core of this file is infer-option and infer-option-prefixes.
 ;;   Both are extremely performance-sensitive.
 ;; - Therefore almost everything is vector-based with few copies.
-;;   Except critical-subexpressions. Converting it to vectors makes it slow.
 ;; - Everything else is overhead and should be minimized.
 
-(require math/flonum
+(require math/bigfloat
+         math/flonum
          "../core/alternative.rkt"
          "../utils/common.rkt"
+         "../utils/pretty-print.rkt"
          "../utils/pareto.rkt"
          "../syntax/float.rkt"
+         "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
@@ -22,20 +24,12 @@
 (provide pareto-regimes
          (struct-out option)
          (struct-out si)
-         critical-subexpression?)
+         combine-alts)
 
 (module+ test
   (require rackunit
            "../syntax/syntax.rkt"
-           "../syntax/sugar.rkt")
-
-  (define (check-critical expr subexpr)
-    (define ctx
-      (context (free-variables expr)
-               <binary64>
-               (make-list (length (free-variables expr)) <binary64>)))
-    (define-values (block vs) (progs->block (list expr) #:ctx ctx))
-    (critical-subexpression? block (first vs) (block-add! block subexpr))))
+           "../syntax/sugar.rkt"))
 
 (struct option (split-indices alts pts expr)
   #:transparent
@@ -43,43 +37,46 @@
   [(define (write-proc opt port mode)
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
-;; CONSIDER: move start-prog and the "branch-vs" computation into caller.
-(define (pareto-regimes block sorted start-prog pcontext spec-block)
+;; CONSIDER: move initial-v and the "branch-vs" computation into caller.
+(define (pareto-regimes block sorted initial-v pcontext spec-block)
   (timeline-event! 'regimes)
   (define alts-vec (list->vector sorted))
   (define alt-count (vector-length alts-vec))
   (define err-cols (block-errors block (map alt-expr sorted) pcontext))
   (define (real-v? v)
     (equal? (representation-type (block-repr-of v)) 'real))
+  (define var-vs (map (curry block-add! block) (block-vars block)))
   (define branch-vs
     (filter real-v?
             (if (flag-set? 'reduce 'branch-expressions)
-                (critical-subexpressions block start-prog)
-                (map (curry block-add! block) (block-vars block)))))
-
-  (define v-vals (v-values* block branch-vs pcontext))
+                (block-reachable block (cons initial-v (map alt-expr sorted)))
+                var-vs)))
+  (define v-vals (block-eval block branch-vs pcontext))
+  (define candidates (branch-candidates block branch-vs v-vals err-cols))
+  (define var-candidates (filter (lambda (c) (member (candidate-expr c) var-vs)) candidates))
+  (define branches
+    (remove-duplicates (append var-candidates (list (argmin candidate-score candidates)))))
   (define pts-vec (pcontext-points pcontext))
 
   ;; For timeline
-  (define block-jsexpr (block->jsexpr block spec-block (append (map alt-expr sorted) branch-vs)))
+  (define block-jsexpr
+    (block->jsexpr block spec-block (append (map alt-expr sorted) (map candidate-expr branches))))
   (timeline-push! 'block block-jsexpr)
   (define branch-roots (drop (hash-ref block-jsexpr 'roots) alt-count))
-  (define branch-root-map (make-immutable-hash (map cons branch-vs branch-roots)))
 
   (define option-curves
-    (for/list ([v (in-list branch-vs)]
-               [v-vals-vec (in-list v-vals)])
+    (for/list ([c (in-list branches)]
+               [root (in-list branch-roots)])
+      (define v (candidate-expr c))
       (define timeline-stop! (timeline-start! 'times (block->jsexpr block spec-block (list v))))
-      (define repr (block-repr-of v))
-      (define curve (branch-options block alts-vec err-cols pts-vec v v-vals-vec repr))
+      (define curve (branch-options c alts-vec err-cols pts-vec))
       (define last-point (last curve))
       (timeline-stop!)
       (timeline-push! 'branch
-                      (hash-ref branch-root-map v)
-                      (- (pareto-point-error last-point)
-                         (length (option-split-indices (pareto-point-data last-point))))
+                      root
+                      (option-error last-point)
                       (length (option-split-indices (pareto-point-data last-point)))
-                      (~a (representation-name repr)))
+                      (~a (representation-name (block-repr-of v))))
       curve))
   (define combined-option-curve
     (for/fold ([curve '()]) ([branch-curve (in-list option-curves)])
@@ -95,68 +92,34 @@
                    (for*/list ([ppt (in-list combined-option-curve)]
                                [sidx (in-list (option-split-indices (pareto-point-data ppt)))])
                      (alt-expr (list-ref (option-alts (pareto-point-data ppt)) (si-cidx sidx)))))))
+  (timeline-push! 'accuracy
+                  (errors-score (first (block-errors block (list initial-v) pcontext)))
+                  (baseline-errors-score err-cols alt-count)
+                  (for/fold ([best +inf.0]) ([ppt (in-list combined-option-curve)])
+                    (min best (option-error ppt)))
+                  (oracle-errors-score err-cols alt-count))
   (for/list ([ppt (in-list combined-option-curve)])
     (define opt (pareto-point-data ppt))
     (timeline-push! 'count (length (option-alts opt)) (length (option-split-indices opt)))
-    (timeline-push! 'accuracy
-                    (- (pareto-point-error ppt) (length (option-split-indices opt)))
-                    (oracle-errors-score err-cols (pareto-point-cost ppt))
-                    (baseline-errors-score err-cols (pareto-point-cost ppt)))
     opt))
 
-(define (critical-subexpression? block root-v sub-v)
-  (set-member? (critical-subexpressions block root-v) sub-v))
+(define (option-error ppt)
+  (- (pareto-point-error ppt) (length (option-split-indices (pareto-point-data ppt)))))
 
-(define (critical-subexpressions block root-v)
-  (define var-vs (map (curry block-add! block) (block-vars block)))
-  (define free-vars (block-free-vars block))
-  (define dom-parent (build-dominator-tree block root-v))
-  (define (dominates? parent-v child-v)
-    (cond
-      [(equal? parent-v child-v) #t]
-      [(equal? child-v root-v) #f]
-      [else (dominates? parent-v (dom-parent child-v))]))
-  (define (extractable? v)
-    (for/and ([var (in-set (free-vars v))])
-      (dominates? v (block-add! block var))))
-  (reap [sow]
-        (define seen-vs (mutable-set root-v))
-        (sow root-v)
-        (for ([v (in-list var-vs)])
-          (when (dom-parent v)
-            (let loop ([v v])
-              (unless (set-member? seen-vs v)
-                (set-add! seen-vs v)
-                (when (extractable? v)
-                  (sow v))
-                (loop (dom-parent v))))))))
+;; A branch expression, the point order along it, and its optimal split using every alt.
+(struct candidate (expr sorted-indices can-split splits score))
 
-(define (build-dominator-tree block root-v)
-  (define reachable-vs (reverse (block-reachable block (list root-v))))
-  (define dom-parents (make-vector (block-length block) #f))
-  (define (dom-parent v)
-    (vector-ref dom-parents (val-idx v)))
-  (define (update-child! v child-v)
-    (define old-parent (dom-parent child-v))
-    (define new-parent
-      (if old-parent
-          (dominator-lca v old-parent dom-parent)
-          v))
-    (vector-set! dom-parents (val-idx child-v) new-parent))
-  (vector-set! dom-parents (val-idx root-v) root-v)
-  (for ([v (in-list reachable-vs)])
-    (expr-recurse (val-def v) (lambda (child) (update-child! v child))))
-  dom-parent)
-
-(define (dominator-lca v1 v2 dom-parent)
-  (let loop ([v1 v1]
-             [v2 v2])
-    (define idx1 (val-idx v1))
-    (define idx2 (val-idx v2))
-    (cond
-      [(= idx1 idx2) v1]
-      [(< idx1 idx2) (loop (dom-parent v1) v2)]
-      [else (loop v1 (dom-parent v2))])))
+(define (branch-candidates block vs v-vals err-cols)
+  ;; Expressions that sort the points identically give identical splits.
+  (define orders
+    (remove-duplicates (for/list ([v (in-list vs)]
+                                  [v-vals-vec (in-vector v-vals)])
+                         (cons v (branch-order v-vals-vec (block-repr-of v))))
+                       #:key cdr))
+  (for/list ([order (in-list orders)])
+    (match-define (cons v (cons sorted-indices can-split)) order)
+    (define-values (splits score) (infer-option err-cols sorted-indices can-split))
+    (candidate v sorted-indices can-split splits score)))
 
 (define (baseline-errors-score err-cols count)
   (for/fold ([best +inf.0]) ([err-col (in-list (take err-cols count))])
@@ -169,32 +132,26 @@
                 (min best-err (flvector-ref err-col point-idx))))
      num-points))
 
-(define (v-values* block vs pcontext)
-  (define count (length vs))
-  (define fn (compile-block block vs))
-  (define num-points (pcontext-length pcontext))
-  (define vals (build-vector count (lambda (_) (make-vector num-points))))
-  (for ([pt (in-vector (pcontext-points pcontext))]
-        [p (in-naturals)])
-    (for ([out (in-vector (fn pt))]
-          [i (in-naturals)])
-      (vector-set! (vector-ref vals i) p out)))
-  (vector->list vals))
-
-(define (branch-options block alts-vec err-cols pts-vec v v-vals-vec repr)
-  (define sorted-indices
+;; The point order along a branch expression, and where splitting it is legal.
+(define (branch-order v-vals-vec repr)
+  (define order
     (vector-sort (build-vector (vector-length v-vals-vec) values)
                  (lambda (i j) (</total (vector-ref v-vals-vec i) (vector-ref v-vals-vec j) repr))))
+  (define can-split
+    (cons #f
+          (for/list ([idx (in-vector order 1)]
+                     [prev-idx (in-vector order 0)])
+            (</total (vector-ref v-vals-vec prev-idx) (vector-ref v-vals-vec idx) repr))))
+  (cons order can-split))
+
+(define (branch-options c alts-vec err-cols pts-vec)
+  (match-define (candidate v sorted-indices can-split splits score) c)
   (define pts*
     (for/list ([i (in-vector sorted-indices)])
       (vector-ref pts-vec i)))
-  (define can-split?
-    (cons #f
-          (for/list ([idx (in-vector sorted-indices 1)]
-                     [prev-idx (in-vector sorted-indices 0)])
-            (</total (vector-ref v-vals-vec prev-idx) (vector-ref v-vals-vec idx) repr))))
 
-  (define-values (splitss scores) (infer-option-prefixes err-cols sorted-indices can-split?))
+  (define-values (splitss scores)
+    (infer-option-prefixes err-cols sorted-indices can-split splits score))
 
   (define points
     (for/list ([count (in-range 1 (add1 (vector-length splitss)))])
@@ -215,24 +172,30 @@
   (define err-cols (list (flvector 53.0 0.0) (flvector 0.0 53.0)))
   (define pts-vec (pcontext-points pctx))
 
+  (for* ([repr (in-list (list <binary32> <binary64>))]
+         [x (in-list (list -inf.0 -1.0 -0.0 0.0 1.0 +inf.0 +nan.0))]
+         [y (in-list (list -inf.0 -1.0 -0.0 0.0 1.0 +inf.0 +nan.0))])
+    (check-equal? (</total x y repr) (and (not (nan? x)) (or (nan? y) (< x y)))))
+
+  (define-values (argmin-splits argmin-score)
+    (infer-option (list (flvector 0.0 10.0 0.0) (flvector 4.0 0.0 10.0)) #(0 1 2) '(#f #t #t)))
+  (check-equal? argmin-splits (list (si 0 1) (si 1 2) (si 0 3)))
+  (check-equal? argmin-score 6.0)
+
   (define (test-regimes expr goal)
     (define-values (block vs) (progs->block (list expr) #:ctx ctx))
-    (define v (car vs))
-    (define v-vals (car (v-values* block (list v) pctx)))
-    (check
-     (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
-     (pareto-point-data
-      (first (branch-options block (list->vector alts) err-cols pts-vec v v-vals (block-repr-of v))))
-     goal))
+    (define v-vals (block-eval block vs pctx))
+    (define c (first (branch-candidates block vs v-vals err-cols)))
+    (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
+           (pareto-point-data (first (branch-options c (list->vector alts) err-cols pts-vec)))
+           goal))
 
   (define (test-regimes/prefixes expr goals)
     (define-values (block vs) (progs->block (list expr) #:ctx ctx))
-    (define v (car vs))
-    (define v-vals (car (v-values* block (list v) pctx)))
+    (define v-vals (block-eval block vs pctx))
+    (define c (first (branch-candidates block vs v-vals err-cols)))
     (define options
-      (map pareto-point-data
-           (reverse
-            (branch-options block (list->vector alts) err-cols pts-vec v v-vals (block-repr-of v)))))
+      (map pareto-point-data (reverse (branch-options c (list->vector alts) err-cols pts-vec))))
     (for ([goal (in-list goals)]
           [opt (in-list options)])
       (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y)) opt goal)))
@@ -249,41 +212,11 @@
   (test-regimes `(if.f64 (==.f64 x ,(literal 0.5 'binary64)) ,(literal 1 'binary64) (NAN.f64)) '(1 0))
 
   (check-equal? (baseline-errors-score err-cols 2) 26.5)
-  (check-equal? (oracle-errors-score err-cols 2) 0.0)
-
-  (check-true (check-critical '(+.f64 (sin.f64 x) y) '(sin.f64 x)))
-  (check-false (check-critical '(+.f64 (sin.f64 x) x) '(sin.f64 x)))
-  (check-true (check-critical '(+.f64 x x) 'x))
-  (check-true (check-critical '(+.f64 x x) '(+.f64 x x)))
-  (check-true (check-critical '(sin.f64 x) '(sin.f64 x)))
-
-  (let ()
-    (define xy-ctx (context '(x y) <binary64> (list <binary64> <binary64>)))
-    (define-values (block vs) (progs->block (list 'x) #:ctx xy-ctx))
-    (check-true (critical-subexpression? block (first vs) (block-add! block 'x)))
-    (check-false (critical-subexpression? block (first vs) (block-add! block 'y))))
-
-  (let ()
-    (define xyz-ctx (context '(x y z) <binary64> (list <binary64> <binary64> <binary64>)))
-    (define-values (block vs) (progs->block (list '(* (+ x y) (/ x z))) #:ctx xyz-ctx))
-    (check-false (critical-subexpression? block (first vs) (block-add! block '(+ x y)))))
-
-  (let ()
-    (define vec2 (make-array-representation <binary64> <binary64>))
-    (define vec2-ctx (context '(a b) <binary64> (list vec2 vec2)))
-    (define dot-product
-      '(+.f64 (*.f64 (ref.0.array<binary64:binary64> a) (ref.0.array<binary64:binary64> b))
-              (*.f64 (ref.1.array<binary64:binary64> a) (ref.1.array<binary64:binary64> b))))
-    (define-values (block vs) (progs->block (list dot-product) #:ctx vec2-ctx))
-    (check-true (set-member? (critical-subexpressions block (first vs)) (first vs)))))
-
-(define (valid-splitindices? can-split? split-indices)
-  (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
-         (and (> pidx 0) (list-ref can-split? pidx)))
-       (= (si-pidx (last split-indices)) (length can-split?))))
+  (check-equal? (oracle-errors-score err-cols 2) 0.0))
 
 (module core typed/racket
   (provide (struct-out si)
+           infer-option
            infer-option-prefixes)
   (require math/flonum)
 
@@ -305,7 +238,7 @@
         [else (loop (add1 alt-idx) best best-score)])))
 
   ;; This is the core main loop of the regimes algorithm.
-  ;; Takes in alt-major error columns, point-sorting indices, and a vector
+  ;; Takes in alt-major error columns, point-sorting indices, and a list
   ;; of booleans to determine when it's ok to split for another alt.
   ;; Returns a list of split indices saying which alt to use for which
   ;; range of points, starting at 1 going up to num-points, and the score
@@ -313,11 +246,12 @@
   ;; regimes split is calculated using the following DP recurrence:
   ;; best[p][a] = error[p][a] + min(best[p-1][a], penalty + min_b best[p-1][b])
   (: infer-option
-     (-> (Listof FlVector) (Vectorof Integer) (Vectorof Boolean) (Values (Listof si) Float)))
-  (define (infer-option err-cols sorted-indices can-split-vec)
+     (-> (Listof FlVector) (Vectorof Integer) (Listof Boolean) (Values (Listof si) Float)))
+  (define (infer-option err-cols sorted-indices can-split)
     (define number-of-alts (length err-cols))
     (define number-of-points (vector-length sorted-indices))
     (define split-penalty (fl number-of-points))
+    (define can-split-vec (list->vector can-split))
 
     ;; errors[p][a]
     (: errors (Vectorof FlVector))
@@ -335,37 +269,53 @@
     ;; row = best[p-1] going in to point p, best[p] coming out; updated in place
     (: row FlVector)
     (define row (flvector-copy (vector-ref errors 0))) ; best[0][a] = error[0][a]
-    ;; previous-alts[p][a] = the alt at p-1 on the best path ending on a at p
-    (: previous-alts (Vectorof (Vectorof Integer)))
-    (define previous-alts (build-vector number-of-points (lambda (_) (make-vector number-of-alts 0))))
+    (: best-alt Integer)
+    (define best-alt (argmin row))
+    ;; A predecessor is either the same alt or the row's best alt, so store
+    ;; one byte per switch decision and the best alt once per point.
+    (: best-alts (Vectorof Integer))
+    (define best-alts (make-vector number-of-points 0))
+    (: switch-decisions (Vectorof Bytes))
+    (define switch-decisions
+      (build-vector number-of-points (lambda (_) (make-bytes number-of-alts 0))))
 
     (for ([point-idx (in-range 1 number-of-points)])
-      (define best-alt (argmin row))
       ;; penalty + min_b best[p-1][b]
       (define switched-score (+ split-penalty (flvector-ref row best-alt)))
       (define errors-here (vector-ref errors point-idx)) ; error[p]
-      (define previous-here (vector-ref previous-alts point-idx))
+      (define switch-decisions-here (vector-ref switch-decisions point-idx))
       (define can-split? (vector-ref can-split-vec point-idx))
+      (vector-set! best-alts point-idx best-alt)
+      (define next-best-alt 0)
+      (define next-best-score +inf.0)
       (for ([alt-idx (in-range number-of-alts)])
         (define continued-score (flvector-ref row alt-idx)) ; best[p-1][a]
         (define switch? (and can-split? (< switched-score continued-score)))
-        (flvector-set! row
-                       alt-idx
-                       (+ (flvector-ref errors-here alt-idx)
-                          (if switch? switched-score continued-score)))
-        (vector-set! previous-here alt-idx (if switch? best-alt alt-idx))))
+        (define score-here
+          (+ (flvector-ref errors-here alt-idx) (if switch? switched-score continued-score)))
+        (flvector-set! row alt-idx score-here)
+        (when (< score-here next-best-score)
+          (set! next-best-alt alt-idx)
+          (set! next-best-score score-here))
+        (when switch?
+          (bytes-set! switch-decisions-here alt-idx 1)))
+      (set! best-alt next-best-alt))
 
     ;; score = min_a best[P][a]
     (define last-point (sub1 number-of-points))
-    (define last-alt (argmin row))
+    (define last-alt best-alt)
 
     (: alts (Vectorof Integer))
     (define alts (make-vector number-of-points 0))
     (vector-set! alts last-point last-alt)
     (for ([point-idx (in-range last-point 0 -1)])
+      (define alt-idx (vector-ref alts point-idx))
+      (define switch-decisions-here (vector-ref switch-decisions point-idx))
       (vector-set! alts
                    (sub1 point-idx)
-                   (vector-ref (vector-ref previous-alts point-idx) (vector-ref alts point-idx))))
+                   (if (positive? (bytes-ref switch-decisions-here alt-idx))
+                       (vector-ref best-alts point-idx)
+                       alt-idx)))
 
     (define splits
       (for/list :
@@ -377,33 +327,81 @@
     (values splits (flvector-ref row last-alt))) ; (splits, score)
 
   ;; Repeatedly calculate the optimal regimes split, removing the costliest
-  ;; alt (and any alts costlier) one at a time. Doing so until no alts
-  ;; remain yields the full set of Pareto optimal regime splits.
+  ;; alt (and any alts costlier) one at a time, starting from a provided
+  ;; optimal split using every alt. Doing so until no alts remain yields the
+  ;; full set of Pareto optimal regime splits.
   (: infer-option-prefixes
      (-> (Listof FlVector)
          (Vectorof Integer)
          (Listof Boolean)
+         (Listof si)
+         Float
          (Values (Vectorof (Listof si)) FlVector)))
-  (define (infer-option-prefixes err-cols sorted-indices can-split)
-    (define can-split-vec (list->vector can-split))
+  (define (infer-option-prefixes err-cols sorted-indices can-split splits score)
     (define number-of-alts (length err-cols))
     (: splitss (Vectorof (Listof si)))
     (define splitss (make-vector number-of-alts (ann null (Listof si))))
     (define scores (make-flvector number-of-alts +inf.0))
-    (let loop ([max-alt (sub1 number-of-alts)])
-      (when (>= max-alt 0)
-        (define-values (splits score)
-          (infer-option (take err-cols (add1 max-alt)) sorted-indices can-split-vec))
-        (define highest-used-alt
-          (apply max
-                 (for/list :
-                   (Listof Integer)
-                   ([split (in-list splits)])
-                   (si-cidx split))))
-        (for ([alt-idx (in-range highest-used-alt (add1 max-alt))])
-          (vector-set! splitss alt-idx splits)
-          (flvector-set! scores alt-idx score))
-        (loop (sub1 highest-used-alt))))
+    (let loop ([max-alt (sub1 number-of-alts)]
+               [splits splits]
+               [score score])
+      (define highest-used-alt (apply max (map (inst si-cidx Integer) splits)))
+      (for ([alt-idx (in-range highest-used-alt (add1 max-alt))])
+        (vector-set! splitss alt-idx splits)
+        (flvector-set! scores alt-idx score))
+      (when (> highest-used-alt 0)
+        (define-values (splits* score*)
+          (infer-option (take err-cols highest-used-alt) sorted-indices can-split))
+        (loop (sub1 highest-used-alt) splits* score*)))
     (values splitss scores)))
 
 (require (submod "." core))
+
+(define (combine-alts block best-option)
+  (match-define (option splitindices alts pts v) best-option)
+  (define repr (block-repr-of v))
+  (define eval-expr (compose (curryr vector-ref 0) (compile-block block (list v))))
+  (define splitpoints
+    (for/list ([si1 (in-list (drop-right splitindices 1))])
+      (define p1 (eval-expr (list-ref pts (sub1 (si-pidx si1)))))
+      (define p2 (eval-expr (list-ref pts (si-pidx si1))))
+      (sp (si-cidx si1) v (left-point repr p1 p2))))
+  (define v*
+    (for/fold ([v (alt-expr (list-ref alts (si-cidx (last splitindices))))])
+              ([splitpoint (in-list (reverse splitpoints))])
+      (define repr (block-repr-of (sp-bexpr splitpoint)))
+      (define if-impl (get-fpcore-impl 'if '() (list (get-representation 'bool) repr repr)))
+      (define <=-impl (get-fpcore-impl '<= '() (list repr repr)))
+      (define lit-v
+        (block-add! block
+                    (literal (repr->real (sp-point splitpoint) repr) (representation-name repr))))
+      (define cmp-v (block-add! block (list <=-impl (sp-bexpr splitpoint) lit-v)))
+      (block-add! block (list if-impl cmp-v (alt-expr (list-ref alts (sp-cidx splitpoint))) v))))
+
+  ;; We don't want unused alts in our history!
+  (define-values (alts* splitpoints**)
+    (remove-unused-alts alts (append splitpoints (list (sp (si-cidx (last splitindices)) v +nan.0)))))
+  (alt v* (list 'regimes splitpoints**) alts*))
+
+(define (left-point repr p1 p2)
+  (define left ((representation-repr->bf repr) p1))
+  (define right ((representation-repr->bf repr) p2))
+  (define out ; TODO: Try using bigfloat-pick-point here?
+    (if (bfnegative? left)
+        (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
+        (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
+  ;; It's important to return something strictly less than right
+  (if (bf= out right)
+      p1
+      ((representation-bf->repr repr) out)))
+
+(define (remove-unused-alts alts splitpoints)
+  (for/fold ([alts* '()]
+             [splitpoints* '()])
+            ([splitpoint (in-list splitpoints)])
+    (define alt (list-ref alts (sp-cidx splitpoint)))
+    ;; It's important to snoc the alt in order for the indices not to change
+    (define alts** (remove-duplicates (append alts* (list alt))))
+    (define splitpoint* (struct-copy sp splitpoint [cidx (index-of alts** alt)]))
+    (define splitpoints** (append splitpoints* (list splitpoint*)))
+    (values alts** splitpoints**)))

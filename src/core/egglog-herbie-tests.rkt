@@ -395,23 +395,24 @@
     (apply egglog-send subproc first-commands)
 
     ; Has extract 1 thing
-    (define lines1 (egglog-extract subproc '(extract (const1) 1)))
-    (check-equal? lines1 '((Var "x")))
+    (define result1 (first (first (egglog-send subproc '(extract (const1) 1)))))
+    (check-equal? result1 '((Var "x")))
 
     ;; Print size
 
-    (match-define (list node-values '() (list "false"))
+    (match-define (list (list node-values) '() (list #f))
       (egglog-send subproc '(print-size) '(run unsound-rule 1) '(extract (unsound))))
     (define parsed-node-values
-      (for/list ([entry (in-list (with-input-from-string (string-join node-values "\n") read))])
+      (for/list ([entry (in-list node-values)])
         (match-define (list relation count) entry)
         (cons relation count)))
     (check-equal? (sort parsed-node-values symbol<? #:key car)
                   '((Add . 1) (Var . 2) (const1 . 1) (const2 . 1) (const3 . 1) (unsound . 1)))
 
     ;; last two
-    (check-equal? '((Var "y")) (egglog-extract subproc '(extract (const2) 1)))
-    (check-equal? '((Add (Var "x") (Var "y"))) (egglog-extract subproc '(extract (const3) 1)))
+    (check-equal? '((Var "y")) (first (first (egglog-send subproc '(extract (const2) 1)))))
+    (check-equal? '((Add (Var "x") (Var "y")))
+                  (first (first (egglog-send subproc '(extract (const3) 1)))))
 
     (egglog-subprocess-close subproc)
     (void)))

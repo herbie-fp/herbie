@@ -2,7 +2,6 @@
 
 (require "syntax.rkt"
          "types.rkt"
-         "../utils/common.rkt"
          "../utils/dvector.rkt")
 
 (provide progs->block ; List<Expr> -> (Block, List<Val>)
@@ -25,12 +24,17 @@
          jsexpr->block-exprs
 
          (struct-out val)
-         val-def) ; Val -> Expr
+         val-def ; Val -> Expr
+         val-id<?) ; Val -> Val -> Boolean (for vals in the same block)
 
 ;; Blocks store these recursive structures, flattened
 (struct block ([nodes #:mutable] [index #:mutable] vars var-reprs))
 
 (struct val (block idx) #:transparent)
+
+;; Orders values from the same block by their block indices.
+(define (val-id<? a b)
+  (< (val-idx a) (val-idx b)))
 
 ;; --------------------------------- CORE BLOCK FUNCTION ------------------------------------
 
@@ -164,13 +168,17 @@
   (define block* (block-empty (context (block-vars b) #f (block-var-reprs b))))
   (for ([var (in-list (block-vars b))])
     (block-push! block* var))
-  (define (add-expr expr)
+  ;; Re-index reachable nodes directly instead of materializing nested expressions.
+  ;; Re-index the plain spec expressions referenced by approximate nodes.
+  (define (reindex-spec-node v recurse)
+    (block-push! block* (expr-recurse (val-def v) (compose val-idx recurse))))
+  (define spec->output (block-recurse spec-block reindex-spec-node))
+  (define (reindex-node v recurse)
     (block-push! block*
-                 (expr-recurse-spec (compose val-idx add-expr)
-                                    (expr-recurse expr (compose val-idx add-expr)))))
-  (define spec-f (block-exprs spec-block))
-  (define exprs (block-exprs b #:spec-f spec-f))
-  (define vs* (map add-expr (map exprs vs)))
+                 (expr-recurse-spec (compose val-idx spec->output)
+                                    (expr-recurse (val-def v) (compose val-idx recurse)))))
+  (define block->output (block-recurse b reindex-node))
+  (define vs* (map block->output vs))
   (define nodes
     (for/list ([node (in-block block*)])
       (match node
@@ -252,6 +260,10 @@
 (module+ test
   (require rackunit)
   (define test-empty-ctx (context '() #f '()))
+  (define id-block (block-empty test-empty-ctx))
+  (define id-zero (block-push! id-block 'x))
+  (define id-one (block-push! id-block 'y))
+  (check-equal? (sort (list id-one id-zero) val-id<?) (list id-zero id-one))
   (define (test-munge-unmunge expr [expected expr] #:spec-f [spec-f (void)])
     (define-values (block vs) (progs->block (list expr) #:ctx test-empty-ctx))
     (check-equal? (list expected) (map (block-exprs block #:spec-f spec-f) vs)))
@@ -334,4 +346,15 @@
   (test-json-tostring '(* 1/2 (+ (exp x) (neg (/ 1 (exp x)))))
                       "%2 = (exp x)\n(* 1/2 (+ %2 (neg (/ 1 %2))))")
   ; Shared constants/variables are inlined
-  (test-json-tostring '(sqrt (+ (* x x) (* y y))) "(sqrt (+ (* x x) (* y y)))"))
+  (test-json-tostring '(sqrt (+ (* x x) (* y y))) "(sqrt (+ (* x x) (* y y)))")
+
+  ; Shared specs across roots should be copied once into the output graph.
+  (define-values (shared-spec-block shared-spec-vs)
+    (progs->block (list '(+ x y)) #:ctx test-empty-ctx))
+  (define shared-block (block-empty test-empty-ctx))
+  (define shared-roots
+    (list (block-add! shared-block (approx (first shared-spec-vs) '(+ x y)))
+          (block-add! shared-block (approx (first shared-spec-vs) '(- x y)))))
+  (define shared-jsexpr (block->jsexpr shared-block shared-spec-block shared-roots))
+  (check-equal? (jsexpr->block-exprs shared-jsexpr)
+                "%2 = (+ x y)\n(approx %2 %2)\n(approx %2 (- x y))"))

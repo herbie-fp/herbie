@@ -1,14 +1,10 @@
 #lang racket
 
-(require math/bigfloat
-         math/flonum)
-(require "../core/points.rkt"
-         "../syntax/float.rkt"
+(require "../syntax/float.rkt"
          "../core/programs.rkt"
          "../syntax/types.rkt"
          "../syntax/read.rkt"
-         "../core/alternative.rkt"
-         "../core/bsearch.rkt")
+         "../core/alternative.rkt")
 
 (provide make-points-json
          regime-var
