@@ -287,16 +287,14 @@
       (define can-split? (vector-ref can-split-vec point-idx))
       (vector-set! best-alts point-idx best-alt)
       (define next-best-alt 0)
-      (define next-best-score +inf.0)
       (for ([alt-idx (in-range number-of-alts)])
         (define continued-score (flvector-ref row alt-idx)) ; best[p-1][a]
         (define switch? (and can-split? (< switched-score continued-score)))
         (define score-here
           (+ (flvector-ref errors-here alt-idx) (if switch? switched-score continued-score)))
         (flvector-set! row alt-idx score-here)
-        (when (< score-here next-best-score)
-          (set! next-best-alt alt-idx)
-          (set! next-best-score score-here))
+        (when (< score-here (flvector-ref row next-best-alt))
+          (set! next-best-alt alt-idx))
         (when switch?
           (bytes-set! switch-decisions-here alt-idx 1)))
       (set! best-alt next-best-alt))
