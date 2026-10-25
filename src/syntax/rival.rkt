@@ -22,18 +22,15 @@
 (define (use-rival3?)
   (not (flag-set? 'setup 'rival2)))
 
-(define-syntax-rule (define/rival (name args ...) r2-impl r3-impl)
-  (define (name args ...)
-    (if (use-rival3?)
-        (r3-impl args ...)
-        (r2-impl args ...))))
+(struct rival-backend (rival3? compile apply analyze profile))
 
-(define/rival (rival-compile exprs vars discs) r2:rival-compile r3:rival-compile)
-(define/rival (rival-apply machine pt hint) r2:rival-apply r3:rival-apply/f64)
-(define/rival (rival-analyze-with-hints machine rect hint)
-              r2:rival-analyze-with-hints
-              r3:rival-analyze-with-hints)
-(define/rival (rival-profile machine param) r2:rival-profile r3:rival-profile)
+(define rival2-backend
+  (rival-backend #f r2:rival-compile r2:rival-apply r2:rival-analyze-with-hints r2:rival-profile))
+(define rival3-backend
+  (rival-backend #t r3:rival-compile r3:rival-apply/f64 r3:rival-analyze-with-hints r3:rival-profile))
+
+(define (select-rival-backend)
+  (if (use-rival3?) rival3-backend rival2-backend))
 
 (define (repr->disc-type repr)
   (cond
@@ -47,9 +44,9 @@
       (r3:discretization-convert r3:boolean-discretization)
       (representation-bf->repr repr)))
 
-(define (make-discretizations reprs)
+(define (make-discretizations reprs backend)
   (cond
-    [(use-rival3?)
+    [(rival-backend-rival3? backend)
      ;; Rival 3 requires that all discretizations share the target precision for now
      (define target (apply max (map representation-total-bits reprs)))
      (cons (struct-copy r3:discretization r3:boolean-discretization [target target])
@@ -89,7 +86,7 @@
     [(r3:ival? iv) (r3:ival-hi iv)]
     [else (r2:ival-hi iv)]))
 
-(provide (struct-out real-compiler)
+(provide (except-out (struct-out real-compiler) real-compiler-backend set-real-compiler-backend!)
          ival
          ival?
          ival-lo
@@ -112,11 +109,22 @@
       1))
 
 ;; Herbie's wrapper around the Rival machine abstraction.
+;; Cache its backend because setup flags can differ between runs.
 (struct real-compiler
-        (pre vars var-reprs exprs reprs machine dump-file assemble-point assemble-output))
+        (pre vars
+             var-reprs
+             exprs
+             reprs
+             machine
+             dump-file
+             assemble-point
+             assemble-output
+             [backend #:auto #:mutable])
+  #:auto-value #f)
 
 ;; Creates a Rival machine.
 (define (make-real-compiler block vs output-reprs #:pre [pre '(TRUE)])
+  (define backend (select-rival-backend))
   (define specs (map (block-exprs block) vs))
   (define ctxs
     (for/list ([repr (in-list output-reprs)])
@@ -127,14 +135,14 @@
 
   ; create the machine
   (define exprs (cons `(assert ,pre*) specs*))
-  (define discs (make-discretizations flattened-reprs))
+  (define discs (make-discretizations flattened-reprs backend))
   (define machine
     (parameterize ([r2:*rival-max-precision* (*max-mpfr-prec*)]
                    [r3:*rival-max-precision* (*max-mpfr-prec*)])
-      (rival-compile exprs vars discs)))
+      ((rival-backend-compile backend) exprs vars discs)))
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre*) (map expr-size specs*))
-                  (+ (length vars) (rival-profile machine 'instructions)))
+                  (+ (length vars) ((rival-backend-profile backend) machine 'instructions)))
 
   (define dump-file
     (cond
@@ -155,15 +163,18 @@
       [else #f]))
 
   ; wrap it with useful information for Herbie
-  (real-compiler pre
-                 (list->vector vars)
-                 (list->vector (context-var-reprs (first ctxs*)))
-                 specs*
-                 (list->vector flattened-reprs)
-                 machine
-                 dump-file
-                 assemble-point
-                 assemble-output))
+  (define compiler
+    (real-compiler pre
+                   (list->vector vars)
+                   (list->vector (context-var-reprs (first ctxs*)))
+                   specs*
+                   (list->vector flattened-reprs)
+                   machine
+                   dump-file
+                   assemble-point
+                   assemble-output))
+  (set-real-compiler-backend! compiler backend)
+  compiler)
 
 (define (value->readable-string x)
   (match x
@@ -172,10 +183,11 @@
 
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
-  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file _ _) compiler)
+  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file _ _ backend) compiler)
+  (define backend* (or backend (select-rival-backend)))
   (define start (current-inexact-milliseconds))
   (define pt*
-    (if (use-rival3?)
+    (if (rival-backend-rival3? backend*)
         pt
         (for/vector #:length (vector-length vars)
                     ([val (in-vector pt)]
@@ -190,12 +202,14 @@
                     [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
       (parameterize ([r2:*rival-max-iterations* 5]
                      [r3:*rival-max-iterations* 5])
-        (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
+        (define value
+          (rest (vector->list
+                 ((rival-backend-apply backend*) machine pt* hint)))) ; rest = drop precondition
         (values 'valid value))))
   (when dump-file
     (fprintf dump-file "(check-answer ~a)\n" (string-join (map ~a (cons status (or value '()))) " "))
     (flush-output dump-file))
-  (when (> (rival-profile machine 'bumps) 0)
+  (when (> ((rival-backend-profile backend*) machine 'bumps) 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"
           #:extra (for/list ([var (in-vector vars)]
@@ -203,7 +217,7 @@
                     (format "~a = ~a" var val))))
   (timeline-push!/unsafe 'outcomes
                          (- (current-inexact-milliseconds) start)
-                         (rival-profile machine 'iterations)
+                         ((rival-backend-profile backend*) machine 'iterations)
                          (symbol->string status)
                          1)
   (values status value))
@@ -212,13 +226,14 @@
 ;; for the given inputs range. The result is an interval representing
 ;; how certain the result is: no, maybe, yes.
 (define (real-compiler-analyze compiler input-ranges [hint #f])
+  (define backend (or (real-compiler-backend compiler) (select-rival-backend)))
   (define rect*
     (for/vector #:length (vector-length input-ranges)
                 ([iv (in-vector input-ranges)])
-      (if (use-rival3?)
+      (if (rival-backend-rival3? backend)
           (r3:ival (ival-lo iv) (ival-hi iv))
           (r2:ival (ival-lo iv) (ival-hi iv)))))
-  (rival-analyze-with-hints (real-compiler-machine compiler) rect* hint))
+  ((rival-backend-analyze backend) (real-compiler-machine compiler) rect* hint))
 
 (module+ test
   (require rackunit)
