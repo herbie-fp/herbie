@@ -113,18 +113,17 @@
          (dvector-set! visited idx #t)
          res]))))
 
-(define (assert-block-v! block . vs)
-  (unless (andmap (compose (curry equal? block) val-block) vs)
+(define (assert-block-v! block v)
+  (unless (equal? block (val-block v))
     (error 'assert-block-v! "One of vals does not belong to the provided block")))
 
 ;; Function returns indices of children nodes within a block for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
 (define (block-reachable block vs #:condition [condition (const #t)])
-  ; Little check
-  (apply assert-block-v! block vs)
   (define len (block-length block))
   (define child-mask (make-vector len #f))
   (for ([v (in-list vs)])
+    (assert-block-v! block v)
     (vector-set! child-mask (val-idx v) #t))
   (for ([i (in-range (sub1 len) -1 -1)]
         [node (in-block block (sub1 len) -1 -1)]
