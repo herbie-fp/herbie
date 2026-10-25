@@ -86,7 +86,7 @@
     [(r3:ival? iv) (r3:ival-hi iv)]
     [else (r2:ival-hi iv)]))
 
-(provide (except-out (struct-out real-compiler) real-compiler-backend set-real-compiler-backend!)
+(provide (struct-out real-compiler)
          ival
          ival?
          ival-lo
@@ -111,16 +111,7 @@
 ;; Herbie's wrapper around the Rival machine abstraction.
 ;; Cache its backend because setup flags can differ between runs.
 (struct real-compiler
-        (pre vars
-             var-reprs
-             exprs
-             reprs
-             machine
-             dump-file
-             assemble-point
-             assemble-output
-             [backend #:auto #:mutable])
-  #:auto-value #f)
+        (pre vars var-reprs exprs reprs machine dump-file assemble-point assemble-output backend))
 
 ;; Creates a Rival machine.
 (define (make-real-compiler block vs output-reprs #:pre [pre '(TRUE)])
@@ -172,8 +163,8 @@
                    machine
                    dump-file
                    assemble-point
-                   assemble-output))
-  (set-real-compiler-backend! compiler backend)
+                   assemble-output
+                   backend))
   compiler)
 
 (define (value->readable-string x)
@@ -184,10 +175,9 @@
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
   (match-define (real-compiler _ vars var-reprs _ _ machine dump-file _ _ backend) compiler)
-  (define backend* (or backend (select-rival-backend)))
   (define start (current-inexact-milliseconds))
   (define pt*
-    (if (rival-backend-rival3? backend*)
+    (if (rival-backend-rival3? backend)
         pt
         (for/vector #:length (vector-length vars)
                     ([val (in-vector pt)]
@@ -204,12 +194,12 @@
                      [r3:*rival-max-iterations* 5])
         (define value
           (rest (vector->list
-                 ((rival-backend-apply backend*) machine pt* hint)))) ; rest = drop precondition
+                 ((rival-backend-apply backend) machine pt* hint)))) ; rest = drop precondition
         (values 'valid value))))
   (when dump-file
     (fprintf dump-file "(check-answer ~a)\n" (string-join (map ~a (cons status (or value '()))) " "))
     (flush-output dump-file))
-  (when (> ((rival-backend-profile backend*) machine 'bumps) 0)
+  (when (> ((rival-backend-profile backend) machine 'bumps) 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"
           #:extra (for/list ([var (in-vector vars)]
@@ -217,7 +207,7 @@
                     (format "~a = ~a" var val))))
   (timeline-push!/unsafe 'outcomes
                          (- (current-inexact-milliseconds) start)
-                         ((rival-backend-profile backend*) machine 'iterations)
+                         ((rival-backend-profile backend) machine 'iterations)
                          (symbol->string status)
                          1)
   (values status value))
@@ -226,7 +216,7 @@
 ;; for the given inputs range. The result is an interval representing
 ;; how certain the result is: no, maybe, yes.
 (define (real-compiler-analyze compiler input-ranges [hint #f])
-  (define backend (or (real-compiler-backend compiler) (select-rival-backend)))
+  (define backend (real-compiler-backend compiler))
   (define rect*
     (for/vector #:length (vector-length input-ranges)
                 ([iv (in-vector input-ranges)])
