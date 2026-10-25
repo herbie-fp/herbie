@@ -78,7 +78,7 @@
   (define (munge prog)
     (match prog
       [(val b* idx*)
-       (assert-block-v b prog)
+       (assert-block-v! b prog)
        idx*]
       [_ (val-idx (block-push! b (expr-recurse prog munge)))]))
   (val b (munge expr)))
@@ -102,7 +102,7 @@
   (define out (make-dvector (block-length block)))
   (define visited (make-dvector (block-length block) #f))
   (λ (v)
-    (assert-block-v block v)
+    (assert-block-v! block v)
     (let loop ([v v])
       (define idx (val-idx v))
       (cond
@@ -113,11 +113,7 @@
          (dvector-set! visited idx #t)
          res]))))
 
-(define (assert-block-v! block . vs)
-  (for ([v (in-list vs)])
-    (assert-block-v block v)))
-
-(define (assert-block-v block v)
+(define (assert-block-v! block v)
   (unless (equal? block (val-block v))
     (error 'assert-block-v! "One of vals does not belong to the provided block")))
 
@@ -125,7 +121,8 @@
 ;;   where a child node is a child of a root + meets a condition - (condition node)
 (define (block-reachable block vs #:condition [condition (const #t)])
   ; Little check
-  (apply assert-block-v! block vs)
+  (for ([v (in-list vs)])
+    (assert-block-v! block v))
   (define len (block-length block))
   (define child-mask (make-vector len #f))
   (for ([v (in-list vs)])
