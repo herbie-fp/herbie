@@ -78,7 +78,7 @@
   (define (munge prog)
     (match prog
       [(val b* idx*)
-       (assert-block-v! b prog)
+       (assert-block-v b prog)
        idx*]
       [_ (val-idx (block-push! b (expr-recurse prog munge)))]))
   (val b (munge expr)))
@@ -102,7 +102,7 @@
   (define out (make-dvector (block-length block)))
   (define visited (make-dvector (block-length block) #f))
   (λ (v)
-    (assert-block-v! block v)
+    (assert-block-v block v)
     (let loop ([v v])
       (define idx (val-idx v))
       (cond
@@ -114,7 +114,11 @@
          res]))))
 
 (define (assert-block-v! block . vs)
-  (unless (andmap (compose (curry equal? block) val-block) vs)
+  (for ([v (in-list vs)])
+    (assert-block-v block v)))
+
+(define (assert-block-v block v)
+  (unless (equal? block (val-block v))
     (error 'assert-block-v! "One of vals does not belong to the provided block")))
 
 ;; Function returns indices of children nodes within a block for given roots,
