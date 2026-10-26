@@ -14,7 +14,10 @@
 (struct search-node (rect [hint #:mutable] [children #:mutable] [dropped #:mutable]))
 
 (define (make-search-space . ranges)
-  (search-space '() '() (map (lambda (range) (search-node range #f #f #f)) ranges)))
+  (search-space '()
+                '()
+                (for/list ([range (in-list ranges)])
+                  (search-node range #f #f #f))))
 
 (define (total-weight reprs)
   (expt 2 (apply + (vector->list (vector-map representation-total-bits reprs)))))
@@ -76,7 +79,7 @@
 (define (make-sampling-table reprs true false other)
   (define denom (total-weight reprs))
   (define (weight nodes)
-    (apply + (map (lambda (node) (hyperrect-weight (search-node-rect node) reprs)) nodes)))
+    (for/sum ([node (in-list nodes)]) (hyperrect-weight (search-node-rect node) reprs)))
   (define true-weight (weight true))
   (define false-weight (weight false))
   (define other-weight (weight other))
