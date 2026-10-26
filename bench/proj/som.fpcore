@@ -2,6 +2,24 @@
 
 (FPCore (lam p22 sa t w q)
  :name "seraz0-s"
+ :alt
+ (! :herbie-platform c
+  (let* ((s (sin lam))
+         (c (cos lam))
+         (N (fabs (fma (* t s) s 1)))
+         (A (fabs (fma (* w s) s 1)))
+         (B (fabs (fma (* q s) s 1)))
+         (eN (logb N)) (eA (logb A)) (eB (logb B))
+         (mN (/ N (exp2 eN))) (mA (/ A (exp2 eA))) (mB (/ B (exp2 eB)))
+         (ex (- eN (+ eA eB)))
+         (h (floor (/ ex 2)))
+         (q_ (sqrt (* (/ mN (* mA mB)) (exp2 (- ex (+ h h))))))
+         (e2 (logb p22)) (e3 (logb sa))
+         (m2 (/ p22 (exp2 e2))) (m3 (/ sa (exp2 e3)))
+         (K (+ (+ e2 e3) h))
+         (r (* (* (* m2 m3) c) q_))
+         (t_ (fmin (fmax K -900) 900)))
+    (* (* r (exp2 t_)) (exp2 (- K t_)))))
  (let* ([sd (sin lam)]
         [sdsq (* sd sd)]
         [numer (+ 1.0 (* t sdsq))]
@@ -20,6 +38,17 @@
 
 (FPCore (mult h xj s)
  :name "seraz0-fc-a2"
+ :alt
+ (! :herbie-platform c
+  (if (>= (fabs xj) (fabs s))
+   (let* ((t (/ s xj))
+          (D (fma (- s) t h))
+          (R (pow (fma t t 1) -0.5)))
+     (* mult (* D (copysign R xj))))
+   (let* ((u (/ xj s))
+          (D (fma h u (- s)))
+          (R (pow (fma u u 1) -0.5)))
+     (* mult (* D (copysign R s))))))
  (let* ([sq (sqrt (+ (* xj xj) (* s s)))])
    (* mult (/ (- (* h xj) (* s s)) sq))))
 
@@ -30,6 +59,25 @@
 
 (FPCore (lamt one_es tanphi sa ca)
  :name "forward-xlam"
+ :alt
+ (! :herbie-platform c
+  (let* ((s (sin lamt))
+         (c (cos lamt))
+         (S (* s ca))
+         (p23 (* one_es tanphi))
+         (p24 (* one_es sa))
+         (p34 (* tanphi sa))
+         (k23 (- (log2 (fmin (fabs p23) 1.7976931348623157e308)) (fmax (logb p23) -1022)))
+         (k24 (- (log2 (fmin (fabs p24) 1.7976931348623157e308)) (fmax (logb p24) -1022)))
+         (k34 (- (log2 (fmin (fabs p34) 1.7976931348623157e308)) (fmax (logb p34) -1022))))
+    (if (and (>= k23 k24) (>= k23 k34))
+        (let ((T (* p23 sa)))
+          (/ (if (>= (fabs T) (fabs S)) (fma p23 sa S) (fma s ca T)) c))
+        (if (>= k24 k34)
+            (let ((T (* p24 tanphi)))
+              (/ (if (>= (fabs T) (fabs S)) (fma p24 tanphi S) (fma s ca T)) c))
+            (let ((T (* p34 one_es)))
+              (/ (if (>= (fabs T) (fabs S)) (fma p34 one_es S) (fma s ca T)) c))))))
  (/
   (+ (* one_es (* tanphi sa))
      (* (sin lamt) ca))
@@ -79,6 +127,16 @@
 
 (FPCore (s xj xy_y c1 c3 lamdp)
  :name "inverse-fac"
+ :alt
+ (! :herbie-platform c
+  (let* ((r (/ s xj))
+         (t2 (if (< (fabs r) 1e150) (sqrt (fma r r 1)) (fabs r)))
+         (s_ (sin lamdp))
+         (s3 (if (< (fabs lamdp) 0.5)
+                 (sin (* 3 lamdp))
+                 (* s_ (fma 2 (if (< (fabs lamdp) 1e300) (cos (* 2 lamdp)) (fma (* -2 s_) s_ 1)) 1))))
+         (t4 (fma (- c3) s3 (fma (- c1) s_ xy_y))))
+    (exp (* t2 t4))))
  (let* ([ratio (/ (* s s) (* xj xj))]
         [scale (sqrt (+ 1.0 ratio))]
         [sl (sin lamdp)]
@@ -111,6 +169,22 @@
 
 (FPCore (spp es one_es)
  :name "inverse-phi-degenerate"
+ :alt
+ (! :herbie-platform c
+  (let* ((p (/ spp one_es)) (q (/ one_es spp)) (P (* p p)))
+    (copysign
+     (if (< (* (fmax (fabs es) 1) P) 3.469446951953614e-18)
+       p
+       (if (and (< P 1.9073486328125e-6) (< (fabs (- (* es P) 0.25)) 0.75))
+         (let* ((w (* (- es (fma P 0.06666666666666667 0.3333333333333333)) P)))
+           (/ spp (fma one_es (/ w (+ 1 (sqrt (+ 1 w)))) one_es)))
+         (if (< 1e270 es)
+           (let* ((qs (* q 7.458340731200207e-155)))
+             (* (pow (fma qs qs (* (* es 7.458340731200207e-155) 7.458340731200207e-155)) -0.5) 7.458340731200207e-155))
+           (if (< 262144 (fma q q es))
+             (pow (fma q q (- es (fma (/ 1 (fma q q es)) 0.06666666666666667 0.3333333333333333))) -0.5)
+             (atan2 1 (sqrt (fma q q (- es 1))))))))
+     spp)))
  (let* ([one_es2 (* one_es one_es)]
         [denom (sqrt (+ one_es2 (* es (* spp spp))))])
    (asin (/ spp denom))))

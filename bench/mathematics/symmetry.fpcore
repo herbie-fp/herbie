@@ -1,3 +1,12 @@
 (FPCore (a b)
   :name "symmetry log of sum of exp"
+  :alt
+  (! :herbie-platform c
+   (let ((m (fmax a b)) (n (fmin a b)))
+     (if (and (< (fmax (fabs a) (fabs b)) 0.0009765625)
+              (>= (fabs m) 6.938893903907228e-18))
+       (let ((d (- a b)))
+         (+ 0.6931471805599453
+            (fma (* d d) (- 0.125 (* (* d d) 0.005208333333333333)) (* (+ a b) 0.5))))
+       (+ m (log1p (exp (- n m)))))))
   (log (+ (exp a) (exp b))))

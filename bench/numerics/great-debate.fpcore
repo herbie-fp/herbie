@@ -15,6 +15,14 @@
 
 (FPCore (x y)
   :name "Kahan p9 Example"
+  :alt
+  (! :herbie-platform c
+   (let* ((a x) (b (fabs y)))
+     (if (< (+ b b) a)
+       (let* ((t (/ b a))) (- 1 (/ (* (+ t t) t) (fma t t 1))))
+       (if (< (+ a a) b)
+         (let* ((t (/ a b))) (- (/ (* (+ t t) t) (fma t t 1)) 1))
+         (let* ((q (/ (- a b) (+ a b)))) (/ (+ q q) (fma q q 1)))))))
   :pre (and (< 0 x 1) (< y 1))
   :alt 
   (! :herbie-platform c

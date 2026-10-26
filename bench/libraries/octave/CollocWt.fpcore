@@ -10,6 +10,19 @@
 (FPCore (alpha beta i)
  :pre (and (> alpha -1) (> beta -1) (> i 0))
  :name "Octave 3.8, jcobi/2"
+ :alt
+ (! :herbie-platform c
+  (let* ((u (* alpha 0.25))
+         (v (* beta 0.25))
+         (w (* i 0.5))
+         (H (if (< alpha beta) (+ (+ u w) v) (+ (+ v w) u)))
+         (TH (+ (+ (+ u 0.25) (+ v 0.25)) w))
+         (g (* (* (/ (- v u) TH) (/ (+ u v) H)) 0.5)))
+    (if (< g -0.25)
+      (/ (- (+ (+ v 0.25) w) (* (/ w H) (+ v (* 0.5 w)))) TH)
+      (if (> g 0.25)
+        (- 1 (/ (- (+ (+ u 0.25) w) (* (/ w H) (+ u (* 0.5 w)))) TH))
+        (+ 0.5 g)))))
  (let ((ab (+ alpha beta)) (ad (- beta alpha)) (ap (* beta alpha)))
    (let ((z (+ ab (* 2 i))))
      (/ (+ (/ (/ (* ab ad) z) (+ z 2.0)) 1.0) 2.0))))

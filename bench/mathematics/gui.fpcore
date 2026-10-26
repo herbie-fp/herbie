@@ -3,6 +3,14 @@
 ;; Robby simplifies this to just (/ (* 4 F) (pow (* x-scale y-scale) 2))
 (FPCore (a b angle x-scale y-scale)
   :name "Simplification of discriminant from scale-rotated-ellipse"
+  :alt
+  (! :herbie-platform c
+   (let* ((L1 (logb a)) (L2 (logb b)) (L4 (logb x-scale)) (L5 (logb y-scale))
+          (n1 (/ a (exp2 L1))) (n2 (/ b (exp2 L2)))
+          (n4 (/ x-scale (exp2 L4))) (n5 (/ y-scale (exp2 L5)))
+          (M (* (* (pow n1 2) (pow n4 -2)) (* (pow n2 2) (pow n5 -2))))
+          (h (- (+ L1 L2) (+ L4 L5))))
+     (* (* (* -4 M) (exp2 h)) (exp2 h))))
   (let* ([θ (* (/ angle 180) PI)]
          [F (* (* b a) (* b (- a)))]
          [A (/ (/ (+ (pow (* a (sin θ)) 2) (pow (* b (cos θ)) 2))
@@ -65,14 +73,73 @@
 ;; the following 7 are broken-down versions of the three above
 (FPCore (a b angle)
   :name "ab-angle->ABCF A"
+  :alt
+  (! :herbie-platform c
+   (let* ((r (remainder angle 180))
+          (a_ (fabs r))
+          (sw (> a_ 45))
+          (t (if sw (- 90 a_) a_))
+          (P (if sw b a))
+          (Q (if sw a b))
+          (th (* t 0.017453292519943295))
+          (A (* P (sin th)))
+          (Bq (* Q (cos th))))
+     (+ (* A A) (* Bq Bq))))
   (+ (pow (* a (sin (* (/ angle 180) PI))) 2) (pow (* b (cos (* (/ angle 180) PI))) 2)))
 
 (FPCore (a b angle)
   :name "ab-angle->ABCF B"
+  :alt
+  (! :herbie-platform c
+   (let* ((a1 (fabs a)) (a2 (fabs b))
+          (ka (logb (fmax a1 a2)))
+          (P (exp2 ka))
+          (n1 (/ a1 P)) (n2 (/ a2 P))
+          (G (if (< (+ n1 n1) n2)
+                 (fma n2 n2 (- (* n1 n1)))
+                 (if (< (+ n2 n2) n1)
+                     (fma (- n1) n1 (* n2 n2))
+                     (* (- n2 n1) (+ n2 n1)))))
+          (tiny (< (fabs angle) 9.313225746154785e-10))
+          (kc (if tiny (logb angle) 0))
+          (r (remainder angle 180))
+          (ar (fabs r))
+          (S (if tiny
+                 (/ (/ angle (exp2 kc)) 28.64788975654116)
+                 (copysign
+                  (if (< ar 22.5)
+                      (sin (/ ar 28.64788975654116))
+                      (if (< ar 67.5)
+                          (cos (/ (- 45 ar) 28.64788975654116))
+                          (sin (/ (- 90 ar) 28.64788975654116))))
+                  r)))
+          (M (* G S))
+          (Ex (+ (+ ka ka) kc)))
+     (if (>= Ex 0)
+         (let* ((h (floor (* Ex 0.5))))
+           (* (* M (exp2 h)) (exp2 (- Ex h))))
+         (if (>= Ex -1022)
+             (* M (exp2 Ex))
+             (* (* M (exp2 (+ Ex 1074))) 4.9406564584124654e-324)))))
   (* (* (* 2 (- (pow b 2) (pow a 2))) (sin (* PI (/ angle 180)))) (cos (* PI (/ angle 180)))))
 
 (FPCore (a b angle)
   :name "ab-angle->ABCF C"
+  :alt
+  (! :herbie-platform c
+   (let* ((r (remainder angle 180))
+          (sw (> (fabs r) 45))
+          (t (remainder angle 90))
+          (X (if sw b a))
+          (Y (if sw a b)))
+     (if (< (fabs t) 1e-12)
+       (let* ((g (* Y t)))
+         (fma X X (* g (* g 0.0003046174197867086))))
+       (let* ((u (* t 0.017453292519943295))
+              (k2 (cos (* t 0.03490658503988659)))
+              (C2 (fma 0.5 k2 0.5))
+              (S2 (if (< k2 0.5) (fma -0.5 k2 0.5) (pow (sin u) 2))))
+         (fma X (* X C2) (* Y (* Y S2)))))))
   (+  (pow (* a (cos (* PI (/ angle 180)))) 2) (pow (* b (sin (* PI (/ angle 180)))) 2)))
 
 (FPCore (a b)
