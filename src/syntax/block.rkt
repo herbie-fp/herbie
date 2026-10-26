@@ -113,18 +113,17 @@
          (dvector-set! visited idx #t)
          res]))))
 
-(define (assert-block-v! block . vs)
-  (unless (andmap (compose (curry equal? block) val-block) vs)
+(define (assert-block-v! block v)
+  (unless (equal? block (val-block v))
     (error 'assert-block-v! "One of vals does not belong to the provided block")))
 
 ;; Function returns indices of children nodes within a block for given roots,
 ;;   where a child node is a child of a root + meets a condition - (condition node)
 (define (block-reachable block vs #:condition [condition (const #t)])
-  ; Little check
-  (apply assert-block-v! block vs)
   (define len (block-length block))
   (define child-mask (make-vector len #f))
   (for ([v (in-list vs)])
+    (assert-block-v! block v)
     (vector-set! child-mask (val-idx v) #t))
   (for ([i (in-range (sub1 len) -1 -1)]
         [node (in-block block (sub1 len) -1 -1)]
@@ -168,13 +167,17 @@
   (define block* (block-empty (context (block-vars b) #f (block-var-reprs b))))
   (for ([var (in-list (block-vars b))])
     (block-push! block* var))
-  (define (add-expr expr)
+  ;; Re-index reachable nodes directly instead of materializing nested expressions.
+  ;; Re-index the plain spec expressions referenced by approximate nodes.
+  (define (reindex-spec-node v recurse)
+    (block-push! block* (expr-recurse (val-def v) (compose val-idx recurse))))
+  (define spec->output (block-recurse spec-block reindex-spec-node))
+  (define (reindex-node v recurse)
     (block-push! block*
-                 (expr-recurse-spec (compose val-idx add-expr)
-                                    (expr-recurse expr (compose val-idx add-expr)))))
-  (define spec-f (block-exprs spec-block))
-  (define exprs (block-exprs b #:spec-f spec-f))
-  (define vs* (map add-expr (map exprs vs)))
+                 (expr-recurse-spec (compose val-idx spec->output)
+                                    (expr-recurse (val-def v) (compose val-idx recurse)))))
+  (define block->output (block-recurse b reindex-node))
+  (define vs* (map block->output vs))
   (define nodes
     (for/list ([node (in-block block*)])
       (match node
@@ -342,4 +345,15 @@
   (test-json-tostring '(* 1/2 (+ (exp x) (neg (/ 1 (exp x)))))
                       "%2 = (exp x)\n(* 1/2 (+ %2 (neg (/ 1 %2))))")
   ; Shared constants/variables are inlined
-  (test-json-tostring '(sqrt (+ (* x x) (* y y))) "(sqrt (+ (* x x) (* y y)))"))
+  (test-json-tostring '(sqrt (+ (* x x) (* y y))) "(sqrt (+ (* x x) (* y y)))")
+
+  ; Shared specs across roots should be copied once into the output graph.
+  (define-values (shared-spec-block shared-spec-vs)
+    (progs->block (list '(+ x y)) #:ctx test-empty-ctx))
+  (define shared-block (block-empty test-empty-ctx))
+  (define shared-roots
+    (list (block-add! shared-block (approx (first shared-spec-vs) '(+ x y)))
+          (block-add! shared-block (approx (first shared-spec-vs) '(- x y)))))
+  (define shared-jsexpr (block->jsexpr shared-block shared-spec-block shared-roots))
+  (check-equal? (jsexpr->block-exprs shared-jsexpr)
+                "%2 = (+ x y)\n(approx %2 %2)\n(approx %2 (- x y))"))
