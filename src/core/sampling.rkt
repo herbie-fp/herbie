@@ -81,6 +81,7 @@
     (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
   (define hints (list->vector hints*))
   (define hyperrects (list->vector hyperrects*))
+  (define one-hyperrect? (= (vector-length hyperrects) 1))
   (define lo-ends
     (for/vector #:length (vector-length hyperrects)
                 ([hyperrect (in-vector hyperrects)])
@@ -101,7 +102,10 @@
   ;; returns pt and hint
   (define num-vars (vector-length reprs))
   (define (hyperrect-sampler)
-    (define idx (binary-search weights (random-natural weight-max)))
+    (define idx
+      (if one-hyperrect?
+          0
+          (binary-search weights (random-natural weight-max))))
     (values (for/vector #:length num-vars
                         ([lo (in-list (vector-ref lo-ends idx))]
                          [hi (in-list (vector-ref hi-ends idx))]
