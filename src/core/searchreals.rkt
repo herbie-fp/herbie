@@ -95,30 +95,30 @@
   (define var-reprs (real-compiler-var-reprs compiler))
   (define initial-space (apply make-search-space rects))
   (define roots (search-space-other initial-space))
-  (let loop ([space initial-space]
-             [n 0])
-    (match-define (search-space true false other) space)
-    (define table (make-sampling-table var-reprs true false other))
-    (timeline-push! 'sampling n table)
+  (define-values (nodes table)
+    (let loop ([space initial-space]
+               [n 0])
+      (match-define (search-space true false other) space)
+      (define table (make-sampling-table var-reprs true false other))
+      (timeline-push! 'sampling n table)
 
-    (define n* (remainder n (vector-length var-reprs)))
-    (if (or (>= n depth) (empty? (search-space-other space)) (>= (length other) (expt 2 depth)))
-        (let* ([results (map collect-kept-regions roots)]
-               [regions (append-map second results)])
-          (list (map first regions) (map second regions) table))
-        (loop (search-step compiler space n*) (+ n 1)))))
+      (define n* (remainder n (vector-length var-reprs)))
+      (if (or (>= n depth) (empty? (search-space-other space)) (>= (length other) (expt 2 depth)))
+          (values (append-map coalesce-nodes roots) table)
+          (loop (search-step compiler space n*) (+ n 1)))))
+  (list (map search-node-rect nodes) (map search-node-hint nodes) table))
 
-(define (collect-kept-regions node)
+(define (coalesce-nodes node)
   (if (search-node-dropped node)
-      (list #f '())
+      '()
       (match (search-node-children node)
         [(list left right)
-         (define left-result (collect-kept-regions left))
-         (define right-result (collect-kept-regions right))
-         (if (and (first left-result) (first right-result))
-             (list #t (list (list (search-node-rect node) (search-node-hint node))))
-             (list #f (append (second left-result) (second right-result))))]
-        [_ (list #t (list (list (search-node-rect node) (search-node-hint node))))])))
+         (define left-nodes (coalesce-nodes left))
+         (define right-nodes (coalesce-nodes right))
+         (if (and (equal? left-nodes (list left)) (equal? right-nodes (list right)))
+             (list node)
+             (append left-nodes right-nodes))]
+        [_ (list node)])))
 
 (module+ test
   (require rackunit)
@@ -130,6 +130,6 @@
                  (list (search-node 'left 'leaf-hint #f #f) (search-node 'right 'leaf-hint #f #f))
                  #f))
   (define root (search-node 'parent 'parent-hint (list false-region kept-subtree) #f))
-  (check-equal? (collect-kept-regions root) (list #f (list (list 'kept-subtree 'subtree-hint))))
+  (check-equal? (coalesce-nodes root) (list kept-subtree))
   (set-search-node-dropped! false-region #f)
-  (check-equal? (collect-kept-regions root) (list #t (list (list 'parent 'parent-hint)))))
+  (check-equal? (coalesce-nodes root) (list root)))

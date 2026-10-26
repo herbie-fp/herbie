@@ -46,8 +46,7 @@
   (define errors (transpose-errors err-cols))
   (define (real-v? v)
     (define repr (block-repr-of v))
-    (and (equal? (representation-type repr) 'real)
-         (get-fpcore-impl 'if '() (list (get-representation 'bool) repr repr))
+    (and (get-fpcore-impl 'if '() (list (get-representation 'bool) repr repr))
          (get-fpcore-impl '<= '() (list repr repr))))
   (define var-vs (map (curry block-add! block) (block-vars block)))
   (define branch-vs
