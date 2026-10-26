@@ -75,12 +75,13 @@
   (val b (hash-ref! hashcons term (lambda () (dvector-add! (block-nodes b) term)))))
 
 (define (block-add! b expr)
+  (define memo (make-hasheq))
   (define (munge prog)
     (match prog
       [(val b* idx*)
        (assert-block-v! b prog)
        idx*]
-      [_ (val-idx (block-push! b (expr-recurse prog munge)))]))
+      [_ (hash-ref! memo prog (λ () (val-idx (block-push! b (expr-recurse prog munge)))))]))
   (val b (munge expr)))
 
 (define (val-def x)

@@ -44,6 +44,26 @@
 
 (FPCore (Sp Tp Vp singam cosgam)
  :name "inverse-Up"
+ :alt
+ (! :herbie-platform c
+  (let* ((P (* Vp cosgam)) (Q (* Sp singam)) (aP (fabs P)) (aQ (fabs Q))
+         (a 7.458340731200207e-155) (b 1.3407807929942597e154)
+         (t5 (/ cosgam Tp)) (t4 (/ singam Tp)))
+   (if (< aQ aP)
+    (if (> aP 1e301)
+     (* (/ (fma (* Vp a) (* cosgam a) (* (* Sp a) (* singam a))) (* Tp a)) b)
+     (if (< aP 1e-270)
+      (* (/ (fma (* Vp b) (* cosgam b) (* (* Sp b) (* singam b))) (* Tp b)) a)
+      (if (and (< (fabs (logb t5)) 1021) (< aQ (* aP 1e-21)))
+       (if (< (logb (* t5 0.7071067811865476)) (logb t5)) (/ Vp (/ Tp cosgam)) (* Vp t5))
+       (/ (fma Vp cosgam Q) Tp))))
+    (if (> aQ 1e301)
+     (* (/ (fma (* Sp a) (* singam a) (* (* Vp a) (* cosgam a))) (* Tp a)) b)
+     (if (< aQ 1e-270)
+      (* (/ (fma (* Sp b) (* singam b) (* (* Vp b) (* cosgam b))) (* Tp b)) a)
+      (if (and (< (fabs (logb t4)) 1021) (< aP (* aQ 1e-21)))
+       (if (< (logb (* t4 0.7071067811865476)) (logb t4)) (/ Sp (/ Tp singam)) (* Sp t4))
+       (/ (fma Sp singam P) Tp)))))))
  (/ (+ (* Vp cosgam) (* Sp singam)) Tp))
 
 (FPCore (Up Esc)
@@ -118,12 +138,56 @@
 
 (FPCore (E_var L H)
  :name "init-J"
+ :alt
+ (! :herbie-platform c
+  (let* ((e (- (+ (logb L) (logb H)) (* 2 (logb E_var)))))
+   (if (< e -60)
+    1
+    (if (> e 60)
+     -1
+     (let* ((p (* L H))
+            (q (if (< (fabs (logb p)) 1020)
+                   (/ (/ p E_var) E_var)
+                   (* (/ L E_var) (/ H E_var)))))
+       (/ (- 1 q) (+ 1 q)))))))
  (let ([E2 (* E_var E_var)]
         [LH (* L H)])
    (/ (- E2 LH) (+ E2 LH))))
 
 (FPCore (lam1 lam2 B J p)
  :name "init-lam0-twopoint"
+ :alt
+ (! :herbie-platform c
+  (let* ((d0 (- lam1 lam2))
+         (s (if (< d0 (- PI)) 1 (if (> d0 PI) -1 0)))
+         (h1 (* 0.5 lam1))
+         (h2 (* 0.5 lam2))
+         (T4 (if (== s 0) (* 0.5 (+ lam1 lam2)) (+ (+ h1 h2) (* s PI))))
+         (Dh (if (== s 0) (* 0.5 d0) (- (- h1 h2) (* s PI))))
+         (e3 (logb B))
+         (eD (logb Dh))
+         (e4 (logb J))
+         (e5 (logb p))
+         (et5 (+ e3 eD))
+         (ez (- (+ et5 e4) e5)))
+    (if (< et5 -30)
+        (if (< ez -30)
+            (if (< (fabs (- e4 e5)) 1000)
+                (fma (- (/ J p)) Dh T4)
+                (if (< (fabs (- eD e5)) 1000)
+                    (fma (- J) (/ Dh p) T4)
+                    (- T4 (/ (* J Dh) p))))
+            (let* ((m3 (/ B (exp2 e3)))
+                   (mD (/ Dh (exp2 eD)))
+                   (m4 (/ J (exp2 e4)))
+                   (m5 (/ p (exp2 e5)))
+                   (z (* (/ (* (* m4 m3) mD) m5) (exp2 (fmin ez 200)))))
+              (- T4 (/ (atan z) B))))
+        (if (< et5 200)
+            (let* ((t5 (* B Dh))
+                   (z (* (/ J p) (tan t5))))
+              (- T4 (/ (atan z) B)))
+            T4))))
  (let* ([delta (- lam1 lam2)]
         [lam2_adj (if (< delta (- PI))
                       (+ lam2 (* 2.0 PI))
@@ -152,6 +216,22 @@
 
 (FPCore (phi ecc)
  :name "pj_tsfn"
+ :alt
+ (! :herbie-platform c
+  (let* ((s (sin phi))
+         (c (cos phi))
+         (t (* ecc s))
+         (T (if (< s 0) (/ (- 1 s) c) (/ c (+ 1 s))))
+         (L (* 2 (atanh (tan (* 0.5 phi))))))
+   (if (< (fabs t) 1)
+     (let ((Ex (* ecc (atanh t))))
+       (if (< (fabs phi) 0.25) (exp (- Ex L)) (* T (exp Ex))))
+     (let* ((q (/ 1 s))
+            (w (/ 1 t))
+            (w2 (* w w))
+            (Ex (fma q (* w2 (+ 0.3333333333333333 (* w2 0.2))) q))
+            (sg (- 1 (fmod (fabs ecc) 4))))
+       (* sg (if (< (fabs phi) 0.25) (exp (- Ex L)) (* T (exp Ex))))))))
  (let* ([sinphi (sin phi)]
         [e_sin (* ecc sinphi)])
    (* (tan (* 0.5 (- (/ PI 2) phi)))

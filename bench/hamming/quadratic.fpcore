@@ -2,6 +2,33 @@
 
 (FPCore (a b c)
  :name "quadp (p42, positive)"
+ :alt
+ (! :herbie-platform c
+  (let* ((la (logb a)) (lb (logb b)) (lc (logb c))
+         (Q (- (+ la lc) (+ lb lb))))
+    (if (< Q -70)
+        (if (< b 0) (/ (- b) a) (/ (- c) b))
+        (if (< Q 3)
+            (let* ((t (if (< (fabs lb) 300)
+                          (* 4 (/ (/ (* a c) b) b))
+                          (* 4 (* (/ a b) (/ c b)))))
+                   (h (/ t (+ 2 (* 2 (sqrt (- 1 t))))))
+                   (N (fma b h (- b))))
+              (if (< b 0) (/ N a) (/ c N)))
+            (let* ((d (- lc la)))
+              (if (> d 1000)
+                  (let* ((A (* a 8.9978275890863928e161))
+                         (S (copysign (sqrt (/ (* c -6.6243372842224761e-170) A)) a))
+                         (W (expm1 (asinh (/ (/ (- b) A) (* S 8192))))))
+                    (* (fma S W S) 3.6855101804897865e165))
+                  (if (< d -1000)
+                      (let* ((A (* a 6.6243372842224761e-170))
+                             (S (copysign (sqrt (/ (* c -8.9978275890863928e161) A)) a))
+                             (W (expm1 (asinh (/ (/ (- b) A) (* S 8192))))))
+                        (* (fma S W S) 2.7133285516175262e-166))
+                      (let* ((S (copysign (sqrt (/ (- c) a)) a))
+                             (W (expm1 (asinh (/ (/ (- b) a) (+ S S))))))
+                        (fma S W S)))))))))
  :herbie-expected 10
  ; From Racket Math Lib implementation
  :alt 
@@ -19,6 +46,25 @@
 
 (FPCore (a b c)
  :name "quadm (p42, negative)"
+ :alt
+ (! :herbie-platform c
+  (let* ((q (/ b a)) (p (/ c b)) (t (* 4 (/ p q))))
+   (if (<= (fabs t) 1)
+     (let* ((h (/ t (+ 2 (* 2 (sqrt (- 1 t)))))))
+       (if (>= b 0) (if (< (fabs t) 1e-17) (- q) (fma q h (- q))) (/ p (- h 1))))
+     (let* ((Q (/ c a)))
+       (if (< (fabs (logb Q)) 1000)
+         (let* ((e (fabs (* 0.5 q))) (W (+ e (sqrt (fma e e (- Q))))))
+           (if (>= b 0) (copysign W (- a)) (/ Q (copysign W a))))
+         (if (> (fabs Q) 1)
+           (let* ((as (* a #x1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000))
+                  (cs (* c #x1/1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000))
+                  (Qs (/ cs as)) (e (fabs (/ b (+ as as)))) (W (+ e (sqrt (fma e e (- Qs))))))
+             (* (if (>= b 0) (copysign W (- a)) (/ Qs (copysign W a))) #x1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000))
+           (let* ((as (* a #x1/1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000))
+                  (cs (* c #x1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000))
+                  (Qs (/ cs as)) (e (fabs (/ b (+ as as)))) (W (+ e (sqrt (fma e e (- Qs))))))
+             (* (if (>= b 0) (copysign W (- a)) (/ Qs (copysign W a))) #x1/1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000))))))))
  :herbie-expected 10
  ; From Racket Math Lib implementation
  :alt 
@@ -36,6 +82,28 @@
 
 (FPCore (a b_2 c)
  :name "quad2m (problem 3.2.1, negative)"
+ :alt
+ (! :herbie-platform c
+  (let* ((lb (logb b_2))
+         (K (- (+ (logb a) (logb c)) (+ lb lb))))
+    (if (< K 4)
+      (let* ((T1 (if (< (fabs lb) 300)
+                   (- 1 (/ (/ (* a c) b_2) b_2))
+                   (fma (- (/ a b_2)) (/ c b_2) 1)))
+             (P (+ 1 (sqrt T1)))
+             (B (fabs b_2)))
+        (if (< b_2 0) (/ (/ c B) P) (* (- (/ B a)) P)))
+      (let* ((G (expm1 (asinh (/ (/ b_2 (sqrt (fabs a))) (sqrt (fabs c))))))
+             (q (/ c a)))
+        (copysign
+          (if (and (< (fabs q) 1e300) (> (fabs q) 1e-300))
+            (let ((R (sqrt (- q)))) (fma R G R))
+            (if (> (fabs q) 1)
+              (let ((R (sqrt (- (/ (* c 2.409919865102884e-181) (* a 3.273390607896142e150))))))
+                (* (fma R G R) 3.6855101804897865e165))
+              (let ((R (sqrt (- (/ (* c 4.149515568880993e180) (* a 3.054936363499605e-151))))))
+                (* (fma R G R) 2.7133285516175262e-166))))
+          (- a))))))
  :herbie-expected 10
  ; From Racket Math Lib implementation
  :alt 

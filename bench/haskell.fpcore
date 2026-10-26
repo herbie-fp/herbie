@@ -15,6 +15,14 @@
 
 (FPCore (x y z t)
  :name "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, D"
+ :alt
+ (! :herbie-platform c
+  (let* ((d (- z x)) (q (/ y t)) (r (/ d t)))
+   (if (and (>= (fabs q) 2.2250738585072014e-308) (< (fabs q) INFINITY))
+    (fma q d x)
+    (if (and (>= (fabs r) 2.2250738585072014e-308) (< (fabs r) INFINITY))
+     (fma y r x)
+     (+ x (/ (* y d) t))))))
  :alt 
  (! :herbie-platform default (- x (+ (* x (/ y t)) (* (- z) (/ y t)))))
 
@@ -22,6 +30,23 @@
 
 (FPCore  (x y z t a)
  :name "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, E/F"
+ :alt
+ (! :herbie-platform c
+  (let* ((d (- z t))
+         (FA (/ y a))
+         (FB (/ d a))
+         (useA (< (fabs (logb FA)) 1000))
+         (recA (and (< (logb (* FA 0.7071067811865476)) (logb FA))
+                    (< (fabs x) (* 1e-19 (fabs (* FA d))))))
+         (recB (and (< (logb (* FB 0.7071067811865476)) (logb FB))
+                    (< (fabs x) (* 1e-19 (fabs (* FB y)))))))
+    (array
+     (if useA
+         (if recA (/ d (/ a y)) (fma FA d x))
+         (if recB (/ y (/ a d)) (fma FB y x)))
+     (if useA
+         (if recA (/ (- d) (/ a y)) (fma FA (- d) x))
+         (if recB (/ (- y) (/ a d)) (fma FB (- y) x))))))
  (array
   (+ x (/ (* y (- z t)) a))
   (- x (/ (* y (- z t)) a))))
@@ -146,6 +171,12 @@
 
 (FPCore  (x y z)
  :name "Data.Colour.RGBSpace.HSV:hsv from colour-2.3.3, I"
+ :alt
+ (! :herbie-platform c
+  (let ((w (* y z)))
+    (if (<= (fabs w) 1.7976931348623157e308)
+      (fma (- x) w x)
+      (fma (- (* x y)) z x))))
  (* x (- 1.0 (* y z))))
 
 (FPCore  (x y z)
@@ -203,6 +234,21 @@
 
 (FPCore  (x y z t a)
  :name "Diagrams.Solve.Tridiagonal:solveTriDiagonal from diagrams-solve-0.1, A"
+ :alt
+ (! :herbie-platform c
+  (if (< (fabs x) (fabs (* y z)))
+   (if (< (fabs t) (fabs (* a z)))
+    (/ (- y (/ x z)) (- a (/ t z)))
+    (let* ((n (- (/ x z) y)) (D (fma (- a) z t)))
+     (if (< (fabs n) 1)
+      (if (< (fabs z) 1) (* (/ n D) z) (/ (* n z) D))
+      (if (< (fabs z) 1) (/ (* n z) D) (* (/ n D) z)))))
+   (if (< (fabs t) (fabs (* a z)))
+    (let* ((N (fma (- y) z x)) (d (- (/ t z) a)))
+     (if (< (fabs d) 1)
+      (if (< (fabs z) 1) (/ (/ N z) d) (/ N (* z d)))
+      (if (< (fabs z) 1) (/ N (* z d)) (/ (/ N z) d))))
+    (/ (fma (- y) z x) (fma (- a) z t)))))
  :alt 
  (! :herbie-platform default
   (if (< z -32113435955957344.0)
@@ -215,6 +261,15 @@
 
 (FPCore  (x y z t)
  :name "Diagrams.Solve.Tridiagonal:solveTriDiagonal from diagrams-solve-0.1, B"
+ :alt
+ (! :herbie-platform c
+  (if (> (fabs (* z t)) 1e300)
+    (if (>= (fabs x) 4)
+      (/ (* x 5.562684646268003e-309)
+         (fma (- (* z 7.458340731200207e-155)) (* t 7.458340731200207e-155) (* y 5.562684646268003e-309)))
+      (/ (* x 7.458340731200207e-155)
+         (fma (- (* z 7.458340731200207e-155)) t (* y 7.458340731200207e-155))))
+    (/ x (fma (- z) t y))))
  :alt 
  (! :herbie-platform default
   (if (< x -1.618195973607049e+50)
@@ -711,6 +766,19 @@
 
 (FPCore  (x y z t)
  :name "Linear.Projection:infinitePerspective from linear-1.19.1.3, A"
+ :alt
+ (! :herbie-platform c
+  (let* ((d (- y t))
+         (P0 (* z d)))
+    (if (and (< (fabs P0) 8.98846567431158e307) (> (fabs P0) 4.450147717014403e-308))
+      (let* ((A (copysign (exp2 (logb P0)) P0))
+             (s (/ (fma z d (- A)) P0))
+             (M (fma (- x) s x)))
+        (* (/ M A) 2))
+      (let* ((n (* 2 x)))
+        (if (< (fabs n) 1)
+          (if (> (fabs z) 1) (/ (/ n d) z) (/ (/ n z) d))
+          (if (> (fabs z) 1) (/ (/ n z) d) (/ (/ n d) z)))))))
  :alt 
  (! :herbie-platform default
   (if (< (/ (* x 2.0) (- (* y z) (* t z))) -2.559141628295061e-13)
@@ -723,12 +791,54 @@
 
 (FPCore  (x y)
  :name "Linear.Projection:inversePerspective from linear-1.19.1.3"
+ :alt
+ (! :herbie-platform c
+  (array
+   (if (<= (fabs y) (fabs x))
+     (let ((r (/ y x)))
+       (if (>= r 0.5)
+         (/ (* (/ (- x y) x) 0.5) y)
+         (/ (fma -0.5 r 0.5) y)))
+     (let ((r (/ x y)))
+       (if (>= r 0.5)
+         (/ (* (/ (- x y) y) 0.5) x)
+         (/ (fma 0.5 r -0.5) x))))
+   (if (<= (fabs y) (fabs x))
+     (/ (fma 0.5 (/ y x) 0.5) y)
+     (/ (fma 0.5 (/ x y) 0.5) x))))
  (array
   (/ (- x y) (* (* x 2.0) y))
   (/ (+ x y) (* (* x 2.0) y))))
 
 (FPCore  (x y)
  :name "Linear.Projection:perspective from linear-1.19.1.3"
+ :alt
+ (! :herbie-platform c
+  (array
+   (if (>= (fabs x) (fabs y))
+    (let ((L (if (> (fabs x) 1) (* 0.5 x) x))
+          (S (if (> (fabs x) 1) (* 0.5 y) y)))
+     (if (<= (fabs (+ L S)) (* 0.5 (fabs L)))
+      (/ (+ L S) (- L S))
+      (fma 2 (/ S (- L S)) 1)))
+    (let ((L (if (> (fabs y) 1) (* 0.5 y) y))
+          (S (if (> (fabs y) 1) (* 0.5 x) x)))
+     (- (if (<= (fabs (+ L S)) (* 0.5 (fabs L)))
+      (/ (+ L S) (- L S))
+      (fma 2 (/ S (- L S)) 1)))))
+   (if (>= (fabs x) (fabs y))
+    (let ((r (if (> (fabs x) 1)
+              (/ (* 0.5 y) (- (* 0.5 x) (* 0.5 y)))
+              (/ y (- x y)))))
+     (if (< (fabs y) 1)
+      (fma (* 2 y) r (* 2 y))
+      (* 2 (fma y r y))))
+    (let ((r (if (> (fabs y) 1)
+              (/ (* 0.5 x) (- (* 0.5 y) (* 0.5 x)))
+              (/ x (- y x)))))
+     (- (if (< (fabs x) 1)
+      (fma (* 2 x) r (* 2 x))
+      (* 2 (fma x r x))))))))
  (array
   (/ (+ x y) (- x y))
   (/ (* (* x 2.0) y) (- x y))))
@@ -764,6 +874,22 @@
 
 (FPCore  (x y z t)
  :name "Main:z from "
+ :alt
+ (! :herbie-platform c
+  (let* ((r1 (if (< x 0.5)
+                 (- (/ x (+ 1 (sqrt (+ x 1)))) (sqrt x))
+                 (* 0.5 (pow (+ (+ x 0.5) (/ -0.125 (+ (+ x 0.5) (sqrt (fma x x x))))) -0.5))))
+         (r2 (if (< y 0.5)
+                 (- (/ y (+ 1 (sqrt (+ y 1)))) (sqrt y))
+                 (* 0.5 (pow (+ (+ y 0.5) (/ -0.125 (+ (+ y 0.5) (sqrt (fma y y y))))) -0.5))))
+         (r3 (if (< z 0.5)
+                 (- (/ z (+ 1 (sqrt (+ z 1)))) (sqrt z))
+                 (* 0.5 (pow (+ (+ z 0.5) (/ -0.125 (+ (+ z 0.5) (sqrt (fma z z z))))) -0.5))))
+         (r4 (if (< t 0.5)
+                 (- (/ t (+ 1 (sqrt (+ t 1)))) (sqrt t))
+                 (* 0.5 (pow (+ (+ t 0.5) (/ -0.125 (+ (+ t 0.5) (sqrt (fma t t t))))) -0.5))))
+         (n (+ (+ (if (< x 0.5) 1 0) (if (< y 0.5) 1 0)) (+ (if (< z 0.5) 1 0) (if (< t 0.5) 1 0)))))
+    (+ n (+ (+ r1 r2) (+ r3 r4)))))
  :alt 
  (! :herbie-platform default
   (+
@@ -861,6 +987,24 @@
 
 (FPCore  (x y z t)
  :name "Diagrams.Trail:splitAtParam  from diagrams-lib-1.3.0.3, A"
+ :alt
+ (! :herbie-platform c
+  (let* ((s (- y t)) (e (+ 1 x)) (c (fma (- x) (/ x e) x)) (t_ (/ x z)))
+   (if (< (fabs x) (fabs (* z t)))
+     (if (< (fabs x) 1)
+        (let ((u (- t t_))) (+ c (/ (- y t_) (fma u x u))))
+        (+ 1 (/ (/ s e) (- t t_))))
+     (let ((D (fma z t (- x))))
+       (if (and (< (fabs x) 1) (not (< (fabs (* z s)) (fabs D))))
+         (let ((N (fma y z (- x))))
+           (if (and (< (* 2 (fabs D)) (fabs N))
+                    (and (< 2.2250738585072014e-308 (fabs t_)) (< (fabs t_) 8.98846567431158e307)))
+             (if (< (logb (* t_ 0.7071067811865476)) (logb t_))
+               (let* ((v (/ z x)) (w (fma t v -1)))
+                 (+ c (/ (fma y v -1) (fma w x w))))
+               (let ((u (- t t_))) (+ c (/ (- y t_) (fma u x u)))))
+             (+ c (/ N (fma D x D)))))
+         (+ 1 (* (/ s e) (/ z D))))))))
  :alt 
  (! :herbie-platform default
   (/ (+ x (- (/ y (- t (/ x z))) (/ x (- (* t z) x)))) (+ x 1.0)))
@@ -905,6 +1049,17 @@
 
 (FPCore  (x y)
  :name "Diagrams.TwoD.Arc:arcBetween from diagrams-lib-1.3.0.3"
+ :alt
+ (! :herbie-platform c
+  (if (<= (* 4 (fabs y)) (fabs x))
+    (let ((r (* 2 (/ (fabs y) (fabs x)))))
+      (fma (* -2 r) (/ r (fma r r 1)) 1))
+    (if (<= (fabs x) (fabs y))
+      (let ((r (* 0.5 (/ (fabs x) (fabs y)))))
+        (fma (+ r r) (/ r (fma r r 1)) -1))
+      (let ((a (fabs x)) (h (fabs y)))
+        (let ((t (* 2 (/ h a))))
+          (/ (* (/ (fma -2 h a) a) (+ 1 t)) (fma t t 1)))))))
  :alt 
  (! :herbie-platform default
   (if (<
@@ -925,6 +1080,32 @@
 
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Chart.Axis.Types:invLinMap from Chart-1.5.3"
+ :alt
+ (! :herbie-platform c
+  (if (< (fmax (fmax (fabs x) (fabs y)) (fmax (fmax (fabs z) (fabs t)) (fabs a))) 1e307)
+   (let* ((a_ (- y z)) (d (- y a)) (c (- a z)) (b (- t x)))
+    (if (< (fabs d) (fabs a_))
+     (let* ((r (/ d c)))
+      (if (< (fabs (logb r)) 1023)
+       (fma b r t)
+       (let* ((s (/ b c)))
+        (if (< (fabs (logb s)) 1023)
+         (fma d s t)
+         (+ t (/ (* b d) c))))))
+     (let* ((r (/ a_ c)))
+      (if (< (fabs (logb r)) 1023)
+       (fma b r x)
+       (let* ((s (/ b c)))
+        (if (< (fabs (logb s)) 1023)
+         (fma a_ s x)
+         (+ x (/ (* b a_) c))))))))
+   (let* ((c (fma 0.5 a (* -0.5 z))) (b (fma 0.5 t (* -0.5 x)))
+          (d (fma 0.5 y (* -0.5 a))) (a_ (fma 0.5 y (* -0.5 z))))
+    (if (< (fabs d) (fabs a_))
+     (let* ((r (/ d c)))
+      (if (< (fabs (logb r)) 1023) (fma b (* 2 r) t) (fma d (/ (* 2 b) c) t)))
+     (let* ((r (/ a_ c)))
+      (if (< (fabs (logb r)) 1023) (fma b (* 2 r) x) (fma a_ (/ (* 2 b) c) x)))))))
  :alt 
  (! :herbie-platform default
   (if (< z -1.2536131056095036e+188)
@@ -1087,6 +1268,30 @@
 
 (FPCore  (x y z t a b)
  :name "Graphics.Rasterific.CubicBezier:cachedBezierAt from Rasterific-0.6.1"
+ :alt
+ (! :herbie-platform c
+  (let* ((M 1.7976931348623157e308)
+         (Q (if (< (fabs a) 1)
+              (if (< (fabs z) 1) 1 0)
+              (if (< (fabs z) 1) 0 1)))
+         (T4 (if (== Q 1) (* (* a b) z) (* (* a z) b)))
+         (R0 (fmax (fmin (+ (+ x (* y z)) (* t a)) M) (- M)))
+         (R2 (fmax (fmin (+ (+ x (* t a)) T4) M) (- M)))
+         (R3 (fmax (fmin (+ (+ x (* y z)) T4) M) (- M)))
+         (L4 (if (== Q 1) (fma (* a b) z R0) (fma (* a z) b R0)))
+         (L2 (fma y z R2))
+         (L3 (fma t a R3))
+         (P2 (fabs (* y z)))
+         (P3 (fabs (* t a))))
+   (if (< (fabs y) (fabs (* a b)))
+     (if (< (fabs t) (fabs (* z b))) L4 L3)
+     (if (< (fabs t) (fabs (* z b)))
+       L2
+       (if (== P2 P3)
+         (if (< (fabs (* (* y 7.458340731200207e-155) (* z 7.458340731200207e-155)))
+                (fabs (* (* t 7.458340731200207e-155) (* a 7.458340731200207e-155))))
+           L3 L2)
+         (if (< P2 P3) L3 L2))))))
  :alt 
  (! :herbie-platform default
   (if (< z -1.1820553527347888e+19)
@@ -1115,6 +1320,26 @@
 
 (FPCore  (x y z t)
  :name "Graphics.Rasterific.Shading:$sradialGradientWithFocusShader from Rasterific-0.6.1, B"
+ :alt
+ (! :herbie-platform c
+  (if (> (fabs z) 3.273390607896142e150)
+    (let* ((x3s (* z 7.458340731200207e-155))
+           (Gs (fma (- x3s) x3s (* t 5.562684646268003e-309))))
+      (if (>= (fabs x) 3.1217485503159922e144)
+        (let* ((x1s (* x 7.458340731200207e-155)))
+          (* (* (fma x1s x1s (* (* y Gs) 4)) 1.3407807929942597e154) 1.3407807929942597e154))
+        (fma x x
+          (if (>= (fabs y) 3.054936363499605e-151)
+            (* (* (* (* y Gs) 4) 1.3407807929942597e154) 1.3407807929942597e154)
+            (* (* (* y 1.3407807929942597e154) 1.3407807929942597e154) (* Gs 4))))))
+    (let* ((G (fma (- z) z t)))
+      (if (>= (fabs x) 3.1217485503159922e144)
+        (let* ((x1s (* x 7.458340731200207e-155)))
+          (* (* (fma x1s x1s (* (* (* y 7.458340731200207e-155) (* G 7.458340731200207e-155)) 4)) 1.3407807929942597e154) 1.3407807929942597e154))
+        (fma x x
+          (if (< (fabs y) 1e300)
+            (* (* y 4) G)
+            (* (* y G) 4)))))))
  :alt 
  (! :herbie-platform default
   (- (* x x) (* 4.0 (* y (- (* z z) t)))))
@@ -1143,6 +1368,20 @@
 
 (FPCore  (x y z t)
  :name "Numeric.AD.Rank1.Halley:findZero from ad-4.2.4"
+ :alt
+ (! :herbie-platform c
+  (let* ((L (- (+ (logb y) (logb t)) (* 2 (logb z))))
+         (Q (if (<= L 0)
+                (/ y (if (<= (fabs y) (fabs t))
+                          (fma (* -0.5 t) (/ y z) z)
+                          (fma (* -0.5 y) (/ t z) z)))
+                (if (> (fabs z) 1)
+                    (* -2 (/ z (fma z (* -2 (/ z y)) t)))
+                    (/ (* -2 z)
+                       (if (or (> (fabs y) 1e-300) (< (fabs z) 1e-150))
+                           (fma (* -2 z) (/ z y) t)
+                           (- t (* 2 (/ (* z z) y)))))))))
+    (- x Q)))
  :alt 
  (! :herbie-platform default
   (- x (/ 1 (- (/ z y) (/ (/ t 2.0) z)))))
@@ -1205,6 +1444,10 @@
 
 (FPCore  (x y z t)
  :name "Graphics.Rasterific.Svg.PathConverter:arcToSegments from rasterific-svg-0.2.3.1"
+ :alt
+ (! :herbie-platform c
+  (let ((a (/ x y)) (b (/ z t)))
+    (fma a a (* b b))))
  :alt 
  (! :herbie-platform default
   (+ (pow (/ x y) 2) (pow (/ z t) 2)))
@@ -1240,6 +1483,17 @@
 
 (FPCore  (x y z t)
  :name "Numeric.Histogram:binBounds from Chart-1.5.3"
+ :alt
+ (! :herbie-platform c
+  (let* ((d (- y x)) (r (/ z t)))
+    (if (<= (fabs (- t z)) (fmin (fabs z) (fabs t)))
+      (fma (- d) (/ (- t z) t) y)
+      (if (< (fabs (logb r)) 1021)
+        (fma d r x)
+        (let* ((q (/ d t)))
+          (if (< (fabs (logb q)) 1021)
+            (fma q z x)
+            (+ x (/ (* d z) t))))))))
  :alt 
  (! :herbie-platform default
   (if (< x -9.025511195533005e-135)
@@ -1264,6 +1518,29 @@
 
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Chart.Axis.Types:linMap from Chart-1.5.3"
+ :alt
+ (! :herbie-platform c
+  (let* ((D (- y x))
+         (A (- z t))
+         (Cn (- z a))
+         (B (- a t)))
+    (if (<= (fabs A) (fabs Cn))
+      (let ((t_ (/ A B)) (s (/ D B)))
+        (if (>= (- (log2 (fabs A)) (log2 (fabs D))) (- (logb t_) (logb s)))
+          (if (< (fabs (logb t_)) 1021)
+            (fma D t_ x)
+            (if (< (fabs (logb s)) 1021) (fma s A x) (+ (/ (* D A) B) x)))
+          (if (< (fabs (logb s)) 1021)
+            (fma s A x)
+            (if (< (fabs (logb t_)) 1021) (fma D t_ x) (+ (/ (* D A) B) x)))))
+      (let ((t_ (/ Cn B)) (s (/ D B)))
+        (if (>= (- (log2 (fabs Cn)) (log2 (fabs D))) (- (logb t_) (logb s)))
+          (if (< (fabs (logb t_)) 1021)
+            (fma D t_ y)
+            (if (< (fabs (logb s)) 1021) (fma s Cn y) (+ (/ (* D Cn) B) y)))
+          (if (< (fabs (logb s)) 1021)
+            (fma s Cn y)
+            (if (< (fabs (logb t_)) 1021) (fma D t_ y) (+ (/ (* D Cn) B) y))))))))
  :alt 
  (! :herbie-platform default
   (if (< a -1.6153062845442575e-142)
@@ -1288,6 +1565,19 @@
 
 (FPCore  (x y z t)
  :name "Graphics.Rendering.Chart.Plot.AreaSpots:renderAreaSpots4D from Chart-1.5.3"
+ :alt
+ (! :herbie-platform c
+  (if (< (fabs z) 1e291)
+   (let* ((n (- y z))
+          (d (- t z))
+          (q (/ n d))
+          (p (/ x d)))
+     (if (< (fabs (logb q)) 1021)
+         (* x q)
+         (if (< (fabs (logb p)) 1021)
+             (* p n)
+             (/ (* x n) d))))
+   (* x (/ (- (* 0.5 y) (* 0.5 z)) (- (* 0.5 t) (* 0.5 z))))))
  :alt 
  (! :herbie-platform default
   (/ x (/ (- t z) (- y z))))
@@ -1343,6 +1633,32 @@
 
 (FPCore  (x y z t a b)
  :name "AI.Clustering.Hierarchical.Internal:ward from clustering-0.2.1"
+ :alt
+ (! :herbie-platform c
+  (if (and (>= (fabs x) (fabs y)) (>= (fabs x) (fabs t)))
+    (let* ((D (+ x (+ y t)))
+           (ra (/ y D))
+           (rb (/ t D))
+           (da (- a b))
+           (db (- a z))
+           (in (if (>= (fabs rb) 2.2250738585072014e-308) (fma rb db z) (+ z (/ (* t db) D)))))
+      (if (>= (fabs ra) 2.2250738585072014e-308) (fma ra da in) (+ in (/ (* y da) D))))
+    (if (>= (fabs t) (fabs y))
+      (let* ((D (+ t (+ x y)))
+             (ra (/ y D))
+             (rb (/ x D))
+             (da (- z b))
+             (db (- z a))
+             (in (if (>= (fabs rb) 2.2250738585072014e-308) (fma rb db a) (+ a (/ (* x db) D)))))
+        (if (>= (fabs ra) 2.2250738585072014e-308) (fma ra da in) (+ in (/ (* y da) D))))
+      (let* ((D (+ y (+ x t)))
+             (ra (/ x D))
+             (rb (/ t D))
+             (da (- b a))
+             (db (- b z))
+             (v (- (+ z a) b))
+             (in (if (>= (fabs rb) 2.2250738585072014e-308) (fma rb db v) (+ v (/ (* t db) D)))))
+        (if (>= (fabs ra) 2.2250738585072014e-308) (fma ra da in) (+ in (/ (* x da) D)))))))
  :alt 
  (! :herbie-platform default
   (if (<
@@ -1447,6 +1763,18 @@
 
 (FPCore  (x y z t a b)
  :name "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2, D"
+ :alt
+ (! :herbie-platform c
+  (if (< (fabs z) 1)
+   (let ((N (+ b (* z (+ a (* z (+ t (* z (+ 11.1667541262 (* z 3.13060547623)))))))))
+         (D (+ 0.607771387771 (* z (+ 11.9400905721 (* z (+ 31.4690115749 (* z (+ 15.234687407 z)))))))))
+    (if (< (fabs y) 1)
+     (fma (+ y y) (/ (* N 0.5) D) x)
+     (fma y (/ N D) x)))
+   (fma y
+    (/ (+ 3.13060547623 (/ (+ 11.1667541262 (/ (+ t (/ (+ a (/ b z)) z)) z)) z))
+       (+ 1 (/ (+ 15.234687407 (/ (+ 31.4690115749 (/ (+ 11.9400905721 (/ 0.607771387771 z)) z)) z)) z)))
+    x)))
  :alt 
  (! :herbie-platform default
   (if (< z -6.499344996252632e+53)
@@ -1539,6 +1867,17 @@
 
 (FPCore  (x y z)
  :name "Numeric.SpecFunctions:choose from math-functions-0.1.5.2"
+ :alt
+ (! :herbie-platform c
+  (let ((r (/ y z)) (s (+ y z)))
+    (if (<= (fabs s) (fmin (fabs y) (fabs z)))
+        (* x (/ s z))
+        (if (< (fabs r) INFINITY)
+            (fma x r x)
+            (let ((t (/ x z)))
+              (if (>= (fabs t) 2.2250738585072014e-308)
+                  (fma y t x)
+                  (/ (* x y) z)))))))
  :alt 
  (! :herbie-platform default (/ x (/ z (+ y z))))
 
@@ -1630,6 +1969,18 @@
 
 (FPCore  (x y z t)
  :name "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, C"
+ :alt
+ (! :herbie-platform c
+  (let* ((d (- 1 z))
+         (q (/ y z))
+         (r (/ t d)))
+    (if (>= (fabs q) (fabs r))
+      (fma (- x) r
+        (if (< (fabs (logb q)) 1021) (* x q)
+          (if (< (fabs (logb (/ x z))) 1021) (* y (/ x z)) (/ (* x y) z))))
+      (fma x q
+        (- (if (< (fabs (logb r)) 1021) (* x r)
+          (if (< (fabs (logb (/ x d))) 1021) (* t (/ x d)) (/ (* x t) d))))))))
  :alt 
  (! :herbie-platform default
   (if (< (* x (- (/ y z) (/ t (- 1.0 z)))) -7.623226303312042e-196)
@@ -1744,6 +2095,33 @@
 
 (FPCore  (x y z t a)
  :name "Statistics.Math.RootFinding:ridders from math-functions-0.1.5.2"
+ :alt
+ (! :herbie-platform c
+  (let* ((L3 (logb z))
+         (K (+ (logb t) (logb a))))
+    (if (< K (- (+ L3 L3) 64))
+      (* (* x y) (copysign 1 z))
+      (if (> K (+ (+ L3 L3) 64))
+        (let ((S (if (< (fabs K) 1020)
+                     (sqrt (- (* t a)))
+                     (* (sqrt (fabs t)) (sqrt (fabs a))))))
+          (if (and (< (fabs z) 1) (>= K 0))
+            (if (>= (fabs x) 1)
+              (if (>= (fabs y) 1)
+                (* (* x z) (/ y S))
+                (/ (* (* x z) y) S))
+              (if (>= (fabs y) 1)
+                (/ (* (* y z) x) S)
+                (/ (* (* x y) z) S)))
+            (let ((Q (/ z S)))
+              (if (and (>= (fabs x) 1) (>= (fabs y) 1))
+                (* (* x Q) y)
+                (* (* x y) Q)))))
+        (let ((Q (/ (copysign 1 z)
+                    (sqrt (- 1 (* (/ t z) (/ a z)))))))
+          (if (and (>= (fabs x) 1) (>= (fabs y) 1))
+            (* (* x Q) y)
+            (* (* x y) Q)))))))
  :alt 
  (! :herbie-platform default
   (if (< z -3.1921305903852764e+46)
@@ -1791,6 +2169,15 @@
 
 (FPCore  (x y z t a b)
  :name "Statistics.Distribution.Beta:$centropy from math-functions-0.1.5.2"
+ :alt
+ (! :herbie-platform c
+  (let ((a_ (- y 1)) (b_ (- b z)) (c (- t 1)) (d (- b a)))
+    (let ((la (+ (logb a_) (logb b_))) (lc (+ (logb c) (logb d))) (l1 (logb x)))
+      (if (and (>= l1 la) (>= l1 lc))
+          (if (>= la lc) (+ x (fma a_ b_ (* c d))) (+ x (fma c d (* a_ b_))))
+          (if (>= la lc)
+              (fma a_ b_ (fmax (fmin (fma c d x) 1.7976931348623157e308) -1.7976931348623157e308))
+              (fma c d (fmax (fmin (fma a_ b_ x) 1.7976931348623157e308) -1.7976931348623157e308)))))))
  (+ (- (- x (* (- y 1.0) z)) (* (- t 1.0) a)) (* (- (+ y t) 2.0) b)))
 
 (FPCore  (x y z)
@@ -1885,6 +2272,12 @@
 
 (FPCore  (x y z t)
  :name "Data.Random.Distribution.Triangular:triangularCDF from random-fu-0.2.6.2, B"
+ :alt
+ (! :herbie-platform c
+  (let ((a (- y z)) (b (- t z)))
+    (if (< (fabs a) 1)
+      (if (< (fabs b) 1) (/ (/ x a) b) (/ x (* a b)))
+      (if (< (fabs b) 1) (/ x (* a b)) (/ (/ x a) b)))))
  :alt 
  (! :herbie-platform default
   (if (< (/ x (* (- y z) (- t z))) 0.0)
@@ -1922,10 +2315,34 @@
 
 (FPCore  (x y z t a)
  :name "Numeric.Signal:interpolate   from hsignal-0.2.7.1"
+ :alt
+ (! :herbie-platform c
+  (let* ((a_ (- y z))
+         (c (- y a))
+         (b (- a z))
+         (d (- t x))
+         (lo (<= (fabs a_) (fabs c)))
+         (P (if lo x t))
+         (q (if lo a_ c))
+         (r1 (/ q b))
+         (r2 (/ d b)))
+    (if (< (fabs (logb r1)) 1021)
+        (fma d r1 P)
+        (if (< (fabs (logb r2)) 1021)
+            (fma q r2 P)
+            (+ (/ (* d q) b) P)))))
  (+ x (* (- y z) (/ (- t x) (- a z)))))
 
 (FPCore  (x y z t)
  :name "Numeric.Signal.Multichannel:$cget from hsignal-0.2.7.1"
+ :alt
+ (! :herbie-platform c
+  (let* ((d (- z t)) (q1 (/ x y)) (q2 (/ d y)))
+    (if (< (fabs (logb q1)) 1021)
+      (fma q1 d t)
+      (if (< (fabs (logb q2)) 1021)
+        (fma x q2 t)
+        (+ (/ (* x d) y) t)))))
  :alt 
  (! :herbie-platform default
   (if (< z 2.759456554562692e-282)
@@ -1938,6 +2355,24 @@
 
 (FPCore  (x y z t)
  :name "Numeric.Signal.Multichannel:$cput from hsignal-0.2.7.1"
+ :alt
+ (! :herbie-platform c
+  (let* ((a (- x y)) (b (- z y)) (d (- x z)))
+   (if (<= (fabs d) (* 0.5 (fabs b)))
+       (fma t (/ d b) t)
+       (if (< (fabs t) 1)
+           (if (< (fabs b) 1)
+               (let ((t_ (/ t b)))
+                 (if (and (< (logb (* t_ 0.7071067811865476)) (logb t_)) (< 1e-300 (fabs t)))
+                     (/ a (/ b t))
+                     (* a t_)))
+               (let ((s (/ a b)))
+                 (if (< (logb (* s 0.7071067811865476)) (logb s)) (/ t (/ b a)) (* s t))))
+           (if (< (fabs b) 1)
+               (let ((s (/ a b)))
+                 (if (< (logb (* s 0.7071067811865476)) (logb s)) (/ t (/ b a)) (* s t)))
+               (let ((t_ (/ t b)))
+                 (if (< (logb (* t_ 0.7071067811865476)) (logb t_)) (/ a (/ b t)) (* a t_))))))))
  :alt 
  (! :herbie-platform default
   (/ t (/ (- z y) (- x y))))
@@ -1968,6 +2403,13 @@
 
 (FPCore  (x y z)
  :name "Diagrams.Backend.Cairo.Internal:setTexture from diagrams-cairo-1.3.0.3"
+ :alt
+ (! :herbie-platform c
+  (if (<= (fabs (- y z)) (fmin (fabs y) (fabs z)))
+   (* x (/ (- y z) y))
+   (if (or (and (< (fabs z) 1) (< (fabs y) 1)) (and (>= (fabs z) 1) (>= (fabs y) 1)))
+    (fma (- x) (/ z y) x)
+    (fma (- (/ x y)) z x))))
  :alt 
  (! :herbie-platform default
   (if (< z -2.060202331921739e+104)
@@ -2034,6 +2476,17 @@
 
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisLine from plot-0.2.3.4, A"
+ :alt
+ (! :herbie-platform c
+  (let* ((A (- z t))
+         (B (- z a))
+         (q (/ A B))
+         (t_ (/ y B)))
+    (if (< (fabs (logb q)) 1021)
+      (fma y q x)
+      (if (< (fabs (logb t_)) 1021)
+        (fma A t_ x)
+        (+ x (/ (* y A) B))))))
  :alt 
  (! :herbie-platform default
   (+ x (/ y (/ (- z a) (- z t)))))
@@ -2042,6 +2495,27 @@
 
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisLine from plot-0.2.3.4, B"
+ :alt
+ (! :herbie-platform c
+  (if (> (fabs t) 1)
+    (let* ((a_ (- (* 0.5 z) (* 0.5 t)))
+           (b (- (* 0.5 a) (* 0.5 t)))
+           (q (/ a_ b))
+           (s (/ y b)))
+      (if (< (fabs (logb q)) 1021)
+        (fma y q x)
+        (if (< (fabs (logb s)) 1021)
+          (fma a_ s x)
+          (+ x (/ (* y a_) b)))))
+    (let* ((a_ (- z t))
+           (b (- a t))
+           (q (/ a_ b))
+           (s (/ y b)))
+      (if (< (fabs (logb q)) 1021)
+        (fma y q x)
+        (if (< (fabs (logb s)) 1021)
+          (fma a_ s x)
+          (+ x (/ (* y a_) b)))))))
  :alt 
  (! :herbie-platform default
   (if (< y -8.508084860551241e-17)
@@ -2054,6 +2528,15 @@
 
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTick from plot-0.2.3.4, A"
+ :alt
+ (! :herbie-platform c
+  (let ((a_ (- y z)) (b (- a z)))
+   (let ((r (/ a_ b)) (s (/ t b)))
+    (if (< (fabs (logb r)) 1021)
+      (fma t r x)
+      (if (< (fabs (logb s)) 1021)
+        (fma a_ s x)
+        (+ x (/ (* t a_) b)))))))
  :alt 
  (! :herbie-platform default
   (if (< t -1.0682974490174067e-39)
@@ -2066,6 +2549,27 @@
 
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTick from plot-0.2.3.4, B"
+ :alt
+ (! :herbie-platform c
+  (if (< (fmax (fabs a) (fmax (fabs z) (fabs t))) 8.98846567431158e307)
+    (let* ((a_ (- a z))
+           (b (- a t))
+           (q1 (/ a_ b))
+           (q2 (/ y b)))
+      (+ x (if (< (fabs (logb q1)) 1021)
+                (* y q1)
+                (if (< (fabs (logb q2)) 1021)
+                    (* a_ q2)
+                    (/ (* y a_) b)))))
+    (let* ((a_ (- (* 0.5 a) (* 0.5 z)))
+           (b (- (* 0.5 a) (* 0.5 t)))
+           (q1 (/ a_ b))
+           (q2 (/ y b)))
+      (+ x (if (< (fabs (logb q1)) 1021)
+                (* y q1)
+                (if (< (fabs (logb q2)) 1021)
+                    (* a_ q2)
+                    (/ (* y a_) b)))))))
  :alt 
  (! :herbie-platform default
   (if (< (- (+ x y) (/ (* (- z t) y) (- a t))) -1.3664970889390727e-07)
@@ -2078,6 +2582,15 @@
 
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTicks from plot-0.2.3.4, A"
+ :alt
+ (! :herbie-platform c
+  (let* ((a_ (- z t)) (b (- z a)) (r (/ a_ b)))
+   (if (< (fabs (logb r)) 1021)
+    (fma y r x)
+    (let* ((s (/ y b)))
+     (if (< (fabs (logb s)) 1021)
+      (fma s a_ x)
+      (+ x (/ (* y a_) b)))))))
  :alt 
  (! :herbie-platform default
   (+ x (/ y (/ (- z a) (- z t)))))
@@ -2086,6 +2599,14 @@
 
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTicks from plot-0.2.3.4, B"
+ :alt
+ (! :herbie-platform c
+  (let* ((a_ (- z t)) (b (- a t)) (q (/ a_ b)) (r (/ y b)))
+    (if (< (fabs (logb q)) 1021)
+      (fma y q x)
+      (if (< (fabs (logb r)) 1021)
+        (fma a_ r x)
+        (+ x (/ (* y a_) b))))))
  :alt 
  (! :herbie-platform default
   (+ x (/ y (/ (- a t) (- z t)))))

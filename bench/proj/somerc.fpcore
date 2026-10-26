@@ -13,6 +13,25 @@
 
 (FPCore (phi ecc c hlf_e K)
  :name "forward-phip"
+ :alt
+ (! :herbie-platform c
+  (let* ((s (sin phi))
+         (A (asinh (/ s (cos phi))))
+         (t (* ecc s))
+         (T2 (if (< (fabs t) 0.01)
+                 (let* ((q (* t t))
+                        (h (* q (+ 1/3 (* q (+ 1/5 (* q (+ 1/7 (* q 1/9))))))))
+                        (Pb (if (and (>= (fabs c) 1) (>= (fabs hlf_e) 1))
+                                (* (* c ecc) (* hlf_e s))
+                                (* (* (* c hlf_e) ecc) s)))
+                        (P (* 2 Pb)))
+                   (if (< (fabs t) 1e-9) P (fma P h P)))
+                 (let* ((B (atanh t)))
+                   (* 2 (if (or (and (< (fabs c) 1) (< (fabs hlf_e) 1)) (and (>= (fabs c) 1) (>= (fabs hlf_e) 1)))
+                            (* (* c B) hlf_e)
+                            (* (* c hlf_e) B))))))
+         (t4 (fma c A (- K T2))))
+    (atan (sinh t4))))
  :pre (and (> ecc 0.0)
            (< ecc 1.0))
  (let* ([sp (* ecc (sin phi))]
@@ -59,6 +78,22 @@
 
 (FPCore (phip ecc hlf_e con rone_es)
  :name "inverse-delp"
+ :alt
+ (! :herbie-platform c
+  (let* ((s (sin phip))
+         (c (cos phip))
+         (t (* ecc s))
+         (as (fabs s))
+         (A (copysign (log1p (/ (+ as (/ (* s s) (+ 1 c))) c)) s))
+         (P (if (< (fabs t) 1.862645149230957e-9)
+                (* (* (* hlf_e ecc) s) 2)
+                (* hlf_e (* 2 (atanh t)))))
+         (t4 (- (+ con A) P))
+         (W (* (fma (- t) t 1) c))
+         (R (if (and (>= (fabs rone_es) 1) (>= (fabs t4) 1))
+                (* (* rone_es W) t4)
+                (* (* rone_es t4) W))))
+    R))
  :pre (and (> ecc 0.0)
            (< ecc 1.0))
  (let* ([esp (* ecc (sin phip))]
@@ -84,6 +119,22 @@
 
 (FPCore (phi0 phip0 c hlf_e ecc)
  :name "init-K"
+ :alt
+ (! :herbie-platform c
+  (let* ((s1 (sin phi0)) (c1 (cos phi0)) (s2 (sin phip0)) (c2 (cos phip0))
+         (T1 (if (< (fabs s1) c1) (atanh s1)
+                 (copysign (log (/ (+ 1 (fabs s1)) c1)) s1)))
+         (T2 (if (< (fabs phip0) 7.450580596923828e-09) phip0
+               (if (< (fabs s2) c2) (atanh s2)
+                 (copysign (log (/ (+ 1 (fabs s2)) c2)) s2))))
+         (k (* hlf_e ecc))
+         (y (* ecc s1))
+         (H (if (< (fabs phi0) 7.450580596923828e-09)
+              (* phi0 (fma hlf_e (+ ecc ecc) -1))
+              (if (< (fabs y) 9.313225746154785e-10)
+                (fma k (+ s1 s1) (- T1))
+                (let* ((A (atanh y))) (fma hlf_e (+ A A) (- T1)))))))
+    (fma c H T2)))
  :pre (and (> c 0.0)
            (> ecc 0.0)
            (< ecc 1.0))
