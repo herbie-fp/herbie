@@ -46,7 +46,8 @@
 
           ;; Taylor expansions
           ;; List<List<(cons offset coeffs)>>
-          (define taylor-coeffs (taylor-coefficients spec-block spec-vs vars taylor-transforms))
+          (define taylor-coeffs
+            (taylor-coefficients spec-block spec-vs vars taylor-transforms #:free-vars free-vars))
           (define idx 0)
           (for* ([var (in-list vars)]
                  [transform-type taylor-transforms])
