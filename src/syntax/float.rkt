@@ -9,6 +9,7 @@
          "../utils/unsafe.rkt")
 
 (provide repr-ulps
+         repr-infinite?
          ulps->bits
          midpoint
          two-midpoints
@@ -20,6 +21,14 @@
          json->value
          real->repr
          repr->real)
+
+(define (repr-infinite? x repr)
+  (match (representation-type repr)
+    ['bool #f]
+    ['real
+     (if (or (eq? repr <binary32>) (eq? repr <binary64>))
+         (infinite? x)
+         (bfinfinite? ((representation-repr->bf repr) x)))]))
 
 (define (repr-ulps repr)
   (match (representation-type repr)
@@ -170,3 +179,22 @@
        (repr->real v slot))]
     ['real (bigfloat->real ((representation-repr->bf repr) x))]
     ['bool x]))
+
+(module+ test
+  (require rackunit)
+
+  (define bigfloat-repr
+    (make-representation #:name 'test
+                         #:bf->repr identity
+                         #:repr->bf bf
+                         #:ordinal->repr identity
+                         #:repr->ordinal identity
+                         #:total-bits 1
+                         #:special-value? (const #f)))
+
+  (check-true (repr-infinite? +inf.0 <binary32>))
+  (check-true (repr-infinite? -inf.0 <binary64>))
+  (check-false (repr-infinite? 1.0 <binary32>))
+  (check-false (repr-infinite? +nan.0 <binary64>))
+  (check-false (repr-infinite? #t <bool>))
+  (check-true (repr-infinite? +inf.0 bigfloat-repr)))

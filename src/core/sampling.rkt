@@ -169,9 +169,7 @@
         [(valid)
          (for ([ex (in-list exs)]
                [repr (in-vector output-reprs)])
-           ; The `bool` representation does not produce bigfloats
-           (define maybe-bf ((representation-repr->bf repr) ex))
-           (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
+           (when (repr-infinite? ex repr)
              (set! status 'infinite)))])
 
       (hash-update! outcomes status add1 0)
