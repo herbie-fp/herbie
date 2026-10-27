@@ -36,24 +36,34 @@
 ;; and returns the Pareto-optimal subset of their union.
 ;; The curves most be sorted using the same method.
 (define (pareto-union curve1 curve2 #:combine [combine (lambda (a b) (append a b))])
-  (let loop ([curve1 curve1]
-             [curve2 curve2])
+  (define (loop curve1 curve2 reuse-target)
     ; The curve is sorted so that highest accuracy is first
     (match* (curve1 curve2)
-      [('() _) curve2]
-      [(_ '()) curve1]
+      [('() _) (values curve2 (and reuse-target (eq? curve2 reuse-target)))]
+      [(_ '()) (values curve1 (and reuse-target (eq? curve1 reuse-target)))]
       [((cons ppt1 rest1) (cons ppt2 rest2))
        (match (pareto-compare ppt1 ppt2)
-         ['< (loop curve1 rest2)]
-         ['> (loop rest1 curve2)]
+         ['< (loop curve1 rest2 reuse-target)]
+         ['> (loop rest1 curve2 reuse-target)]
          ['=
           (define joint-data (combine (pareto-point-data ppt1) (pareto-point-data ppt2)))
           (define joint (struct-copy pareto-point ppt1 [data joint-data]))
-          (cons joint (loop rest1 rest2))]
+          (define-values (rest _) (loop rest1 rest2 reuse-target))
+          (values (cons joint rest) #f)]
          ['<>
+          ; Ask the recursive call whether its result is the source tail, so
+          ; this point can reuse its original cons cell when possible.
           (if (< (pareto-point-error ppt1) (pareto-point-error ppt2))
-              (cons ppt1 (loop rest1 curve2))
-              (cons ppt2 (loop curve1 rest2)))])])))
+              (let-values ([(rest reuse?) (loop rest1 curve2 rest1)])
+                (if reuse?
+                    (values curve1 (and reuse-target (eq? curve1 reuse-target)))
+                    (values (cons ppt1 rest) #f)))
+              (let-values ([(rest reuse?) (loop curve1 rest2 rest2)])
+                (if reuse?
+                    (values curve2 (and reuse-target (eq? curve2 reuse-target)))
+                    (values (cons ppt2 rest) #f))))])]))
+  (define-values (result _) (loop curve1 curve2 #f))
+  result)
 
 ;; Takes a Pareto frontier and returns the subset of
 ;; points that are convex.
@@ -137,4 +147,8 @@
                 '((1 5 a) (3 3 d b) (5 1 c)))
   (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (3 3 b) (5 1 c))) 'd 2 2))
                 '((1 5 a) (2 2 d) (5 1 c)))
+  (define dominated-frontier (make-pareto '((1 5 a) (3 3 b) (5 1 c))))
+  (check-eq? (pareto-add dominated-frontier 'd 4 4) dominated-frontier)
+  (define dominated-singleton (list (pareto-point 4 4 '(d))))
+  (check-eq? (pareto-union dominated-frontier dominated-singleton) dominated-frontier)
   (check-equal? (from-pareto (pareto-add (make-pareto '((1 1 a))) 'b 1 3)) '((1 1 a))))
