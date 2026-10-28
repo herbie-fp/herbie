@@ -64,7 +64,7 @@
   (define initial-v
     (if input-is-spec?
         input-v
-        (block-push! input-block (approx spec-v input-v))))
+        (block-add! input-block (approx spec-v input-v))))
   (run-improve/blocks input-block initial-v spec-block spec-v context pcontext sampler))
 
 (define (run-improve/blocks global-block
@@ -116,6 +116,21 @@
   (define sorted-alts (map car (sort-alts (*global-block*) annotated-alts scores)))
   (timeline-push! 'stop (if (atab-completed? table) "done" "fuel") 1)
   sorted-alts)
+
+(module+ test
+  (require rackunit
+           "../syntax/load-platform.rkt"
+           "../syntax/sugar.rkt")
+
+  (activate-platform! (*platform-name*))
+  (define ctx (context '(x) <binary64> (list <binary64>)))
+  (define-values (input-block input-v) (fpcore->prog-block '(+ x 1) ctx))
+  (define-values (spec-block spec-v) (fpcore->spec-block '(+ x 1) #:ctx ctx))
+  (define pcontext (mk-pcontext (list (vector 1.0)) (list 2.0)))
+  (parameterize ([*context* ctx]
+                 [*num-iterations* 0])
+    (check-not-exn (λ ()
+                     (run-improve-blocks! input-block input-v spec-block spec-v #f ctx pcontext)))))
 
 ;; The rest of the file is various helper / glue functions used by
 ;; Herbie. These often wrap other Herbie components, but add logging
