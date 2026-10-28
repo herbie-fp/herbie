@@ -59,6 +59,8 @@
 
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
+         "../utils/dvector.rkt"
+         "block.rkt"
          "platform.rkt"
          "matcher.rkt"
          "syntax.rkt"
@@ -66,6 +68,8 @@
 
 (provide fpcore->spec
          fpcore->prog
+         fpcore->spec-block
+         fpcore->prog-block
          spec->prog
          prog->fpcore)
 
@@ -74,6 +78,12 @@
   (match expr
     [(literal _ precision) (get-representation precision)]
     [(? symbol?) (context-lookup ctx expr)]
+    [(val block idx)
+     (match (dvector-ref (block-nodes block) idx)
+       [(literal _ precision) (get-representation precision)]
+       [(? symbol? var) (context-lookup ctx var)]
+       [(approx _ impl) (repr-of (val block impl) ctx)]
+       [(list op _ ...) (impl-info op 'otype)])]
     [(approx _ impl) (repr-of impl ctx)]
     [(list op _ ...) (impl-info op 'otype)]))
 
@@ -168,24 +178,104 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FPCore -> LSpec
 
-(define (fpcore->spec prog)
-  (let loop ([expr (expand-expr prog)])
+(define (lowering-block ctx)
+  (define block (block-empty ctx))
+  (for ([var (in-list (context-vars ctx))])
+    (block-push! block var))
+  block)
+
+(define (fpcore-number n)
+  (match n
+    [(or +inf.0 -inf.0 +nan.0) n]
+    [(? exact?) n]
+    [_ (inexact->exact n)]))
+
+(define (fpcore->spec-block prog #:ctx [ctx (context '() #f '())])
+  (define block (lowering-block ctx))
+
+  (define (application op args env)
+    (define expr* (cons op args))
+    (match (fpcore-extension-spec expr*)
+      [#f (block-add! block expr*)]
+      [(== expr*) (block-add! block expr*)]
+      [spec (lower spec env)]))
+
+  (define (lower-arithmetic op args env)
+    (when (> (length args) 2)
+      (warn 'variary-operator "~a is deprecated as a variary operator" op))
+    (when (and (= (length args) 1) (memq op '(+ * /)))
+      (warn 'unary-operator "~a is deprecated as a unary operator" op))
+    (cond
+      [(null? args)
+       (case op
+         [(+ -) (block-push! block 0)]
+         [(*) (block-push! block 1)]
+         [(and) (application 'TRUE '() env)]
+         [(or) (application 'FALSE '() env)])]
+      [(null? (cdr args))
+       (case op
+         [(+ * and or) (lower (car args) env)]
+         [(-) (application 'neg (list (lower (car args) env)) env)]
+         [(/) (application '/ (list (block-push! block 1) (lower (car args) env)) env)])]
+      [else
+       (for/fold ([out (lower (car args) env)]) ([arg (in-list (cdr args))])
+         (application op (list out (lower arg env)) env))]))
+
+  (define (lower-comparisons op args env)
+    (define args* (map (curryr lower env) args))
+    (define comparisons
+      (if (eq? op '!=)
+          (for*/list ([i (in-range (length args*))]
+                      [j (in-range (add1 i) (length args*))])
+            (application op (list (list-ref args* i) (list-ref args* j)) env))
+          (if (null? args*)
+              '()
+              (for/list ([left (in-list args*)]
+                         [right (in-list (cdr args*))])
+                (application op (list left right) env)))))
+    (cond
+      [(null? comparisons) (application 'TRUE '() env)]
+      [else
+       (for/fold ([out (car comparisons)]) ([comparison (in-list (cdr comparisons))])
+         (application 'and (list out comparison) env))]))
+
+  (define (lower expr env)
     (match expr
-      [(? number?)
-       (match expr
-         [(or +inf.0 -inf.0 +nan.0) expr]
-         [(? exact?) expr]
-         [_ (inexact->exact expr)])]
-      [(? symbol?) expr]
-      [(list '! _ ... body) (loop body)]
-      [(list 'cast arg) (loop arg)]
-      [(list op args ...)
-       (define args* (map loop args))
-       (define expr* `(,op ,@args*))
-       (match (fpcore-extension-spec expr*)
-         [#f expr*]
-         [(== expr*) expr*]
-         [spec (loop spec)])])))
+      [(? val?) expr]
+      [(? number?) (block-push! block (fpcore-number expr))]
+      [(? operator-exists? op) (application op '() env)]
+      [(? symbol?)
+       (if (dict-has-key? env expr)
+           (dict-ref env expr)
+           (block-push! block expr))]
+      [(list 'let (list (list vars vals) ...) body)
+       (define values*
+         (for/list ([val (in-list vals)])
+           (lower val env)))
+       (define env*
+         (for/fold ([env* env])
+                   ([var (in-list vars)]
+                    [value (in-list values*)])
+           (dict-set env* var value)))
+       (lower body env*)]
+      [(list 'let* (list (list vars vals) ...) body)
+       (define env*
+         (for/fold ([env* env])
+                   ([var (in-list vars)]
+                    [val (in-list vals)])
+           (dict-set env* var (lower val env*))))
+       (lower body env*)]
+      [(list '! _ ... body) (lower body env)]
+      [(list 'cast arg) (lower arg env)]
+      [(list (and op (or '+ '- '* '/ 'and 'or)) args ...) (lower-arithmetic op args env)]
+      [(list (and op (or '< '<= '> '>= '= '!=)) args ...) (lower-comparisons op args env)]
+      [(list op args ...) (application op (map (curryr lower env) args) env)]))
+
+  (values block (lower prog '())))
+
+(define (fpcore->spec prog)
+  (define-values (block root) (fpcore->spec-block prog))
+  ((block-exprs block) root))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FPCore -> LImpl
@@ -216,45 +306,115 @@
 
 ;; Translates from FPCore to an LImpl.
 (define (fpcore->prog prog ctx)
-  (let loop ([expr (expand-expr prog)]
-             [prop-dict (repr->prop (context-repr ctx))])
+  (define-values (block root) (fpcore->prog-block prog ctx))
+  ((block-exprs block) root))
+
+(define (fpcore->prog-block prog ctx)
+  (define block (lowering-block ctx))
+  (define initial-props (repr->prop (context-repr ctx)))
+
+  (define (application op props args)
+    (block-add! block (impl-app op props args ctx)))
+
+  (define (lower-arithmetic op args env props)
+    (when (> (length args) 2)
+      (warn 'variary-operator "~a is deprecated as a variary operator" op))
+    (when (and (= (length args) 1) (memq op '(+ * /)))
+      (warn 'unary-operator "~a is deprecated as a unary operator" op))
+    (cond
+      [(null? args)
+       (case op
+         [(+ -) (block-push! block (literal 0 (dict-ref props ':precision)))]
+         [(*) (block-push! block (literal 1 (dict-ref props ':precision)))]
+         [(and) (application 'TRUE props '())]
+         [(or) (application 'FALSE props '())])]
+      [(null? (cdr args))
+       (case op
+         [(+ * and or) (lower (car args) env props)]
+         [(-) (application '- props (list (lower (car args) env props)))]
+         [(/)
+          (application '/
+                       props
+                       (list (block-push! block (literal 1 (dict-ref props ':precision)))
+                             (lower (car args) env props)))])]
+      [else
+       (for/fold ([out (lower (car args) env props)]) ([arg (in-list (cdr args))])
+         (application op props (list out (lower arg env props))))]))
+
+  (define (lower-comparisons op args env props)
+    (define args* (map (curryr lower env props) args))
+    (define comparisons
+      (if (eq? op '!=)
+          (for*/list ([i (in-range (length args*))]
+                      [j (in-range (add1 i) (length args*))])
+            (application op props (list (list-ref args* i) (list-ref args* j))))
+          (if (null? args*)
+              '()
+              (for/list ([left (in-list args*)]
+                         [right (in-list (cdr args*))])
+                (application op props (list left right))))))
+    (cond
+      [(null? comparisons) (application 'TRUE props '())]
+      [else
+       (for/fold ([out (car comparisons)]) ([comparison (in-list (cdr comparisons))])
+         (application 'and props (list out comparison)))]))
+
+  (define (lower expr env props)
     (match expr
-      [(? number? n)
-       (literal (match n
-                  [(or +inf.0 -inf.0 +nan.0) expr]
-                  [(? exact?) expr]
-                  [_ (inexact->exact expr)])
-                (dict-ref prop-dict ':precision))]
-      [(? symbol?) expr]
-      [(list '! props ... body)
-       (loop body
-             (if (not (null? props))
-                 (apply dict-set* prop-dict props)
-                 prop-dict))]
-      [(list 'neg arg) ; non-standard but useful [TODO: remove]
-       (define arg* (loop arg prop-dict))
-       (impl-app '- prop-dict (list arg*) ctx)]
-      [(list 'cast arg) ; special case: unnecessary casts
-       (define arg* (loop arg prop-dict))
-       (define repr (get-representation (dict-ref prop-dict ':precision)))
+      [(? val?) expr]
+      [(? number? n) (block-push! block (literal (fpcore-number n) (dict-ref props ':precision)))]
+      [(? operator-exists? op) (application op props '())]
+      [(? symbol?)
+       (if (dict-has-key? env expr)
+           (dict-ref env expr)
+           (block-push! block expr))]
+      [(list 'let (list (list vars vals) ...) body)
+       (define values*
+         (for/list ([val (in-list vals)])
+           (lower val env props)))
+       (define env*
+         (for/fold ([env* env])
+                   ([var (in-list vars)]
+                    [value (in-list values*)])
+           (dict-set env* var value)))
+       (lower body env* props)]
+      [(list 'let* (list (list vars vals) ...) body)
+       (define env*
+         (for/fold ([env* env])
+                   ([var (in-list vars)]
+                    [val (in-list vals)])
+           (dict-set env* var (lower val env* props))))
+       (lower body env* props)]
+      [(list '! new-props ... body)
+       (lower body
+              env
+              (if (null? new-props)
+                  props
+                  (apply dict-set* props new-props)))]
+      [(list 'neg arg) (application '- props (list (lower arg env props)))]
+      [(list 'cast arg)
+       (define arg* (lower arg env props))
+       (define repr (get-representation (dict-ref props ':precision)))
        (if (equal? (repr-of arg* ctx) repr)
            arg*
-           (impl-app 'cast prop-dict (list arg*) ctx))]
+           (application 'cast props (list arg*)))]
       [(list 'ref arr idx)
-       (define arr* (loop arr prop-dict))
+       (define arr* (lower arr env props))
        (define arr-repr (repr-of arr* ctx))
        (unless (array-representation? arr-repr)
          (raise-herbie-missing-error "No implementation for `ref` over `~a`"
                                      (representation-name arr-repr)))
-       (list (ensure-array-ref-impl! arr-repr idx) arr*)]
+       (block-add! block (list (ensure-array-ref-impl! arr-repr idx) arr*))]
       [(list 'array args ...)
-       (define args* (map (lambda (arg) (loop arg prop-dict)) args))
+       (define args* (map (curryr lower env props) args))
        (define slots (map (lambda (arg) (repr-of arg ctx)) args*))
        (define repr (apply make-array-representation slots))
-       (cons (ensure-array-impls! repr) args*)]
-      [(list op args ...)
-       (define args* (map (lambda (arg) (loop arg prop-dict)) args))
-       (impl-app op prop-dict args* ctx)])))
+       (block-add! block (cons (ensure-array-impls! repr) args*))]
+      [(list (and op (or '+ '- '* '/ 'and 'or)) args ...) (lower-arithmetic op args env props)]
+      [(list (and op (or '< '<= '> '>= '= '!=)) args ...) (lower-comparisons op args env props)]
+      [(list op args ...) (application op props (map (curryr lower env props) args))]))
+
+  (values block (lower prog '() initial-props)))
 
 ;; Translates from LSpec to an LImpl.
 (define (spec->prog prog ctx)

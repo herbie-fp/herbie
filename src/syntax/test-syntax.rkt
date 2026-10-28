@@ -2,6 +2,7 @@
 
 (require "syntax.rkt"
          "platform.rkt"
+         "block.rkt"
          "sugar.rkt"
          "types.rkt")
 
@@ -38,5 +39,58 @@
   (check-equal? (fpcore->spec '(log1p x)) '(log (+ 1 x)))
   (check-equal? (fpcore->spec '(hypot x y)) '(sqrt (+ (* x x) (* y y))))
   (check-equal? (fpcore->spec '(fma x y z)) '(+ (* x y) z))
+
+  ; let RHSs use the incoming environment; let* RHSs use prior bindings.
+  (check-equal? (fpcore->spec '(let ([a x]
+                                     [b (+ a 1)])
+                                 (* a b)))
+                '(* x (+ a 1)))
+  (check-equal? (fpcore->spec '(let* ([a x]
+                                      [b (+ a 1)])
+                                 (* a b)))
+                '(* x (+ x 1)))
+  (check-equal? (fpcore->spec '(let () (+ x 1))) '(+ x 1))
+  (check-equal? (fpcore->spec '(let ([a x])
+                                 (let ([a y]
+                                       [b a])
+                                   (+ a b))))
+                '(+ y x))
+
+  ; Direct implementation lowering preserves parallel and sequential scope.
+  (define ctx-with-a (context '(a x) f64 (list f64 f64)))
+  (define one (literal 1 'binary64))
+  (check-equal? (fpcore->prog '(let ([a x]
+                                     [b (+ a 1)])
+                                 (+ a b))
+                              ctx-with-a)
+                (list '+.f64 'x (list '+.f64 'a one)))
+  (check-equal? (fpcore->prog '(let* ([a x]
+                                      [b (+ a 1)])
+                                 (+ a b))
+                              ctx)
+                (list '+.f64 'x (list '+.f64 'x one)))
+
+  ; Repeated uses share one node in the emitted block.
+  (define-values (let-block let-root)
+    (fpcore->spec-block '(let ([a (+ x y)]) (+ (* a a) (* a a)))
+                        #:ctx (context '(x y) f64 (list f64 f64))))
+  (check-equal? (block-length let-block) 5)
+  (match (val-def let-root)
+    [(list '+ left right) (check-equal? (val-idx left) (val-idx right))]
+    [_ (fail "let lowering did not emit a binary addition")])
+
+  ; A let-bound implementation is lowered once in its binding context.
+  (define-values (rounded-block rounded-root)
+    (fpcore->prog-block '(let ([a (+ x 1)]) (+ (! :precision binary32 a) (! :precision binary64 a)))
+                        ctx))
+  (match (val-def rounded-root)
+    [(list '+.f64 left right)
+     (check-equal? (val-idx left) (val-idx right))
+     (match (val-def left)
+       [(list '+.f64 x one)
+        (check-equal? (val-def x) 'x)
+        (check-equal? (val-def one) (literal 1 'binary64))]
+       [_ (fail "let binding was not lowered in its original precision")])]
+    [_ (fail "let-bound value was not shared across rounding annotations")])
 
   (void))

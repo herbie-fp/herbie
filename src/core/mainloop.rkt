@@ -17,7 +17,8 @@
          "regimes.rkt"
          "reduce.rkt")
 
-(provide run-improve!)
+(provide run-improve!
+         run-improve-blocks!)
 
 ;; The Herbie main loop goes through a simple iterative process:
 ;;
@@ -37,13 +38,43 @@
 ;; - Final steps: regimes, derivations, and remove preprocessing
 
 (define (run-improve! initial specification context pcontext #:sampler [sampler #f])
-  (parameterize ([*global-block* (block-empty context)])
-    (define global-spec-block (block-empty context))
-    (define specification-v (block-add! global-spec-block specification))
-    (define initial-v
-      (match initial
-        [(approx _ impl) (block-add! (*global-block*) (approx specification-v impl))]
-        [_ (block-add! (*global-block*) initial)]))
+  (define global-block (block-empty context))
+  (define global-spec-block (block-empty context))
+  (define specification-v (block-add! global-spec-block specification))
+  (define initial-v
+    (match initial
+      [(approx _ impl) (block-add! global-block (approx specification-v impl))]
+      [_ (block-add! global-block initial)]))
+  (run-improve/blocks global-block
+                      initial-v
+                      global-spec-block
+                      specification-v
+                      context
+                      pcontext
+                      sampler))
+
+(define (run-improve-blocks! input-block
+                             input-v
+                             spec-block
+                             spec-v
+                             input-is-spec?
+                             context
+                             pcontext
+                             #:sampler [sampler #f])
+  (define initial-v
+    (if input-is-spec?
+        input-v
+        (block-push! input-block (approx spec-v input-v))))
+  (run-improve/blocks input-block initial-v spec-block spec-v context pcontext sampler))
+
+(define (run-improve/blocks global-block
+                            initial-v
+                            global-spec-block
+                            specification-v
+                            context
+                            pcontext
+                            sampler)
+  (parameterize ([*global-block* global-block])
     (timeline-event! 'preprocess)
     (define preprocessing
       (if (flag-set? 'setup 'preprocess)

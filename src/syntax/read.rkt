@@ -28,7 +28,19 @@
 
 (define *register-named-fpcore-operators?* (make-parameter #t))
 
-(struct test (name identifier vars input output expected spec pre output-repr-name var-repr-names)
+(struct test
+        (name identifier
+              vars
+              input
+              output
+              expected
+              spec
+              pre
+              output-repr-name
+              var-repr-names
+              input-src
+              spec-src
+              pre-src)
   #:prefab)
 
 (define (test-output-repr test)
@@ -171,9 +183,9 @@
   ;; Try props first, then identifier, else the expression itself
   (define name (or (dict-ref prop-dict ':name #f) func-name body))
 
-  ;; inline and desugar
   (define body* (fpcore->prog body ctx))
-  (define pre* (fpcore->spec (dict-ref prop-dict ':pre 'TRUE)))
+  (define pre-src (dict-ref prop-dict ':pre 'TRUE))
+  (define pre* (fpcore->spec pre-src))
 
   (define targets
     (for/list ([(key val) (in-dict prop-dict)]
@@ -209,7 +221,10 @@
         (representation-name output-repr)
         (for/list ([var (in-list var-names)]
                    [repr (in-list var-reprs)])
-          (cons var (representation-name repr)))))
+          (cons var (representation-name repr)))
+        body
+        spec-src
+        pre-src))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
