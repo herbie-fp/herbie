@@ -10,7 +10,6 @@
          "../syntax/block.rkt"
          "egg-herbie.rkt"
          "points.rkt"
-         "programs.rkt"
          "taylor-cover.rkt")
 
 (provide find-preprocessing
@@ -158,7 +157,8 @@
        (values (vector-update x index fabs) (mul (copysign repr1 (vector-ref x index)) y)))]))
 
 ; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
-(define (remove-unnecessary-preprocessing expression
+(define (remove-unnecessary-preprocessing block
+                                          v
                                           context
                                           pcontext
                                           preprocessing
@@ -169,50 +169,85 @@
                [removed removed])
       (cond
         [(>= i (length preprocessing)) (values preprocessing removed)]
-        [(preprocessing-<=? expression context pcontext (drop-at preprocessing i) preprocessing)
+        [(preprocessing-<=? block v context pcontext (drop-at preprocessing i) preprocessing)
          (loop (drop-at preprocessing i) i (cons (list-ref preprocessing i) removed))]
         [else (loop preprocessing (+ i 1) removed)])))
   (cond
     [(< (length result) (length preprocessing))
-     (remove-unnecessary-preprocessing expression context pcontext result #:removed newly-removed)]
+     (remove-unnecessary-preprocessing block v context pcontext result #:removed newly-removed)]
     [else
      (timeline-push! 'preprocessing (map ~a result))
      result]))
 
-(define (preprocessing-<=? expression context pcontext preprocessing1 preprocessing2)
-  (define expr1 (compile-preprocessings expression context preprocessing1))
-  (define expr2 (compile-preprocessings expression context preprocessing2))
-  (match-define (list errs1 errs2) (exprs-errors (list expr1 expr2) pcontext context))
+(define (preprocessing-<=? block v context pcontext preprocessing1 preprocessing2)
+  (define expr1 (compile-preprocessings block v context preprocessing1))
+  (define expr2 (compile-preprocessings block v context preprocessing2))
+  (match-define (list errs1 errs2) (block-errors block (list expr1 expr2) pcontext))
   (<= (errors-score errs1) (errors-score errs2)))
 
-(define (compile-preprocessing expression context preprocessing)
+(define (compile-preprocessing block v context preprocessing)
   (match preprocessing
-    [(? taylor-cover? cover) (cover-wrap cover expression context)]
+    [(? taylor-cover? cover) (cover-wrap cover block v context)]
     [(list 'sort a b)
      (define repr (context-lookup context a))
      (define fmin (get-fpcore-impl 'fmin (repr->prop repr) (list repr repr)))
      (define fmax (get-fpcore-impl 'fmax (repr->prop repr) (list repr repr)))
-     (replace-vars (list (list a fmin a b) (list b fmax a b)) expression)]
+     (define a-v (block-add! block a))
+     (define b-v (block-add! block b))
+     (define fmin-v (block-add! block (list fmin a-v b-v)))
+     (define fmax-v (block-add! block (list fmax a-v b-v)))
+     ((block-replace-vars! block `((,a-v . ,fmin-v) (,b-v . ,fmax-v))) v)]
     [(list 'abs var)
      (define repr (context-lookup context var))
      (define fabs (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))
-     (define replacement (list fabs var))
-     (replace-expression expression var replacement)]
+     (define var-v (block-add! block var))
+     (define replacement-v (block-add! block (list fabs var-v)))
+     ((block-replace-vars! block `((,var-v . ,replacement-v))) v)]
     [(list 'negabs var)
      (define repr (context-lookup context var))
      (define fabs (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))
-     (define replacement (list fabs var))
      (define mul (get-fpcore-impl '* (repr->prop repr) (list repr repr)))
      (define copysign (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr)))
-     `(,mul (,copysign ,(literal 1 (representation-name repr)) ,var)
-            ,(replace-expression expression var replacement))]))
+     (define var-v (block-add! block var))
+     (define fabs-v (block-add! block (list fabs var-v)))
+     (block-add! block
+                 (list mul
+                       (list copysign (literal 1 (representation-name repr)) var)
+                       ((block-replace-vars! block `((,var-v . ,fabs-v))) v)))]))
 
-(define (compile-preprocessings expression context preprocessing)
-  (for/fold ([expr expression]) ([prep (in-list (reverse preprocessing))])
-    (compile-preprocessing expr context prep)))
+(define (compile-preprocessings block v context preprocessing)
+  (for/fold ([v v]) ([prep (in-list (reverse preprocessing))])
+    (compile-preprocessing block v context prep)))
 
-(define (compile-useful-preprocessing expression context pcontext preprocessing)
-  (compile-preprocessings
-   expression
-   context
-   (remove-unnecessary-preprocessing expression context pcontext preprocessing)))
+(define (compile-useful-preprocessing block v context pcontext preprocessing)
+  (compile-preprocessings block
+                          v
+                          context
+                          (remove-unnecessary-preprocessing block v context pcontext preprocessing)))
+
+(module+ test
+  (require rackunit
+           "../syntax/load-platform.rkt")
+
+  (activate-platform! (*platform-name*))
+  (define repr (get-representation 'binary64))
+  (define ctx (context '(x y) repr (list repr repr)))
+  (define fabs (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))
+  (define fmin (get-fpcore-impl 'fmin (repr->prop repr) (list repr repr)))
+  (define fmax (get-fpcore-impl 'fmax (repr->prop repr) (list repr repr)))
+  (define mul (get-fpcore-impl '* (repr->prop repr) (list repr repr)))
+  (define copysign (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr)))
+
+  (define (compile-test-expression expr preprocessing)
+    (define-values (block vs) (progs->block (list expr) #:ctx ctx))
+    (define result-v (compile-preprocessing block (first vs) ctx preprocessing))
+    (check-true (val? result-v))
+    ((block-exprs block) result-v))
+
+  ;; Both uses of x are replaced; sorting is simultaneous and asymmetric.
+  (check-equal? (compile-test-expression '(+ (* x x) (* 2 y)) '(abs x))
+                `(+ (* (,fabs x) (,fabs x)) (* 2 y)))
+  (check-equal? (compile-test-expression '(+ (* x x) (* 2 y)) '(sort x y))
+                `(+ (* (,fmin x y) (,fmin x y)) (* 2 (,fmax x y))))
+  (check-equal? (compile-test-expression '(+ (* x x) y) '(negabs x))
+                `(,mul (,copysign ,(literal 1 'binary64) x) (+ (* (,fabs x) (,fabs x)) y))))
