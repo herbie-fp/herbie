@@ -47,10 +47,7 @@
     (timeline-event! 'preprocess)
     (define preprocessing
       (if (flag-set? 'setup 'preprocess)
-          (let ([preprocess-block (block-empty context)])
-            (define preprocess-spec-v
-              ((block-copy-only! preprocess-block global-spec-block) specification-v))
-            (find-preprocessing preprocess-block preprocess-spec-v context))
+          (find-preprocessing global-spec-block specification-v context)
           '()))
     (define-values (train-pcontext validation-pcontext)
       (cover-pcontexts pcontext preprocessing sampler))

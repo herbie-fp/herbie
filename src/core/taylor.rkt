@@ -28,30 +28,16 @@
         [log-x (λ (x) `(log ,x))])
     `((0 ,identity ,identity) (inf ,invert-x ,invert-x) #;(exp ,exp-x ,log-x) #;(log ,log-x ,exp-x))))
 
-(define (taylor-coefficients block
-                             vs
-                             vars
-                             transforms-to-try
-                             #:free-vars [free-vars (map (block-free-vars block) vs)])
+(define (taylor-coefficients block batches transforms-to-try)
   (define expander (expand-taylor! block))
-  (for*/list ([var (in-list vars)]
-              #:do [(define taylorer (taylor var block))]
-              [transform-type transforms-to-try])
-    (match-define (list name f finv) transform-type)
-    (define any-active?
-      (for/or ([fv (in-list free-vars)])
-        (set-member? fv var)))
-    (define replacer (and any-active? (block-replace-expression! block var (f var))))
-    (for/list ([v (in-list vs)]
-               [fv (in-list free-vars)])
-      (if (set-member? fv var)
-          (taylorer (expander (reducer (replacer v))))
-          (make-series 'exact
-                       0
-                       (λ (_ n)
-                         (if (zero? n)
-                             (val-def v)
-                             0)))))))
+  (for/list ([batch (in-list batches)])
+    (match-define (list var vs) batch)
+    (define taylorer (taylor var block))
+    (for/list ([transform-type (in-list transforms-to-try)])
+      (match-define (list name f finv) transform-type)
+      (define replacer (block-replace-expression! block var (f var)))
+      (for/list ([v (in-list vs)])
+        (taylorer (expander (reducer (replacer v))))))))
 
 ;; Returns List<(cons coeff exponent)>
 (define (taylor-terms taylor-approx

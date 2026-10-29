@@ -52,31 +52,35 @@
 
 (define (build-covers block spec-v var ctx)
   (define out-repr (context-repr ctx))
-  (reap [sow]
-        (parameterize ([reduce (block-reduce block)]
-                       [add (lambda (x) (block-add! block x))])
-          (define block->expr (block-exprs block))
-          (define all-series
-            (map first (taylor-coefficients block (list spec-v) (list var) taylor-transforms)))
-          (for ([series (in-list all-series)]
-                [transform (in-list taylor-transforms)]
-                #:when (cover-lowerable? (first transform) out-repr))
-            (match-define (list name forward inverse) transform)
-            (define tform (cons forward inverse))
-            (define next-term (taylor-terms series block var #:transform tform))
-            (define kept (next-term))
-            (define dropped (next-term))
-            (when (and kept dropped)
-              (define kept-term (evaluate-term block kept out-repr))
-              (define dropped-term (evaluate-term block dropped out-repr))
-              (when (and kept-term dropped-term)
-                (define radius (cover-radius kept-term dropped-term out-repr))
-                (define bound
-                  (if (equal? name 0)
-                      radius
-                      (/ 1 radius)))
-                (define cover-expr (block->expr (horner-form (list kept-term) var #:transform tform)))
-                (sow (taylor-cover name var bound cover-expr))))))))
+  (reap
+   [sow]
+   (parameterize ([reduce (block-reduce block)]
+                  [add (lambda (x) (block-add! block x))])
+     (define block->expr (block-exprs block))
+     (define all-series
+       (if (set-member? ((block-free-vars block) spec-v) var)
+           (map first
+                (first (taylor-coefficients block (list (list var (list spec-v))) taylor-transforms)))
+           '()))
+     (for ([series (in-list all-series)]
+           [transform (in-list taylor-transforms)]
+           #:when (cover-lowerable? (first transform) out-repr))
+       (match-define (list name forward inverse) transform)
+       (define tform (cons forward inverse))
+       (define next-term (taylor-terms series block var #:transform tform))
+       (define kept (next-term))
+       (define dropped (next-term))
+       (when (and kept dropped)
+         (define kept-term (evaluate-term block kept out-repr))
+         (define dropped-term (evaluate-term block dropped out-repr))
+         (when (and kept-term dropped-term)
+           (define radius (cover-radius kept-term dropped-term out-repr))
+           (define bound
+             (if (equal? name 0)
+                 radius
+                 (/ 1 radius)))
+           (define cover-expr (block->expr (horner-form (list kept-term) var #:transform tform)))
+           (sow (taylor-cover name var bound cover-expr))))))))
 
 (define (compute-taylor-covers block spec-v ctx)
   (match ctx

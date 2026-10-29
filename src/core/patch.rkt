@@ -45,26 +45,39 @@
             (sow (taylor-approx spec-v repr genexpr0 'zero 'undef-var -1 altn)))
 
           ;; Taylor expansions
-          ;; List<List<(cons offset coeffs)>>
+          ;; List<(variable, active specs, active reprs, active alts)>
+          (define taylor-batches
+            (for/list ([var (in-list vars)]
+                       #:do [(define-values (active-spec-vs active-reprs active-altns)
+                               (for/lists (active-spec-vs active-reprs active-altns)
+                                          ([spec-v (in-list spec-vs)] [repr (in-list reprs)]
+                                                                      [altn (in-list altns)]
+                                                                      [fv (in-list free-vars)]
+                                                                      #:when (set-member? fv var))
+                                          (values spec-v repr altn)))]
+                       #:unless (null? active-spec-vs))
+              (list var active-spec-vs active-reprs active-altns)))
           (define taylor-coeffs
-            (taylor-coefficients spec-block spec-vs vars taylor-transforms #:free-vars free-vars))
-          (define idx 0)
-          (for* ([var (in-list vars)]
-                 [transform-type taylor-transforms])
-            (match-define (list name f finv) transform-type)
-            (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
-            (define taylor-coeffs* (list-ref taylor-coeffs idx))
-            (define genexprs (approximate taylor-coeffs* spec-block var #:transform (cons f finv)))
-            (for ([genexpr (in-list genexprs)]
-                  [spec-v (in-list spec-vs)]
-                  [repr (in-list reprs)]
-                  [altn (in-list altns)]
-                  [fv (in-list free-vars)]
-                  #:when (set-member? fv var)) ;; check whether var exists in expr at all
-              (for ([i (in-range (*taylor-order-limit*))])
-                (sow (taylor-approx spec-v repr (genexpr) name var i altn))))
-            (set! idx (add1 idx))
-            (timeline-stop!)))))
+            (taylor-coefficients spec-block
+                                 (for/list ([batch (in-list taylor-batches)])
+                                   (list (first batch) (second batch)))
+                                 taylor-transforms))
+          (for ([batch (in-list taylor-batches)]
+                [taylor-coeffs* (in-list taylor-coeffs)])
+            (match-define (list var active-spec-vs active-reprs active-altns) batch)
+            (for ([transform-type (in-list taylor-transforms)]
+                  [transform-coeffs (in-list taylor-coeffs*)])
+              (match-define (list name f finv) transform-type)
+              (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
+              (define genexprs
+                (approximate transform-coeffs spec-block var #:transform (cons f finv)))
+              (for ([genexpr (in-list genexprs)]
+                    [spec-v (in-list active-spec-vs)]
+                    [repr (in-list active-reprs)]
+                    [altn (in-list active-altns)])
+                (for ([i (in-range (*taylor-order-limit*))])
+                  (sow (taylor-approx spec-v repr (genexpr) name var i altn))))
+              (timeline-stop!))))))
 
 (define (run-taylor altns global-block spec-block reducer)
   (timeline-event! 'series)
