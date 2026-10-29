@@ -16,11 +16,12 @@
          render-history
          render-json)
 
-(struct interval (alt-idx start-point end-point expr))
+(struct interval (alt-idx start-point end-point expr repr))
 
-(define (interval->string ival repr)
+(define (interval->string ival)
   (define start (interval-start-point ival))
   (define end (interval-end-point ival))
+  (define repr (interval-repr ival))
   (string-join (list (if start
                          (format "~a < " (value->string start repr))
                          "")
@@ -118,7 +119,7 @@
   (define num-alts (length alts))
   (define num-points (pcontext-length pcontext))
   (define bexpr (sp-bexpr (car splitpoints)))
-  (define repr (repr-of bexpr ctx))
+  (define repr (get-representation (sp-repr-name (car splitpoints))))
   (define ctx* (struct-copy context ctx [repr repr]))
   (define prog (compile-prog bexpr ctx*))
   (define masks (build-vector num-alts (λ (_) (make-vector num-points #f))))
@@ -215,7 +216,6 @@
                      errcache
                      [mask (make-mask pcontext)]
                      [fpcore-cache (make-hash)])
-  (define repr (context-repr ctx))
   (define err
     (if (impl-prog? (alt-expr altn))
         (errors-score-masked (hash-ref errcache (alt-expr altn)) mask)
@@ -229,9 +229,13 @@
 
     [(alt prog `(regimes ,splitpoints) prevs)
      (define intervals
-       (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)]
+       (for/list ([start-sp (cons (sp -1 -1 #f #f) splitpoints)]
                   [end-sp splitpoints])
-         (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp))))
+         (interval (sp-cidx end-sp)
+                   (sp-point start-sp)
+                   (sp-point end-sp)
+                   (sp-bexpr end-sp)
+                   (get-representation (sp-repr-name end-sp)))))
 
      `#hash((program . ,(program->json-string prog ctx fpcore-cache))
             (type . "regimes")
@@ -240,7 +244,7 @@
                                       [idx (in-naturals)])
                              (define entry-ivals
                                (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
-                             (map (curryr interval->string repr) entry-ivals)))
+                             (map interval->string entry-ivals)))
             (prevs . ,(for/list ([entry prevs]
                                  [new-mask (regimes-pcontext-masks pcontext splitpoints prevs ctx)])
                         (define mask* (vector-map and-fn mask new-mask))

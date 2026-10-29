@@ -12,7 +12,6 @@
          "../syntax/block.rkt"
          "compiler.rkt"
          "points.rkt"
-         "programs.rkt"
          "../syntax/rival.rkt")
 
 (module+ test
@@ -22,7 +21,38 @@
 
 (provide compute-local-errors
          eval-progs-real
-         local-error-as-tree)
+         local-error-as-tree
+         all-subexpressions
+         repr-of)
+
+;; Tree representation helper used by the deprecated explain/localize path.
+(define (repr-of expr ctx)
+  (match expr
+    [(literal val precision) (get-representation precision)]
+    [(? symbol?) (context-lookup ctx expr)]
+    [(approx _ impl) (repr-of impl ctx)]
+    [(list op args ...) (impl-info op 'otype)]))
+
+(define (all-subexpressions expr #:reverse? [reverse? #f])
+  (define subexprs
+    (reap [sow]
+          (let loop ([expr expr])
+            (sow expr)
+            (match expr
+              [(? number?) (void)]
+              [(? literal?) (void)]
+              [(? symbol?) (void)]
+              [(approx _ impl) (loop impl)]
+              [`(if ,c ,t ,f)
+               (loop c)
+               (loop t)
+               (loop f)]
+              [(list _ args ...)
+               (for ([arg (in-list args)])
+                 (loop arg))]))))
+  (remove-duplicates (if reverse?
+                         (reverse subexprs)
+                         subexprs)))
 
 (define (eval-progs-real block vs reprs)
   (define compiler (make-real-compiler block vs reprs))

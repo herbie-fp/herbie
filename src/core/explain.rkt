@@ -6,12 +6,12 @@
          racket/hash)
 (require "../utils/common.rkt"
          "../syntax/float.rkt"
+         "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../syntax/platform.rkt"
          "../syntax/block.rkt"
          "localize.rkt"
-         "points.rkt"
-         "programs.rkt")
+         "points.rkt")
 
 (provide explain)
 
@@ -35,6 +35,20 @@
     [(list? expr) (andmap constant? (rest expr))]
     [(symbol? expr) #f]
     [else #t]))
+
+(define (get-locations expr subexpr)
+  (reap [sow]
+        (let loop ([expr expr]
+                   [loc '()])
+          (match expr
+            [(== subexpr) (sow (reverse loc))]
+            [(? literal?) (void)]
+            [(? symbol?) (void)]
+            [(approx _ impl) (loop impl (cons 2 loc))]
+            [(list _ args ...)
+             (for ([arg (in-list args)]
+                   [i (in-naturals 1)])
+               (loop arg (cons i loc)))]))))
 
 (define (actual-errors expr ctx pcontext)
   (match-define (cons subexprs pt-errorss)

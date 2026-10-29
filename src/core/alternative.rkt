@@ -9,9 +9,9 @@
          alt-map
          unblockify-alts)
 
-;; A splitpoint (sp a b pt) means we should use alt a if b < pt
+;; A splitpoint (sp a b pt repr-name) means we should use alt a if b < pt
 ;; The last splitpoint uses +nan.0 for pt and represents the "else"
-(struct sp (cidx bexpr point) #:prefab)
+(struct sp (cidx bexpr point repr-name) #:prefab)
 
 ;; Alts are an expression plus a derivation for it.
 

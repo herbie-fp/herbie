@@ -7,14 +7,9 @@
          "../syntax/block.rkt")
 
 (provide expr?
-         all-subexpressions
          spec-prog?
          impl-prog?
-         node-is-impl?
-         repr-of
          block-repr-of
-         get-locations
-         free-variables
          replace-expression
          block-replace-expression!
          block-replace-subexpr
@@ -23,21 +18,6 @@
 ;; Programs are just lisp lists plus atoms
 
 (define expr? (or/c list? symbol? boolean? real? literal? approx?))
-
-(define (node-is-impl? node)
-  (match node
-    [(? number?) #f]
-    [(list (? operator-exists? op) args ...) #f]
-    [_ #t]))
-
-;; Returns repr name
-;; Fast version does not recurse into functions applications
-(define (repr-of expr ctx)
-  (match expr
-    [(literal val precision) (get-representation precision)]
-    [(? symbol?) (context-lookup ctx expr)]
-    [(approx _ impl) (repr-of impl ctx)]
-    [(list op args ...) (impl-info op 'otype)]))
 
 (define (block-repr-of v)
   (define block (val-block v))
@@ -48,27 +28,6 @@
       [(? symbol? node) (dict-ref var-reprs node)]
       [(approx _ impl) (loop impl)]
       [(list op args ...) (impl-info op 'otype)])))
-
-(define (all-subexpressions expr #:reverse? [reverse? #f])
-  (define subexprs
-    (reap [sow]
-          (let loop ([expr expr])
-            (sow expr)
-            (match expr
-              [(? number?) (void)]
-              [(? literal?) (void)]
-              [(? symbol?) (void)]
-              [(approx _ impl) (loop impl)]
-              [`(if ,c ,t ,f)
-               (loop c)
-               (loop t)
-               (loop f)]
-              [(list _ args ...)
-               (for ([arg args])
-                 (loop arg))]))))
-  (remove-duplicates (if reverse?
-                         (reverse subexprs)
-                         subexprs)))
 
 ;; Is the expression in LSpec (real expressions)?
 (define (spec-prog? expr)
@@ -88,16 +47,6 @@
     [(list (? impl-exists?) args ...) (andmap impl-prog? args)]
     [_ #f]))
 
-;; Converting constants
-
-(define (free-variables prog)
-  (match prog
-    [(? literal?) '()]
-    [(? number?) '()]
-    [(? symbol?) (list prog)]
-    [(approx _ impl) (free-variables impl)]
-    [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
-
 (define (replace-vars dict expr)
   (let loop ([expr expr])
     (match expr
@@ -106,20 +55,6 @@
       [(? symbol?) (dict-ref dict expr expr)]
       [(approx impl spec) (approx (loop impl) (loop spec))]
       [(list op args ...) (cons op (map loop args))])))
-
-(define (get-locations expr subexpr)
-  (reap [sow]
-        (let loop ([expr expr]
-                   [loc '()])
-          (match expr
-            [(== subexpr) (sow (reverse loc))]
-            [(? literal?) (void)]
-            [(? symbol?) (void)]
-            [(approx _ impl) (loop impl (cons 2 loc))]
-            [(list _ args ...)
-             (for ([arg (in-list args)]
-                   [i (in-naturals 1)])
-               (loop arg (cons i loc)))]))))
 
 (define/contract (replace-expression expr from to)
   (-> expr? expr? expr? expr?)
