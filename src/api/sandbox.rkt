@@ -68,8 +68,10 @@
     (apply mk-pcontext sample)))
 
 (define (lower-test-blocks test)
-  (define-values (input-block input-v) (fpcore->prog-block (test-input-src test) (*context*)))
-  (define-values (spec-block spec-v) (fpcore->spec-block (test-spec-src test) #:ctx (*context*)))
+  (define fpcore-context
+    (struct-copy context (*context*) [repr (get-representation (test-program-precision-name test))]))
+  (define-values (input-block input-v) (fpcore->prog-block (test-input-src test) fpcore-context))
+  (define-values (spec-block spec-v) (fpcore->spec-block (test-spec-src test) #:ctx fpcore-context))
   (define input-spec-v (first (block-to-spec! input-block spec-block (list input-v))))
   (list input-block input-v spec-block spec-v (= (val-idx input-spec-v) (val-idx spec-v))))
 
@@ -341,3 +343,15 @@
      (define status (if type "error" "crash"))
      (dummy-table-row-from-hash result-hash status link)]
     ["timeout" (dummy-table-row-from-hash result-hash "timeout" link)]))
+
+(module+ test
+  (require rackunit)
+
+  (activate-platform! (*platform-name*))
+  (define mixed-test
+    (load-test
+     (open-input-string
+      "(FPCore ((! :precision binary32 s) d) :precision binary64 (array (! :precision binary32 (- (sqrt (+ s 1)) (sqrt s))) (- (sqrt (+ d 1)) (sqrt d))))")))
+  (parameterize ([*context* (test-context mixed-test)])
+    (define lowered (lower-test-blocks mixed-test))
+    (check-equal? ((block-exprs (first lowered)) (second lowered)) (test-input mixed-test))))

@@ -40,7 +40,8 @@
               var-repr-names
               input-src
               spec-src
-              pre-src)
+              pre-src
+              program-precision-name)
   #:prefab)
 
 (define (test-output-repr test)
@@ -224,7 +225,8 @@
           (cons var (representation-name repr)))
         body
         spec-src
-        pre-src))
+        pre-src
+        (representation-name (get-representation default-prec))))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that

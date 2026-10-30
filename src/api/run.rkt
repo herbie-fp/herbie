@@ -42,7 +42,8 @@
           (cons k (representation-name v)))
         input-src
         spec-src
-        pre-src))
+        pre-src
+        (representation-name repr)))
 
 (define (make-report bench-dirs #:dir dir #:threads threads)
   (activate-platform! (*platform-name*))
