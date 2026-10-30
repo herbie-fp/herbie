@@ -273,7 +273,7 @@
   (define table* (atab-set-picked table pending-alts))
 
   (define vs (map alt-expr pending-alts))
-  (define vs* (block-reachable (*global-block*) vs #:condition node-is-impl?))
+  (define vs* (block-reachable (*global-block*) vs))
 
   (define results (generate-candidates (*global-block*) vs* global-spec-block spec-reducer))
   (define patched (reconstruct! pending-alts results))

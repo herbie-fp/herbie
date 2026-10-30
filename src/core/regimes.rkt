@@ -384,11 +384,11 @@
     (for/list ([si1 (in-list (drop-right splitindices 1))])
       (define p1 (eval-expr (list-ref pts (sub1 (si-pidx si1)))))
       (define p2 (eval-expr (list-ref pts (si-pidx si1))))
-      (sp (si-cidx si1) v (left-point repr p1 p2))))
+      (sp (si-cidx si1) v (left-point repr p1 p2) (representation-name repr))))
   (define v*
     (for/fold ([v (alt-expr (list-ref alts (si-cidx (last splitindices))))])
               ([splitpoint (in-list (reverse splitpoints))])
-      (define repr (block-repr-of (sp-bexpr splitpoint)))
+      (define repr (get-representation (sp-repr-name splitpoint)))
       (define if-impl (get-fpcore-impl 'if '() (list (get-representation 'bool) repr repr)))
       (define <=-impl (get-fpcore-impl '<= '() (list repr repr)))
       (define lit-v
@@ -399,7 +399,10 @@
 
   ;; We don't want unused alts in our history!
   (define-values (alts* splitpoints**)
-    (remove-unused-alts alts (append splitpoints (list (sp (si-cidx (last splitindices)) v +nan.0)))))
+    (remove-unused-alts
+     alts
+     (append splitpoints
+             (list (sp (si-cidx (last splitindices)) v +nan.0 (representation-name repr))))))
   (alt v* (list 'regimes splitpoints**) alts*))
 
 (define (left-point repr p1 p2)

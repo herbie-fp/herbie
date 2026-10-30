@@ -6,7 +6,6 @@
          "../syntax/types.rkt"
          "../syntax/block.rkt"
          "rules.rkt"
-         "programs.rkt"
          "../syntax/platform.rkt"
          "../syntax/load-platform.rkt"
          "sampling.rkt")
@@ -19,7 +18,11 @@
 (define double-repr (get-representation 'binary64))
 
 (define (env->ctx p1 p2)
-  (define vars (set-union (free-variables p1) (free-variables p2)))
+  (define-values (block vs) (progs->block (list p1 p2) #:ctx (context '() double-repr '())))
+  (define free-vars (block-free-vars block))
+  (define vars
+    (sort (set-union (set->list (free-vars (first vs))) (set->list (free-vars (second vs))))
+          symbol<?))
   (context vars double-repr (map (const double-repr) vars)))
 
 (define (drop-sound expr)

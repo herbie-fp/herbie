@@ -1,7 +1,6 @@
 #lang racket
 
 (require json)
-(require "../src/core/programs.rkt")
 
 (define (fix-expr expr pre-fpcore?)
   (let loop ([expr expr])
@@ -19,6 +18,12 @@
       [(#t 'pi) 'PI]
       [(_ (list op (app loop args) ...)) (list* op args)]
       [(_ _) expr])))
+
+(define (free-variables expr)
+  (match expr
+    [(? number?) '()]
+    [(? symbol?) (list expr)]
+    [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
 
 (define (make-fpcore test pre-fpcore?)
   (define expr (fix-expr (call-with-input-string (hash-ref test 'input) read) pre-fpcore?))

@@ -17,7 +17,7 @@
          block-length ; Block -> Integer
          block-free-vars ; Block -> (Val -> Set<Var>)
          in-block ; Block -> Sequence<Node>
-         block-reachable ; Block -> List<Val> -> (Node -> Boolean) -> List<Val>
+         block-reachable ; Block -> List<Val> -> List<Val>
          block-exprs
          block-recurse
          block->jsexpr
@@ -117,9 +117,8 @@
   (unless (equal? block (val-block v))
     (error 'assert-block-v! "One of vals does not belong to the provided block")))
 
-;; Function returns indices of children nodes within a block for given roots,
-;;   where a child node is a child of a root + meets a condition - (condition node)
-(define (block-reachable block vs #:condition [condition (const #t)])
+;; Function returns indices of children nodes within a block for given roots.
+(define (block-reachable block vs)
   (define len (block-length block))
   (define child-mask (make-vector len #f))
   (for ([v (in-list vs)])
@@ -129,9 +128,7 @@
         [node (in-block block (sub1 len) -1 -1)]
         [child (in-vector child-mask (sub1 len) -1 -1)]
         #:when child)
-    (cond
-      [(condition node) (expr-recurse node (λ (n) (vector-set! child-mask n #t)))]
-      [else (vector-set! child-mask i #f)]))
+    (expr-recurse node (λ (n) (vector-set! child-mask n #t))))
   ; Return vals of children nodes in ascending order
   (for/list ([child (in-vector child-mask)]
              [i (in-naturals)]
