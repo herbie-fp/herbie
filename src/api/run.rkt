@@ -26,17 +26,24 @@
   (define repr (get-representation (table-row-precision row)))
   (define var-reprs (map (curryr cons repr) vars))
   (define ctx (context vars repr (map (const repr) vars)))
+  (define input-src (table-row-input row))
+  (define spec-src (table-row-spec row))
+  (define pre-src (table-row-pre row))
   (test (table-row-name row)
         (table-row-identifier row)
         (table-row-vars row)
-        (fpcore->prog (table-row-input row) ctx)
+        (fpcore->prog input-src ctx)
         (fpcore->prog (table-row-output row) ctx)
         (table-row-target-prog row)
-        (fpcore->spec (table-row-spec row))
-        (fpcore->spec (table-row-pre row))
+        (fpcore->spec spec-src)
+        (fpcore->spec pre-src)
         (representation-name repr)
         (for/list ([(k v) (in-dict var-reprs)])
-          (cons k (representation-name v)))))
+          (cons k (representation-name v)))
+        input-src
+        spec-src
+        pre-src
+        (representation-name repr)))
 
 (define (make-report bench-dirs #:dir dir #:threads threads)
   (activate-platform! (*platform-name*))

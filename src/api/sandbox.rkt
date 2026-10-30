@@ -56,26 +56,42 @@
 ;; API Functions
 
 ;; Sampling a test more than once should reuse its block.
-(define (make-sampler test)
-  (define-values (block vs) (progs->block (list (test-spec test)) #:ctx (*context*)))
+(define (make-sampler test [spec #f])
+  (define-values (block root)
+    (if spec
+        (values (val-block spec) spec)
+        (fpcore->spec-block (test-spec-src test) #:ctx (*context*))))
   (lambda ([precondition (test-pre test)] [count (+ (*num-points*) (*reeval-pts*))])
     (define sample
       (parameterize ([*num-points* count])
-        (sample-points precondition block vs (list (context-repr (*context*))))))
+        (sample-points precondition block (list root) (list (context-repr (*context*))))))
     (apply mk-pcontext sample)))
 
+(define (lower-test-blocks test)
+  (define fpcore-context
+    (struct-copy context (*context*) [repr (get-representation (test-program-precision-name test))]))
+  (define-values (input-block input-v) (fpcore->prog-block (test-input-src test) fpcore-context))
+  (define-values (spec-block spec-v) (fpcore->spec-block (test-spec-src test) #:ctx fpcore-context))
+  (define input-spec-v (first (block-to-spec! input-block spec-block (list input-v))))
+  (list input-block input-v spec-block spec-v (= (val-idx input-spec-v) (val-idx spec-v))))
+
 ;; The main Herbie function
-(define (get-alternatives test joint-pcontext #:sampler [sampler #f])
+(define (get-alternatives test joint-pcontext #:sampler [sampler #f] #:lowered [lowered #f])
   (unless joint-pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
-  (define initial-expr
-    (if (equal? (prog->spec (test-input test)) (test-spec test))
-        (test-input test)
-        (approx (test-spec test) (test-input test))))
+  (match-define (list input-block input-v spec-block spec-v input-is-spec?)
+    (or lowered (lower-test-blocks test)))
   (define alternatives
-    (run-improve! initial-expr (test-spec test) (*context*) train-pcontext #:sampler sampler))
+    (run-improve-blocks! input-block
+                         input-v
+                         spec-block
+                         spec-v
+                         input-is-spec?
+                         (*context*)
+                         train-pcontext
+                         #:sampler sampler))
 
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
@@ -153,8 +169,9 @@
 
 (define (get-improve test)
   (random) ;; Tick the random number generator, for backwards compatibility
-  (define sample (make-sampler test))
-  (get-alternatives test (sample) #:sampler (make-search-sampler test sample)))
+  (define lowered (lower-test-blocks test))
+  (define sample (make-sampler test (fourth lowered)))
+  (get-alternatives test (sample) #:sampler (make-search-sampler test sample) #:lowered lowered))
 
 ;;
 ;;  Public interface
@@ -326,3 +343,15 @@
      (define status (if type "error" "crash"))
      (dummy-table-row-from-hash result-hash status link)]
     ["timeout" (dummy-table-row-from-hash result-hash "timeout" link)]))
+
+(module+ test
+  (require rackunit)
+
+  (activate-platform! (*platform-name*))
+  (define mixed-test
+    (load-test
+     (open-input-string
+      "(FPCore ((! :precision binary32 s) d) :precision binary64 (array (! :precision binary32 (- (sqrt (+ s 1)) (sqrt s))) (- (sqrt (+ d 1)) (sqrt d))))")))
+  (parameterize ([*context* (test-context mixed-test)])
+    (define lowered (lower-test-blocks mixed-test))
+    (check-equal? ((block-exprs (first lowered)) (second lowered)) (test-input mixed-test))))
