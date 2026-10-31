@@ -33,6 +33,7 @@
     (check-equal? (impl-info ctor 'itype) (list <b32> <b64>))
     (check-equal? (impl-info ctor 'otype) mixed)
     (check-equal? (impl-info ctor 'cost) 0)
+    (check-exn #rx"unknown field" (λ () (impl-info ctor 'unknown)))
     (check-equal? ((impl-info ctor 'fl) 1.0 2.0) (vector 1.0 2.0))
     (check-equal? (impl-info (array-ref-impl-name mixed 1) 'otype) <b64>)
     (check-equal? (impl-info (array-ref-impl-name mixed 1) 'cost) 0)
