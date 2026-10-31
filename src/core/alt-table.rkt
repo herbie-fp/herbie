@@ -13,7 +13,6 @@
 
 (provide (contract-out (make-alt-table (block? pcontext? alt? . -> . alt-table?))
                        (atab-active-alts (alt-table? . -> . (listof alt?)))
-                       (atab-all-alts (alt-table? . -> . (listof alt?)))
                        (atab-not-done-alts (alt-table? . -> . (listof alt?)))
                        (atab-eval-altns (alt-table? block? (listof alt?) . -> . (values any/c any/c)))
                        (atab-add-altns (alt-table? (listof alt?) any/c any/c . -> . alt-table?))
@@ -24,7 +23,7 @@
 
 ;; Public API
 
-(struct alt-table (point-idx->alts alt->point-idxs alt->done? alt->cost pcontext all) #:prefab)
+(struct alt-table (point-idx->alts alt->point-idxs alt->done? alt->cost pcontext) #:prefab)
 
 (define (sorted-index-union xs ys)
   (match* (xs ys)
@@ -89,8 +88,7 @@
                        idx))
              (hasheq initial-alt #f)
              (hasheq initial-alt cost)
-             pcontext
-             (list initial-alt)))
+             pcontext))
 
 (define (atab-set-picked atab alts)
   (struct-copy alt-table
@@ -113,9 +111,6 @@
 (define (atab-active-alts atab)
   (order-altns (hash-keys (alt-table-alt->point-idxs atab))))
 
-(define (atab-all-alts atab)
-  (order-altns (alt-table-all atab)))
-
 (define (atab-not-done-alts atab)
   (define altns (hash-keys (alt-table-alt->point-idxs atab)))
   (define not-done? (negate (curry hash-ref (alt-table-alt->done? atab))))
@@ -126,7 +121,7 @@
 (struct set-cover (removable coverage))
 
 (define (atab->set-cover atab)
-  (match-define (alt-table pnts->alts alts->pnts alt->done? alt->cost _ _) atab)
+  (match-define (alt-table pnts->alts alts->pnts alt->done? alt->cost _) atab)
   (define tied (list->mutable-seteq (hash-keys alts->pnts)))
   (define coverage '())
   (for* ([pcurve (in-vector pnts->alts)]
@@ -196,7 +191,7 @@
     (hash-remove hash key)))
 
 (define (atab-remove* atab . altns)
-  (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pctx _) atab)
+  (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pctx) atab)
   (define pnt-idx->alts*
     (for/vector #:length (vector-length point-idx->alts)
                 ([pcurve (in-vector point-idx->alts)])
@@ -226,9 +221,7 @@
   (define atab*** (atab-prune atab**))
   (struct-copy alt-table
                atab***
-               [alt->point-idxs (invert-index (alt-table-point-idx->alts atab***))]
-               [all
-                (set-union (alt-table-all atab) (hash-keys (alt-table-alt->point-idxs atab***)))]))
+               [alt->point-idxs (invert-index (alt-table-point-idx->alts atab***))]))
 
 (define (invert-index point-idx->alts)
   (define alt->points* (make-hasheq))
@@ -240,7 +233,7 @@
   (make-immutable-hasheq (hash->list alt->points*)))
 
 (define (atab-add-altn atab altn errs cost)
-  (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
+  (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext) atab)
   ;; Check  whether altn is already inserted into atab
   (match (hash-has-key? alt->point-idxs altn)
     [#f
@@ -260,8 +253,7 @@
                 (hash-set alt->point-idxs altn #f)
                 (hash-set alt->done? altn #f)
                 (hash-set alt->cost altn cost)
-                pcontext
-                #f)]
+                pcontext)]
     [_ atab]))
 
 (define (atab-min-errors atab)
