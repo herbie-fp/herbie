@@ -321,8 +321,7 @@
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
-(define/contract (impl-info impl-name field)
-  (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost 'aggregate) any/c)
+(define (impl-info impl-name field)
   (define impls (platform-implementations (*active-platform*)))
   (define impl
     (or (hash-ref impls impl-name #f)
@@ -336,7 +335,8 @@
     [(fpcore) (operator-impl-fpcore impl)]
     [(fl) (operator-impl-fl impl)]
     [(cost) (operator-impl-cost impl)]
-    [(aggregate) (operator-impl-aggregate impl)]))
+    [(aggregate) (operator-impl-aggregate impl)]
+    [else (error 'impl-info "unknown field '~a'" field)]))
 
 (define (platform-impls platform)
   (hash-keys (platform-implementations platform)))
