@@ -77,7 +77,9 @@
        (cons lower higher)))
 
 (define (ulps->bits x)
-  (fl/ (fllog (fl x)) (fllog 2.0)))
+  (if (fixnum? x)
+      (fl/ (fllog (real->double-flonum x)) (fllog 2.0))
+      (fl/ (fllog (real->double-flonum x)) (fllog 2.0))))
 
 (define (random-generate repr)
   (match (representation-type repr)
