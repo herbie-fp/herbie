@@ -2,7 +2,8 @@
 
 (require math/base
          math/bigfloat
-         (except-in math/flonum flonums-between))
+         (except-in math/flonum flonums-between)
+         racket/unsafe/ops)
 (require "../utils/common.rkt"
          "../syntax/types.rkt"
          "../utils/errors.rkt"
@@ -77,7 +78,9 @@
        (cons lower higher)))
 
 (define (ulps->bits x)
-  (fl/ (fllog (fl x)) (fllog 2.0)))
+  (if (fixnum? x)
+      (fl/ (fllog (unsafe-fx->fl x)) (fllog 2.0))
+      (fl/ (fllog (real->double-flonum x)) (fllog 2.0))))
 
 (define (random-generate repr)
   (match (representation-type repr)
