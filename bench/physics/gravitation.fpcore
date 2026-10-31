@@ -13,6 +13,18 @@
 
 (FPCore norm-3 ((a 3))
  :name "3D vector norm"
+ :alt
+ (! :herbie-platform c
+  (let ((a_ (fabs (ref a 0))) (b (fabs (ref a 1))) (c (fabs (ref a 2))))
+    (let ((L (fmax (fmax a_ b) c)))
+      (if (== L a_)
+        (let* ((r1 (/ b a_)) (r2 (/ c a_)) (q (fma r1 r1 (* r2 r2))))
+          (fma a_ (fmin (/ q (+ 1 (sqrt (+ 1 q)))) 1) a_))
+        (if (== L b)
+          (let* ((r1 (/ a_ b)) (r2 (/ c b)) (q (fma r1 r1 (* r2 r2))))
+            (fma b (/ q (+ 1 (sqrt (+ 1 q)))) b))
+          (let* ((r1 (/ a_ c)) (r2 (/ b c)) (q (fma r1 r1 (* r2 r2))))
+            (fma c (/ q (+ 1 (sqrt (+ 1 q)))) c)))))))
  :precision binary64
  :pre (and (<= (fabs (ref a 0)) 1e154)
            (<= (fabs (ref a 1)) 1e154)

@@ -169,7 +169,10 @@
 ;; FPCore -> LSpec
 
 (define (fpcore->spec prog)
-  (let loop ([expr (expand-expr prog)])
+  (define memo (make-hasheq))
+  (define (loop expr)
+    (hash-ref! memo expr (λ () (convert expr))))
+  (define (convert expr)
     (match expr
       [(? number?)
        (match expr
@@ -185,7 +188,8 @@
        (match (fpcore-extension-spec expr*)
          [#f expr*]
          [(== expr*) expr*]
-         [spec (loop spec)])])))
+         [spec (loop spec)])]))
+  (loop (expand-expr prog)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FPCore -> LImpl
@@ -216,8 +220,10 @@
 
 ;; Translates from FPCore to an LImpl.
 (define (fpcore->prog prog ctx)
-  (let loop ([expr (expand-expr prog)]
-             [prop-dict (repr->prop (context-repr ctx))])
+  (define memo (make-hasheq))
+  (define (loop expr prop-dict)
+    (hash-ref! (hash-ref! memo prop-dict make-hasheq) expr (λ () (convert expr prop-dict))))
+  (define (convert expr prop-dict)
     (match expr
       [(? number? n)
        (literal (match n
@@ -254,7 +260,8 @@
        (cons (ensure-array-impls! repr) args*)]
       [(list op args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
-       (impl-app op prop-dict args* ctx)])))
+       (impl-app op prop-dict args* ctx)]))
+  (loop (expand-expr prog) (repr->prop (context-repr ctx))))
 
 ;; Translates from LSpec to an LImpl.
 (define (spec->prog prog ctx)

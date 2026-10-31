@@ -133,5 +133,24 @@
 
 (FPCore (re im)
  :name "math.sqrt on complex, imaginary part, im greater than 0 branch"
+ :alt
+ (! :herbie-platform c
+  (let ((m (fmax (fabs re) im)))
+    (if (> m 1e300)
+      (let ((a (* 0.25 re)) (b (* 0.25 im)))
+        (let ((h (hypot a b)))
+          (* 2 (if (<= a 0)
+            (* 2 (sqrt (- (* 0.125 h) (* 0.125 a))))
+            (/ b (* 2 (sqrt (+ (* 0.5 h) (* 0.5 a)))))))))
+      (if (< m 1e-280)
+        (let ((a (* 1.6069380442589903e60 re)) (b (* 1.6069380442589903e60 im)))
+          (let ((h (hypot a b)))
+            (* 7.888609052210118e-31 (if (<= a 0)
+              (* 2 (sqrt (- (* 0.125 h) (* 0.125 a))))
+              (/ b (* 2 (sqrt (+ (* 0.5 h) (* 0.5 a)))))))))
+        (let ((h (hypot re im)))
+          (if (<= re 0)
+            (* 2 (sqrt (- (* 0.125 h) (* 0.125 re))))
+            (/ im (* 2 (sqrt (+ (* 0.5 h) (* 0.5 re)))))))))))
  :pre (> im 0)
  (* 0.5 (sqrt (* 2.0 (- (modulus re im) re)))))
