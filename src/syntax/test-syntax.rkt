@@ -38,5 +38,19 @@
   (check-equal? (fpcore->spec '(log1p x)) '(log (+ 1 x)))
   (check-equal? (fpcore->spec '(hypot x y)) '(sqrt (+ (* x x) (* y y))))
   (check-equal? (fpcore->spec '(fma x y z)) '(+ (* x y) z))
+  (check-equal? (fpcore->spec '(+ x y z)) '(+ (+ x y) z))
+  (check-equal? (fpcore->spec '(!= x y z)) '(and (and (!= x y) (!= x z)) (!= y z)))
+  (check-equal? (fpcore->spec '(let ([x (+ x 1)]
+                                     [y (+ x 2)])
+                                 (+ x y)))
+                '(+ (+ x 1) (+ x 2)))
+  (check-equal? (fpcore->spec '(let* ([x (+ x 1)]
+                                      [y (+ x 2)])
+                                 y))
+                '(+ (+ x 1) 2))
+  (check-equal? (fpcore->spec '(or)) '(FALSE))
+  (check-equal?
+   (fpcore->prog '(let ([y (+ x 1)]) (array (! :precision binary32 y) (! :precision binary64 y))) ctx)
+   `(array<binary64:binary64> (+.f64 x ,(literal 1 'binary64)) (+.f64 x ,(literal 1 'binary64))))
 
   (void))
