@@ -91,101 +91,85 @@
     (remove-duplicates (filter identity
                                (for/list ([impl (in-list (platform-impls (*active-platform*)))])
                                  (define-values (_ body) (impl->fpcore impl))
-                                 (define subst (pattern-match (expand-expr body) expr))
+                                 (define subst (pattern-match body expr))
                                  (and subst (pattern-substitute (impl-info impl 'spec) subst))))))
   (match specs
     ['() #f]
     [(list spec) spec]
     [_ (error 'fpcore->spec "ambiguous platform specs for `~a`: ~a" expr specs)]))
 
-;; Expression pre-processing for normalizing expressions.
-;; Used for conversion from FPCore to other IRs.
-(define (expand-expr expr)
-  (let loop ([expr expr]
-             [env '()])
-    (match expr
-      ; empty let/let* expression
-      [`(,(or 'let 'let*) () ,body) (loop body env)]
-      ; let* expression
-      [`(let* ([,var ,val]
-               ,rest ...)
-          ,body)
-       (loop `(let ([,var ,val]) (let* ,rest ,body)) env)]
-      ; let expression
-      [`(let ([,vars ,vals] ...) ,body)
-       (define env*
-         (for/fold ([env* env])
-                   ([var (in-list vars)]
-                    [val (in-list vals)])
-           (dict-set env* var (loop val env))))
-       (loop body env*)]
-      ; nullary expressions
-      ['(and) '(TRUE)]
-      ['(or) '(FALSE)]
-      [`(,(or '+ '-)) 0]
-      [`(,(or '* '/)) 1]
-      ; unary expressions
-      [`(,(or '+ '* 'and 'or) ,a) (loop a env)]
-      [`(- ,a) `(neg ,(loop a env))]
-      [`(/ ,a) `(/ 1 ,(loop a env))]
-      ; expand arithmetic associativity
-      [`(,(and (or '+ '- '* '/ 'and 'or) op) ,as ..2 ,b)
-       (list op (loop `(,op ,@as) env) (loop b env))]
-      ; expand comparison associativity
-      [`(,(and (or '< '<= '> '>= '=) op) ,as ...)
-       (define as* (map (curryr loop env) as))
-       (define out
-         (for/fold ([out #f])
-                   ([term as*]
-                    [next (cdr as*)])
-           (if out
-               (list 'and out (list op term next))
-               (list op term next))))
-       (or out '(TRUE))]
-      [`(!= ,as ...)
-       (define as* (map (curryr loop env) as))
-       (define out
-         (for/fold ([out #f])
-                   ([term as*]
-                    [i (in-naturals)]
-                    #:when true
-                    [term2 as*]
-                    [j (in-naturals)]
-                    #:when (< i j))
-           (if out
-               (list 'and out (list '!= term term2))
-               (list '!= term term2))))
-       (or out '(TRUE))]
-      ; applications
-      [`(,op ,args ...) `(,op ,@(map (curryr loop env) args))]
-      ; constants
-      [(? operator-exists? op) (list op)]
-      ; variables
-      [(? symbol?) (dict-ref env expr expr)]
-      ; other
-      [_ expr])))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FPCore -> LSpec
 
 (define (fpcore->spec prog)
-  (let loop ([expr (expand-expr prog)])
+  (define (lower-app op args)
+    (define expr* `(,op ,@args))
+    (match (fpcore-extension-spec expr*)
+      [#f expr*]
+      [(== expr*) expr*]
+      [spec (loop spec '())]))
+
+  (define (fold-app op args)
+    (for/fold ([out (first args)]) ([arg (in-list (rest args))])
+      (lower-app op (list out arg))))
+
+  (define (conjoin args)
+    (match args
+      ['() (lower-app 'TRUE '())]
+      [(list arg) arg]
+      [_ (fold-app 'and args)]))
+
+  (define (loop expr env)
     (match expr
       [(? number?)
        (match expr
          [(or +inf.0 -inf.0 +nan.0) expr]
          [(? exact?) expr]
          [_ (inexact->exact expr)])]
-      [(? symbol?) expr]
-      [(list '! _ ... body) (loop body)]
-      [(list 'cast arg) (loop arg)]
-      [(list op args ...)
-       (define args* (map loop args))
-       (define expr* `(,op ,@args*))
-       (match (fpcore-extension-spec expr*)
-         [#f expr*]
-         [(== expr*) expr*]
-         [spec (loop spec)])])))
+      [`(let ([,vars ,vals] ...) ,body)
+       ;; Lower each parallel binding once, then reuse its result in the body.
+       (define env*
+         (for/fold ([env* env])
+                   ([var (in-list vars)]
+                    [val (in-list vals)])
+           (dict-set env* var (loop val env))))
+       (loop body env*)]
+      [`(let* ([,vars ,vals] ...) ,body)
+       ;; Each sequential binding sees and extends the preceding environment.
+       (define env*
+         (for/fold ([env* env])
+                   ([var (in-list vars)]
+                    [val (in-list vals)])
+           (dict-set env* var (loop val env*))))
+       (loop body env*)]
+      [`(,(and (or 'and 'or) op)) (lower-app (if (eq? op 'and) 'TRUE 'FALSE) '())]
+      [`(,(or '+ '-)) 0]
+      [`(,(or '* '/)) 1]
+      [`(,(or '+ '* 'and 'or) ,arg) (loop arg env)]
+      [`(- ,arg) (lower-app 'neg (list (loop arg env)))]
+      [`(/ ,arg) (lower-app '/ (list 1 (loop arg env)))]
+      [`(,(and (or '+ '- '* '/ 'and 'or) op) ,first ,second ,rest ...)
+       (fold-app op (map (curryr loop env) (list* first second rest)))]
+      [`(,(and (or '< '<= '> '>= '=) op) ,args ...)
+       (define args* (map (curryr loop env) args))
+       (conjoin (for/list ([term (in-list args*)]
+                           [next (in-list (if (null? args*)
+                                              '()
+                                              (cdr args*)))])
+                  (lower-app op (list term next))))]
+      [`(!= ,args ...)
+       (define args* (map (curryr loop env) args))
+       (conjoin (for*/list ([i (in-range (length args*))]
+                            [j (in-range (add1 i) (length args*))])
+                  (lower-app '!= (list (list-ref args* i) (list-ref args* j)))))]
+      [(list '! _ ... body) (loop body env)]
+      [(list 'cast arg) (loop arg env)]
+      [(list op args ...) (lower-app op (map (curryr loop env) args))]
+      [(? operator-exists? op) (lower-app op '())]
+      [(? symbol? var) (dict-ref env var var)]
+      [_ expr]))
+
+  (loop prog '()))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FPCore -> LImpl
@@ -216,45 +200,98 @@
 
 ;; Translates from FPCore to an LImpl.
 (define (fpcore->prog prog ctx)
-  (let loop ([expr (expand-expr prog)]
-             [prop-dict (repr->prop (context-repr ctx))])
+  (define (fold-app op args prop-dict)
+    (for/fold ([out (first args)]) ([arg (in-list (rest args))])
+      (impl-app op prop-dict (list out arg) ctx)))
+
+  (define (conjoin args prop-dict)
+    (match args
+      ['() (loop 'TRUE prop-dict '())]
+      [(list arg) arg]
+      [_ (fold-app 'and args prop-dict)]))
+
+  (define (loop expr prop-dict env)
     (match expr
       [(? number? n)
        (literal (match n
-                  [(or +inf.0 -inf.0 +nan.0) expr]
-                  [(? exact?) expr]
-                  [_ (inexact->exact expr)])
+                  [(or +inf.0 -inf.0 +nan.0) n]
+                  [(? exact?) n]
+                  [_ (inexact->exact n)])
                 (dict-ref prop-dict ':precision))]
-      [(? symbol?) expr]
+      [`(let ([,vars ,vals] ...) ,body)
+       ;; Convert each parallel binding once, in the context where it is bound.
+       (define env*
+         (for/fold ([env* env])
+                   ([var (in-list vars)]
+                    [val (in-list vals)])
+           (dict-set env* var (loop val prop-dict env))))
+       (loop body prop-dict env*)]
+      [`(let* ([,vars ,vals] ...) ,body)
+       ;; Sequential bindings are converted once and extend the environment.
+       (define env*
+         (for/fold ([env* env])
+                   ([var (in-list vars)]
+                    [val (in-list vals)])
+           (dict-set env* var (loop val prop-dict env*))))
+       (loop body prop-dict env*)]
+      [`(,(or 'and 'or)) (loop (if (eq? (first expr) 'and) 'TRUE 'FALSE) prop-dict env)]
+      [`(,(or '+ '-)) (loop 0 prop-dict env)]
+      [`(,(or '* '/)) (loop 1 prop-dict env)]
+      [`(,(or '+ '* 'and 'or) ,arg) (loop arg prop-dict env)]
+      [`(- ,arg) (impl-app '- prop-dict (list (loop arg prop-dict env)) ctx)]
+      [`(/ ,arg) (impl-app '/ prop-dict (list (loop 1 prop-dict env) (loop arg prop-dict env)) ctx)]
+      [`(,(and (or '+ '- '* '/ 'and 'or) op) ,first ,second ,rest ...)
+       (fold-app op
+                 (map (lambda (arg) (loop arg prop-dict env)) (list* first second rest))
+                 prop-dict)]
+      [`(,(and (or '< '<= '> '>= '=) op) ,args ...)
+       (define args* (map (lambda (arg) (loop arg prop-dict env)) args))
+       (conjoin (for/list ([term (in-list args*)]
+                           [next (in-list (if (null? args*)
+                                              '()
+                                              (cdr args*)))])
+                  (impl-app op prop-dict (list term next) ctx))
+                prop-dict)]
+      [`(!= ,args ...)
+       (define args* (map (lambda (arg) (loop arg prop-dict env)) args))
+       (conjoin (for*/list ([i (in-range (length args*))]
+                            [j (in-range (add1 i) (length args*))])
+                  (impl-app '!= prop-dict (list (list-ref args* i) (list-ref args* j)) ctx))
+                prop-dict)]
+      [(? operator-exists? op) (impl-app op prop-dict '() ctx)]
+      [(? symbol? var) (dict-ref env var var)]
       [(list '! props ... body)
        (loop body
              (if (not (null? props))
                  (apply dict-set* prop-dict props)
-                 prop-dict))]
+                 prop-dict)
+             env)]
       [(list 'neg arg) ; non-standard but useful [TODO: remove]
-       (define arg* (loop arg prop-dict))
+       (define arg* (loop arg prop-dict env))
        (impl-app '- prop-dict (list arg*) ctx)]
       [(list 'cast arg) ; special case: unnecessary casts
-       (define arg* (loop arg prop-dict))
+       (define arg* (loop arg prop-dict env))
        (define repr (get-representation (dict-ref prop-dict ':precision)))
        (if (equal? (repr-of arg* ctx) repr)
            arg*
            (impl-app 'cast prop-dict (list arg*) ctx))]
       [(list 'ref arr idx)
-       (define arr* (loop arr prop-dict))
+       (define arr* (loop arr prop-dict env))
        (define arr-repr (repr-of arr* ctx))
        (unless (array-representation? arr-repr)
          (raise-herbie-missing-error "No implementation for `ref` over `~a`"
                                      (representation-name arr-repr)))
        (list (ensure-array-ref-impl! arr-repr idx) arr*)]
       [(list 'array args ...)
-       (define args* (map (lambda (arg) (loop arg prop-dict)) args))
+       (define args* (map (lambda (arg) (loop arg prop-dict env)) args))
        (define slots (map (lambda (arg) (repr-of arg ctx)) args*))
        (define repr (apply make-array-representation slots))
        (cons (ensure-array-impls! repr) args*)]
       [(list op args ...)
-       (define args* (map (lambda (arg) (loop arg prop-dict)) args))
-       (impl-app op prop-dict args* ctx)])))
+       (define args* (map (lambda (arg) (loop arg prop-dict env)) args))
+       (impl-app op prop-dict args* ctx)]))
+
+  (loop prog (repr->prop (context-repr ctx)) '()))
 
 ;; Translates from LSpec to an LImpl.
 (define (spec->prog prog ctx)
