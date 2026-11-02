@@ -10,6 +10,25 @@
 
 (FPCore (u0 phi0 alpha g)
  :name "setup-k"
+ :alt
+ (! :herbie-platform c
+  (let* ((s1 (sin u0)) (c1 (cos u0)) (s2 (sin phi0)) (c2 (cos phi0))
+         (a2 (fabs s2)) (b2 (fabs c2))
+         (L2 (if (< a2 0.5)
+                 (* 0.5 (- (log1p s2) (log1p (- s2))))
+                 (copysign (- (log1p a2) (log b2)) s2)))
+         (R (if (< (* alpha a2) (* 700 b2))
+                (let* ((F (exp (* (- alpha) L2))))
+                  (if (>= s1 -0.5)
+                      (/ (* (fma g s1 g) F) c1)
+                      (/ (* (* g c1) F) (- 1 s1))))
+                (let* ((h (if (< a2 0.5)
+                              (exp (* (* -0.5 alpha) (atanh s2)))
+                              (pow (if (>= s2 0) (/ (+ 1 s2) b2) (/ b2 (- 1 s2))) (* -0.5 alpha)))))
+                  (if (>= s1 -0.5)
+                      (/ (* (* (fma g s1 g) h) h) c1)
+                      (/ (* (* (* g c1) h) h) (- 1 s1)))))))
+    (if (and (< c2 0) (== (fmod alpha 2) 1)) (- R) R)))
  :pre (and (> g 0.0)
            (> alpha 0.0))
  (let* ([tan-u0  (tan (+ (* 0.5 u0) (/ PI 4.0)))]
@@ -34,6 +53,12 @@
 
 (FPCore (phi evar alpha)
  :name "forward-gfi"
+ :alt
+ (! :herbie-platform c
+  (let* ((s (sin phi)) (t (* evar s)))
+    (exp (if (< (fabs t) 9.313225746154785e-10)
+             (* (* (* alpha s) evar) evar)
+             (* (* alpha evar) (atanh t))))))
  :pre (and (>= evar 0.0)
            (< evar 1.0))
  (pow (/ (+ 1.0 (* evar (sin phi)))
@@ -42,6 +67,13 @@
 
 (FPCore (phi k alpha gfi)
  :name "forward-u"
+ :alt
+ (! :herbie-platform c
+  (let* ((G (* (asinh (tan phi)) (copysign 1 (cos phi))))
+         (q (/ k gfi))
+         (lq (if (< (fabs (logb q)) 1021) (log q) (- (log k) (log gfi))))
+         (L (+ lq (* alpha G))))
+    (atan (sinh L))))
  :pre (and (> k 0.0)
            (> alpha 0.0)
            (> gfi 0.0))
@@ -136,6 +168,12 @@
 
 (FPCore (u k alpha evar fi)
  :name "inverse-phi-iter"
+ :alt
+ (! :herbie-platform c
+  (let* ((A (- (asinh (/ (sin u) (cos u))) (log k)))
+         (B (* evar (atanh (* evar (sin fi)))))
+         (L (+ (/ A alpha) B)))
+    (atan (sinh L))))
  :pre (and (> k 0.0)
            (> alpha 0.0)
            (>= evar 0.0)

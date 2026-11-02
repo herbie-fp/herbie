@@ -2,6 +2,16 @@
 
 (FPCore (u v t1)
  :name "Rosa's DopplerBench"
+ :alt
+ (! :herbie-platform c
+  (let* ((s (+ t1 u))
+         (q (/ t1 s))
+         (g (/ v s)))
+    (if (< (fabs (logb g)) 1021)
+      (if (< (fabs (logb q)) 1021)
+        (- (* q g))
+        (- (/ (* t1 g) s)))
+      (- (/ (* q v) s)))))
  (/ (* (- t1) v) (* (+ t1 u) (+ t1 u))))
 
 (FPCore (x)

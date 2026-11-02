@@ -51,6 +51,20 @@
 
 (FPCore (delta di du_ddelta d2u_ddelta2)
   :name "B-delta2"
+  :alt
+  (! :herbie-platform c
+   (let* ((c (< (fabs d2u_ddelta2) 1e-271))
+          (q (if c (* delta (* d2u_ddelta2 3.4028236692093846e38)) (* delta d2u_ddelta2)))
+          (xs (if c (* delta 2.9387358770557188e-39) delta))
+          (a (fma xs q (- di))))
+     (if (== a (- INFINITY))
+       (let ((u (+ du_ddelta (/ di delta))))
+         (if (> (* u u) (- d2u_ddelta2)) INFINITY (- INFINITY)))
+       (let ((p (* delta du_ddelta)))
+         (if (and (and (<= 0.5 di) (<= di 2)) (< (fabs p) 0.25))
+           (fma di (- di 1) (fma xs q (* p (+ (+ di di) p))))
+           (let ((t (fma delta du_ddelta di)))
+             (fma t t a)))))))
   (let* ([B_delta (+ (* delta du_ddelta) di)]
          [dB_delta_ddelta (+ (* delta d2u_ddelta2) du_ddelta)]
          [B_delta2 (+ (* delta dB_delta_ddelta) (* (- B_delta 1) B_delta))])
@@ -58,6 +72,21 @@
 
 (FPCore (tau ti du_dtau d2u_dtau2 d3u_dtau3)
   :name "B-tau3"
+  :alt
+  (! :herbie-platform c
+   (let* ((t1 (fma tau du_dtau ti))
+          (B (if (< (fabs t1) 2.2250738585072014e-308)
+                 (* 3 (* (fma tau (* du_dtau 1.3407807929942597e154) (* ti 1.3407807929942597e154))
+                         (* tau (* tau (* d2u_dtau2 7.458340731200207e-155)))))
+                 (* 3 (- (if (>= (* (logb d2u_dtau2) (logb t1)) 0)
+                             (* (* tau d2u_dtau2) (* tau t1))
+                             (* (* (* d2u_dtau2 t1) tau) tau))
+                         (* ti t1)))))
+          (q (fma tau (* tau (* tau d3u_dtau3)) (+ ti ti)))
+          (r0 (+ (pow t1 3) (+ B q)))
+          (zh (* 0.5 (+ du_dtau (/ ti tau))))
+          (Hs (fma zh (fma zh zh (* 0.75 d2u_dtau2)) (* 0.125 d3u_dtau3))))
+     (if (< (fabs r0) INFINITY) r0 (copysign INFINITY (* tau Hs)))))
   (let* ([B_tau (+ (* tau du_dtau) ti)]
          [dB_tau_dtau (+ (* tau d2u_dtau2) du_dtau)]
          [d2B_tau_dtau2 (+ (* tau d3u_dtau3) (* 2 d2u_dtau2))]
@@ -68,12 +97,44 @@
 
 (FPCore (tau delta Ai betai)
   :name "theta"
+  :alt
+  (! :herbie-platform c
+   (let* ((c (- 1 tau))
+          (small (< (fabs delta) 0.5))
+          (L (log1p (- delta)))
+          (b (fabs (- delta 1)))
+          (t2 (if small (exp (/ L betai)) (pow b (/ 1 betai)))))
+     (if (and (< t2 1e300) (> t2 1e-300))
+         (fma Ai t2 c)
+         (let* ((h (if small (exp (* 0.5 (/ L betai))) (pow b (/ 0.5 betai)))))
+           (+ (* (* Ai h) h) c)))))
   (let* ([delta_minus1 (- delta 1)]
          [pow_term (pow (* delta_minus1 delta_minus1) (/ 1 (* 2 betai)))])
     (+ (- 1 tau) (* Ai pow_term))))
 
 (FPCore (delta Ai betai)
   :name "dtheta-dDelta"
+  :alt
+  (! :herbie-platform c
+   (let* ((mid (and (<= 0.5 delta) (<= delta 9007199254740992)))
+          (big (>= (fabs delta) 2))
+          (B0 (if mid (- delta 1) (if big delta -1)))
+          (l (if mid 0 (if big (log1p (/ -1 delta)) (log1p (- delta)))))
+          (L (if mid (log (fabs (- delta 1))) (if big (+ (log (fabs delta)) l) l)))
+          (near (and (<= 0.5 (fabs betai)) (<= (fabs betai) 2)))
+          (z (if near (* L (/ (- 1 betai) betai)) (- (/ L betai) l)))
+          (B (if near (copysign 1 B0) B0))
+          (x3s (< (fabs betai) 1))
+          (Bs (< (fabs B) 1)))
+     (if (< (fabs z) 1)
+       (let* ((e (expm1 z)))
+         (if (and (not x3s) (not Bs))
+           (let* ((R (/ Ai betai))) (/ (fma R e R) B))
+           (if (and x3s Bs)
+             (/ (/ (fma Ai e Ai) betai) B)
+             (/ (fma Ai e Ai) (* betai B)))))
+       (copysign (exp (- (+ z (log (fabs Ai))) (+ (log (fabs betai)) (log (fabs B)))))
+                 (/ (/ Ai betai) B)))))
   (let* ([delta_minus1 (- delta 1)]
          [pow_term (pow (* delta_minus1 delta_minus1) (- (/ 1 (* 2 betai)) 1))]
          [scale (/ Ai betai)])
@@ -81,6 +142,30 @@
 
 (FPCore (delta Ai betai)
   :name "d3theta-dDelta3"
+  :alt
+  (! :herbie-platform c
+   (let* ((ax3 (fabs betai))
+          (q (/ 1 betai))
+          (s1 (< (fabs delta) 0.5))
+          (t1 (- delta 1))
+          (et (logb t1))
+          (b3 (>= ax3 67108864))
+          (t3 (<= ax3 1.4901161193847656e-8))
+          (w (if b3 (* q (- (* 0.5 q) 1.5)) (if t3 (* betai (- (* 2 betai) 3)) 0)))
+          (Gx (if s1 (* (- q 3) (log1p (- delta))) (* q (log (fabs t1)))))
+          (v (expm1 (+ Gx (log1p w))))
+          (F1 (if s1 -1 (pow (/ t1 (exp2 et)) -3)))
+          (k1 (if s1 0 (* -3 et)))
+          (e3 (logb betai))
+          (n3 (/ betai (exp2 e3)))
+          (F3 (if b3 (/ 2 n3) (if t3 (pow n3 -3) (/ (* (- (* 2 betai) 1) (- betai 1)) (pow betai 3)))))
+          (k3 (if b3 (- e3) (if t3 (* -3 e3) 0)))
+          (e2 (logb Ai))
+          (n2 (/ Ai (exp2 e2)))
+          (Ms (* (* n2 F3) F1))
+          (r (fma Ms v Ms))
+          (ka (fmax (fmin (floor (* (+ (+ e2 k1) k3) 0.5)) 1023) -1023)))
+     (* (* r (exp2 ka)) (exp2 (fmax (fmin (- (+ (+ e2 k1) k3) ka) 1023) -1023)))))
   (let* ([delta_minus1 (- delta 1)]
          [pow_term (pow (* delta_minus1 delta_minus1) (/ 1 (* 2 betai)))]
          [betai2 (* betai betai)]
@@ -90,6 +175,33 @@
 
 (FPCore (tau delta Ci Di)
   :name "PSI"
+  :alt
+  (! :herbie-platform c
+   (let* ((d2 (- delta 1))
+          (d1 (- tau 1))
+          (A1 (* (* Ci d2) d2))
+          (B1 (* (* Di d1) d1))
+          (S1 (+ A1 B1)))
+     (if (< (fabs S1) 1000)
+         (let* ((tA (< (fabs delta) 0.5))
+                (mA (and (>= delta 0.5) (< delta 4503599627370496)))
+                (PA (if tA Ci (if mA (* Ci d2) (* Ci delta))))
+                (QA (if tA 1 (if mA d2 delta)))
+                (CA (if tA (* (* Ci delta) (- delta 2)) (if mA 0 (fma -2 (* Ci delta) Ci))))
+                (tB (< (fabs tau) 0.5))
+                (mB (and (>= tau 0.5) (< tau 4503599627370496)))
+                (PB (if tB Di (if mB (* Di d1) (* Di tau))))
+                (QB (if tB 1 (if mB d1 tau)))
+                (CB (if tB (* (* Di tau) (- tau 2)) (if mB 0 (fma -2 (* Di tau) Di)))))
+           (exp (- (if (< (fabs B1) (fabs A1))
+                       (fma PA QA (fma PB QB (+ CA CB)))
+                       (fma PB QB (fma PA QA (+ CA CB)))))))
+         (if (== S1 S1)
+             (exp (- S1))
+             (if (< (+ (log (fabs Ci)) (* 2 (log (fabs d2))))
+                    (+ (log (fabs Di)) (* 2 (log (fabs d1)))))
+                 (exp (- B1))
+                 (exp (- A1)))))))
   (let* ([delta_term (* Ci (* (- delta 1) (- delta 1)))]
          [tau_term (* Di (* (- tau 1) (- tau 1)))]
          [exponent (+ (- delta_term) (- tau_term))])
@@ -104,6 +216,32 @@
 
 (FPCore (tau delta Ci Di)
   :name "d3PSI-dDelta3"
+  :alt
+  (! :herbie-platform c
+   (let* ((t1 (- delta 1))
+          (s (- tau 1))
+          (u (* (* Ci t1) t1))
+          (v (* (* Di s) s))
+          (g (+ u v))
+          (c (- 3 (* 2 u)))
+          (e3 (logb Ci))
+          (et (logb t1))
+          (n3 (/ Ci (exp2 e3)))
+          (nt (/ t1 (exp2 et))))
+    (if (< (fabs g) 700)
+        (let* ((K (* c (exp (- g))))
+               (eK (logb K))
+               (M (* (* (* n3 n3) nt) (/ K (exp2 eK))))
+               (k (+ (+ (+ e3 e3) et) (+ eK 2)))
+               (k1 (fmax -1000 (fmin k 1000))))
+          (* (* M (exp2 k1)) (exp2 (- k k1))))
+            (let* ((gs (if (== g g)
+                           g
+                           (if (> (+ (log (fabs Ci)) (* 2 (log (fabs t1))))
+                                  (+ (log (fabs Di)) (* 2 (log (fabs s)))))
+                               u
+                               v))))
+              (copysign (if (< gs 0) INFINITY 0) (* (copysign 1 t1) c))))))
   (let* ([delta_minus1 (- delta 1)]
          [delta_term (* Ci (* delta_minus1 delta_minus1))]
          [tau_term (* Di (* (- tau 1) (- tau 1)))]
@@ -166,12 +304,52 @@
 
 (FPCore (n theta Tci_over_Tr tau)
   :name "gerg-sinh-tanh"
+  :alt
+  (! :herbie-platform c
+   (let* ((t1 (* theta Tci_over_Tr)) (u (* t1 tau)))
+     (if (<= (fabs u) 0.25)
+         (let* ((s (* u u))
+                (h (* s (fma s (fma s (fma s (fma s (fma s (fma s (fma s -2.22146e-8 2.1925948e-7) -2.16440428e-6) 2.137779915e-5) -2.1164021164021165e-4) 0.0021164021164021165) -0.022222222222222223) 0.3333333333333333))))
+           (/ (fma n h n) tau))
+         (if (<= (fabs u) 22)
+             (* n (/ t1 (tanh u)))
+             (let* ((p12 (* n theta)) (p13 (* n Tci_over_Tr))
+                    (k12 (- (log2 (fabs p12)) (fmax (logb p12) -1022)))
+                    (k13 (- (log2 (fmin (fabs p13) 1.7976931348623157e308)) (fmax (logb p13) -1022)))
+                    (k23 (- (log2 (fabs t1)) (logb t1))))
+               (copysign
+                (if (>= k12 k13)
+                    (if (< k12 k23) (* n t1) (* p12 Tci_over_Tr))
+                    (if (< k13 k23) (* n t1) (* p13 theta)))
+                (* n tau)))))))
   (let* ([t (* theta Tci_over_Tr)]
          [arg (* t tau)])
     (/ (* n t) (tanh arg))))
 
 (FPCore (n theta Tci_over_Tr tau)
   :name "gerg-sinh-tanh-2"
+  :alt
+  (! :herbie-platform c
+   (let* ((t (* theta Tci_over_Tr))
+          (u (fabs (if (< (fabs t) 1e-290) (* theta (* Tci_over_Tr tau)) (* t tau)))))
+     (if (< u 0.001953125)
+         (let* ((uu (* u u))
+                (z1 (fma (- n) (* uu (- 0.3333333333333333 (* uu 0.06666666666666667))) n))
+                (rho (remainder (* 2 (log2 (fabs tau))) 1))
+                (sig (remainder (log2 (fabs (/ n tau))) 1)))
+           (if (< (fabs (+ sig (* 0.5 (fabs rho)))) (* 0.5 (fabs rho)))
+               (- (/ (/ z1 tau) tau))
+               (let* ((e (exp2 (- (fmax (logb tau) -1000))))
+                      (n_ (* tau e))
+                      (w (* z1 e)))
+                 (- (* (if (< rho 0) (/ w (* n_ n_)) (* w (pow n_ -2))) e)))))
+         (if (< u 700)
+             (let* ((r (/ (/ u (sinh u)) tau)))
+               (- (* (* n r) r)))
+             (let* ((v (fmin u 1500))
+                    (k (exp (* -0.5 v)))
+                    (g (* (/ (* (* 2 v) k) (fabs tau)) k)))
+               (- (* (* n g) g)))))))
   (let* ([t (* theta Tci_over_Tr)]
          [arg (* t tau)]
          [sinh_arg (sinh arg)])
@@ -179,6 +357,37 @@
 
 (FPCore (n theta Tci_over_Tr tau)
   :name "gerg-sinh-tanh-3"
+  :alt
+  (! :herbie-platform c
+   (let* ((e1 (logb n))
+          (e4 (logb tau))
+          (n1 (/ n (exp2 e1)))
+          (n4 (/ tau (exp2 e4)))
+          (P (* (* 2 n1) (pow n4 -3)))
+          (u (if (< (fabs theta) 1)
+                 (if (< (fabs Tci_over_Tr) 1) (* (* theta tau) Tci_over_Tr) (* (* theta Tci_over_Tr) tau))
+                 (if (< (fabs Tci_over_Tr) 1) (* (* theta Tci_over_Tr) tau) (* (* theta tau) Tci_over_Tr))))
+          (a (fabs u))
+          (F0 (- e1 (* 3 e4)))
+          (A0 (fmax (fmin F0 960) -1000)))
+     (if (< a 0.03125)
+         (let* ((s (* u u))
+                (gm1 (* (* s s) (fma s (fma s -0.0044444444444444444 0.021164021164021163) -0.06666666666666667)))
+                (Q (fma P gm1 P)))
+           (* (* Q (exp2 A0)) (exp2 (- F0 A0))))
+         (if (<= a 10)
+             (let* ((Q (* P (* (pow (/ a (sinh a)) 3) (cosh a)))))
+               (* (* Q (exp2 A0)) (exp2 (- F0 A0))))
+             (if (<= a 2000)
+                 (let* ((c (* a 2.8853900817779268))
+                        (n_ (rint c))
+                        (q (exp (- (+ a a))))
+                        (corr (fma q (fma q 9 4) 1))
+                        (Q (* P (* (* 4 (pow a 3)) (* (exp2 (- n_ c)) corr))))
+                        (F (- F0 n_))
+                        (A (fmax (fmin F 960) -1000)))
+                   (* (* Q (exp2 A)) (exp2 (- F A))))
+                 0)))))
   (let* ([t (* theta Tci_over_Tr)]
          [arg (* t tau)]
          [tanh_arg (tanh arg)]
@@ -187,6 +396,33 @@
 
 (FPCore (n theta Tci_over_Tr tau)
   :name "gerg-sinh-tanh-4"
+  :alt
+  (! :herbie-platform c
+   (let* ((e1 (logb n)) (e2 (logb theta)) (e3 (logb Tci_over_Tr)) (e4 (logb tau))
+          (L (+ (+ e2 e3) e4))
+          (K (- e1 (* 4 e4)))
+          (Qm (* (* -2 (/ n (exp2 e1))) (pow (/ tau (exp2 e4)) -4))))
+     (if (>= L 12)
+       0
+       (if (<= L -19)
+         (let* ((Kc (fmax -2000 (fmin 2000 K)))
+                (J1 (trunc (* 0.5 Kc))))
+           (* (* (* 3 Qm) (exp2 J1)) (exp2 (- Kc J1))))
+         (let* ((u (if (< (* e2 e3) 0) (* (* theta Tci_over_Tr) tau) (* (* theta tau) Tci_over_Tr)))
+                (a (fabs u)))
+           (if (<= a 354)
+             (let* ((Ex (exp (* -2 a)))
+                    (D (- (expm1 (* -2 a))))
+                    (V (* Qm (* (* 8 Ex) (* (+ 1 (* Ex (+ 4 Ex))) (pow (/ a D) 4)))))
+                    (Kc (fmax -2000 (fmin 2000 K)))
+                    (J1 (trunc (* 0.5 Kc))))
+               (* (* V (exp2 J1)) (exp2 (- Kc J1))))
+             (let* ((c (* a 2.8853900817779268))
+                    (n_ (round c))
+                    (V (* Qm (* (* 8 (exp2 (- n_ c))) (pow a 4))))
+                    (Kc (fmax -2000 (fmin 2000 (- K n_))))
+                    (J1 (trunc (* 0.5 Kc))))
+               (* (* V (exp2 J1)) (exp2 (- Kc J1))))))))))
   (let* ([t (* theta Tci_over_Tr)]
          [arg (* t tau)]
          [tanh_arg (tanh arg)]

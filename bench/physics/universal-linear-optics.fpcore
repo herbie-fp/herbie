@@ -10,6 +10,28 @@
 
 (FPCore (a b)
  :name "Bouland and Aaronson, Equation (25)"
+ :alt
+ (! :herbie-platform c
+  (let* ((A (fabs a)) (B (fabs b)))
+   (if (< (fmax A B) 4)
+    (let* ((t (* b b))
+           (K (* 2 (fma a (- a 6) 2)))
+           (G (* t (+ t K))))
+     (if (< A 0.25)
+      (let* ((u (fma a a (* 2 a))))
+       (- (fma u u G) 1))
+      (+ (* (fma a a (- (* 2 a) 1)) (pow (+ a 1) 2)) G)))
+    (if (>= A B)
+     (let* ((r (/ b a)) (q (* r r)) (ia (/ 1 a))
+            (W (+ (* q (+ 2 q))
+                  (* (* 4 ia) (+ (- 1 (* 3 q)) (* ia (- (+ 1 q) (* 0.25 (* ia ia))))))))
+            (P (pow a 4)))
+      (if (< P INFINITY) (fma P W P) P))
+     (let* ((r (/ a b)) (q (* r r)) (ib (/ 1 b))
+            (W (+ (* q (+ 2 q))
+                  (* (* 4 ib) (+ (* r (- q 3)) (* ib (- (+ 1 q) (* 0.25 (* ib ib))))))))
+            (P (pow b 4)))
+      (if (< P INFINITY) (fma P W P) P))))))
  (-
   (+
    (pow (+ (* a a) (* b b)) 2)

@@ -6,6 +6,22 @@
 
 (FPCore (w0 M D h l d)
  :name "Henrywood and Agarwal, Equation (9a)"
+ :alt
+ (! :herbie-platform c
+  (let* ((e1 (logb w0)) (e2 (logb M)) (e3 (logb D)) (e4 (logb h)) (e5 (logb l)) (e6 (logb d)))
+   (if (< (* (copysign 1 h) l) 0)
+       (let* ((hh (floor (* 0.5 (- e4 e5))))
+              (F (+ (- (+ (+ e1 e2) e3) (+ e6 1)) hh))
+              (n1 (/ w0 (exp2 e1))) (n2 (/ M (exp2 e2)))
+              (a3 (/ (fabs D) (exp2 e3))) (a6 (/ (fabs d) (exp2 e6)))
+              (s4 (/ (fabs h) (exp2 (+ e5 (* 2 hh))))) (a5 (/ (fabs l) (exp2 e5)))
+              (W (expm1 (+ (log1p (/ (- a3 a6) a6)) (* 0.5 (log1p (/ (- s4 a5) a5))))))
+              (R (* (fma n1 n2 (* (* n1 n2) W)) (exp2 F))))
+         (copysign (hypot w0 R) w0))
+       (let* ((ET (+ (* 2 (- (+ e2 e3) (+ e6 1))) (- e4 e5)))
+              (m (/ (* (/ M (exp2 e2)) (/ D (exp2 e3))) (/ d (exp2 e6))))
+              (T (* (* (* m m) (/ (/ h (exp2 e4)) (/ l (exp2 e5)))) (exp2 ET))))
+         (* w0 (sqrt (- 1 T)))))))
  (* w0 (sqrt (- 1 (* (pow (/ (* M D) (* 2 d)) 2) (/ h l))))))
 
 (FPCore (d h l M D)
