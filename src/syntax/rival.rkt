@@ -55,10 +55,15 @@
     [else
      (cons r2:boolean-discretization
            (for/list ([repr (in-list reprs)])
-             (define ulps (repr-ulps repr))
+             (define error-bits (repr-error repr))
              (r2:discretization (representation-total-bits repr)
                                 (representation-bf->repr repr)
-                                (lambda (x y) (- (ulps x y) 1)))))]))
+                                (lambda (x y)
+                                  (define bits (error-bits x y))
+                                  (cond
+                                    [(zero? bits) 0]
+                                    [(= bits 1.0) 1]
+                                    [else 2])))))]))
 
 (define (exn:rival:invalid? e)
   (or (r2:exn:rival:invalid? e) (r3:exn:rival:invalid? e)))

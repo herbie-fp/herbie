@@ -61,7 +61,7 @@
                    (for ([pt-errors (in-list pt-errorss)]
                          [(pt _) (in-pcontext pcontext)])
                      (define sub-error (map cons subexprs pt-errors))
-                     (define filtered-sub-error (filter (lambda (p) (> (cdr p) 16)) sub-error))
+                     (define filtered-sub-error (filter (lambda (p) (> (cdr p) 4.0)) sub-error))
                      (define mapped-sub-error (map (lambda (p) (cons (car p) pt)) filtered-sub-error))
                      (unless (empty? mapped-sub-error)
                        (sow mapped-sub-error))))))
