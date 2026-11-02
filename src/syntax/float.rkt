@@ -8,9 +8,8 @@
          "../utils/errors.rkt"
          "../utils/unsafe.rkt")
 
-(provide repr-ulps
+(provide repr-error
          repr-infinite?
-         ulps->bits
          midpoint
          two-midpoints
          random-generate
@@ -40,7 +39,7 @@
     ['real
      (define ->ordinal (representation-repr->ordinal repr))
      (define special? (representation-special-value? repr))
-     (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
+     (define max-error (expt 2 (representation-total-bits repr)))
      (define finite-ulps
        (if (eq? repr <binary64>)
            (lambda (x y) (+ 1 (abs (flonums-between x y))))
@@ -49,6 +48,10 @@
        (if (or (special? x) (special? y))
            max-error
            (finite-ulps x y)))]))
+
+(define (repr-error repr)
+  (define ulps (repr-ulps repr))
+  (lambda (x y) (ulps->bits (ulps x y))))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint

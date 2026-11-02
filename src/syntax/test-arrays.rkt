@@ -44,15 +44,31 @@
   (define (repr-next repr x)
     ((representation-ordinal->repr repr) (add1 ((representation-repr->ordinal repr) x))))
 
-  (let ([ulps (repr-ulps mixed)])
-    (check-equal? (ulps (vector 1.0 1.0) (vector 1.0 1.0)) 2)
-    (check-equal? (ulps (vector 1.0 1.0) (vector (repr-next <b32> 1.0) 1.0)) 3)
-    (check-equal? (ulps (vector 1.0 1.0) (vector 1.0 (repr-next <b64> 1.0))) 3))
+  (let ([error-bits (repr-error mixed)])
+    (check-equal? (error-bits (vector 1.0 1.0) (vector 1.0 1.0)) 1.0)
+    (check-= (error-bits (vector 1.0 1.0) (vector (repr-next <b32> 1.0) 1.0))
+             (/ (fllog 3.0) (fllog 2.0))
+             1e-12)
+    (check-= (error-bits (vector 1.0 1.0) (vector 1.0 (repr-next <b64> 1.0)))
+             (/ (fllog 3.0) (fllog 2.0))
+             1e-12)
+    (check-equal? (error-bits (vector 1.0 1.0) (vector (repr-next <b32> 1.0) (repr-next <b64> 1.0)))
+                  2.0))
 
-  (let ([ulps (repr-ulps <b64>)])
+  (let ([error-bits (repr-error <b64>)])
     (for ([x (in-list (list -inf.0 -1.0 -0.0 0.0 1.0 +inf.0))]
           [y (in-list (list 1.0 1.1 0.0 -0.0 -1.0 -inf.0))])
-      (check-equal? (ulps x y) (+ 1 (abs (flonums-between x y))))))
+      (check-= (error-bits x y)
+               (/ (fllog (real->double-flonum (+ 1 (abs (flonums-between x y))))) (fllog 2.0))
+               1e-12))
+    (check-true (< (error-bits -inf.0 +inf.0) 64.0))
+    (check-equal? (error-bits +nan.0 1.0) 64.0))
+
+  (check-true (< ((repr-error <b32>) -inf.0 +inf.0) 32.0))
+
+  (let ([error-bits (repr-error <bool>)])
+    (check-equal? (error-bits #t #t) 0.0)
+    (check-equal? (error-bits #t #f) 1.0))
 
   (let ([v (real->repr (vector 1/3 1/3) mixed)])
     (check-equal? (vector-ref v 0) (flsingle (exact->inexact 1/3)))

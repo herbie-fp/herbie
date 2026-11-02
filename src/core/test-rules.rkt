@@ -37,7 +37,7 @@
 (define (check-rule test-rule)
   (match-define (rule name p1 p2 _) test-rule)
   (define ctx (env->ctx p1 p2))
-  (define ulps (repr-ulps double-repr))
+  (define error-bits (repr-error double-repr))
 
   (define-values (block vs) (progs->block (list (drop-sound p1) (drop-sound p2)) #:ctx ctx))
   (match-define (list pts exs1 exs2)
@@ -48,8 +48,9 @@
   (for ([pt (in-list pts)]
         [v1 (in-list exs1)]
         [v2 (in-list exs2)])
-    (with-check-info* (map make-check-info (context-vars ctx) (vector->list pt))
-                      (λ () (with-check-info (['lhs v1] ['rhs v2]) (check-eq? (ulps v1 v2) 1))))))
+    (with-check-info*
+     (map make-check-info (context-vars ctx) (vector->list pt))
+     (λ () (with-check-info (['lhs v1] ['rhs v2]) (check-equal? (error-bits v1 v2) 0.0))))))
 
 (module+ main
   (num-test-points (* 100 (num-test-points)))
