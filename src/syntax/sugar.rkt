@@ -87,9 +87,11 @@
       [(list op args ...) (cons op (map loop args))])))
 
 (define (fpcore-extension-spec expr)
+  ;; Pattern matching requires equal root operators, so other bodies cannot match.
   (define specs
     (remove-duplicates (filter identity
-                               (for/list ([impl (in-list (platform-impls (*active-platform*)))])
+                               (for/list ([impl (in-list (platform-fpcore-impls (*active-platform*)
+                                                                                (car expr)))])
                                  (define-values (_ body) (impl->fpcore impl))
                                  (define subst (pattern-match body expr))
                                  (and subst (pattern-substitute (impl-info impl 'spec) subst))))))
