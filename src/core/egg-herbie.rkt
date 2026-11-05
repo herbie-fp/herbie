@@ -43,25 +43,22 @@
      (define len (u32vector-length vec))
      (values (lambda (i) (u32vector-ref vec i)) add1 0 (lambda (i) (< i len)) #f #f))))
 
-(define (repr-token repr)
-  (representation->token repr))
-
 (define do-lower-prefix "$do-lower.")
 
 (define (do-lower-op repr)
-  (string->symbol (format "~a~a" do-lower-prefix (repr-token repr))))
+  (string->symbol (format "~a~a" do-lower-prefix (representation->token repr))))
 
 (define (do-lower-op? op)
-  (and (symbol? op) (string-prefix? (symbol->string op) do-lower-prefix) (not (typed-leaf-op? op))))
+  (and (symbol? op) (string-prefix? (symbol->string op) do-lower-prefix)))
 
 (define typed-constant-prefix "$do-lower-constant.")
 (define typed-variable-prefix "$do-lower-variable.")
 
 (define (typed-constant-op repr)
-  (string->symbol (format "~a~a" typed-constant-prefix (repr-token repr))))
+  (string->symbol (format "~a~a" typed-constant-prefix (representation->token repr))))
 
 (define (typed-variable-op repr)
-  (string->symbol (format "~a~a" typed-variable-prefix (repr-token repr))))
+  (string->symbol (format "~a~a" typed-variable-prefix (representation->token repr))))
 
 (define (typed-leaf-op? op)
   (and (symbol? op)
@@ -238,7 +235,10 @@
             (typed-constant-op repr)
             (typed-variable-op repr)))
       (define rule-name
-        (format "lower-~a-~a-~a" (if (number? leaf) 'constant 'variable) (repr-token repr) leaf))
+        (format "lower-~a-~a-~a"
+                (if (number? leaf) 'constant 'variable)
+                (representation->token repr)
+                leaf))
       (egraph_add_node_to_eclass_with_reason ptr
                                              marker-id
                                              (~s typed-op)
@@ -571,8 +571,7 @@
                (define var-reprs (map cons vars (impl-info impl 'itype)))
                (define spec (impl-info impl 'spec))
                (define otype (impl-info impl 'otype))
-               (define lower-name (sym-append 'do-lower- impl '-impl))
-               (list (rule lower-name
+               (list (rule (sym-append 'lower- impl)
                            (list (do-lower-op otype) spec)
                            (cons impl
                                  (for/list ([var (in-list vars)])
@@ -829,7 +828,7 @@
      (define repr-costs
        (for/list ([repr (in-list (platform-reprs (*active-platform*)))])
          (format "repr\t~a\t~a"
-                 (repr-token repr)
+                 (representation->token repr)
                  (scaled-cost (platform-repr-cost (*active-platform*) repr)))))
      (define impl-costs
        (filter values
