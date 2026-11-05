@@ -21,8 +21,8 @@
          context-extend
          context-lookup
          contexts-union
-         representation-name->token
-         representation-token->name
+         representation->token
+         token->representation
          make-representation
          make-array-representation)
 
@@ -37,26 +37,22 @@
 
 (struct array-representation representation (slots) #:transparent)
 
-;; Make names injective and safe to embed in Egg and Egglog identifiers.
-(define representation-token-prefix "repr-")
-(define hex-digits "0123456789abcdef")
+;; Assign compact, safe identifiers to representations and retain the inverse map.
+(define representation-tokens (make-hash))
+(define token-representations (make-hash))
+(define next-representation-token 0)
 
-(define (bytes->hex bytes)
-  (apply string-append
-         (for/list ([byte (in-bytes bytes)])
-           (string (string-ref hex-digits (quotient byte 16))
-                   (string-ref hex-digits (remainder byte 16))))))
+(define (representation->token repr)
+  (hash-ref! representation-tokens
+             repr
+             (lambda ()
+               (define token (format "r~a" next-representation-token))
+               (set! next-representation-token (add1 next-representation-token))
+               (hash-set! token-representations token repr)
+               token)))
 
-(define (hex->bytes hex)
-  (list->bytes (for/list ([i (in-range 0 (string-length hex) 2)])
-                 (string->number (substring hex i (+ i 2)) 16))))
-
-(define (representation-name->token name)
-  (string-append representation-token-prefix (bytes->hex (string->bytes/utf-8 (~s name)))))
-
-(define (representation-token->name token)
-  (define hex (substring token (string-length representation-token-prefix)))
-  (read (open-input-string (bytes->string/utf-8 (hex->bytes hex)))))
+(define (token->representation token)
+  (hash-ref token-representations token))
 
 (define (array-representation-base repr)
   (cond
@@ -208,12 +204,21 @@
   (check-equal? (context-var-reprs ctx*) (list <binary64> <binary64> <binary64>))
   (check-equal? (context-repr ctx*) <binary64>)
 
-  (define nested-array-name '(array (array binary64) binary64))
-  (define scalar-array-name '(array array_binary64 binary64))
-  (check-not-equal? (representation-name->token nested-array-name)
-                    (representation-name->token scalar-array-name))
-  (for ([name (in-list (list 'binary64 nested-array-name scalar-array-name))])
-    (check-equal? (representation-token->name (representation-name->token name)) name))
+  (define array-binary64
+    (make-representation #:name 'array_binary64
+                         #:bf->repr identity
+                         #:repr->bf identity
+                         #:ordinal->repr identity
+                         #:repr->ordinal identity
+                         #:total-bits 64
+                         #:special-value? (const #f)))
+  (define nested-array (make-array-representation (make-array-representation <binary64>) <binary64>))
+  (define scalar-array (make-array-representation array-binary64 <binary64>))
+  (check-not-equal? (representation->token nested-array) (representation->token scalar-array))
+  (for ([repr (in-list (list <binary64> nested-array scalar-array))])
+    (define token (representation->token repr))
+    (check-equal? (representation->token repr) token)
+    (check-eq? (token->representation token) repr))
 
   (check-exn exn:fail?
              (lambda () (contexts-union (list ctx1 (context '(y) <binary64> (list <binary32>))))))

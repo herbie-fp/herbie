@@ -44,7 +44,7 @@
      (values (lambda (i) (u32vector-ref vec i)) add1 0 (lambda (i) (< i len)) #f #f))))
 
 (define (repr-token repr)
-  (representation-name->token (representation-name repr)))
+  (representation->token repr))
 
 (define do-lower-prefix "$do-lower.")
 
@@ -126,13 +126,9 @@
     (egraph_add_root ptr v-id)
     v-id))
 
-(define (seed-do-lower-eclasses! ptr ctx root-ids [root-reprs #f])
+(define (seed-do-lower-eclasses! ptr ctx root-ids root-reprs)
   (define reprs (platform-reprs (*active-platform*)))
-  (define real-reprs
-    (filter (lambda (repr)
-              (and (equal? (representation-type repr) 'real)
-                   (or (not root-reprs) (member repr root-reprs))))
-            reprs))
+  (define real-reprs (filter (lambda (repr) (equal? (representation-type repr) 'real)) reprs))
   (define bool-reprs (filter (lambda (repr) (equal? (representation-type repr) 'bool)) reprs))
   (define array-reprs (filter array-representation? reprs))
   (define (type-reprs type)
@@ -159,6 +155,7 @@
   (define repr->leaf-classes (make-hash))
   (define repr->marker-ids (make-hash))
   (define id->enodes (make-hash))
+  (define root-reprs-by-id (make-hash))
   (define repr-order '())
   (define id-order '())
   (define pending (make-queue))
@@ -176,9 +173,19 @@
                [child-id (in-u32vector (cdr enode))])
           (enqueue! pending (egraph_find ptr child-id))))
       (loop)))
+  ;; A cast's spec can be a narrower input variable than its requested output.
+  (when root-reprs
+    (for ([root-id (in-list root-ids)]
+          [repr (in-list root-reprs)])
+      (hash-update! root-reprs-by-id
+                    (egraph_find ptr root-id)
+                    (lambda (reprs) (cons repr reprs))
+                    '())))
   (for ([id (in-list (reverse id-order))])
     (define enodes (hash-ref id->enodes id))
-    (define reprs-for-id (remove-duplicates (append-map enode-reprs (vector->list enodes))))
+    (define reprs-for-id
+      (remove-duplicates (append (append-map enode-reprs (vector->list enodes))
+                                 (reverse (hash-ref root-reprs-by-id id '())))))
     (for ([repr (in-list reprs-for-id)])
       (unless (hash-has-key? repr->ids repr)
         (set! repr-order (cons repr repr-order)))
@@ -704,6 +711,7 @@
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
 ;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
 ;;  - `lower`: seed and run do-lower rules for 1 iteration
+;; `#:root-reprs` preserves requested output types when specs erase casts.
 (define (make-egraph block vs schedule ctx #:root-reprs [root-reprs #f])
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
@@ -726,9 +734,7 @@
     (define-values (block vs) (progs->block (list '(+ x 1)) #:ctx ctx))
     (define runner (make-egraph block vs '(lower) ctx))
     (define vals (egraph-best runner block (list <binary64>)))
-    (check-equal? (car ((block-exprs block) (first (first vals)))) '+.f64)
-    (check-not-equal? (first (egg-runner-new-roots runner))
-                      (hash-ref (first (egg-runner-lower-roots runner)) <binary64>)))
+    (check-equal? (car ((block-exprs block) (first (first vals)))) '+.f64))
 
   (test-case "do-lower terms handle nullary implementations"
     (define ctx (context '() <binary64> '()))
@@ -752,7 +758,21 @@
     (define-values (block vs) (progs->block (list 'x) #:ctx ctx))
     (define runner (make-egraph block vs '(lower) ctx))
     (define vals (egraph-best runner block (list mat)))
-    (check-equal? (val-def (first (first vals))) 'x)))
+    (check-equal? (val-def (first (first vals))) 'x))
+
+  (test-case "do-lower preserves mixed-precision root representations"
+    (dynamic-wind (lambda () (activate-platform! "herbie20"))
+                  (lambda ()
+                    (define ctx (context '(x) <binary64> (list <binary32>)))
+                    (define impl-block (block-empty ctx))
+                    (define impl-v (block-add! impl-block '(binary32->binary64 x)))
+                    (define spec-block (block-empty ctx))
+                    (define spec-vs (block-to-spec! impl-block spec-block (list impl-v)))
+                    (define runner
+                      (make-egraph spec-block spec-vs '(lower) ctx #:root-reprs (list <binary64>)))
+                    (define vals (egraph-best runner impl-block (list <binary64>)))
+                    (check-equal? (map (block-exprs impl-block) (first vals)) '(x)))
+                  (lambda () (activate-platform! "c")))))
 
 (module+ test
   (require "../syntax/load-platform.rkt")
@@ -1023,7 +1043,7 @@
   (define ctx (contexts-union ctxs))
   (define-values (block vs) (progs->block exprs #:ctx ctx))
   (define reprs (make-list (length vs) (context-repr ctx)))
-  (define runner (make-egraph block vs '(rewrite lower) ctx))
+  (define runner (make-egraph block vs '(rewrite lower) ctx #:root-reprs reprs))
   (define valss (egraph-best runner block reprs))
   (define block-pull (block-exprs block))
   (for/list ([orig-expr (in-list exprs)]

@@ -30,23 +30,6 @@
 (define/reset id->e2 (make-hasheq))
 (define/reset e2->id (make-hasheq))
 
-;; [Copied from egg-herbie.rkt] Returns all representatations (and their types) in the current platform.
-(define (all-repr-names [pform (*active-platform*)])
-  (map representation-name (platform-reprs pform)))
-
-(define (egglog-repr-token repr-name)
-  (representation-name->token (if (representation? repr-name)
-                                  (representation-name repr-name)
-                                  repr-name)))
-
-(define (egglog-repr-name token)
-  (if (string-prefix? token "repr-")
-      (representation-token->name token)
-      (cond
-        [(string-prefix? token "sym_") (string->symbol (substring token 4))]
-        ;; Legacy scalar encoding used in older tests and dumps.
-        [else (string->symbol token)])))
-
 (define (real->bigrat val)
   `(bigrat (from-string ,(~s (numerator val))) (from-string ,(~s (denominator val)))))
 
@@ -193,7 +176,7 @@
                                                ,@(for/list ([n (in-list extract-bindings)]
                                                             [repr (in-list reprs)])
                                                    `(do-lower (herbie-const ,n)
-                                                              ,(egglog-repr-token repr))))))))
+                                                              ,(representation->token repr))))))))
   (match-define `(let ,dag-bindings ,dag-body) response)
   (egglog-dag->blockrefs dag-bindings dag-body output-block))
 
@@ -241,7 +224,8 @@
        (match expr
          [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
           (block-add! output-block
-                      (literal (/ (string->number n) (string->number d)) (egglog-num-repr num)))]
+                      (literal (/ (string->number n) (string->number d))
+                               (representation-name (egglog-num-repr num))))]
          [`(,(? egglog-var? var) ,v) (block-add! output-block (string->symbol v))]
          ; Approx stores a spec expression in E1/M and an implementation in E2/MTy.
          [`(Approx ,spec ,impl) (block-add! output-block (approx (spec->expr spec) (add-impl! impl)))]
@@ -284,8 +268,8 @@
 
 (define (egglog-step-commands step pform)
   (match step
-    ['lift (append (list (approx-lifting-rule)) (impl-lifting-rules pform) (num-lifting-rules))]
-    ['lower (append (impl-lowering-rules pform) (num-lowering-rules))]
+    ['lift (append (list (approx-lifting-rule)) (impl-lifting-rules pform) (num-lifting-rules pform))]
+    ['lower (append (impl-lowering-rules pform) (num-lowering-rules pform))]
     ['unsound (egglog-rewrite-rules (*sound-removal-rules*) 'unsound pform)]
     ['rewrite
      (append (list `(ruleset rewrite))
@@ -382,33 +366,33 @@
     (define cost (normalize-cost (impl-info impl 'cost)))
     `(,typed-name ,@(make-list arity 'MTy) :cost ,cost)))
 
-(define (typed-num-id repr-name)
-  (string->symbol (format "Num_~a" (egglog-repr-token repr-name))))
+(define (typed-num-id repr)
+  (string->symbol (format "Num_~a" (representation->token repr))))
 
-(define (typed-var-id repr-name)
-  (string->symbol (format "Var_~a" (egglog-repr-token repr-name))))
+(define (typed-var-id repr)
+  (string->symbol (format "Var_~a" (representation->token repr))))
 
 (define (num-typed-nodes pform)
-  (for/list ([repr (in-list (all-repr-names))]
-             #:when (not (eq? repr 'bool)))
-    (define cost (normalize-cost (platform-repr-cost pform (get-representation repr))))
+  (for/list ([repr (in-list (platform-reprs pform))]
+             #:when (not (equal? (representation-type repr) 'bool)))
+    (define cost (normalize-cost (platform-repr-cost pform repr)))
     `(,(typed-num-id repr) BigRat :cost ,cost)))
 
 (define (var-typed-nodes pform)
-  (for/list ([repr (in-list (all-repr-names))])
+  (for/list ([repr (in-list (platform-reprs pform))])
     `(,(typed-var-id repr) String :cost 0)))
 
-(define (num-lowering-rules)
-  (for/list ([repr (in-list (all-repr-names))]
-             #:when (not (eq? repr 'bool)))
+(define (num-lowering-rules pform)
+  (for/list ([repr (in-list (platform-reprs pform))]
+             #:when (not (equal? (representation-type repr) 'bool)))
     `(rule ((= e (Num n)))
-           ((union (do-lower e ,(egglog-repr-token repr)) (,(typed-num-id repr) n)))
+           ((union (do-lower e ,(representation->token repr)) (,(typed-num-id repr) n)))
            :ruleset
            lower)))
 
-(define (num-lifting-rules)
-  (for/list ([repr (in-list (all-repr-names))]
-             #:when (not (eq? repr 'bool)))
+(define (num-lifting-rules pform)
+  (for/list ([repr (in-list (platform-reprs pform))]
+             #:when (not (equal? (representation-type repr) 'bool)))
     `(rule ((= e (,(typed-num-id repr) n))) ((union (do-lift e) (Num n))) :ruleset lift)))
 
 (define (approx-lifting-rule)
@@ -426,8 +410,8 @@
                     ,@(for/list ([v (in-list (impl-info impl 'vars))]
                                  [vt (in-list (impl-info impl 'itype))])
                         `(= ,(string->symbol (string-append "t" (symbol->string v)))
-                            (do-lower ,v ,(egglog-repr-token vt)))))
-                   ((union (do-lower ?root ,(egglog-repr-token (impl-info impl 'otype)))
+                            (do-lower ,v ,(representation->token vt)))))
+                   ((union (do-lower ?root ,(representation->token (impl-info impl 'otype)))
                            (,(string->symbol (string-append (symbol->string (serialize-impl impl))
                                                             "Ty"))
                             ,@(for/list ([v (in-list (impl-info impl 'vars))])
@@ -561,8 +545,8 @@
         [repr (in-list (block-var-reprs block))])
     (egglog-send subproc
                  `(rule ((= e (Var ,(symbol->string var))))
-                        ((union (do-lower e ,(egglog-repr-token repr))
-                                (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
+                        ((union (do-lower e ,(representation->token repr))
+                                (,(typed-var-id repr) ,(symbol->string var))))
                         :ruleset
                         lower)))
 
@@ -570,7 +554,7 @@
   (for ([var (in-list (block-vars block))]
         [repr (in-list (block-var-reprs block))])
     (egglog-send subproc
-                 `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
+                 `(rule ((= e (,(typed-var-id repr) ,(symbol->string var))))
                         ((union (do-lift e) (Var ,(symbol->string var))))
                         :ruleset
                         lift)))
@@ -655,16 +639,13 @@
   (void))
 
 (define (egglog-num? id)
-  (string-prefix? (symbol->string id) "Num"))
+  (string-prefix? (symbol->string id) "Num_"))
 
 (define (egglog-num-repr id)
-  (define id-str (symbol->string id))
-  (if (string-prefix? id-str "Num_")
-      (egglog-repr-name (substring id-str 4))
-      (string->symbol (substring id-str 3))))
+  (token->representation (substring (symbol->string id) 4)))
 
 (define (egglog-var? id)
-  (string-prefix? (symbol->string id) "Var"))
+  (string-prefix? (symbol->string id) "Var_"))
 
 (define (e1->expr expr)
   (match expr
@@ -676,7 +657,7 @@
 (define (e2->expr expr)
   (match expr
     [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
-     (literal (/ (string->number n) (string->number d)) (egglog-num-repr num))]
+     (literal (/ (string->number n) (string->number d)) (representation-name (egglog-num-repr num)))]
     [`(,(? egglog-var? var) ,v) (string->symbol v)]
     ; Approx stores a spec expression in E1/M and an implementation in E2/MTy.
     [`(Approx ,spec ,impl) (approx (e1->expr spec) (e2->expr impl))]

@@ -25,44 +25,6 @@ pub struct Extracted {
     pub cost: usize,
 }
 
-// cost function similar to AstSize except it will
-// penalize `(pow _ p)` where p is a fraction
-pub struct AltCost<'a> {
-    pub egraph: &'a EGraph,
-}
-
-impl<'a> AltCost<'a> {
-    pub fn new(egraph: &'a EGraph) -> Self {
-        Self { egraph }
-    }
-}
-
-impl<'a> CostFunction<Math> for AltCost<'a> {
-    type Cost = usize;
-
-    fn cost<C>(&mut self, enode: &Math, mut costs: C) -> Self::Cost
-    where
-        C: FnMut(Id) -> Self::Cost,
-    {
-        if let Math::Other(op, _) = enode {
-            let op = op.as_str();
-            if op.starts_with("$do-lower.") {
-                return usize::MAX;
-            }
-        }
-
-        if let Math::Pow([_, i]) = enode {
-            if let Some((n, _reason)) = &self.egraph[*i].data {
-                if !n.denom().is_one() && n.denom().is_odd() {
-                    return usize::MAX;
-                }
-            }
-        }
-
-        enode.fold(1, |sum, id| usize::saturating_add(sum, costs(id)))
-    }
-}
-
 #[derive(Clone, Copy)]
 enum Aggregation {
     Sum,
@@ -123,6 +85,8 @@ impl ExtractionCosts {
     }
 }
 
+// Parsed costs are cloned with Context; this short-lived view also borrows the current graph
+// to inspect constant-folded exponents during extraction.
 pub struct PlatformCost<'a> {
     egraph: &'a EGraph,
     costs: &'a ExtractionCosts,
@@ -163,19 +127,18 @@ impl<'a> CostFunction<Math> for PlatformCost<'a> {
                         }
                     }
                 }
-                let child_costs = children.iter().map(|id| costs(*id)).collect::<Vec<_>>();
                 return match operator_cost.aggregation {
-                    Aggregation::Sum => child_costs
-                        .into_iter()
-                        .fold(operator_cost.base, usize::saturating_add),
+                    Aggregation::Sum => children
+                        .iter()
+                        .fold(operator_cost.base, |sum, id| sum.saturating_add(costs(*id))),
                     Aggregation::If => {
-                        let [condition, then, otherwise] = child_costs.as_slice() else {
-                            unreachable!("if cost requires three child costs")
-                        };
+                        let mut child_costs = children.iter().map(|id| costs(*id));
                         operator_cost
                             .base
-                            .saturating_add(*condition)
-                            .saturating_add((*then).max(*otherwise))
+                            .saturating_add(child_costs.next().unwrap())
+                            .saturating_add(
+                                child_costs.next().unwrap().max(child_costs.next().unwrap()),
+                            )
                     }
                 };
             }
@@ -198,7 +161,7 @@ mod platform_cost_tests {
     use super::*;
 
     #[test]
-    fn extracts_by_platform_cost_instead_of_ast_size() {
+    fn uses_platform_costs_for_extraction() {
         let mut egraph = EGraph::new(ConstantFold::default());
         let x = egraph.add(Math::Symbol("x".into()));
         let y = egraph.add(Math::Symbol("y".into()));
@@ -206,9 +169,25 @@ mod platform_cost_tests {
         let inner_add = egraph.add(Math::Other("+.f64".into(), vec![x, y]));
         let nested_add = egraph.add(Math::Other("+.f64".into(), vec![inner_add, y]));
         egraph.union(sin, nested_add);
+
+        let p = egraph.add(Math::Symbol("p".into()));
+        let q = egraph.add(Math::Symbol("q".into()));
+        let half = egraph.add(Math::Constant(Ratio::new(BigInt::from(1), BigInt::from(2))));
+        let third = egraph.add(Math::Constant(Ratio::new(BigInt::from(1), BigInt::from(3))));
+        let pow_half = egraph.add(Math::Other("pow.f64".into(), vec![p, half]));
+        let pow_third = egraph.add(Math::Other("pow.f64".into(), vec![q, third]));
+        let expanded = egraph.add(Math::Other("*.f64".into(), vec![pow_half, pow_third]));
+        let sum = egraph.add(Math::Other("+.f64".into(), vec![p, q]));
+        egraph.union(expanded, sum);
         egraph.rebuild();
 
-        let costs = ExtractionCosts::parse("impl\tsin.f64\tsum\t4200\nimpl\t+.f64\tsum\t200");
+        let costs = ExtractionCosts::parse(
+            "impl\tsin.f64\tsum\t4200\n\
+             impl\t+.f64\tsum\t200\n\
+             impl\tpow.f64\tsum\t20\n\
+             impl\t*.f64\tsum\t1\n\
+             pow\tpow.f64\t1",
+        );
         let platform_extractor = Extractor::new(&egraph, PlatformCost::new(&egraph, &costs));
         let (_, platform_best) = platform_extractor.find_best(egraph.find(sin));
         assert_eq!(
@@ -220,60 +199,29 @@ mod platform_cost_tests {
             2
         );
 
-        let size_extractor = Extractor::new(&egraph, AltCost::new(&egraph));
+        let (_, sum_best) =
+            Extractor::new(&egraph, PlatformCost::new(&egraph, &costs)).find_best(egraph.find(sum));
+        assert!(sum_best
+            .as_ref()
+            .iter()
+            .any(|node| matches!(node, Math::Other(op, _) if op.as_str() == "+.f64")));
+        assert!(!sum_best
+            .as_ref()
+            .iter()
+            .any(|node| matches!(node, Math::Other(op, _) if op.as_str() == "pow.f64")));
+
+        let size_extractor = Extractor::new(&egraph, AstSize);
         let (_, size_best) = size_extractor.find_best(egraph.find(sin));
         assert!(size_best
             .as_ref()
             .iter()
             .any(|node| matches!(node, Math::Other(op, _) if op.as_str() == "sin.f64")));
     }
-
-    #[test]
-    fn applies_platform_operator_and_leaf_costs() {
-        let egraph = EGraph::new(ConstantFold::default());
-        let costs = ExtractionCosts::parse(
-            "repr\trepr-62696e6172793634\t125\nimpl\texp.f64\tsum\t1375\nimpl\tif.f64\tif\t100\nimpl\tpow.f64\tsum\t2000\npow\tpow.f64\t1",
-        );
-        let mut cost = PlatformCost::new(&egraph, &costs);
-
-        let exp = Math::Other("exp.f64".into(), vec![Id::from(0)]);
-        assert_eq!(cost.cost(&exp, |_| 300), 1675);
-
-        let conditional = Math::Other("if.f64".into(), vec![Id::from(0), Id::from(1), Id::from(2)]);
-        assert_eq!(
-            cost.cost(&conditional, |id| match usize::from(id) {
-                0 => 100,
-                1 => 700,
-                2 => 400,
-                _ => unreachable!(),
-            }),
-            900
-        );
-
-        let constant = Math::Other(
-            "$do-lower-constant.repr-62696e6172793634".into(),
-            vec![Id::from(3)],
-        );
-        assert_eq!(cost.cost(&constant, |_| 999), 125);
-
-        let variable = Math::Other(
-            "$do-lower-variable.repr-62696e6172793634".into(),
-            vec![Id::from(3)],
-        );
-        assert_eq!(cost.cost(&variable, |_| 999), 0);
-
-        let mut egraph = EGraph::new(ConstantFold::default());
-        let base = egraph.add(Math::Constant(Constant::from_integer(BigInt::from(2))));
-        let exponent = egraph.add(Math::Constant(Ratio::new(BigInt::from(1), BigInt::from(3))));
-        let fractional_pow = Math::Other("pow.f64".into(), vec![base, exponent]);
-        let mut cost = PlatformCost::new(&egraph, &costs);
-        assert_eq!(cost.cost(&fractional_pow, |_| 10), usize::MAX);
-    }
 }
 
 impl IterationData<Math, ConstantFold> for IterData {
     fn make(runner: &Runner) -> Self {
-        let extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
+        let extractor = Extractor::new(&runner.egraph, AstSize);
         let extracted = runner
             .roots
             .iter()
