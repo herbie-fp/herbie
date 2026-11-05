@@ -147,6 +147,8 @@
          [(impl-exists? f) (list (impl-info f 'otype))]
          [(operator-exists? f) (type-reprs (operator-info f 'otype))]
          [else '()])]))
+  (define (variable-enode? enode)
+    (and (symbol? enode) (string-prefix? (symbol->string enode) "$var")))
   (define repr->ids (make-hash))
   (define repr->leaf-classes (make-hash))
   (define repr->marker-ids (make-hash))
@@ -161,18 +163,24 @@
                     '())))
   (for ([id (in-u32vector (egraph_get_eclasses ptr))])
     (define enodes (egraph-get-eclass ptr id))
+    (define variable-reprs
+      (for/list ([enode (in-vector enodes)]
+                 #:when (variable-enode? enode))
+        (context-lookup ctx (egg-var->var enode ctx))))
     (define inferred-reprs
       (remove-duplicates (append (append-map enode-reprs (vector->list enodes))
                                  (hash-ref root-reprs-by-id id '()))))
     (define reprs-for-id
-      (if (ormap (lambda (repr) (equal? (representation-type repr) 'real)) inferred-reprs)
-          (remove-duplicates (append real-reprs inferred-reprs))
-          inferred-reprs))
+      (cond
+        [(pair? variable-reprs)
+         (remove-duplicates (append variable-reprs (hash-ref root-reprs-by-id id '())))]
+        [(ormap (lambda (repr) (equal? (representation-type repr) 'real)) inferred-reprs)
+         (remove-duplicates (append real-reprs inferred-reprs))]
+        [else inferred-reprs]))
     (for ([repr (in-list reprs-for-id)])
       (hash-update! repr->ids repr (lambda (ids) (cons id ids)) '())
       (for ([leaf (in-vector enodes)]
-            #:when (or (number? leaf)
-                       (and (symbol? leaf) (string-prefix? (symbol->string leaf) "$var"))))
+            #:when (or (number? leaf) (variable-enode? leaf)))
         (hash-update! repr->leaf-classes
                       repr
                       (lambda (leaf-classes) (cons (cons leaf id) leaf-classes))
