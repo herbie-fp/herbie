@@ -6,7 +6,6 @@
          "../syntax/types.rkt"
          "../syntax/block.rkt"
          "rules.rkt"
-         "programs.rkt"
          "../syntax/platform.rkt"
          "../syntax/load-platform.rkt"
          "sampling.rkt")
@@ -19,7 +18,11 @@
 (define double-repr (get-representation 'binary64))
 
 (define (env->ctx p1 p2)
-  (define vars (set-union (free-variables p1) (free-variables p2)))
+  (define-values (block vs) (progs->block (list p1 p2) #:ctx (context '() double-repr '())))
+  (define free-vars (block-free-vars block))
+  (define vars
+    (sort (set-union (set->list (free-vars (first vs))) (set->list (free-vars (second vs))))
+          symbol<?))
   (context vars double-repr (map (const double-repr) vars)))
 
 (define (drop-sound expr)
@@ -34,7 +37,7 @@
 (define (check-rule test-rule)
   (match-define (rule name p1 p2 _) test-rule)
   (define ctx (env->ctx p1 p2))
-  (define ulps (repr-ulps double-repr))
+  (define error-bits (repr-error double-repr))
 
   (define-values (block vs) (progs->block (list (drop-sound p1) (drop-sound p2)) #:ctx ctx))
   (match-define (list pts exs1 exs2)
@@ -45,8 +48,9 @@
   (for ([pt (in-list pts)]
         [v1 (in-list exs1)]
         [v2 (in-list exs2)])
-    (with-check-info* (map make-check-info (context-vars ctx) (vector->list pt))
-                      (λ () (with-check-info (['lhs v1] ['rhs v2]) (check-eq? (ulps v1 v2) 1))))))
+    (with-check-info*
+     (map make-check-info (context-vars ctx) (vector->list pt))
+     (λ () (with-check-info (['lhs v1] ['rhs v2]) (check-equal? (error-bits v1 v2) 0.0))))))
 
 (module+ main
   (num-test-points (* 100 (num-test-points)))

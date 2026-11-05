@@ -111,6 +111,12 @@
 
 (FPCore (w h dX.u dX.v dY.u dY.v maxAniso)
   :name "Anisotropic x16 LOD (line direction, u)"
+  :alt
+  (! :herbie-platform c
+   (let* ((a (floor w)) (b (floor h))
+          (X3 (* a dX.u)) (X4 (* b dX.v)) (X5 (* a dY.u)) (X6 (* b dY.v))
+          (h1 (hypot X3 X4)) (h2 (hypot X5 X6)))
+     (if (>= h1 h2) (/ X3 h1) (/ X5 h2))))
   :precision binary32
   :pre (and (<= 1 w 16384)
             (<= 1 h 16384)
@@ -157,6 +163,13 @@
 
 (FPCore (w h dX.u dX.v dY.u dY.v maxAniso)
   :name "Anisotropic x16 LOD (line direction, v)"
+  :alt
+  (! :herbie-platform c
+   (let* ((X1 (floor w)) (X2 (floor h))
+          (a (* X1 dX.u)) (b (* X2 dX.v)) (c (* X1 dY.u)) (d (* X2 dY.v)))
+     (if (>= (hypot a b) (hypot c d))
+         (/ b (hypot a b))
+         (/ d (hypot c d)))))
   :precision binary32
   :pre (and (<= 1 w 16384)
             (<= 1 h 16384)
@@ -241,6 +254,24 @@
 ; The following two benchmarks are thanks to Ben Wang and Bill Zorn.
 (FPCore (p r q)
   :name "1/2(abs(p)+abs(r) - sqrt((p-r)^2 + 4q^2))"
+  :alt
+  (! :herbie-platform c
+   (let* ((u (fmax (fabs p) (fabs r)))
+          (v (fmin (fabs p) (fabs r)))
+          (w (fabs q)))
+     (if (> w (* 2 u))
+       (let* ((d (fabs (- p r)))
+              (p_ (* d 0.125))
+              (q_ (* w 0.25))
+              (c (* d (/ p_ (+ (hypot p_ q_) q_)))))
+         (- (/ (- (+ u v) c) 2) w))
+       (let* ((d8 (fabs (- (* p 0.125) (* r 0.125))))
+              (w4 (* w 0.25))
+              (T (+ (hypot d8 w4) d8))
+              (a (/ w4 T))
+              (m (if (> (* (copysign 1 p) r) 0) v 0))
+              (Q (if (< (remainder (log2 a) 1) 0) (* w a) (/ w (/ T w4)))))
+         (- m Q)))))
   (* (/ 1.0 2.0) (- (+ (fabs p) (fabs r)) (sqrt (+ (pow (- p r) 2.0) (* 4.0 (pow q 2.0)))))))
 
 (FPCore (p r q)

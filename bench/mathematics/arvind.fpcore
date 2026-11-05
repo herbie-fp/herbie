@@ -17,6 +17,15 @@
 
 (FPCore (a1 a2 b1 b2)
  :name "Quotient of products"
+ :alt
+ (! :herbie-platform c
+  (if (> (* (- (fabs a1) 1) (- (fabs b1) 1)) 0)
+    (if (> (* (- (fabs a2) 1) (- (fabs b2) 1)) 0)
+      (* (/ a1 b1) (/ a2 b2))
+      (/ (* (/ a1 b1) a2) b2))
+    (if (> (* (- (fabs a2) 1) (- (fabs b2) 1)) 0)
+      (/ (* (/ a2 b2) a1) b1)
+      (* (/ a1 b2) (/ a2 b1)))))
  :alt 
  (! :herbie-platform c
   (* (/ a1 b1) (/ a2 b2)))

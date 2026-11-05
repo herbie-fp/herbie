@@ -1,7 +1,6 @@
 #lang racket
 
 (require json)
-(require "../src/core/programs.rkt")
 
 (define op-map (make-hash `((expt . pow) (sqr . exp2) (abs . fabs))))
 
@@ -24,6 +23,12 @@
 
 (define (read-expr expr-string is-version-10)
   (format-expr is-version-10 (call-with-input-string expr-string read)))
+
+(define (free-variables expr)
+  (match expr
+    [(? number?) '()]
+    [(? symbol?) (list expr)]
+    [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
 
 (define (make-fpcore expr)
   (define vars (free-variables expr))

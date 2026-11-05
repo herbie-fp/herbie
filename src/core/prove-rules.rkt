@@ -3,15 +3,14 @@
 (require rackunit)
 (require "../utils/common.rkt"
          "../syntax/matcher.rkt"
-         "programs.rkt"
          "rules.rkt")
 
 (provide rewrite-unsound?)
 
 (define (undefined-conditions x)
   (reap [sow]
-        (for ([subexpr (in-list (all-subexpressions x))])
-          (match subexpr
+        (let loop ([expr x])
+          (match expr
             [`(acos ,x) (sow `(< 1 (fabs ,x)))]
             [`(acosh ,x) (sow `(< ,x 1))]
             [`(asin ,x) (sow `(< 1 (fabs ,x)))]
@@ -30,7 +29,9 @@
              (sow `(and (< ,a 0) (even-denominator? ,b)))
              (sow `(and (== ,a 0) (< ,b 0)))]
             [`(/ ,a ,b) (sow `(== ,b 0))]
-            [_ (void)]))))
+            [_ (void)])
+          (when (list? expr)
+            (for-each loop (cdr expr))))))
 
 (define (reify c)
   (if c
@@ -43,13 +44,15 @@
 ;; - For ==, the constant is on the right
 
 (define (rewrite-all expr a b)
-  ;; This is an ugly / slow way to do this but I guess it works
-  (define matches
-    (for/list ([subexpr (in-list (all-subexpressions expr))]
-               #:when (pattern-match a subexpr))
-      (cons subexpr (pattern-substitute b (pattern-match a subexpr)))))
-  (for/fold ([expr expr]) ([(from to) (in-dict matches)])
-    (replace-expression expr from to)))
+  (let loop ([expr expr])
+    (define expr*
+      (match expr
+        [(list op args ...) (cons op (map loop args))]
+        [_ expr]))
+    (define bindings (pattern-match a expr*))
+    (if bindings
+        (pattern-substitute b bindings)
+        expr*)))
 
 (define simplify-patterns
   (list '[(cos (neg a)) . (cos a)]

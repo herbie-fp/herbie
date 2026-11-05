@@ -373,6 +373,25 @@
  (v0 v1 v2 v3 v4 v5 v6 v7 v8)
  :name
  "Deviatoric invariant angle"
+ :alt
+ (! :herbie-platform c
+  (let* ((p (- v0 v1)) (q (- v1 v2)) (r (- v0 v2))
+         (Q0 (* (+ (* p p) (+ (* q q) (* r r))) 0.5))
+         (T0 (* (* (+ p r) (- p q)) (+ q r)))
+         (Y0 (* (fabs (* (* p q) r)) 5.196152422706632))
+         (o (+ (+ (* v3 v6) (* v4 v8)) (* v5 v7)))
+         (Q (+ Q0 (* 3 o)))
+         (eta (* (* (+ (+ v0 v1) v2) Q) 3e-16))
+         (dT (- (- (* 27 (+ (* (* v3 v5) v8) (* (* v4 v6) v7)))
+                   (* 9 (- (+ (* (* v5 v7) (- q p)) (* (* v4 v8) (+ p r)))
+                           (* (* v3 v6) (+ q r)))))
+                eta))
+         (D (- (fma Y0 Y0 (* (* 12 o) (+ (* Q Q) (+ (* Q Q0) (* Q0 Q0)))))
+               (* dT (+ (* 2 T0) dT))))
+         (phi (atan2 (sqrt (fmax 0 D)) (+ T0 dT))))
+    (array (fma phi 0.3333333333333333 2.0943951023931953)
+           (* phi 0.3333333333333333)
+           (+ (/ Q0 3) o))))
  :pre
  (and (<= 0.811192781797955 v0 1.1006171994482068)
       (<= 0.8039029404840212 v1 1.167622720136051)
@@ -764,6 +783,22 @@
  (v24 v20 v19 v9 v13 v14)
  :name
  "First eigenvector cross product"
+ :alt
+ (! :herbie-platform c
+  (let* ((Na (hypot v24 (hypot v20 v19)))
+         (Nb (hypot v9 (hypot v13 v14)))
+         (a1 (/ v24 Na)) (a2 (/ v20 Na)) (a3 (/ v19 Na))
+         (b1 (/ v9 Nb)) (b2 (/ v13 Nb)) (b3 (/ v14 Nb)))
+   (array
+      (if (>= (fabs (* a3 b1)) (fabs (* a1 b3)))
+          (fma a3 b1 (- (* a1 b3)))
+          (fma (- a1) b3 (* a3 b1)))
+      (if (>= (fabs (* a1 b2)) (fabs (* a2 b1)))
+          (fma a1 b2 (- (* a2 b1)))
+          (fma (- a2) b1 (* a1 b2)))
+      (if (>= (fabs (* a2 b3)) (fabs (* a3 b2)))
+          (fma a2 b3 (- (* a3 b2)))
+          (fma (- a3) b2 (* a2 b3))))))
  :pre
  (and (<= -0.1435357617855705 v24 0.13564776879114981)
       (<= -0.1864053897759289 v20 0.16489542783063038)
@@ -862,6 +897,18 @@
  (v17 v9 v13 v14 v16 v15)
  :name
  "Second Gram-Schmidt residual"
+ :alt
+ (! :herbie-platform c
+  (let* ((s (exp2 (logb (fmax (fmax (fabs v9) (fabs v13)) (fabs v14)))))
+         (a1 (/ v9 s)) (a2 (/ v13 s)) (a3 (/ v14 s))
+         (S (fma a1 a1 (fma a2 a2 (* a3 a3))))
+         (d12 (fma a2 v17 (- (* a1 v16))))
+         (d13 (fma a3 v17 (- (* a1 v15))))
+         (d23 (fma a3 v16 (- (* a2 v15)))))
+   (array
+    (/ (fma (- a1) d12 (* a3 d23)) S)
+    (/ (fma a2 d12 (* a3 d13)) S)
+    (/ (fma (- a1) d13 (- (* a2 d23))) S))))
  :pre
  (and (<= -0.14980139970515421 v17 0.14251164455807527)
       (<= -0.25002929661308493 v9 0.4880441370926184)
@@ -903,6 +950,26 @@
  (v9 v13 v14 v10 v12 v11)
  :name
  "First Gram-Schmidt residual"
+ :alt
+ (! :herbie-platform c
+  (let* ((j1 (and (>= (fabs v9) (fabs v13)) (>= (fabs v9) (fabs v14))))
+         (j2 (>= (fabs v13) (fabs v14)))
+         (q2 (/ v13 v9)) (q3 (/ v14 v9))
+         (R1 (fma q2 q2 (* q3 q3))) (D1 (+ 1 R1))
+         (T1 (fma q2 v12 (* q3 v11))) (W1 (/ (+ v10 T1) D1))
+         (s1 (/ v9 v13)) (s3 (/ v14 v13))
+         (R2 (fma s1 s1 (* s3 s3))) (D2 (+ 1 R2))
+         (T2 (fma s1 v10 (* s3 v11))) (W2 (/ (+ v12 T2) D2))
+         (u1 (/ v9 v14)) (u2 (/ v13 v14))
+         (R3 (fma u1 u1 (* u2 u2))) (D3 (+ 1 R3))
+         (T3 (fma u1 v10 (* u2 v12))) (W3 (/ (+ v11 T3) D3)))
+   (array
+    (if j1 (fma (- q2) W1 v12)
+        (if j2 (/ (fma v12 R2 (- T2)) D2) (fma (- u2) W3 v12)))
+    (if j1 (/ (fma v10 R1 (- T1)) D1)
+        (if j2 (fma (- s1) W2 v10) (fma (- u1) W3 v10)))
+    (if j1 (fma (- q3) W1 v11)
+        (if j2 (fma (- s3) W2 v11) (/ (fma v11 R3 (- T3)) D3))))))
  :pre
  (and (<= -0.25002929661308493 v9 0.4880441370926184)
       (<= -0.14980139970515421 v13 0.16745781454975034)

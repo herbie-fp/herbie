@@ -120,6 +120,18 @@
 
 (FPCore (density Cd A m v)
   :name "drag_accel_mag"
+  :alt
+  (! :herbie-platform c
+   (let* ((n1 (/ density (exp2 (logb density))))
+          (n2 (/ Cd (exp2 (logb Cd))))
+          (n3 (/ A (exp2 (logb A))))
+          (n4 (/ m (exp2 (logb m))))
+          (n5 (/ v (exp2 (logb v))))
+          (ex (- (+ (+ (logb density) (logb Cd)) (+ (logb A) (* 2 (logb v)))) (logb m)))
+          (M (/ (* (* (* -500 n1) (* n2 n3)) (* n5 n5)) n4)))
+     (if (< ex -1000)
+         (* (* M (exp2 (+ ex 1074))) 4.9406564584124654e-324)
+         (* M (exp2 ex)))))
   (/ (* (* (* (- 0.5) density)
            (/ (* Cd A) m))
         (pow (* v 1000) 2))
@@ -144,6 +156,27 @@
                               (* 2 f)))))))))))
 
 (FPCore clMeanOscMap-de1 (ecc i omega sgn J2 req a)
+  :alt
+  (! :herbie-platform c
+   (if (or (or (== ecc 0) (== i 0)) (or (or (== sgn 0) (== J2 0)) (== req 0)))
+     0
+     (let* ((e1 (logb ecc)) (e4 (logb sgn)) (e5 (logb J2)) (e6 (logb req)) (e7 (logb a))
+            (sx (sin i)) (cx (cos i)) (es (logb sx))
+            (n1 (/ ecc (exp2 e1))) (n4 (/ sgn (exp2 e4))) (n5 (/ J2 (exp2 e5)))
+            (n6 (/ req (exp2 e6))) (n7 (/ a (exp2 e7))) (ns (/ sx (exp2 es)))
+            (R (if (< (fabs cx) (fabs sx))
+                   (/ (fma (* -15 cx) cx 1) (fma (* -5 cx) cx 1))
+                   (/ (fma (* 15 sx) sx -14) (fma (* 5 sx) sx -4))))
+            (C3 (if (< (fabs omega) 1e307)
+                    (cos (* 2 omega))
+                    (* (- (cos omega) (sin omega)) (+ (cos omega) (sin omega)))))
+            (q (/ n6 n7))
+            (M0 (* (* (* (* (* n1 n4) n5) (* q q)) (* ns ns)) (* R (* C3 0.0625))))
+            (w (/ (* ecc ecc) (fma (- ecc) ecc 1)))
+            (M (fma M0 w M0))
+            (Ex (+ (+ (+ e1 e4) (+ e5 (* 2 e6))) (* 2 (- es e7))))
+            (ka (floor (* Ex 0.5))))
+       (* (* M (exp2 ka)) (exp2 (- Ex ka))))))
   (let ([eta (sqrt (- 1 (pow ecc 2)))]
         [gamma2p
          (/ (* (/ (* sgn J2) 2)

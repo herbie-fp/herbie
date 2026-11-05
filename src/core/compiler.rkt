@@ -53,8 +53,8 @@
       (vector-ref regs arg))))
 
 (define (array-impl? op)
-  (define repr (impl-info op 'otype))
-  (and (array-representation? repr) (eq? op (array-impl-name repr))))
+  (define name (symbol->string op))
+  (and (string-prefix? name "array<") (string-suffix? name ">")))
 
 ;; This function:
 ;;   1) copies only nodes associated with provided vs - so, gets rid of useless nodes

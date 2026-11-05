@@ -33,9 +33,9 @@
 - Format Racket code with `make fmt` at the top level.
 - Use runs on benchmarks, not unit tests, as primary correctness
   check, with `racket -y src/main.rkt report <flags> <bench> <out>`.
-- `bench/tutorial.rkt` is a ~5s check for obvious issues.
-  `bench/hamming.rkt` is a longer ~1min check for significant
-  algorithmic changes. For more intensive tests, start a nightly.
+- `bench/tutorial.fpcore` is a ~5s check for obvious issues.
+  The benchmarks in `bench/hamming/` are a longer (~1min) check for
+  significant algorithmic changes. For more intensive tests, start a nightly.
 - Pass `--seed N` for reproducibility and `--timeout T` to set a
   per-benchmark timeout.
 - The `<out>` will have one directory per benchmark. The directory

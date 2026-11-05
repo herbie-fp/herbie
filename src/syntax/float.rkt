@@ -8,8 +8,8 @@
          "../utils/errors.rkt"
          "../utils/unsafe.rkt")
 
-(provide repr-ulps
-         ulps->bits
+(provide repr-error
+         repr-infinite?
          midpoint
          two-midpoints
          random-generate
@@ -21,6 +21,14 @@
          real->repr
          repr->real)
 
+(define (repr-infinite? x repr)
+  (match (representation-type repr)
+    ['bool #f]
+    ['real
+     (if (or (eq? repr <binary32>) (eq? repr <binary64>))
+         (infinite? x)
+         (bfinfinite? ((representation-repr->bf repr) x)))]))
+
 (define (repr-ulps repr)
   (match (representation-type repr)
     [`(array ,_ ...)
@@ -31,7 +39,7 @@
     ['real
      (define ->ordinal (representation-repr->ordinal repr))
      (define special? (representation-special-value? repr))
-     (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
+     (define max-error (expt 2 (representation-total-bits repr)))
      (define finite-ulps
        (if (eq? repr <binary64>)
            (lambda (x y) (+ 1 (abs (flonums-between x y))))
@@ -40,6 +48,10 @@
        (if (or (special? x) (special? y))
            max-error
            (finite-ulps x y)))]))
+
+(define (repr-error repr)
+  (define ulps (repr-ulps repr))
+  (lambda (x y) (ulps->bits (ulps x y))))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint
@@ -68,7 +80,9 @@
        (cons lower higher)))
 
 (define (ulps->bits x)
-  (fl/ (fllog (fl x)) (fllog 2.0)))
+  (if (fixnum? x)
+      (fl/ (fllog (real->double-flonum x)) (fllog 2.0))
+      (fl/ (fllog (real->double-flonum x)) (fllog 2.0))))
 
 (define (random-generate repr)
   (match (representation-type repr)
@@ -84,11 +98,13 @@
 
 (define (</total x1 x2 repr)
   (define special? (representation-special-value? repr))
-  (define ->ordinal (representation-repr->ordinal repr))
   (cond
     [(special? x1) #f]
     [(special? x2) #t]
-    [else (< (->ordinal x1) (->ordinal x2))]))
+    [(or (eq? repr <binary32>) (eq? repr <binary64>)) (< x1 x2)]
+    [else
+     (define ->ordinal (representation-repr->ordinal repr))
+     (< (->ordinal x1) (->ordinal x2))]))
 
 (define (<=/total x1 x2 repr)
   (or (</total x1 x2 repr) (=/total x1 x2 repr)))
@@ -168,3 +184,22 @@
        (repr->real v slot))]
     ['real (bigfloat->real ((representation-repr->bf repr) x))]
     ['bool x]))
+
+(module+ test
+  (require rackunit)
+
+  (define bigfloat-repr
+    (make-representation #:name 'test
+                         #:bf->repr identity
+                         #:repr->bf bf
+                         #:ordinal->repr identity
+                         #:repr->ordinal identity
+                         #:total-bits 1
+                         #:special-value? (const #f)))
+
+  (check-true (repr-infinite? +inf.0 <binary32>))
+  (check-true (repr-infinite? -inf.0 <binary64>))
+  (check-false (repr-infinite? 1.0 <binary32>))
+  (check-false (repr-infinite? +nan.0 <binary64>))
+  (check-false (repr-infinite? #t <bool>))
+  (check-true (repr-infinite? +inf.0 bigfloat-repr)))

@@ -101,8 +101,10 @@
   (for/fold ([constraint (first outsides)]) ([outside (in-list (rest outsides))])
     `(and ,constraint ,outside)))
 
-(define (cover-wrap cover expression ctx)
+(define (cover-wrap cover block expression ctx)
   (match-define (taylor-cover _ _ _ arm) cover)
   (define repr (context-repr ctx))
   (define if-impl (get-fpcore-impl 'if '() (list <bool> repr repr)))
-  (list if-impl (spec->prog (cover-condition cover) ctx) (spec->prog arm ctx) expression))
+  (define condition-v (block-add! block (spec->prog (cover-condition cover) ctx)))
+  (define arm-v (block-add! block (spec->prog arm ctx)))
+  (block-add! block (list if-impl condition-v arm-v expression)))

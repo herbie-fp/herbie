@@ -3,6 +3,31 @@
 (FPCore (c_p c_n t s)
  :pre (and (< 0 c_p) (< 0 c_n))
  :name "Harley's example"
+ :alt
+ (! :herbie-platform c
+  (let* ((d (- t s))
+         (M (fmax t s))
+         (m (fmin t s))
+         (ad (fabs d))
+         (e (expm1 ad))
+         (Pp (if (< ad 36)
+                 (log1p (/ e (+ 1 (exp (- m)))))
+                 (- (+ (fmax M 0) (log1p (exp (- (fabs M)))))
+                    (+ (fmax m 0) (log1p (exp (- (fabs m))))))))
+         (Qp (if (< ad 36)
+                 (log1p (/ e (+ 1 (exp M))))
+                 (- (+ (fmax (- m) 0) (log1p (exp (- (fabs m)))))
+                    (+ (fmax (- M) 0) (log1p (exp (- (fabs M))))))))
+         (Pt (* c_n Pp))
+         (Qt (* c_p Qp))
+         (D (if (< Qt Pt)
+                (fma (- c_p) Qp Pt)
+                (if (< Pt INFINITY)
+                    (fma c_n Pp (- Qt))
+                    (* (* (- (* (* c_n 7.458340731200207e-155) (* Pp 7.458340731200207e-155))
+                             (* (* c_p 7.458340731200207e-155) (* Qp 7.458340731200207e-155)))
+                          1.3407807929942597e154) 1.3407807929942597e154)))))
+    (exp (if (< d 0) (- D) D))))
  :alt 
  (! :herbie-platform c
   (*

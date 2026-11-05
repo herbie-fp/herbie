@@ -65,10 +65,16 @@
         (run-iteration! table global-spec-block spec-reducer)))
     (define alternatives (extract! table global-spec-block initial-v))
     (timeline-event! 'preprocess)
-    (for/list ([altn alternatives])
-      (define expr (alt-expr altn))
-      (define expr* (compile-useful-preprocessing expr context validation-pcontext (*preprocessing*)))
-      (alt expr* 'add-preprocessing (list altn)))))
+    (define preprocessed-alts
+      (for/list ([altn (in-list alternatives)])
+        (define v
+          (compile-useful-preprocessing (*global-block*)
+                                        (alt-expr altn)
+                                        context
+                                        validation-pcontext
+                                        (*preprocessing*)))
+        (alt v 'add-preprocessing (list altn))))
+    (unblockify-alts (*global-block*) preprocessed-alts global-spec-block)))
 
 (define (extract! table spec-block initial-v)
   (timeline-push-alts! table '() spec-block)
@@ -77,9 +83,8 @@
   (define annotated-alts (add-derivations! joined-alts))
   (define scores (block-errors (*global-block*) (map alt-expr annotated-alts) (*pcontext*)))
   (define sorted-alts (map car (sort-alts (*global-block*) annotated-alts scores)))
-  (define unblocked-alts (unblockify-alts (*global-block*) sorted-alts spec-block))
   (timeline-push! 'stop (if (atab-completed? table) "done" "fuel") 1)
-  unblocked-alts)
+  sorted-alts)
 
 ;; The rest of the file is various helper / glue functions used by
 ;; Herbie. These often wrap other Herbie components, but add logging
@@ -141,20 +146,8 @@
   (timeline-event! 'reconstruct)
 
   (define (group-equivalent-alts alts)
-    (define points (pcontext-points (*pcontext*)))
-    (define fn (compile-block (*global-block*) (map alt-expr alts)))
-    (define signatures
-      (for/vector #:length (length alts)
-                  ([_ (in-list alts)])
-        (make-vector (vector-length points))))
+    (define signatures (block-eval (*global-block*) (map alt-expr alts) (*pcontext*)))
     (define block-cost (alt-block-costs (*global-block*)))
-
-    (for ([pt (in-vector points)]
-          [pt-idx (in-naturals)])
-      (define outs (fn pt))
-      (for ([out (in-vector outs)]
-            [signature (in-vector signatures)])
-        (vector-set! signature pt-idx out)))
 
     (define (best-alt alt1 alt2)
       (define cost1 (block-cost (alt-expr alt1)))
@@ -280,7 +273,7 @@
   (define table* (atab-set-picked table pending-alts))
 
   (define vs (map alt-expr pending-alts))
-  (define vs* (block-reachable (*global-block*) vs #:condition node-is-impl?))
+  (define vs* (block-reachable (*global-block*) vs))
 
   (define results (generate-candidates (*global-block*) vs* global-spec-block spec-reducer))
   (define patched (reconstruct! pending-alts results))

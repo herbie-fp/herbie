@@ -12,7 +12,6 @@
          "../syntax/block.rkt"
          "compiler.rkt"
          "points.rkt"
-         "programs.rkt"
          "../syntax/rival.rkt")
 
 (module+ test
@@ -22,7 +21,38 @@
 
 (provide compute-local-errors
          eval-progs-real
-         local-error-as-tree)
+         local-error-as-tree
+         all-subexpressions
+         repr-of)
+
+;; Tree representation helper used by the deprecated explain/localize path.
+(define (repr-of expr ctx)
+  (match expr
+    [(literal val precision) (get-representation precision)]
+    [(? symbol?) (context-lookup ctx expr)]
+    [(approx _ impl) (repr-of impl ctx)]
+    [(list op args ...) (impl-info op 'otype)]))
+
+(define (all-subexpressions expr #:reverse? [reverse? #f])
+  (define subexprs
+    (reap [sow]
+          (let loop ([expr expr])
+            (sow expr)
+            (match expr
+              [(? number?) (void)]
+              [(? literal?) (void)]
+              [(? symbol?) (void)]
+              [(approx _ impl) (loop impl)]
+              [`(if ,c ,t ,f)
+               (loop c)
+               (loop t)
+               (loop f)]
+              [(list _ args ...)
+               (for ([arg (in-list args)])
+                 (loop arg))]))))
+  (remove-duplicates (if reverse?
+                         (reverse subexprs)
+                         subexprs)))
 
 (define (eval-progs-real block vs reprs)
   (define compiler (make-real-compiler block vs reprs))
@@ -38,22 +68,22 @@
 ;;
 ;;   R[f(x, y)] - f(R[x], R[y])
 ;;
-;; where the `-` is interpreted as ULP difference and `E` means
-;; exact real evaluation rounded to target repr.
+;; where the `-` is interpreted as representational distance in bits and
+;; `E` means exact real evaluation rounded to target repr.
 ;;
 ;; Local error is high when `f` is highly sensitive to rounding error
 ;; in its inputs `x` and `y`.
 
-(define (local-error exact node ulps get-exact)
+(define (local-error exact node error-bits get-exact)
   (match node
-    [(? literal?) 1]
-    [(? symbol?) 1]
-    [(approx _ impl) (ulps exact (get-exact impl))]
-    [`(if ,c ,ift ,iff) 1]
+    [(? literal?) 0.0]
+    [(? symbol?) 0.0]
+    [(approx _ impl) (error-bits exact (get-exact impl))]
+    [`(if ,c ,ift ,iff) 0.0]
     [(list f args ...)
      (define argapprox (map get-exact args))
      (define approx (apply (impl-info f 'fl) argapprox))
-     (ulps exact approx)]))
+     (error-bits exact approx)]))
 
 (define (make-matrix roots pcontext)
   (for/vector #:length (vector-length roots)
@@ -64,7 +94,7 @@
 (define (compute-local-errors subexprss ctx pcontext)
   (define exprs-list (append* subexprss)) ; unroll subexprss
   (define reprs-list (map (curryr repr-of ctx) exprs-list))
-  (define ulps-list (map repr-ulps reprs-list))
+  (define error-bits-list (map repr-error reprs-list))
   (define-values (expr-block vs) (progs->block exprs-list #:ctx ctx))
   (define roots (list->vector (map val-idx vs)))
 
@@ -80,10 +110,10 @@
       (vector-ref exacts (vector-member (val-idx v) roots)))
     (for ([expr (in-list exprs-list)]
           [v vs]
-          [ulps (in-list ulps-list)]
+          [error-bits-fn (in-list error-bits-list)]
           [exact (in-vector exacts)]
           [expr-idx (in-naturals)])
-      (define err (local-error exact (val-def v) ulps get-exact))
+      (define err (local-error exact (val-def v) error-bits-fn get-exact))
       (vector-set! (vector-ref errs expr-idx) pt-idx err)))
 
   (define n 0)
@@ -114,7 +144,7 @@
   ;; And the real result
   (define spec-list (map prog->spec exprs-list))
   (define reprs-list (map (curryr repr-of ctx) exprs-list))
-  (define ulps-list (map repr-ulps reprs-list))
+  (define error-bits-list (map repr-error reprs-list))
   (define-values (spec-block spec-vs) (progs->block spec-list #:ctx ctx))
   (define subexprs-fn (eval-progs-real spec-block spec-vs reprs-list))
 
@@ -141,7 +171,7 @@
   (define-values (expr-block vs) (progs->block exprs-list #:ctx ctx))
   (define roots (list->vector (map val-idx vs)))
 
-  (define ulp-errs (make-matrix roots pcontext))
+  (define error-bits-out (make-matrix roots pcontext))
   (define exacts-out (make-matrix roots pcontext))
   (define approx-out (make-matrix roots pcontext))
   (define true-error-out (make-matrix roots pcontext))
@@ -157,24 +187,24 @@
     (define pt* (vector-append pt (remove-infinities actuals reprs-list)))
     (define deltas (list->vector (delta-fn pt*)))
 
-    (for ([ulps (in-list ulps-list)]
+    (for ([error-bits-fn (in-list error-bits-list)]
           [v vs]
           [exact (in-vector exacts)]
           [actual (in-vector actuals)]
           [delta (in-vector deltas)]
           [expr-idx (in-naturals)])
-      (define ulp-err (local-error exact (val-def v) ulps get-exact))
+      (define error-bits (local-error exact (val-def v) error-bits-fn get-exact))
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref approx-out expr-idx) pt-idx actual)
-      (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)
+      (vector-set! (vector-ref error-bits-out expr-idx) pt-idx error-bits)
       (vector-set! (vector-ref true-error-out expr-idx) pt-idx delta)))
 
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
     (for*/hash ([subexpr (in-list subexprs)])
       (begin0 (values subexpr
-                      (hasheq 'ulp-errs
-                              (vector->list (vector-ref ulp-errs n))
+                      (hasheq 'error-bits
+                              (vector->list (vector-ref error-bits-out n))
                               'exact-values
                               (vector->list (vector-ref exacts-out n))
                               'approx-values
@@ -216,12 +246,12 @@
   (define (expr-data expr)
     (define data (hash-ref data-hash expr))
     (define abs-error (~s (first (hash-ref data 'absolute-error))))
-    (define ulp-error (~s (ulps->bits (first (hash-ref data 'ulp-errs))))) ; unused by Odyssey
-    (define ulp-errs (hash-ref data 'ulp-errs))
+    (define error-bits (~s (first (hash-ref data 'error-bits)))) ; unused by Odyssey
+    (define error-bits-list (hash-ref data 'error-bits))
     (define avg-error
-      (format-bits (errors-score (for/flvector #:length (length ulp-errs)
-                                               ([err (in-list ulp-errs)])
-                                               (ulps->bits err)))))
+      (format-bits (errors-score (for/flvector #:length (length error-bits-list)
+                                               ([err (in-list error-bits-list)])
+                                               err))))
     (define exact-error (~s (translate-booleans (first (hash-ref data 'exact-values)))))
     (define actual-error (~s (translate-booleans (first (hash-ref data 'approx-values)))))
     (define percent-accurate
@@ -231,10 +261,10 @@
         [else
          (define repr (repr-of expr ctx))
          (define total-bits (representation-total-bits repr))
-         (define bits-error (ulps->bits (first (hash-ref data 'ulp-errs))))
+         (define bits-error (first error-bits-list))
          (* 100 (- 1 (/ bits-error total-bits)))]))
     (hasheq 'ulps-error
-            ulp-error
+            error-bits
             'avg-error
             avg-error
             'exact-value

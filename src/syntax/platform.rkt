@@ -46,6 +46,7 @@
          ;; Operator sets
          (contract-out [platform-reprs (-> platform? (listof representation?))]
                        [platform-impls (-> platform? (listof symbol?))]
+                       [platform-fpcore-impls (-> platform? symbol? (listof symbol?))]
                        [platform-repr-cost (-> platform? any/c any/c)]
                        [platform-node-cost-proc (-> platform? procedure?)]
                        [platform-cost-proc (-> platform? procedure?)])
@@ -325,8 +326,7 @@
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
-(define/contract (impl-info impl-name field)
-  (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost 'aggregate) any/c)
+(define (impl-info impl-name field)
   (define impls (platform-implementations (*active-platform*)))
   (define impl
     (or (hash-ref impls impl-name #f)
@@ -340,10 +340,25 @@
     [(fpcore) (operator-impl-fpcore impl)]
     [(fl) (operator-impl-fl impl)]
     [(cost) (operator-impl-cost impl)]
-    [(aggregate) (operator-impl-aggregate impl)]))
+    [(aggregate) (operator-impl-aggregate impl)]
+    [else (error 'impl-info "unknown field '~a'" field)]))
 
 (define (platform-impls platform)
   (hash-keys (platform-implementations platform)))
+
+(define (platform-fpcore-impl-index platform)
+  (or (platform-fpcore-op-hash platform)
+      (let ([h (make-hash)])
+        (for ([impl (in-list (platform-impls platform))])
+          (define-values (_ expr) (impl->fpcore impl))
+          (when (list? expr)
+            (hash-update! h (car expr) (curry cons impl) '())))
+        (set-platform-fpcore-op-hash! platform h)
+        h)))
+
+;; Return FPCore implementations with `op` as their body root.
+(define (platform-fpcore-impls platform op)
+  (reverse (hash-ref (platform-fpcore-impl-index platform) op '())))
 
 (define (platform-reprs platform)
   (hash-values (platform-representations platform)))
@@ -405,21 +420,12 @@
 (define/contract (get-fpcore-impl op prop-dict ireprs)
   (-> symbol? prop-dict/c (listof representation?) (or/c symbol? #f))
   (define platform (*active-platform*))
-  (define op-hash
-    (or (platform-fpcore-op-hash platform)
-        (let ([h (make-hash)])
-          (for ([impl (in-list (platform-impls platform))])
-            (define-values (_ expr) (impl->fpcore impl))
-            (when (list? expr)
-              (hash-update! h (car expr) (curry cons impl) '())))
-          (set-platform-fpcore-op-hash! platform h)
-          h)))
 
   ; gather all implementations that have the same spec, input representations,
   ; and its FPCore translation has properties that are found in `prop-dict`
   (define impls
     (reap [sow]
-          (for ([impl (in-list (hash-ref op-hash op '()))]
+          (for ([impl (in-list (hash-ref (platform-fpcore-impl-index platform) op '()))]
                 #:when (equal? ireprs (impl-info impl 'itype)))
             (define-values (prop-dict* expr) (impl->fpcore impl))
             (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))

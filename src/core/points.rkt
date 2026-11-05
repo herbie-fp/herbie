@@ -16,6 +16,7 @@
          pcontext-length
          errors
          block-errors
+         block-eval
          exprs-errors
          errors-score)
 
@@ -75,9 +76,20 @@
   (define num-exprs (length vs))
   (generate-errors fn pcontext (block-repr-of (first vs)) num-exprs))
 
+(define (block-eval block vs pcontext)
+  (define fn (compile-block block vs))
+  (define num-exprs (length vs))
+  (define num-points (pcontext-length pcontext))
+  (define results (build-vector num-exprs (lambda (_) (make-vector num-points))))
+  (for ([point (in-vector (pcontext-points pcontext))]
+        [pidx (in-naturals)])
+    (for ([out (in-vector (fn point))]
+          [result (in-vector results)])
+      (vector-set! result pidx out)))
+  results)
+
 (define (generate-errors fn pcontext repr num-exprs)
-  (define ulps (repr-ulps repr))
-  (define max-ulps (+ 1 (expt 2 (representation-total-bits repr))))
+  (define error-bits (repr-error repr))
   (define invalid-bits (real->double-flonum (representation-total-bits repr)))
   (define num-points (pcontext-length pcontext))
   (define results (build-vector num-exprs (lambda (_) (make-flvector num-points invalid-bits))))
@@ -87,10 +99,6 @@
     (define outs (fn point))
     (for ([out (in-vector outs)]
           [result (in-vector results)])
-      (define err-ulps (ulps out exact))
-      (flvector-set! result
-                     pidx
-                     (if (= err-ulps max-ulps)
-                         invalid-bits
-                         (ulps->bits err-ulps)))))
+      (define err-bits (error-bits out exact))
+      (flvector-set! result pidx err-bits)))
   (vector->list results))
