@@ -19,7 +19,7 @@
          "../reports/plot.rkt"
          "../config.rkt"
          "sandbox.rkt"
-         (submod "../utils/timeline.rkt" debug))
+         "../utils/timeline.rkt")
 
 (provide job-path
          job-start
@@ -232,7 +232,7 @@
      job-id]
     [(list 'wait 'basic job-id)
      (define command (hash-ref queued-jobs job-id #f))
-     (define result (and command (herbie-do-server-job 0 command job-id)))
+     (define result (and command (herbie-do-server-job 0 command job-id (box '()))))
      (when command
        (hash-remove! queued-jobs job-id)
        (hash-set! completed-jobs job-id result))
@@ -240,14 +240,14 @@
     [(list 'result job-id) (hash-ref completed-jobs job-id #f)]
     [(list 'timeline job-id)
      (define command (hash-ref queued-jobs job-id #f))
-     (define result (and command (herbie-do-server-job 0 command job-id)))
+     (define result (and command (herbie-do-server-job 0 command job-id (box '()))))
      (when command
        (hash-remove! queued-jobs job-id)
        (hash-set! completed-jobs job-id result))
      result]
     [(list 'check job-id)
      (define command (hash-ref queued-jobs job-id #f))
-     (define result (and command (herbie-do-server-job 0 command job-id)))
+     (define result (and command (herbie-do-server-job 0 command job-id (box '()))))
      (when command
        (hash-remove! queued-jobs job-id)
        (hash-set! completed-jobs job-id result))
@@ -425,9 +425,9 @@
    (define worker-thread
      (thread (λ ()
                (let loop ()
-                 (match-define (list manager worker-id job-id command) (thread-receive))
+                 (match-define (list manager worker-id job-id command timeline-box) (thread-receive))
                  (log "run-job: ~a, ~a\n" worker-id job-id)
-                 (define out-result (herbie-do-server-job worker-id command job-id))
+                 (define out-result (herbie-do-server-job worker-id command job-id timeline-box))
                  (log "Job: ~a finished, returning work to manager\n" job-id)
                  (place-channel-put manager (list 'finished manager worker-id job-id out-result))
                  (loop)))))
@@ -437,25 +437,26 @@
      (match (sync ch (thread-dead-evt worker-thread))
        [(? evt?) (error 'make-worker "worker thread died")]
        [(list 'apply manager command job-id)
-        (set! timeline (*timeline*))
+        (set! timeline (box '()))
         (set! current-job-id job-id)
         (log "[~a] working on [~a].\n" job-id (test-name (herbie-command-test command)))
-        (thread-send worker-thread (list manager worker-id job-id command))]
+        (thread-send worker-thread (list manager worker-id job-id command timeline))]
        [(list 'timeline handler)
         (log "Timeline requested from worker[~a] for job ~a\n" worker-id current-job-id)
         (place-channel-put handler (reverse (unbox timeline)))]))))
 
-(define (herbie-do-server-job worker-id h-command job-id)
+(define (herbie-do-server-job worker-id h-command job-id timeline-box)
   (match-define (herbie-command command test seed pcontext profile? timeline?) h-command)
   (define metadata (hash 'job-id job-id 'command (~a command) 'name (test-name test)))
   (trace worker-id 'herbie 'B metadata)
   (define herbie-result
-    (run-herbie command
-                test
-                #:seed seed
-                #:pcontext pcontext
-                #:profile? profile?
-                #:timeline? timeline?))
+    (parameterize ([*timeline* timeline-box])
+      (run-herbie command
+                  test
+                  #:seed seed
+                  #:pcontext pcontext
+                  #:profile? profile?
+                  #:timeline? timeline?)))
   (trace worker-id 'herbie 'E metadata)
   (trace worker-id 'to-json 'B metadata)
   (define basic-output ((get-json-converter command) herbie-result job-id))
