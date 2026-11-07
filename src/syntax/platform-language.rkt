@@ -99,6 +99,7 @@
 (define (check-cost! name cost)
   (match cost
     [(? number?) (values cost +)]
+    [(? cost-aggregate?) (values 0 cost)]
     [(? procedure?) (values 0 cost)]
     [_ (error 'define-operation "Invalid cost for ~a: ~a" name cost)]))
 
@@ -124,7 +125,7 @@
       #:spec any/c
       #:impl (or/c procedure? generator?)
       #:fpcore any/c
-      #:cost (or/c real? procedure?)
+      #:cost (or/c real? procedure? cost-aggregate?)
       operator-impl?)
   (check-spec! name ctx spec)
   (check-fpcore! name fpcore)
@@ -267,5 +268,24 @@
 (define (if-impl c t f)
   (if c t f))
 
-(define ((if-cost base) c t f)
-  (+ base c (max t f)))
+(define (if-cost base)
+  (cost-aggregate base))
+
+(module+ test
+  (require rackunit)
+
+  (define test-platform (make-empty-platform))
+  (platform-register-representation! test-platform #:repr <bool> #:cost 0)
+  (platform-register-representation! test-platform #:repr <binary64> #:cost 0)
+  (define if-impl*
+    (create-operator-impl! 'if.f64
+                           (context '(c t f) <binary64> (list <bool> <binary64> <binary64>))
+                           #:spec '(if c t f)
+                           #:impl if-impl
+                           #:fpcore '(if c t f)
+                           #:cost (if-cost 1)))
+  (platform-register-implementation! test-platform if-impl*)
+
+  (parameterize ([*active-platform* test-platform])
+    (define node-cost ((platform-node-cost-proc test-platform) '(if.f64 c t f)))
+    (check-equal? (node-cost 3 2 7) 11)))

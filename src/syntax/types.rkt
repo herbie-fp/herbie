@@ -21,6 +21,8 @@
          context-extend
          context-lookup
          contexts-union
+         representation->token
+         token->representation
          make-representation
          make-array-representation)
 
@@ -34,6 +36,23 @@
      (fprintf port "#<representation ~a>" (representation-name repr)))])
 
 (struct array-representation representation (slots) #:transparent)
+
+;; Assign compact, safe identifiers to representations and retain the inverse map.
+(define representation-tokens (make-hash))
+(define token-representations (make-hash))
+(define next-representation-token 0)
+
+(define (representation->token repr)
+  (hash-ref! representation-tokens
+             repr
+             (lambda ()
+               (define token (format "r~a" next-representation-token))
+               (set! next-representation-token (add1 next-representation-token))
+               (hash-set! token-representations token repr)
+               token)))
+
+(define (token->representation token)
+  (hash-ref token-representations token))
 
 (define (array-representation-base repr)
   (cond
@@ -184,6 +203,22 @@
   (check-equal? (context-vars ctx*) '(x y z))
   (check-equal? (context-var-reprs ctx*) (list <binary64> <binary64> <binary64>))
   (check-equal? (context-repr ctx*) <binary64>)
+
+  (define array-binary64
+    (make-representation #:name 'array_binary64
+                         #:bf->repr identity
+                         #:repr->bf identity
+                         #:ordinal->repr identity
+                         #:repr->ordinal identity
+                         #:total-bits 64
+                         #:special-value? (const #f)))
+  (define nested-array (make-array-representation (make-array-representation <binary64>) <binary64>))
+  (define scalar-array (make-array-representation array-binary64 <binary64>))
+  (check-not-equal? (representation->token nested-array) (representation->token scalar-array))
+  (for ([repr (in-list (list <binary64> nested-array scalar-array))])
+    (define token (representation->token repr))
+    (check-equal? (representation->token repr) token)
+    (check-eq? (token->representation token) repr))
 
   (check-exn exn:fail?
              (lambda () (contexts-union (list ctx1 (context '(y) <binary64> (list <binary32>))))))

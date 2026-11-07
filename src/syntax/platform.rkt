@@ -9,6 +9,9 @@
          "generators.rkt"
          "block.rkt")
 
+;; Serializable platform cost aggregate used by the Rust extractor.
+(struct cost-aggregate (base) #:transparent)
+
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
 ;;; a "type signature" - they provide no implementations of floating-point
@@ -32,6 +35,7 @@
          get-representation
          impl-exists?
          impl-info
+         (struct-out cost-aggregate)
          prog->spec
          block-to-spec!
          get-fpcore-impl
@@ -376,7 +380,12 @@
      (lambda itype-costs
        (unless (= (length itype-costs) (length args))
          (error 'platform-node-cost-proc "arity mismatch, expected ~a arguments" (length args)))
-       (+ impl-cost (apply impl-agg itype-costs)))]))
+       (+ impl-cost
+          (match impl-agg
+            [(cost-aggregate base)
+             (match itype-costs
+               [(list condition then otherwise) (+ base condition (max then otherwise))])]
+            [(? procedure? aggregate) (apply aggregate itype-costs)])))]))
 
 ; Cost model parameterized by a platform.
 (define (platform-cost-proc platform)

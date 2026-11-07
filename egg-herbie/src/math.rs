@@ -5,6 +5,7 @@ use num_bigint::BigInt;
 use num_integer::Integer;
 use num_rational::Ratio;
 use num_traits::{One, Pow, Signed, Zero};
+use std::collections::HashMap;
 use std::str::FromStr;
 
 pub type Constant = num_rational::BigRational;
@@ -24,25 +25,125 @@ pub struct Extracted {
     pub cost: usize,
 }
 
-// cost function similar to AstSize except it will
-// penalize `(pow _ p)` where p is a fraction
-pub struct AltCost<'a> {
-    pub egraph: &'a EGraph,
+#[derive(Clone, Copy)]
+enum Aggregation {
+    Sum,
+    If,
 }
 
-impl<'a> AltCost<'a> {
-    pub fn new(egraph: &'a EGraph) -> Self {
-        Self { egraph }
+#[derive(Clone, Copy)]
+struct OperatorCost {
+    base: usize,
+    aggregation: Aggregation,
+}
+
+#[derive(Clone, Default)]
+pub struct ExtractionCosts {
+    operators: HashMap<String, OperatorCost>,
+    representations: HashMap<String, usize>,
+    pow_exponents: HashMap<String, usize>,
+}
+
+impl ExtractionCosts {
+    pub fn parse(serialized: &str) -> Self {
+        let mut costs = Self::default();
+        for line in serialized.lines() {
+            let fields = line.split('\t').collect::<Vec<_>>();
+            match fields.as_slice() {
+                ["repr", repr, cost] => {
+                    costs
+                        .representations
+                        .insert((*repr).to_string(), cost.parse().unwrap());
+                }
+                ["impl", op, "sum", cost] => {
+                    costs.operators.insert(
+                        (*op).to_string(),
+                        OperatorCost {
+                            base: cost.parse().unwrap(),
+                            aggregation: Aggregation::Sum,
+                        },
+                    );
+                }
+                ["impl", op, "if", base] => {
+                    costs.operators.insert(
+                        (*op).to_string(),
+                        OperatorCost {
+                            base: base.parse().unwrap(),
+                            aggregation: Aggregation::If,
+                        },
+                    );
+                }
+                ["pow", op, exponent] => {
+                    costs
+                        .pow_exponents
+                        .insert((*op).to_string(), exponent.parse().unwrap());
+                }
+                _ => unreachable!("invalid serialized platform extraction cost"),
+            }
+        }
+        costs
     }
 }
 
-impl<'a> CostFunction<Math> for AltCost<'a> {
+// Parsed costs are cloned with Context; this short-lived view also borrows the current graph
+// to inspect constant-folded exponents during extraction.
+pub struct PlatformCost<'a> {
+    egraph: &'a EGraph,
+    costs: &'a ExtractionCosts,
+}
+
+impl<'a> PlatformCost<'a> {
+    pub fn new(egraph: &'a EGraph, costs: &'a ExtractionCosts) -> Self {
+        Self { egraph, costs }
+    }
+}
+
+impl<'a> CostFunction<Math> for PlatformCost<'a> {
     type Cost = usize;
 
     fn cost<C>(&mut self, enode: &Math, mut costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost,
     {
+        if let Math::Other(op, children) = enode {
+            let op = op.as_str();
+            if op.starts_with("$do-lower.") {
+                return usize::MAX;
+            }
+            if let Some(repr) = op.strip_prefix("$do-lower-constant.") {
+                return self.costs.representations[repr];
+            }
+            if op.starts_with("$do-lower-variable.") {
+                return 0;
+            }
+            if op == "$approx" {
+                return costs(children[1]);
+            }
+            if let Some(operator_cost) = self.costs.operators.get(op) {
+                if let Some(exponent) = self.costs.pow_exponents.get(op) {
+                    if let Some((n, _reason)) = &self.egraph[children[*exponent]].data {
+                        if !n.denom().is_one() && n.denom().is_odd() {
+                            return usize::MAX;
+                        }
+                    }
+                }
+                return match operator_cost.aggregation {
+                    Aggregation::Sum => children
+                        .iter()
+                        .fold(operator_cost.base, |sum, id| sum.saturating_add(costs(*id))),
+                    Aggregation::If => {
+                        let mut child_costs = children.iter().map(|id| costs(*id));
+                        operator_cost
+                            .base
+                            .saturating_add(child_costs.next().unwrap())
+                            .saturating_add(
+                                child_costs.next().unwrap().max(child_costs.next().unwrap()),
+                            )
+                    }
+                };
+            }
+        }
+
         if let Math::Pow([_, i]) = enode {
             if let Some((n, _reason)) = &self.egraph[*i].data {
                 if !n.denom().is_one() && n.denom().is_odd() {
@@ -55,9 +156,72 @@ impl<'a> CostFunction<Math> for AltCost<'a> {
     }
 }
 
+#[cfg(test)]
+mod platform_cost_tests {
+    use super::*;
+
+    #[test]
+    fn uses_platform_costs_for_extraction() {
+        let mut egraph = EGraph::new(ConstantFold::default());
+        let x = egraph.add(Math::Symbol("x".into()));
+        let y = egraph.add(Math::Symbol("y".into()));
+        let sin = egraph.add(Math::Other("sin.f64".into(), vec![x]));
+        let inner_add = egraph.add(Math::Other("+.f64".into(), vec![x, y]));
+        let nested_add = egraph.add(Math::Other("+.f64".into(), vec![inner_add, y]));
+        egraph.union(sin, nested_add);
+
+        let p = egraph.add(Math::Symbol("p".into()));
+        let q = egraph.add(Math::Symbol("q".into()));
+        let half = egraph.add(Math::Constant(Ratio::new(BigInt::from(1), BigInt::from(2))));
+        let third = egraph.add(Math::Constant(Ratio::new(BigInt::from(1), BigInt::from(3))));
+        let pow_half = egraph.add(Math::Other("pow.f64".into(), vec![p, half]));
+        let pow_third = egraph.add(Math::Other("pow.f64".into(), vec![q, third]));
+        let expanded = egraph.add(Math::Other("*.f64".into(), vec![pow_half, pow_third]));
+        let sum = egraph.add(Math::Other("+.f64".into(), vec![p, q]));
+        egraph.union(expanded, sum);
+        egraph.rebuild();
+
+        let costs = ExtractionCosts::parse(
+            "impl\tsin.f64\tsum\t4200\n\
+             impl\t+.f64\tsum\t200\n\
+             impl\tpow.f64\tsum\t20\n\
+             impl\t*.f64\tsum\t1\n\
+             pow\tpow.f64\t1",
+        );
+        let platform_extractor = Extractor::new(&egraph, PlatformCost::new(&egraph, &costs));
+        let (_, platform_best) = platform_extractor.find_best(egraph.find(sin));
+        assert_eq!(
+            platform_best
+                .as_ref()
+                .iter()
+                .filter(|node| matches!(node, Math::Other(op, _) if op.as_str() == "+.f64"))
+                .count(),
+            2
+        );
+
+        let (_, sum_best) =
+            Extractor::new(&egraph, PlatformCost::new(&egraph, &costs)).find_best(egraph.find(sum));
+        assert!(sum_best
+            .as_ref()
+            .iter()
+            .any(|node| matches!(node, Math::Other(op, _) if op.as_str() == "+.f64")));
+        assert!(!sum_best
+            .as_ref()
+            .iter()
+            .any(|node| matches!(node, Math::Other(op, _) if op.as_str() == "pow.f64")));
+
+        let size_extractor = Extractor::new(&egraph, AstSize);
+        let (_, size_best) = size_extractor.find_best(egraph.find(sin));
+        assert!(size_best
+            .as_ref()
+            .iter()
+            .any(|node| matches!(node, Math::Other(op, _) if op.as_str() == "sin.f64")));
+    }
+}
+
 impl IterationData<Math, ConstantFold> for IterData {
     fn make(runner: &Runner) -> Self {
-        let extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
+        let extractor = Extractor::new(&runner.egraph, AstSize);
         let extracted = runner
             .roots
             .iter()
