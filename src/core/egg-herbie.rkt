@@ -150,9 +150,10 @@
       (for/list ([enode (in-vector enodes)]
                  #:when (variable-enode? enode))
         (context-lookup ctx (egg-var->var enode ctx))))
+    ;; Root reprs are extraction targets, not variable input types.
     (define leaf-reprs
       (remove-duplicates (if (pair? variable-reprs)
-                             (append variable-reprs (hash-ref root-reprs-by-id id '()))
+                             variable-reprs
                              (append real-reprs (hash-ref root-reprs-by-id id '())))))
     (for ([leaf (in-vector enodes)]
           #:when (or (number? leaf) (variable-enode? leaf)))
@@ -720,18 +721,18 @@
     (check-equal? (val-def (first (first vals))) 'x))
 
   (test-case "do-lower preserves mixed-precision root representations"
-    (dynamic-wind (lambda () (activate-platform! "herbie20"))
-                  (lambda ()
-                    (define ctx (context '(x) <binary64> (list <binary32>)))
-                    (define impl-block (block-empty ctx))
-                    (define impl-v (block-add! impl-block '(binary32->binary64 x)))
-                    (define spec-block (block-empty ctx))
-                    (define spec-vs (block-to-spec! impl-block spec-block (list impl-v)))
-                    (define runner
-                      (make-egraph spec-block spec-vs '(lower) ctx #:root-reprs (list <binary64>)))
-                    (define vals (egraph-best runner impl-block (list <binary64>)))
-                    (check-equal? (map (block-exprs impl-block) (first vals)) '(x)))
-                  (lambda () (activate-platform! "c")))))
+    (dynamic-wind
+     (lambda () (activate-platform! "herbie20"))
+     (lambda ()
+       (define ctx (context '(x) <binary64> (list <binary32>)))
+       (define impl-block (block-empty ctx))
+       (define impl-v (block-add! impl-block '(binary32->binary64 x)))
+       (define spec-block (block-empty ctx))
+       (define spec-vs (block-to-spec! impl-block spec-block (list impl-v)))
+       (define runner (make-egraph spec-block spec-vs '(lower) ctx #:root-reprs (list <binary64>)))
+       (define vals (egraph-best runner impl-block (list <binary64>)))
+       (check-equal? (map (block-exprs impl-block) (first vals)) '((binary32->binary64 x))))
+     (lambda () (activate-platform! "c")))))
 
 (module+ test
   (test-case "do-lower converts mixed-precision arguments"
