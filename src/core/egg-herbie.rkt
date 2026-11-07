@@ -1042,9 +1042,37 @@
 (define (regraph-extract-variants regraph extract id type)
   ; regraph fields
   (define eclasses (regraph-eclasses regraph))
+  (define types (regraph-types regraph))
   (define canon (regraph-canon regraph))
   ; Functions for egg-extraction
   (match-define (list _ extract-enode) extract)
+
+  (define (replace-child root-v child-index child-v)
+    (define block (val-block root-v))
+    (match (val-def root-v)
+      [(approx spec impl)
+       (block-add! block
+                   (if (zero? child-index)
+                       (approx (val-idx child-v) impl)
+                       (approx spec child-v)))]
+      [(list op args ...)
+       (block-add! block
+                   (cons op
+                         (for/list ([arg (in-list args)]
+                                    [i (in-naturals)])
+                           (if (= i child-index) child-v arg))))]))
+
+  (define (extract-enode-variants enode node-type)
+    (define root-v (extract-enode enode node-type))
+    (cons root-v
+          (append* (for/list ([child-id (in-list (if (list? enode)
+                                                     (cdr enode)
+                                                     '()))]
+                              [child-index (in-naturals)])
+                     (for/list ([child-enode (in-vector (vector-ref eclasses child-id))])
+                       (define child-type (vector-ref types child-id))
+                       (replace-child root-v child-index (extract-enode child-enode child-type)))))))
+
   ; extract expressions
   (define key (cons id type))
   (cond
@@ -1052,8 +1080,8 @@
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
 
-     (remove-duplicates (for/list ([enode (vector-ref eclasses id*)])
-                          (extract-enode enode type))
+     (remove-duplicates (append* (for/list ([enode (vector-ref eclasses id*)])
+                                   (extract-enode-variants enode type)))
                         #:key val-idx)]
     [else (list)]))
 

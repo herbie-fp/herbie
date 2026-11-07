@@ -210,9 +210,10 @@
        (define rewritten-specs (map cdr rewrite-results))
        (define lower-runner (make-egraph spec-block rewritten-specs '(lower) (*context*)))
        (define lowered-valss
-         (egraph-best lower-runner
-                      global-block
-                      (map (λ (result) (block-repr-of (alt-expr (car result)))) rewrite-results)))
+         (egraph-variations lower-runner
+                            global-block
+                            (map (λ (result) (block-repr-of (alt-expr (car result))))
+                                 rewrite-results)))
        (reap [sow]
              (for ([result (in-list rewrite-results)]
                    [vals (in-list lowered-valss)])
