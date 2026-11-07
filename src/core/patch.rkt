@@ -204,7 +204,8 @@
                                         [`(array ,_ ...) 'array]
                                         [type type])]))
                                  reprs
-                                 spec-vs)))
+                                 spec-vs)
+                            #:child-variants? #t))
        (define rewrite-results
          (append* (map (λ (altn spec-vals) (map (curry cons altn) spec-vals)) altns rewrite-valss)))
        (define rewritten-specs (map cdr rewrite-results))
