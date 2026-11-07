@@ -21,8 +21,7 @@
          "../core/points.rkt"
          "../core/explain.rkt"
          "../utils/profile.rkt"
-         "../utils/timeline.rkt"
-         (submod "../utils/timeline.rkt" debug))
+         "../utils/timeline.rkt")
 
 (provide run-herbie
          get-table-data-from-hash
@@ -166,7 +165,6 @@
                     #:pcontext [pcontext #f]
                     #:profile? [profile? #f]
                     #:timeline? [timeline? #f])
-  (define timeline #f)
   (define profile #f)
 
   (define (on-exception start-time e)
@@ -179,7 +177,6 @@
 
   (define (on-timeout)
     (parameterize ([*timeline-disabled* (not timeline?)])
-      (timeline-load! timeline)
       (timeline-event! 'end)
       (match command
         ['improve
@@ -192,7 +189,6 @@
       (reset!)
       (*context* (test-context test))
       (activate-platform! (platform-serialize))
-      (set! timeline (*timeline*))
       (when seed
         (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])

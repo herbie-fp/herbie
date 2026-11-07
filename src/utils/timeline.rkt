@@ -8,18 +8,14 @@
          (contract-out (timeline-event! (symbol? . -> . void?))
                        (timeline-push! (symbol? jsexpr? ... . -> . void?))
                        (timeline-start! (symbol? jsexpr? ... . -> . (-> void?))))
-         timeline-load!
          timeline-extract
          timeline-merge
          timeline-reattribute-gc
-         *timeline-disabled*)
-(module+ debug
-  (provide *timeline*))
+         *timeline-disabled*
+         *timeline*)
 
-;; This is a box so we can get a reference outside the engine, and so
-;; access its value even in a timeout.
 ;; Important: Use 'eq?' based hash tables, process may freeze otherwise
-(define/reset *timeline* (box '()) (lambda () (set-box! (*timeline*) '())))
+(define *timeline* (make-parameter (box '())))
 
 (define *timeline-active-key* #f)
 (define *timeline-active-value* #f)
@@ -101,9 +97,6 @@
        (set-remove! *timeline-timers* end!))
      (set-add! *timeline-timers* end!)
      end!]))
-
-(define (timeline-load! value)
-  (*timeline* value))
 
 (define (diff-memory-records v1 v2)
   (list (list (- (caar v1) (caar v2)) (- (cadar v1) (cadar v2)))))
