@@ -70,7 +70,6 @@
 ;; Constructs an egglog runner - structurally serves the same purpose as egg-runner
 ;;
 ;; The schedule is a list of step symbols:
-;;  - `lift`: run lifting rules for 1 iteration with simple scheduler
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
 ;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
 ;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
@@ -79,7 +78,7 @@
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
   (for ([step (in-list schedule)])
-    (unless (memq step '(lift lower unsound rewrite))
+    (unless (memq step '(lower unsound rewrite))
       (oops! "unknown schedule step `~a`" step)))
 
   ; make the runner
@@ -165,7 +164,6 @@
   (for ([step (in-list schedule)])
     (apply egglog-send subproc (egglog-step-commands step pform))
     (match step
-      ['lift (egglog-send subproc '(run-schedule (saturate lift)))]
       ['lower (egglog-send subproc '(run-schedule (saturate lower)))]
       ['unsound (egglog-send subproc '(run-schedule (saturate unsound)))]
       ;; Run the rewrite ruleset interleaved with const-fold until the best iteration
@@ -268,9 +266,7 @@
                    ,@(platform-impl-nodes pform))
         `(constructor do-lower (M String) MTy :unextractable)
         `(constructor herbie-const (i64) M :unextractable)
-        `(constructor do-lift (MTy) M :unextractable)
         `(ruleset lower)
-        `(ruleset lift)
         `(ruleset unsound)
         `(function bad-merge? () bool :merge (or old new))
         `(ruleset bad-merge-rule)
@@ -283,7 +279,6 @@
 
 (define (egglog-step-commands step pform)
   (match step
-    ['lift (append (list (approx-lifting-rule)) (impl-lifting-rules pform) (num-lifting-rules))]
     ['lower (append (impl-lowering-rules pform) (num-lowering-rules))]
     ['unsound (egglog-rewrite-rules (*sound-removal-rules*) 'unsound pform)]
     ['rewrite
@@ -405,14 +400,6 @@
            :ruleset
            lower)))
 
-(define (num-lifting-rules)
-  (for/list ([repr (in-list (all-repr-names))]
-             #:when (not (eq? repr 'bool)))
-    `(rule ((= e (,(typed-num-id repr) n))) ((union (do-lift e) (Num n))) :ruleset lift)))
-
-(define (approx-lifting-rule)
-  `(rule ((= e (Approx spec impl))) ((union (do-lift e) spec)) :ruleset lift))
-
 (define (impl-lowering-rules pform)
   (define helper-impls
     (for/seteq ([extension (in-list (*platform-extensions*))])
@@ -434,19 +421,6 @@
                    :ruleset
                    lower))
           (egglog-rewrite-rules array-rules 'lower pform)))
-
-(define (impl-lifting-rules pform)
-  (for/list ([impl (in-list (platform-impls pform))])
-    (define spec-expr (impl-info impl 'spec))
-    `(rule ((= ?root
-               (,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
-                ,@(impl-info impl 'vars)))
-            ,@(for/list ([v (in-list (impl-info impl 'vars))]
-                         [vt (in-list (impl-info impl 'itype))])
-                `(= ,(string->symbol (string-append "s" (symbol->string v))) (do-lift ,v))))
-           ((union (do-lift ?root) ,(expr->egglog-spec-serialized spec-expr "s")))
-           :ruleset
-           lift)))
 
 (define (serialize-spec-op op arity)
   (match* (op arity)
@@ -564,15 +538,6 @@
                                 (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
                         :ruleset
                         lower)))
-
-  ; Var-lifting-rules
-  (for ([var (in-list (block-vars block))]
-        [repr (in-list (block-var-reprs block))])
-    (egglog-send subproc
-                 `(rule ((= e (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
-                        ((union (do-lift e) (Var ,(symbol->string var))))
-                        :ruleset
-                        lift)))
 
   (define all-bindings '())
   (define binding->constructor (make-hash)) ; map from binding name to constructor name

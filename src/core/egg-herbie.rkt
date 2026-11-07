@@ -390,28 +390,14 @@
                  (define output (expr->egg-pattern (rule-output ru)))
                  (make-ffi-rule (rule-name ru) input output)))))
 
-;; Rules from impl to spec (fixed for a particular platform)
-(define/reset *lifting-rules* (make-hash))
-
 ;; Rules from spec to impl (fixed for a particular platform)
 (define/reset *lowering-rules* (make-hash))
 
-;; Synthesizes the LHS and RHS of lifting/lowering rules.
+;; Synthesizes the parts of a lowering rule for a platform implementation.
 (define (impl->rule-parts impl)
   (define vars (impl-info impl 'vars))
   (define spec (impl-info impl 'spec))
   (values vars spec (cons impl vars)))
-
-;; Synthesizes lifting rules for a platform platform.
-(define (platform-lifting-rules [pform (*active-platform*)])
-  (define impls (platform-impls pform))
-  (for/list ([impl (in-list impls)])
-    (hash-ref! (*lifting-rules*)
-               (cons impl pform)
-               (lambda ()
-                 (define name (sym-append 'lift- impl))
-                 (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                 (rule name impl-expr spec-expr '(lifting))))))
 
 ;; Synthesizes lowering rules for a given platform.
 (define (platform-lowering-rules [pform (*active-platform*)])
@@ -1135,9 +1121,6 @@
               ([step (in-list schedule)])
       (define-values (egg-graph* iteration-data)
         (match step
-          ['lift
-           (define rules (convert-rules (platform-lifting-rules)))
-           (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
           ['lower
            (define rules (convert-rules (platform-lowering-rules)))
            (egraph-run-rules egg-graph rules #:iter-limit 1 #:scheduler 'simple)]
@@ -1189,7 +1172,6 @@
 ;; Constructs an egg runner.
 ;;
 ;; The schedule is a list of step symbols:
-;;  - `lift`: run lifting rules for 1 iteration with simple scheduler
 ;;  - `rewrite`: run rewrite rules up to node limit with backoff scheduler
 ;;  - `unsound`: run sound-removal rules for 1 iteration with simple scheduler
 ;;  - `lower`: run lowering rules for 1 iteration with simple scheduler
@@ -1198,7 +1180,7 @@
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
   (for ([step (in-list schedule)])
-    (unless (memq step '(lift lower unsound rewrite))
+    (unless (memq step '(lower unsound rewrite))
       (oops! "unknown schedule step `~a`" step)))
 
   (define-values (root-ids egg-graph) (egraph-run-schedule block vs schedule ctx))
