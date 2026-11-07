@@ -169,29 +169,55 @@
 (define (run-rr altns global-block spec-block)
   (timeline-event! 'rewrite)
 
-  ; egg schedule (4-phases for mathematical rewrites, sound-X removal, and implementation selection)
-  (define schedule '(rewrite unsound lower))
-
   (define vs (map alt-expr altns))
   (define spec-vs (block-to-spec! global-block spec-block vs))
   (define reprs (map block-repr-of vs))
-  (define runner
-    (cond
-      [(flag-set? 'generate 'egglog) (make-egglog-runner spec-block spec-vs schedule (*context*))]
-      [else (make-egraph spec-block spec-vs schedule (*context*))]))
-
-  (define valss
-    (if (flag-set? 'generate 'egglog)
-        (run-egglog runner global-block reprs 'rewrite #:extract (*egglog-variants-limit*))
-        (egraph-variations runner global-block reprs)))
-
-  ; apply changelists
   (define rewritten
-    (reap [sow]
-          (for ([vals (in-list valss)]
-                [altn (in-list altns)])
-            (for ([val* (in-list vals)])
-              (sow (alt val* (list 'rr runner #f) (list altn)))))))
+    (cond
+      [(flag-set? 'generate 'egglog)
+       ; egglog currently extracts lowered implementation variants in one pass.
+       (define schedule '(rewrite unsound lower))
+       (define runner (make-egglog-runner spec-block spec-vs schedule (*context*)))
+       (define valss
+         (run-egglog runner global-block reprs 'rewrite #:extract (*egglog-variants-limit*)))
+       (reap [sow]
+             (for ([vals (in-list valss)]
+                   [altn (in-list altns)])
+               (for ([val* (in-list vals)])
+                 (sow (alt val* (list 'rr runner #f) (list altn))))))]
+      [else
+       ; Extract every rewritten specification before lowering. There is no
+       ; implementation cost information at this stage; lowering then chooses
+       ; the best implementation for each extracted specification.
+       (define rewrite-runner (make-egraph spec-block spec-vs '(rewrite unsound) (*context*)))
+       (define rewrite-valss
+         (egraph-variations rewrite-runner
+                            spec-block
+                            (map (λ (repr spec-v)
+                                   (match (val-def spec-v)
+                                     [(? symbol?)
+                                      (if (array-representation? repr)
+                                          repr
+                                          (representation-type repr))]
+                                     [_
+                                      (match (representation-type repr)
+                                        [`(array ,_ ...) 'array]
+                                        [type type])]))
+                                 reprs
+                                 spec-vs)))
+       (define rewrite-results
+         (append* (map (λ (altn spec-vals) (map (curry cons altn) spec-vals)) altns rewrite-valss)))
+       (define rewritten-specs (map cdr rewrite-results))
+       (define lower-runner (make-egraph spec-block rewritten-specs '(lower) (*context*)))
+       (define lowered-valss
+         (egraph-best lower-runner
+                      global-block
+                      (map (λ (result) (block-repr-of (alt-expr (car result)))) rewrite-results)))
+       (reap [sow]
+             (for ([result (in-list rewrite-results)]
+                   [vals (in-list lowered-valss)])
+               (for ([val* (in-list vals)])
+                 (sow (alt val* (list 'rr rewrite-runner #f) (list (car result)))))))]))
 
   (timeline-push! 'inputs (block->jsexpr global-block spec-block (map alt-expr altns)))
   (timeline-push! 'outputs (block->jsexpr global-block spec-block (map alt-expr rewritten)))
