@@ -125,33 +125,9 @@
 (define (seed-do-lower-eclasses! ptr ctx root-ids root-reprs)
   (define reprs (platform-reprs (*active-platform*)))
   (define real-reprs (filter (lambda (repr) (equal? (representation-type repr) 'real)) reprs))
-  (define bool-reprs (filter (lambda (repr) (equal? (representation-type repr) 'bool)) reprs))
-  (define array-reprs (filter array-representation? reprs))
-  (define (type-reprs type)
-    (cond
-      [(representation? type) (list type)]
-      [(equal? type 'real) real-reprs]
-      [(equal? type 'bool) bool-reprs]
-      [(equal? type 'array) array-reprs]
-      [else '()]))
-  (define (enode-reprs enode)
-    (match enode
-      [(? number?) real-reprs]
-      [(? symbol? var) (list (context-lookup ctx (egg-var->var var ctx)))]
-      [(cons f _)
-       (cond
-         [(eq? f 'array) array-reprs]
-         [(eq? f 'if) (append real-reprs array-reprs)]
-         [(eq? f '$approx) reprs]
-         [(string-prefix? (symbol->string f) "sound-") real-reprs]
-         [(impl-exists? f) (list (impl-info f 'otype))]
-         [(operator-exists? f) (type-reprs (operator-info f 'otype))]
-         [else '()])]))
   (define (variable-enode? enode)
     (and (symbol? enode) (string-prefix? (symbol->string enode) "$var")))
-  (define repr->ids (make-hash))
   (define repr->leaf-classes (make-hash))
-  (define repr->marker-ids (make-hash))
   (define root-reprs-by-id (make-hash))
   ;; A cast's spec can be a narrower input variable than its requested output.
   (when root-reprs
@@ -161,26 +137,26 @@
                     (egraph_find ptr root-id)
                     (lambda (reprs) (cons repr reprs))
                     '())))
-  (for ([id (in-u32vector (egraph_get_eclasses ptr))])
+  (define eclass-ids (u32vector->list (egraph_get_eclasses ptr)))
+  (define all-reprs
+    (remove-duplicates (append reprs
+                               (if root-reprs
+                                   root-reprs
+                                   '())
+                               (context-var-reprs ctx))))
+  (for ([id (in-list eclass-ids)])
     (define enodes (egraph-get-eclass ptr id))
     (define variable-reprs
       (for/list ([enode (in-vector enodes)]
                  #:when (variable-enode? enode))
         (context-lookup ctx (egg-var->var enode ctx))))
-    (define inferred-reprs
-      (remove-duplicates (append (append-map enode-reprs (vector->list enodes))
-                                 (hash-ref root-reprs-by-id id '()))))
-    (define reprs-for-id
-      (cond
-        [(pair? variable-reprs)
-         (remove-duplicates (append variable-reprs (hash-ref root-reprs-by-id id '())))]
-        [(ormap (lambda (repr) (equal? (representation-type repr) 'real)) inferred-reprs)
-         (remove-duplicates (append real-reprs inferred-reprs))]
-        [else inferred-reprs]))
-    (for ([repr (in-list reprs-for-id)])
-      (hash-update! repr->ids repr (lambda (ids) (cons id ids)) '())
-      (for ([leaf (in-vector enodes)]
-            #:when (or (number? leaf) (variable-enode? leaf)))
+    (define leaf-reprs
+      (remove-duplicates (if (pair? variable-reprs)
+                             (append variable-reprs (hash-ref root-reprs-by-id id '()))
+                             (append real-reprs (hash-ref root-reprs-by-id id '())))))
+    (for ([leaf (in-vector enodes)]
+          #:when (or (number? leaf) (variable-enode? leaf)))
+      (for ([repr (in-list leaf-reprs)])
         (hash-update! repr->leaf-classes
                       repr
                       (lambda (leaf-classes) (cons (cons leaf id) leaf-classes))
@@ -196,26 +172,24 @@
                   (egraph_find ptr root-id)
                   (lambda (lower-idss) (cons lower-ids lower-idss))
                   '()))
-  (for ([(repr ids) (in-hash repr->ids)])
+  ;; Seed markers broadly; typed leaves still limit which representations extract values.
+  (for ([repr (in-list all-reprs)])
     (define marker-ids
-      (egraph_seed_do_lower ptr (symbol->string (do-lower-op repr)) (list->u32vector ids)))
+      (egraph_seed_do_lower ptr (symbol->string (do-lower-op repr)) (list->u32vector eclass-ids)))
     (define marker-ids-by-id (make-hash))
-    (hash-set! repr->marker-ids repr marker-ids-by-id)
-    (for ([id (in-list ids)]
+    (for ([id (in-list eclass-ids)]
           [marker-id (in-u32vector marker-ids)])
       (hash-set! marker-ids-by-id id marker-id)
       (define root-lower-id (hash-ref root-id->lower-ids id #f))
       (when root-lower-id
         (for ([lower-ids (in-list root-lower-id)])
-          (hash-set! lower-ids repr marker-id)))))
+          (hash-set! lower-ids repr marker-id))))
 
-  ;; Apply leaf lowerings directly: each concrete leaf already has a known
-  ;; marker e-class, so running one search per leaf only rescans that index.
-  (for ([(repr leaf-classes) (in-hash repr->leaf-classes)])
-    (for ([leaf-class (in-list (remove-duplicates leaf-classes))])
+    ;; Only seed concrete leaves in representations they actually support.
+    (for ([leaf-class (in-list (remove-duplicates (hash-ref repr->leaf-classes repr '())))])
       (define leaf (car leaf-class))
       (define id (cdr leaf-class))
-      (define marker-id (hash-ref (hash-ref repr->marker-ids repr) id))
+      (define marker-id (hash-ref marker-ids-by-id id))
       (define typed-op
         (if (number? leaf)
             (typed-constant-op repr)
@@ -758,6 +732,25 @@
                     (define vals (egraph-best runner impl-block (list <binary64>)))
                     (check-equal? (map (block-exprs impl-block) (first vals)) '(x)))
                   (lambda () (activate-platform! "c")))))
+
+(module+ test
+  (test-case "do-lower converts mixed-precision arguments"
+    (dynamic-wind
+     (lambda () (activate-platform! "herbie20"))
+     (lambda ()
+       (define ctx (context '(x) <binary64> (list <binary32>)))
+       (define-values (block vs) (progs->block (list '(+ x 1)) #:ctx ctx))
+       (define runner (make-egraph block vs '(lower) ctx #:root-reprs (list <binary64>)))
+       (define exprs
+         (map (block-exprs block) (first (egraph-variations runner block (list <binary64>)))))
+       (check-not-false
+        (member (list '+.f64 (list 'binary32->binary64 'x) (literal 1 'binary64)) exprs equal?))
+       (check-false (for/or ([expr (in-list exprs)])
+                      (and (list? expr)
+                           (= (length expr) 3)
+                           (eq? (first expr) '+.f64)
+                           (equal? (second expr) 'x)))))
+     (lambda () (activate-platform! "c")))))
 
 (module+ test
   (require "../syntax/load-platform.rkt")
