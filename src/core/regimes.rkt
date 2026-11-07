@@ -64,14 +64,15 @@
   ;; For timeline
   (define block-jsexpr
     (block->jsexpr block spec-block (append (map alt-expr sorted) (map candidate-expr branches))))
-  (timeline-push! 'block block-jsexpr)
+  (timeline-push!/unsafe 'block block-jsexpr)
   (define branch-roots (drop (hash-ref block-jsexpr 'roots) alt-count))
 
   (define option-curves
     (for/list ([c (in-list branches)]
                [root (in-list branch-roots)])
       (define v (candidate-expr c))
-      (define timeline-stop! (timeline-start! 'times (block->jsexpr block spec-block (list v))))
+      (define timeline-stop!
+        (timeline-start!/unsafe 'times (block->jsexpr block spec-block (list v))))
       (define curve (branch-options c alts-vec errors pts-vec))
       (define last-point (last curve))
       (timeline-stop!)
@@ -86,8 +87,8 @@
       (pareto-union curve branch-curve #:combine (lambda (old _new) old))))
 
   ;; Timeline
-  (timeline-push! 'inputs (block->jsexpr block spec-block (map alt-expr sorted)))
-  (timeline-push!
+  (timeline-push!/unsafe 'inputs (block->jsexpr block spec-block (map alt-expr sorted)))
+  (timeline-push!/unsafe
    'outputs
    (block->jsexpr block
                   spec-block
