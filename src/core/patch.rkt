@@ -204,17 +204,15 @@
                                         [`(array ,_ ...) 'array]
                                         [type type])]))
                                  reprs
-                                 spec-vs)
-                            #:child-variants? #t))
+                                 spec-vs)))
        (define rewrite-results
          (append* (map (λ (altn spec-vals) (map (curry cons altn) spec-vals)) altns rewrite-valss)))
        (define rewritten-specs (map cdr rewrite-results))
        (define lower-runner (make-egraph spec-block rewritten-specs '(lower) (*context*)))
        (define lowered-valss
-         (egraph-variations lower-runner
-                            global-block
-                            (map (λ (result) (block-repr-of (alt-expr (car result))))
-                                 rewrite-results)))
+         (egraph-best lower-runner
+                      global-block
+                      (map (λ (result) (block-repr-of (alt-expr (car result)))) rewrite-results)))
        (reap [sow]
              (for ([result (in-list rewrite-results)]
                    [vals (in-list lowered-valss)])

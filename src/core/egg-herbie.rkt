@@ -1039,72 +1039,12 @@
     [else (list)]))
 
 ;; Extracts multiple expressions according to the extractor
-(define (regraph-extract-variants regraph extract id type #:child-variants? [child-variants? #f])
+(define (regraph-extract-variants regraph extract id type)
   ; regraph fields
   (define eclasses (regraph-eclasses regraph))
-  (define types (regraph-types regraph))
   (define canon (regraph-canon regraph))
   ; Functions for egg-extraction
   (match-define (list _ extract-enode) extract)
-
-  (define (replace-child root-v child-index child-v)
-    (define block (val-block root-v))
-    (match (val-def root-v)
-      [(approx spec impl)
-       (block-add! block
-                   (if (zero? child-index)
-                       (approx (val-idx child-v) impl)
-                       (approx spec child-v)))]
-      [(list op args ...)
-       (block-add! block
-                   (cons op
-                         (for/list ([arg (in-list args)]
-                                    [i (in-naturals)])
-                           (if (= i child-index) child-v arg))))]))
-
-  (define (value-size v)
-    (match (val-def v)
-      [(? number?) 1]
-      [(? symbol?) 1]
-      [(approx spec impl) (+ 1 (value-size (val (val-block v) spec)) (value-size impl))]
-      [(list _ args ...) (+ 1 (for/sum ([arg (in-list args)]) (value-size arg)))]))
-
-  (define (value-root-key v)
-    (match (val-def v)
-      [(? number? n) (list 'literal n)]
-      [(? symbol? var) (list 'variable var)]
-      [(approx _ _) 'approx]
-      [(list op _ ...) (list 'operator op)]))
-
-  ;; Keep the smallest child expression for each root operator, since lowerings
-  ;; can distinguish operators but need not enumerate every equivalent child.
-  (define (extract-child-variants root-v child-id child-index)
-    (define child-type (vector-ref types child-id))
-    (define best-by-root (make-hash))
-    (define root-order '())
-    (for ([child-enode (in-vector (vector-ref eclasses child-id))])
-      (define child-v (extract-enode child-enode child-type))
-      (define root-key (value-root-key child-v))
-      (define size (value-size child-v))
-      (define previous (hash-ref best-by-root root-key #f))
-      (cond
-        [(not previous)
-         (hash-set! best-by-root root-key (cons size child-v))
-         (set! root-order (cons root-key root-order))]
-        [(< size (car previous)) (hash-set! best-by-root root-key (cons size child-v))]))
-    (for/list ([root-key (in-list (reverse root-order))])
-      (replace-child root-v child-index (cdr (hash-ref best-by-root root-key)))))
-
-  (define (extract-enode-variants enode node-type)
-    (define root-v (extract-enode enode node-type))
-    (if child-variants?
-        (cons root-v
-              (append* (for/list ([child-id (in-list (if (list? enode)
-                                                         (cdr enode)
-                                                         '()))]
-                                  [child-index (in-naturals)])
-                         (extract-child-variants root-v child-id child-index))))
-        (list root-v)))
 
   ; extract expressions
   (define key (cons id type))
@@ -1113,8 +1053,8 @@
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
 
-     (remove-duplicates (append* (for/list ([enode (vector-ref eclasses id*)])
-                                   (extract-enode-variants enode type)))
+     (remove-duplicates (for/list ([enode (vector-ref eclasses id*)])
+                          (extract-enode enode type))
                         #:key val-idx)]
     [else (list)]))
 
@@ -1330,7 +1270,7 @@
                 [repr (in-list reprs)])
        (regraph-extract-best regraph extract-id id repr))]))
 
-(define (egraph-variations runner block reprs #:child-variants? [child-variants? #f])
+(define (egraph-variations runner block reprs)
   (define ctx (egg-runner-ctx runner))
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
@@ -1348,7 +1288,7 @@
      ; (Listof (Listof val))
      (for/list ([id (in-list root-ids)]
                 [repr (in-list reprs)])
-       (regraph-extract-variants regraph extract-id id repr #:child-variants? child-variants?))]))
+       (regraph-extract-variants regraph extract-id id repr))]))
 
 (define (deduplicate-exprs exprs ctxs)
   (define ctx (contexts-union ctxs))
