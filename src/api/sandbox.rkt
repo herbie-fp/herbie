@@ -322,3 +322,31 @@
      (define status (if type "error" "crash"))
      (dummy-table-row-from-hash result-hash status link)]
     ["timeout" (dummy-table-row-from-hash result-hash "timeout" link)]))
+
+(module+ test
+  (require rackunit
+           racket/runtime-path)
+
+  (define-runtime-path tutorial-bench "../../bench/tutorial.fpcore")
+
+  (define (proof-has-rule? expr)
+    (match expr
+      [(list (or 'Rewrite=> 'Rewrite<=) _ _) #t]
+      [(approx spec impl) (or (proof-has-rule? spec) (proof-has-rule? impl))]
+      [(list _ args ...) (ormap proof-has-rule? args)]
+      [_ #f]))
+
+  (define (history-has-proof? altn)
+    (define proof
+      (match (alt-event altn)
+        [(list 'rr _ _ _ proof) proof]
+        [_ #f]))
+    (or (and proof (ormap proof-has-rule? proof)) (ormap history-has-proof? (alt-prevs altn))))
+
+  (test-case "rewrite derivations retain rule steps"
+    (activate-platform! "c")
+    (define test (second (load-tests tutorial-bench)))
+    (define result (run-herbie 'improve test #:seed 1))
+    (check-equal? (job-result-status result) 'success)
+    (check-true (ormap history-has-proof?
+                       (map alt-analysis-alt (improve-result-end (job-result-backend result)))))))
