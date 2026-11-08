@@ -4,6 +4,10 @@
          (only-in fpbench
                   fpcore?
                   supported-by-lang?
+                  valid-core
+                  supported-list
+                  supported-list-ops
+                  tex-supported
                   core->c
                   core->fortran
                   core->java
@@ -158,9 +162,21 @@
                                                       ("TeX" "tex" ,(λ (c i) (core->tex c)))))
 
 (define (fpcore->tex fpcore #:loc [loc #f])
-  (if (supported-by-lang? fpcore "tex")
+  (define supported
+    (struct-copy supported-list
+                 tex-supported
+                 [ops
+                  (λ (op) (or (set-member? '(array ref) op) ((supported-list-ops tex-supported) op)))]
+                 [tensor-args? #t]))
+  (if (valid-core fpcore supported)
       (core->tex fpcore #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
+
+(module+ test
+  (require rackunit)
+  (check-equal?
+   (string-trim (fpcore->tex '(FPCore ((a 2)) (array (ref a 0) (ref a 1)))))
+   "\\mathsf{array}\\left(\\mathsf{ref}\\left(a, 0\\right), \\mathsf{ref}\\left(a, 1\\right)\\right)"))
 
 (define (precondition->display expr)
   (match expr
