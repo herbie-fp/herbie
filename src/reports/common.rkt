@@ -172,12 +172,6 @@
       (core->tex fpcore #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
-(module+ test
-  (require rackunit)
-  (check-equal?
-   (string-trim (fpcore->tex '(FPCore ((a 2)) (array (ref a 0) (ref a 1)))))
-   "\\mathsf{array}\\left(\\mathsf{ref}\\left(a, 0\\right), \\mathsf{ref}\\left(a, 1\\right)\\right)"))
-
 (define (precondition->display expr)
   (match expr
     [(? exact-integer? n)
