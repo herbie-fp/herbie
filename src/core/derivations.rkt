@@ -16,13 +16,13 @@
     [(list op args ...) (cons op (map (curry copy-proof-specs spec-block) args))]
     [_ expr]))
 
-(define (canonicalize-proof block spec-block prog-v proof start-v)
-  ;; Proofs are on subexpressions; lift to full expression
+(define (canonicalize-proof block spec-block prog-v proof end-v)
+  ;; Proofs are on subexpressions; lift to full expression by replacing the final subexpression
   ;; Returns a list of vals instead of expressions
   (and proof
        (for/list ([step (in-list proof)])
          (define step-v (block-add! block (copy-proof-specs spec-block step)))
-         (block-replace-subexpr block prog-v start-v step-v))))
+         (block-replace-subexpr block prog-v end-v step-v))))
 
 ;; Adds proof information to alternatives.
 ;; start-expr and end-expr are vals
@@ -37,7 +37,7 @@
        (apply values (block-to-spec! block spec-block (list start-v end-v))))
      (define proof
        (and (not (flag-set? 'generate 'egglog)) (egraph-prove runner proof-start proof-end)))
-     (define proof* (canonicalize-proof block spec-block (alt-expr altn) proof start-v))
+     (define proof* (canonicalize-proof block spec-block (alt-expr altn) proof end-v))
      (alt expr `(rr ,start-v ,end-v ,runner ,proof*) (list prev))]
 
     ; everything else
