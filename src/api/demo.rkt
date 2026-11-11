@@ -63,14 +63,20 @@
 
 (define (write-results-to-disk result-hash path)
   (make-directory (build-path (*demo-output*) path))
+  (define page-failed? #f)
   (for ([page (all-pages result-hash)])
     (call-with-output-file
      (build-path (*demo-output*) path page)
      (λ (out)
-       (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
-         (make-page-timeout page out result-hash (*demo-output*) #f #:timeout 10000)))))
+       (unless (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
+                 (make-page-timeout page out result-hash (*demo-output*) #f #:timeout 10000))
+         (set! page-failed? #t)))))
   (define link (path-element->string (last (explode-path path))))
-  (define data (get-table-data-from-hash result-hash link))
+  (define row (get-table-data-from-hash result-hash link))
+  (define data
+    (if page-failed?
+        (struct-copy table-row row [status "crash"])
+        row))
   (define data-file (build-path (*demo-output*) "results.json"))
   (define html-file (build-path (*demo-output*) "index.html"))
   (define info

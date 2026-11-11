@@ -29,13 +29,16 @@
   (parameterize ([current-error-port out])
     (display "<!doctype html><pre>" out)
     ((error-display-handler) (exn-message e) e)
-    (display "</pre>" out)))
+    (display "</pre>" out))
+  #f)
 
 (define (make-page-timeout page out result-hash output? profile? #:timeout [timeout +inf.0])
   (define e (engine (lambda (_) (make-page page out result-hash output? profile?))))
   (if (engine-run timeout e)
-      (engine-result e)
-      (display "<!doctype html><h1>Timeout generating page</h1>" out)))
+      (begin
+        (engine-result e)
+        #t)
+      (error 'make-page-timeout "Timeout generating page")))
 
 (define (make-page page out result-hash output? profile?)
   (match page

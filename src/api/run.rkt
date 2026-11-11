@@ -70,14 +70,19 @@
   (unless (directory-exists? report-directory)
     (make-directory report-directory))
 
+  (define page-failed? #f)
   (for ([page (all-pages result)])
     (call-with-output-file (build-path report-directory page)
                            #:exists 'replace
                            (λ (out)
-                             (with-handlers ([exn:fail? (page-error-handler result page out)])
-                               (make-page-timeout page out result #t #f #:timeout 10000)))))
+                             (unless (with-handlers ([exn:fail? (page-error-handler result page out)])
+                                       (make-page-timeout page out result #t #f #:timeout 10000))
+                               (set! page-failed? #t)))))
 
-  (get-table-data-from-hash result report-path))
+  (define row (get-table-data-from-hash result report-path))
+  (if page-failed?
+      (struct-copy table-row row [status "crash"])
+      row))
 
 (define (run-tests tests #:dir dir #:threads threads)
   (define seed (get-seed))
