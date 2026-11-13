@@ -2,8 +2,8 @@
 (require (only-in xml write-xexpr xexpr?)
          racket/runtime-path
          (only-in fpbench
-                  fpcore?
                   supported-by-lang?
+                  make-program-features
                   valid-core
                   supported-list
                   supported-list-ops
@@ -191,13 +191,15 @@
   (define precondition* (prog->fpcore precondition ctx))
   (define precondition-display* (precondition->display precondition*))
   (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec ':pre precondition*)))
+  (define features (make-program-features out-prog*))
 
   (define versions
     (reap [sow]
           (for ([(lang record) (in-dict languages)])
             (match-define (list ext converter) record)
-            (when (and (fpcore? out-prog*)
-                       (or (equal? ext "fpcore") (supported-by-lang? out-prog* ext)))
+            (define supported?
+              (and features (or (equal? ext "fpcore") (supported-by-lang? features ext))))
+            (when supported?
               (define name
                 (if identifier
                     (symbol->string identifier)

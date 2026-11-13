@@ -25,7 +25,7 @@
                              ("rival3" #:version "1.0")
                              ("egg-herbie" #:version "2.2")
                              ("rival" #:version "2.3")
-                             ("fpbench" #:version "2.0.3")
+                             ("fpbench" #:version "2.0.5")
                              "fmt"))
 
 (define build-deps '("rackunit-lib"))
