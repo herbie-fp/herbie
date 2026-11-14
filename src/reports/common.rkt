@@ -161,8 +161,7 @@
                                                       ("ReFlow" "reflow" ,core->reflow)
                                                       ("TeX" "tex" ,(λ (c i) (core->tex c)))))
 
-;; Keep the location keyword for compatibility; TeX output is uncolored.
-(define (fpcore->tex fpcore #:loc [_loc #f])
+(define (fpcore->tex fpcore)
   (define supported
     (struct-copy supported-list
                  tex-supported
