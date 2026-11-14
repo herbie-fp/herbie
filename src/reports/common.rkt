@@ -161,7 +161,7 @@
                                                       ("ReFlow" "reflow" ,core->reflow)
                                                       ("TeX" "tex" ,(λ (c i) (core->tex c)))))
 
-(define (fpcore->tex fpcore #:loc [loc #f])
+(define (fpcore->tex fpcore)
   (define supported
     (struct-copy supported-list
                  tex-supported
@@ -169,7 +169,7 @@
                   (λ (op) (or (set-member? '(array ref) op) ((supported-list-ops tex-supported) op)))]
                  [tensor-args? #t]))
   (if (valid-core fpcore supported)
-      (core->tex fpcore #:loc (and loc (cons 2 loc)) #:color "blue")
+      (core->tex fpcore)
       "ERROR"))
 
 (define (precondition->display expr)
