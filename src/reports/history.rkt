@@ -132,24 +132,18 @@
   masks)
 
 ;; HTML renderer for derivations
-(define (history-program->tex program tex-cache)
-  (hash-ref! tex-cache program (λ () (fpcore->tex (read (open-input-string program))))))
-
-(define (render-history json repr #:tex-cache [tex-cache (make-hash)])
+(define (render-history json repr)
   (define err
     (match (hash-ref json 'error)
       [(? number? n) (format-accuracy n repr #:unit "%")]
       [other other]))
+  (define prog (read (open-input-string (hash-ref json 'program))))
   (match (hash-ref json 'type)
     ["start"
      (list `(li (p "Initial program " (span ((class "error")) ,err))
-                (div ((class "math"))
-                     "\\["
-                     ,(history-program->tex (hash-ref json 'program) tex-cache)
-                     "\\]")))]
+                (div ((class "math")) "\\[" ,(fpcore->tex prog) "\\]")))]
 
-    ["add-preprocessing"
-     `(,@(render-history (hash-ref json 'prev) repr #:tex-cache tex-cache) (li "Add Preprocessing"))]
+    ["add-preprocessing" `(,@(render-history (hash-ref json 'prev) repr) (li "Add Preprocessing"))]
 
     ["regimes"
      (define prevs (hash-ref json 'prevs))
@@ -158,40 +152,31 @@
                     (for/list ([entry (in-list prevs)]
                                [condition (in-list (hash-ref json 'conditions))])
                       `((h2 (code "if " (span ((class "condition")) ,(string-join condition " or "))))
-                        (ol ,@(render-history entry repr #:tex-cache tex-cache))))))
+                        (ol ,@(render-history entry repr))))))
        (li ((class "event")) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
     ["taylor"
      (define-values (prev pt var order)
        (apply values (map (curry hash-ref json) '(prev pt var order))))
-     `(,@(render-history prev repr #:tex-cache tex-cache)
+     `(,@(render-history prev repr)
        (li (p "Taylor expanded in " ,var " around " ,pt " to order " ,(~a order))
-           (div ((class "math"))
-                "\\[\\leadsto "
-                ,(history-program->tex (hash-ref json 'program) tex-cache)
-                "\\]")))]
+           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]
 
     ["evaluate"
      (define prev (hash-ref json 'prev))
-     `(,@(render-history prev repr #:tex-cache tex-cache)
+     `(,@(render-history prev repr)
        (li (p "Evaluated real constant" (span ((class "error")) ,err))
-           (div ((class "math"))
-                "\\[\\leadsto "
-                ,(history-program->tex (hash-ref json 'program) tex-cache)
-                "\\]")))]
+           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]
 
     ["rr"
      (define-values (prev proof) (apply values (map (curry hash-ref json) '(prev proof))))
-     (define proof-html (render-proof proof repr tex-cache))
-     `(,@(render-history prev repr #:tex-cache tex-cache)
+     (define proof-html (render-proof proof repr))
+     `(,@(render-history prev repr)
        ,@(if proof-html
              `((li ,proof-html))
              '())
        (li (p "Applied rewrites" (span ((class "error")) ,err))
-           (div ((class "math"))
-                "\\[\\leadsto "
-                ,(history-program->tex (hash-ref json 'program) tex-cache)
-                "\\]")))]))
+           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]))
 
 (define (errors-score-masked errs mask)
   (define count (for/sum ([use? (in-vector mask)] #:when use?) 1))
@@ -201,7 +186,7 @@
                                   ([err (in-flvector errs)] [use? (in-vector mask)] #:when use?)
                                   err))))
 
-(define (render-proof proof-json repr tex-cache)
+(define (render-proof proof-json repr)
   (cond
     [(eq? proof-json (json-null)) #f]
     [else
@@ -214,13 +199,13 @@
            (match direction
              ["rtl" "right to left"]
              ["ltr" "left to right"]))
-         `(li
-           (p (code ([title ,dir]) ,rule)
-              (span ((class "error"))
-                    ,(if (number? err)
-                         (format-accuracy err repr #:unit "%")
-                         err)))
-           (div ((class "math")) "\\[\\leadsto " ,(history-program->tex prog-str tex-cache) "\\]"))))
+         (define prog (read (open-input-string prog-str)))
+         `(li (p (code ([title ,dir]) ,rule)
+                 (span ((class "error"))
+                       ,(if (number? err)
+                            (format-accuracy err repr #:unit "%")
+                            err)))
+              (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]"))))
      (if (null? steps)
          #f
          `(div ((class "proof")) (details (summary "Step-by-step derivation") (ol ,@steps))))]))

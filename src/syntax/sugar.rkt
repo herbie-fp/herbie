@@ -345,10 +345,8 @@
 
 (define (prog->let-exprs expr)
   (define instrs '())
-  (define next-id 0)
   (define (push! impl node)
-    (define id next-id)
-    (set! next-id (add1 next-id))
+    (define id (length instrs))
     (set! instrs (cons (cons node impl) instrs))
     (index id))
 
