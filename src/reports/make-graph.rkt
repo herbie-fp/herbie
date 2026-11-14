@@ -46,6 +46,7 @@
   (define end-histories
     (for/list ([end-analysis (in-list end)])
       (hash-ref end-analysis 'history)))
+  (define history-tex-cache (make-hash))
 
   ; Speedup is going to be #f if cost is 0 for each alternative
   (define speedup
@@ -163,7 +164,9 @@
                ,dropdown
                ,(render-help "report.html#alternatives"))
            ,body
-           (details (summary "Derivation") (ol ((class "history")) ,@(render-history history repr)))))
+           (details (summary "Derivation")
+                    (ol ((class "history"))
+                        ,@(render-history history repr #:tex-cache history-tex-cache)))))
      ,@(for/list ([i (in-naturals 1)]
                   [target (in-list targets)])
          (define target-error (hash-ref target 'errors))
