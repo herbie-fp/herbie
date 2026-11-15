@@ -73,6 +73,10 @@ if [[ ! -d "$FPBENCH_DIR" ]]; then
   mkdir -p "$(dirname "$FPBENCH_DIR")"
   git clone https://github.com/FPBench/FPBench.git "$FPBENCH_DIR"
   log_step_done
+else
+  log_step "Updating FPBench checkout"
+  git -C "$FPBENCH_DIR" pull --ff-only
+  log_step_done
 fi
 
 fpbench_packages="$(COLUMNS=1000 raco pkg show --long --dir fpbench)"
