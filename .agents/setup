@@ -7,6 +7,7 @@ RACKET_BIN="$RACKET_PREFIX/bin"
 RACKET_INSTALLER="racket-$RACKET_VERSION-x86_64-linux-buster-cs.sh"
 RACKET_URL="https://download.racket-lang.org/installers/$RACKET_VERSION/$RACKET_INSTALLER"
 RUST_VERSION=1.88.0
+FPBENCH_DIR="$HOME/workspace/repos/fpbench"
 
 log_step() {
   printf '\n==> %s\n' "$1"
@@ -66,6 +67,24 @@ EOF
 fi
 
 export PATH="$RACKET_BIN:$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+
+if [[ ! -d "$FPBENCH_DIR" ]]; then
+  log_step "Checking out FPBench"
+  mkdir -p "$(dirname "$FPBENCH_DIR")"
+  git clone https://github.com/FPBench/FPBench.git "$FPBENCH_DIR"
+  log_step_done
+fi
+
+fpbench_packages="$(COLUMNS=1000 raco pkg show --long --dir fpbench)"
+if ! grep -Fq "(link \"$FPBENCH_DIR\")" <<<"$fpbench_packages"; then
+  log_step "Linking local FPBench package"
+  if grep -Eq '^[[:space:]]+fpbench[*]?[[:space:]]' <<<"$fpbench_packages"; then
+    raco pkg update --link --name fpbench --no-docs "$FPBENCH_DIR"
+  else
+    raco pkg install --auto --link --name fpbench --no-docs "$FPBENCH_DIR"
+  fi
+  log_step_done
+fi
 
 if ! rustup toolchain list | grep -q "^$RUST_VERSION"; then
   log_step "Installing Rust $RUST_VERSION"
