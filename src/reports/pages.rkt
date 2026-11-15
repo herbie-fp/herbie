@@ -34,11 +34,11 @@
 
 (define (make-page-timeout page out result-hash output? profile? #:timeout [timeout +inf.0])
   (define e (engine (lambda (_) (make-page page out result-hash output? profile?))))
-  (if (engine-run timeout e)
-      (begin
-        (engine-result e)
-        #t)
-      (error 'make-page-timeout "Timeout generating page")))
+  (unless (engine-run timeout e)
+    (error 'make-page-timeout "Timeout generating page"))
+  (begin
+    (engine-result e)
+    #t))
 
 (define (make-page page out result-hash output? profile?)
   (match page
