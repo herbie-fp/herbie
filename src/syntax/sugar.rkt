@@ -353,6 +353,11 @@
   (define (munge expr #:root? [root? #f])
     (match expr
       [(? literal?) (literal->fpcore expr)]
+      [(and (? rational?) (? exact?) (not (? integer?)))
+       (define decimal (exact->inexact expr))
+       (if (equal? (string->number (number->string decimal) 10 'read 'decimal-as-exact) expr)
+           decimal
+           expr)]
       [(? number?) expr]
       [(? symbol?) expr]
       [(approx _ impl) (munge impl)]
@@ -486,3 +491,11 @@
   ; step 3: construct the actual FPCore expression from
   ; the remaining let-bindings and body
   (build-expr body ivec ctx))
+
+(module+ test
+  (require rackunit)
+  (define ctx (context '() <binary64> '()))
+  (check-equal? (prog->fpcore 1/8 ctx) 0.125)
+  (check-equal? (prog->fpcore 1/3 ctx) 1/3)
+  (check-equal? (prog->fpcore 1234567890123456789/1000000000000000000 ctx)
+                1234567890123456789/1000000000000000000))
