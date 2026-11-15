@@ -261,7 +261,7 @@
         [else
          (define repr (repr-of expr ctx))
          (define total-bits (representation-total-bits repr))
-         (define bits-error (first error-bits-list))
+         (match-define (list bits-error) error-bits-list)
          (* 100 (- 1 (/ bits-error total-bits)))]))
     (hasheq 'ulps-error
             error-bits
