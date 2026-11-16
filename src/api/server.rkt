@@ -580,7 +580,13 @@
 (define (backend-improve-result-hash-table backend test errcache)
   (define ctx (test-context test))
   (define pcontext (improve-result-pcontext backend))
-  (hasheq 'pcontext
+  (hasheq 'vars
+          (map symbol->string (context-vars ctx))
+          'var-reprs
+          (map (compose ~s representation-name) (context-var-reprs ctx))
+          'bits
+          (representation-total-bits (context-repr ctx))
+          'pcontext
           (pcontext->json pcontext ctx)
           'start
           (analysis->json (improve-result-start backend) pcontext test errcache)

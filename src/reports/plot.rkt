@@ -3,7 +3,7 @@
 (require "../syntax/float.rkt"
          "../core/programs.rkt"
          "../syntax/types.rkt"
-         "../syntax/read.rkt"
+         "../syntax/platform.rkt"
          "../core/alternative.rkt")
 
 (provide make-points-json
@@ -24,10 +24,12 @@
         '())))
 
 (define (make-points-json result-hash)
-  (define test (load-test (open-input-string (hash-ref result-hash 'test))))
   (define backend (hash-ref result-hash 'backend))
+  (define vars (hash-ref backend 'vars))
+  (define var-reprs
+    (for/list ([name (in-list (hash-ref backend 'var-reprs))])
+      (get-representation (read (open-input-string name)))))
   (define test-points (map first (hash-ref backend 'pcontext)))
-  (define repr (test-output-repr test))
 
   (define start-errors (hash-ref (hash-ref backend 'start) 'errors))
   (define target-errors (map (curryr hash-ref 'errors) (hash-ref backend 'target)))
@@ -37,7 +39,7 @@
   (define ordinal-points
     (for/list ([point (in-list test-points)])
       (for/list ([x (in-list point)]
-                 [repr (in-list (test-var-reprs test))])
+                 [repr (in-list var-reprs)])
         ((representation-repr->ordinal repr) (json->value x repr)))))
 
   (define-values (mins maxs)
@@ -51,8 +53,7 @@
                   (map max point maxs)
                   point))))
 
-  (define vars (test-vars test))
-  (define bits (representation-total-bits repr))
+  (define bits (hash-ref backend 'bits))
   (define start-error
     (for/list ([err (in-list start-errors)])
       (bits->tenths err)))
@@ -77,7 +78,7 @@
                [idx (in-naturals)]
                [min-ordinal (in-list mins)]
                [max-ordinal (in-list maxs)]
-               [repr (in-list (test-var-reprs test))]
+               [repr (in-list var-reprs)]
                ; We want to bail out since choose-ticks will crash otherwise
                #:unless (equal? min-ordinal max-ordinal))
       (define min-val (repr->real ((representation-ordinal->repr repr) min-ordinal) repr))
@@ -105,7 +106,7 @@
   ;   ticks_by_varidx: array of size n where each entry is [label, ordinal] pairs
   ;   splitpoints_by_varidx: array of size n where each entry has ordinal splitpoints
   `#hasheq((bits . ,bits)
-           (vars . ,(map symbol->string vars))
+           (vars . ,vars)
            (points . ,ordinal-points)
            (error . ,error-entries)
            (ticks_by_varidx . ,ticks)
@@ -195,3 +196,32 @@
   (-> alt? (or/c expr? #f))
   (define info (regime-info altn))
   (and info (sp-bexpr (car info))))
+
+(module+ test
+  (require rackunit
+           "../syntax/load-platform.rkt")
+  (activate-platform! "herbie20")
+  (define result
+    (hasheq 'backend
+            (hasheq 'vars
+                    '("x" "y")
+                    'var-reprs
+                    '("binary32" "binary64")
+                    'bits
+                    96
+                    'pcontext
+                    '(((1.0 2.0) 0) ((2.0 3.0) 0))
+                    'start
+                    (hasheq 'errors '(0.0 1.0))
+                    'target
+                    '()
+                    'end
+                    (list (hasheq 'errors '(0.0 1.0) 'splitpoints '(() ()))))))
+  (define points (make-points-json result))
+  (check-equal? (hash-ref points 'vars) '("x" "y"))
+  (check-equal? (hash-ref points 'bits) 96)
+  (check-equal? (hash-ref points 'points)
+                (list (list ((representation-repr->ordinal <binary32>) 1.0)
+                            ((representation-repr->ordinal <binary64>) 2.0))
+                      (list ((representation-repr->ordinal <binary32>) 2.0)
+                            ((representation-repr->ordinal <binary64>) 3.0)))))
