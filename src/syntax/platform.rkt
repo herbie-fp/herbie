@@ -411,6 +411,7 @@
 (define/contract (get-fpcore-impl op prop-dict ireprs)
   (-> symbol? prop-dict/c (listof representation?) (or/c symbol? #f))
   (define platform (*active-platform*))
+  (define arity (length ireprs))
 
   ; gather all implementations that have the same spec, input representations,
   ; and its FPCore translation has properties that are found in `prop-dict`
@@ -419,8 +420,10 @@
           (for ([impl (in-list (hash-ref (platform-fpcore-impl-index platform) op '()))]
                 #:when (equal? ireprs (impl-info impl 'itype)))
             (define-values (prop-dict* expr) (impl->fpcore impl))
-            (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))
-            (when (and (subset? prop-dict* prop-dict) (pattern-match pattern expr))
+            (when (and (subset? prop-dict* prop-dict)
+                       (match expr
+                         [(list expr-op args ...) (and (equal? op expr-op) (= arity (length args)))]
+                         [_ #f]))
               (sow impl)))))
   ; check that we have any matching impls
   (cond
