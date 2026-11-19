@@ -309,7 +309,7 @@
   (require rackunit
            "egglog-herbie.rkt")
 
-  (when (find-executable-path "egglog")
+  (when (or (find-executable-path "egglog-experimental") (find-executable-path "egglog"))
     (populate-e->id-tables)
     (test-e1->expr)
     (test-e2->expr)))
@@ -337,12 +337,12 @@
 
   (define schedule '(rewrite lower))
 
-  (when (find-executable-path "egglog")
+  (when (or (find-executable-path "egglog-experimental") (find-executable-path "egglog"))
     (void (run-egglog (make-egglog-runner block vs schedule ctx) block reprs #:extract 1000000))))
 
 (module+ test
   (require rackunit)
-  (when (find-executable-path "egglog")
+  (when (or (find-executable-path "egglog-experimental") (find-executable-path "egglog"))
     (let ()
       (define ctx (context '(x y) <binary64> (make-list 2 <binary64>)))
       (define-values (block vs) (progs->block (list '(+ x y)) #:ctx ctx))
@@ -354,12 +354,12 @@
       (egglog-subprocess-close subproc)
 
       (check-equal? (length root-constructors) 1)
-      (check-equal? (length (filter (lambda (stmt)
-                                      (match stmt
-                                        [`(let . ,_) #t]
-                                        [_ #f]))
-                                    all-bindings))
-                    5))
+      ;; Initialize the variables and their sum, excluding the unreachable product.
+      (check-equal? (filter-map (match-lambda
+                                  [`(let ,_ ,expr) expr]
+                                  [_ #f])
+                                all-bindings)
+                    '((Var "x") (Var "y") (Add ?sx ?sy))))
 
     (define subproc (create-new-egglog-subprocess #f))
 
