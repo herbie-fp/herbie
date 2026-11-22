@@ -5,34 +5,33 @@
 (provide pattern-match
          pattern-substitute)
 
-;; Unions two bindings. Returns #f if they disagree.
-(define (merge-bindings binding1 binding2)
-  (and binding1
-       binding2
-       (let/ec quit
-         (for/fold ([binding binding1]) ([(k v) (in-dict binding2)])
-           (dict-update binding
-                        k
-                        (λ (x)
-                          (if (equal? x v)
-                              v
-                              (quit #f)))
-                        v)))))
-
 ;; Pattern matcher that returns a substitution or #f.
-;; A substitution is an association list of symbols and expressions.
+;; A substitution is an immutable hash of symbols and expressions.
 (define (pattern-match pattern expr)
-  (match* (pattern expr)
-    [((? number?) _) (and (equal? pattern expr) '())]
-    [((? symbol?) _) (list (cons pattern expr))]
-    [((list phead prest ...) (list head rest ...))
-     (and (equal? phead head)
-          (= (length prest) (length rest))
-          (for/fold ([bindings '()])
-                    ([pat (in-list prest)]
-                     [term (in-list rest)])
-            (merge-bindings bindings (pattern-match pat term))))]
-    [(_ _) #f]))
+  (let/ec fail
+    (define (loop pattern expr bindings)
+      (match* (pattern expr)
+        [((? number?) _)
+         (if (equal? pattern expr)
+             bindings
+             (fail #f))]
+        [((? symbol?) _)
+         (hash-update bindings
+                      pattern
+                      (lambda (old)
+                        (if (equal? old expr)
+                            old
+                            (fail #f)))
+                      expr)]
+        [((list phead prest ...) (list head rest ...))
+         (unless (and (equal? phead head) (= (length prest) (length rest)))
+           (fail #f))
+         (for/fold ([bindings bindings])
+                   ([pat (in-list prest)]
+                    [term (in-list rest)])
+           (loop pat term bindings))]
+        [(_ _) (fail #f)]))
+    (loop pattern expr (hasheq))))
 
 (define (pattern-substitute pattern bindings)
   ; pattern binding -> expr
