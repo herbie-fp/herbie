@@ -61,6 +61,7 @@
 
   (define end-error (car end-errors))
   (define alt-number 0)
+  (define history-cache (make-hash))
 
   `(html
     (head (meta ([charset "utf-8"]))
@@ -163,7 +164,8 @@
                ,dropdown
                ,(render-help "report.html#alternatives"))
            ,body
-           (details (summary "Derivation") (ol ((class "history")) ,@(render-history history repr)))))
+           (details (summary "Derivation")
+                    (ol ((class "history")) ,@(render-history history repr history-cache)))))
      ,@(for/list ([i (in-naturals 1)]
                   [target (in-list targets)])
          (define target-error (hash-ref target 'errors))

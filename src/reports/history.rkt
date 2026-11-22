@@ -132,18 +132,23 @@
   masks)
 
 ;; HTML renderer for derivations
-(define (render-history json repr)
+(define (history-program->tex program cache)
+  (hash-ref! cache program (lambda () (fpcore->tex (read (open-input-string program))))))
+
+(define (render-history json repr [cache (make-hash)])
   (define err
     (match (hash-ref json 'error)
       [(? number? n) (format-accuracy n repr #:unit "%")]
       [other other]))
-  (define prog (read (open-input-string (hash-ref json 'program))))
+  (define (program->tex)
+    (history-program->tex (hash-ref json 'program) cache))
   (match (hash-ref json 'type)
     ["start"
      (list `(li (p "Initial program " (span ((class "error")) ,err))
-                (div ((class "math")) "\\[" ,(fpcore->tex prog) "\\]")))]
+                (div ((class "math")) "\\[" ,(program->tex) "\\]")))]
 
-    ["add-preprocessing" `(,@(render-history (hash-ref json 'prev) repr) (li "Add Preprocessing"))]
+    ["add-preprocessing"
+     `(,@(render-history (hash-ref json 'prev) repr cache) (li "Add Preprocessing"))]
 
     ["regimes"
      (define prevs (hash-ref json 'prevs))
@@ -152,31 +157,31 @@
                     (for/list ([entry (in-list prevs)]
                                [condition (in-list (hash-ref json 'conditions))])
                       `((h2 (code "if " (span ((class "condition")) ,(string-join condition " or "))))
-                        (ol ,@(render-history entry repr))))))
+                        (ol ,@(render-history entry repr cache))))))
        (li ((class "event")) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
     ["taylor"
      (define-values (prev pt var order)
        (apply values (map (curry hash-ref json) '(prev pt var order))))
-     `(,@(render-history prev repr)
+     `(,@(render-history prev repr cache)
        (li (p "Taylor expanded in " ,var " around " ,pt " to order " ,(~a order))
-           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]
+           (div ((class "math")) "\\[\\leadsto " ,(program->tex) "\\]")))]
 
     ["evaluate"
      (define prev (hash-ref json 'prev))
-     `(,@(render-history prev repr)
+     `(,@(render-history prev repr cache)
        (li (p "Evaluated real constant" (span ((class "error")) ,err))
-           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]
+           (div ((class "math")) "\\[\\leadsto " ,(program->tex) "\\]")))]
 
     ["rr"
      (define-values (prev proof) (apply values (map (curry hash-ref json) '(prev proof))))
-     (define proof-html (render-proof proof repr))
-     `(,@(render-history prev repr)
+     (define proof-html (render-proof proof repr cache))
+     `(,@(render-history prev repr cache)
        ,@(if proof-html
              `((li ,proof-html))
              '())
        (li (p "Applied rewrites" (span ((class "error")) ,err))
-           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]")))]))
+           (div ((class "math")) "\\[\\leadsto " ,(program->tex) "\\]")))]))
 
 (define (errors-score-masked errs mask)
   (define count (for/sum ([use? (in-vector mask)] #:when use?) 1))
@@ -186,7 +191,7 @@
                                   ([err (in-flvector errs)] [use? (in-vector mask)] #:when use?)
                                   err))))
 
-(define (render-proof proof-json repr)
+(define (render-proof proof-json repr [cache (make-hash)])
   (cond
     [(eq? proof-json (json-null)) #f]
     [else
@@ -199,13 +204,12 @@
            (match direction
              ["rtl" "right to left"]
              ["ltr" "left to right"]))
-         (define prog (read (open-input-string prog-str)))
          `(li (p (code ([title ,dir]) ,rule)
                  (span ((class "error"))
                        ,(if (number? err)
                             (format-accuracy err repr #:unit "%")
                             err)))
-              (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog) "\\]"))))
+              (div ((class "math")) "\\[\\leadsto " ,(history-program->tex prog-str cache) "\\]"))))
      (if (null? steps)
          #f
          `(div ((class "proof")) (details (summary "Step-by-step derivation") (ol ,@steps))))]))
