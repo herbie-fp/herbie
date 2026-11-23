@@ -112,9 +112,9 @@
   (let loop ([props props]
              [dict '()])
     (match props
-      [(list key val rest ...) (loop rest (dict-set dict key val))]
+      [(list key val rest ...) (loop rest (cons (cons key val) dict))]
       [(list key) (error 'props->dict "unmatched key" key)]
-      [(list) dict])))
+      [(list) (reverse (remove-duplicates dict eq? #:key car))])))
 
 (define (fpcore->string core)
   (define-values (ident args props expr)
