@@ -1,0 +1,238 @@
+;; -*- mode: scheme -*-
+
+;; Floating-point bugs in machine-learning frameworks whose fix is a rewrite of
+;; the expression.  The body is the expression as the library computed it (or a
+;; scalar model of it, see :description), :alt is the fix, :pre is the realistic
+;; input domain, and :bug-pre is the region where the bug shows up.
+;;
+;; Sources: Kloberdanz, Kloberdanz and Le, "DeepStability: A Study of Unstable
+;; Numerical Methods and Their Solutions in Deep Learning", ICSE 2022; Barron,
+;; Gnanapragasam and Tschannen, "A Fix for Softmax and Cross-Entropy",
+;; arXiv:2610.31642; and the issues, PRs and commits named in each :description.
+
+(FPCore (x)
+ :name "PyTorch i0, large-x branch"
+ :description "torch.special.i0, ATen calc_i0 branch x > 8: exp(x) * chbevl(32/x - 2, B) / sqrt(x). exp(x) overflows for 709.7827 < x < 713.9869 although I0(x) is finite (I0(713) = 6.7051e307). The Chebyshev series (which tends to 1/sqrt(2*pi)) is modelled by the 3-term asymptotic series of sqrt(x)*exp(-x)*I0(x). Issue: https://github.com/pytorch/pytorch/issues/192293 (closed on 5 Nov 2026 as a duplicate of the umbrella issue https://github.com/pytorch/pytorch/issues/203520; still reproduces on torch 2.15.0). :alt is the fix proposed in https://github.com/pytorch/pytorch/pull/192457 (open, not merged): exp(x/2) * (series/sqrt(x)) * exp(x/2). calc_i1 has the same branch and the same overflow (only the series constants differ), and the float32 version overflows for 88.72 < x < 91.90; those variants are left out as duplicates."
+ :precision binary64
+ :pre (<= 8 x 713.98)
+ :bug-pre (<= 709.78 x 713.98)
+ :alt
+ (! :herbie-platform c
+  (let ([s (* 0.3989422804014327 (+ (+ 1 (/ 0.125 x)) (/ 0.0703125 (* x x))))]
+         [h (exp (/ x 2))])
+     (* (* h (/ s (sqrt x))) h)))
+ (let ([s (* 0.3989422804014327 (+ (+ 1 (/ 0.125 x)) (/ 0.0703125 (* x x))))])
+   (/ (* (exp x) s) (sqrt x))))
+
+(FPCore (x)
+ :name "PyTorch sinh, vectorised CPU path"
+ :description "torch.sinh on CPU for tensors of 8 or more elements dispatches to SLEEF Sleef_sinhf*_u10 (PyTorch v2.9.1, vec256_float.h and vec128_float_neon.h). SLEEF computes d = e^|x| as a double-float and then (d - 1/d) * 0.5, so e^|x| overflows for 88.7228 <= |x| <= 89.4160 although sinh(x) is finite. The double-float is modelled by one binary32 exp, which has the same overflow threshold; the model is only faithful away from 0 (SLEEF's double-float has no cancellation there), hence the domain starts at 1. SLEEF issue: https://github.com/shibatch/sleef/issues/364 (open). PyTorch issue: https://github.com/pytorch/pytorch/issues/202532. PyTorch 2.13 and later avoid the bug by calling the scalar libm sinhf instead of SLEEF (https://github.com/pytorch/pytorch/pull/184359); :alt is the split-exponent rewrite suggested in the PyTorch issue, which keeps a formula a vectorised kernel can use. cosh has the same bug ((d + 1/d) * 0.5) and is left out as a duplicate."
+ :precision binary32
+ :pre (<= 1 x 89.41)
+ :bug-pre (<= 88.72 x 89.41)
+ :alt
+ (! :herbie-platform c
+  (let ([h (exp (* x 0.5))])
+     (- (* (* 0.5 h) h) (/ 0.5 (* h h)))))
+ (* (- (exp x) (/ 1 (exp x))) 0.5))
+
+(FPCore (x)
+ :name "JAX exp2 as exp(log(2) * x)"
+ :description "jax.lax.exp2 is lowered as exponential(multiply(log(2), x)) (jax/_src/lax/lax.py, _exp2_lower, jax-v0.11.2). The rounding of the constant and of the product becomes relative error of the result, which grows with |x|: 726 ulps measured at x = 0x1.fefff89f994bfp+9 on x86-64 CPU and on an NVIDIA T4. (log 2) is written symbolically so that the real-valued specification is exactly 2^x. :alt calls exp2 directly, which is what JAX main does since commit eaf0cbf32b122ad751b1028bc956e51720b80c0d (21 Oct 2026, lowering to stablehlo.exp2 outside forward-compatibility mode; not yet in a release as of 7 Nov 2026)."
+ :precision binary64
+ :pre (<= -1022 x 1023.99)
+ :bug-pre (<= 512 x 1023.99)
+ :alt
+ (! :herbie-platform c
+  (exp2 x))
+ (exp (* (log 2) x)))
+
+(FPCore (m)
+ :name "Softmax collapse: cross-entropy gradient of the target logit"
+ :description "Gradient of hard-target cross-entropy with respect to the target logit, q_t - 1 = 1/(1 + e^-m) - 1, written with the margin m = z_t - LSE_{j != t}(z_j). For m above about 16.6 in binary32, q_t rounds to 1 and the gradient is exactly 0 (softmax collapse). :alt is the fix of Barron et al., -e^-m/(1 + e^-m). The binary64 version (cliff at m of about 36.7) is left out as a duplicate."
+ :precision binary32
+ :pre (<= -87 m 87)
+ :bug-pre (<= 1 m 87)
+ :alt
+ (! :herbie-platform c
+  (- (/ (exp (- m)) (+ 1 (exp (- m))))))
+ (- (/ 1 (+ 1 (exp (- m)))) 1))
+
+(FPCore (z0 z1 z2)
+ :name "Softmax collapse: log-softmax of the target logit, 3 classes"
+ :description "Standard log_softmax, x - max - log(sum(exp(x - max))), of logit z0. When z0 is the largest logit by a wide margin, log(1 + small) rounds to 0 and the target log-probability and its loss become exactly 0. :alt is the fix of Barron et al.: m = -LSE_{j != t}(z_j - z_t), log-softmax_t = -softplus(-m), with LSE and softplus in their usual stable forms."
+ :precision binary32
+ :pre (and (<= -100 z0 100) (<= -100 z1 100) (<= -100 z2 100))
+ :bug-pre (and (<= -100 z0 100) (<= -100 z1 z0) (<= -100 z2 z0))
+ :alt
+ (! :herbie-platform c
+  (let* ([a (- z1 z0)]
+          [b (- z2 z0)]
+          [l (+ (fmax a b) (log1p (exp (- (fabs (- a b))))))])
+     (- (+ (fmax l 0) (log1p (exp (- (fabs l))))))))
+ (let ([m (fmax z0 (fmax z1 z2))])
+   (- (- z0 m)
+      (log (+ (+ (exp (- z0 m)) (exp (- z1 m))) (exp (- z2 m)))))))
+
+(FPCore (t s)
+ :name "Softmax cancellation: distillation gradient, 2 classes"
+ :description "Soft-target cross-entropy gradient q_0 - p_0 for 2 classes, p = softmax(teacher), q = softmax(student), with t and s the teacher and student margins z_0 - z_1. When student and teacher logits are close, q - p cancels. :alt is the fix of Barron et al. specialised to 2 classes (delta = (s - t, 0)): d_k = delta_k - sum_i p_i delta_i, s_k = d_k - log1p(sum_i p_i expm1(d_i)), u_k = p_k expm1(s_k), with their fallback u_k = q_k - p_k when |s_k| >= 1. Sampling :bug-pre needs a larger --num-analysis in Herbie (30 worked)."
+ :precision binary32
+ :pre (and (<= -20 t 20) (<= -20 s 20))
+ :bug-pre (and (<= 0.5 t 8) (<= (- t 0.01) s (+ t 0.01)))
+ :alt
+ (! :herbie-platform c
+  (let* ([p0 (/ 1 (+ 1 (exp (- t))))]
+          [p1 (/ 1 (+ 1 (exp t)))]
+          [dl (- s t)]
+          [d0 (* p1 dl)]
+          [d1 (- (* p0 dl))]
+          [s0 (- d0 (log1p (+ (* p0 (expm1 d0)) (* p1 (expm1 d1)))))])
+     (if (< (fabs s0) 1)
+         (* p0 (expm1 s0))
+         (- (/ 1 (+ 1 (exp (- s)))) p0))))
+ (- (/ 1 (+ 1 (exp (- s)))) (/ 1 (+ 1 (exp (- t))))))
+
+(FPCore (x0 x1)
+ :name "PyTorch CPU log_softmax, x - (max + log(sum))"
+ :description "ATen log_softmax CPU kernel computed tmpsum = max_input + log(tmpsum) and output = input - tmpsum. For large inputs with small differences, max + log(sum) loses the low bits of log(sum) (issue https://github.com/pytorch/pytorch/issues/11752). Fix: PyTorch commit ae1a972d78950abc4dab372f496914b5e78b9637 (PR #11866), output = input - max_input - log(sum). On the full domain the error of both versions is dominated by softmax collapse, which neither fixes. Sampling :bug-pre needs a larger --num-analysis in Herbie (30 worked)."
+ :precision binary32
+ :pre (and (<= -10000 x0 10000) (<= -10000 x1 10000))
+ :bug-pre (and (<= 1000 x0 10000) (<= (- x0 10) x1 (+ x0 10)))
+ :alt
+ (! :herbie-platform c
+  (let* ([m (fmax x0 x1)] [s (+ (exp (- x0 m)) (exp (- x1 m)))])
+     (- (- x0 m) (log s))))
+ (let* ([m (fmax x0 x1)] [s (+ (exp (- x0 m)) (exp (- x1 m)))])
+   (- x0 (+ m (log s)))))
+
+(FPCore (x)
+ :name "TensorFlow XLA softplus"
+ :description "XLA Softplus was Log(Add(Exp(x), One)): overflows for x > 88.7 and loses all accuracy for x < -10. The first :alt is TensorFlow commit 2114fd51e9e4fe3cefc058fe42363f68126a9da6 (October 2017), with threshold = log(eps) + 2 = -13.942385 for binary32: x if x > -threshold, exp(x) if x < threshold, else log(exp(x) + 1); it still loses accuracy for -13.94 < x < -10. TensorFlow commit 0fd579e6b7e17e207effb5d931128e10e2e0d6fc (May 2018) removed that loss by switching to max(x, 0) + log1p(exp(-|x|)); the second :alt is the current code in tensorflow/compiler/tf2xla/kernels/unary_ops.cc, from TensorFlow commit 27d684112b1b3337eebdbe5496f1fc5217403940 (June 2020, 'Softplus should be monotonic'), which restores the thresholds and uses log1p(exp(x)) in the middle branch. The SDCA logistic loss log(1 + exp(-y)) fixed in TensorFlow commit f42d9846 is the same expression reflected, in binary64, and is left out as a duplicate."
+ :precision binary32
+ :pre (<= -100 x 100)
+ :bug-pre (or (<= -100 x -10) (<= 88 x 100))
+ :alt
+ (! :herbie-platform c
+  (if (> x 13.942385) x (if (< x -13.942385) (exp x) (log (+ (exp x) 1)))))
+ :alt
+ (! :herbie-platform c
+  (if (> x 13.942385) x (if (< x -13.942385) (exp x) (log1p (exp x)))))
+ (log (+ (exp x) 1)))
+
+(FPCore (l)
+ :name "PyTorch Binomial log-normalizer"
+ :description "torch.distributions.Binomial.log_prob used total_count * log1p(logits.exp()), which overflows for logits > 88.7. Fix: PyTorch commit 071971476d7431a24e527bdc181981678055a95d (PR #20679), _clamp_by_zero(l) + log1p(exp(-|l|)) with _clamp_by_zero(x) = (x.clamp(min=0) + x - x.clamp(max=0)) / 2. Shown with total_count = 1."
+ :precision binary32
+ :pre (<= -100 l 100)
+ :bug-pre (<= 88 l 100)
+ :alt
+ (! :herbie-platform c
+  (+ (/ (+ (fmax l 0) (- l (fmin l 0))) 2) (log1p (exp (- (fabs l))))))
+ (log1p (exp l)))
+
+(FPCore (x)
+ :name "PyTorch SigmoidTransform log-abs-det-Jacobian"
+ :description "torch.distributions.transforms.SigmoidTransform.log_abs_det_jacobian was -(y.reciprocal() + (1 - y).reciprocal()).log() with y = sigmoid(x), which is inaccurate once 1 - y cancels and infinite once sigmoid(x) rounds to 0 or 1. Fix: PyTorch commit c5d5d45f40969cbddbb7f87da343dfd422503c1c (PR #19802), -softplus(-x) - softplus(x), with softplus(x) = x if x > 20 else log1p(exp(x))."
+ :precision binary32
+ :pre (<= -100 x 100)
+ :bug-pre (or (<= -100 x -88) (<= 12 x 100))
+ :alt
+ (! :herbie-platform c
+  (- (- (if (> (- x) 20) (- x) (log1p (exp (- x)))))
+      (if (> x 20) x (log1p (exp x)))))
+ (let ([y (/ 1 (+ 1 (exp (- x))))])
+   (- (log (+ (/ 1 y) (/ 1 (- 1 y)))))))
+
+(FPCore (n k l)
+ :name "TensorFlow NegativeBinomial unnormalized log-probability"
+ :description "tf.contrib.distributions NegativeBinomial._log_unnormalized_prob: total_count * log1p(-probs) + x * log(probs) with probs = sigmoid(logits), infinite for large |logits|. Fix: TensorFlow commit 35ca57d39b9e368ef43302421db774e4ac3e3625, total_count * log_sigmoid(-logits) + x * log_sigmoid(logits), where log_sigmoid(z) = -softplus(-z) with TensorFlow's softplus kernel (threshold log(eps) + 2)."
+ :precision binary32
+ :pre (and (<= 1 n 100) (<= 0 k 100) (<= -100 l 100))
+ :bug-pre (and (<= 1 n 100) (<= 0 k 100) (or (<= -100 l -88) (<= 10 l 100)))
+ :alt
+ (! :herbie-platform c
+  (let* ([sp1 (if (> l 13.942385) l (if (< l -13.942385) (exp l) (log1p (exp l))))]
+          [sp2 (if (> (- l) 13.942385) (- l) (if (< (- l) -13.942385) (exp (- l)) (log1p (exp (- l)))))])
+     (+ (* n (- sp1)) (* k (- sp2)))))
+ (let ([p (/ 1 (+ 1 (exp (- l))))])
+   (+ (* n (log1p (- p))) (* k (log p)))))
+
+(FPCore (x)
+ :name "TensorFlow XLA asinh"
+ :description "XLA Asinh was Log(x + Sqrt(x * x + 1)): x * x overflows for |x| > 1.8e19 and x + sqrt(x * x + 1) cancels for x < 0. The first :alt is TensorFlow commit fd2d8bc50e9b3143544819bf505326e4ed6db2a5 (May 2019): a = |x|, y = log(a + sqrt(a * a + 1)) if a < sqrt(FLT_MAX) else log(a) + log(2), result sign(x) * y; it still loses accuracy for |x| < 0.1 and returns 0 for |x| < 6e-8. The second :alt is TensorFlow commit e47e4bfb9ea32d779c606755edae31827572a724 (February 2020), which adds log1p(a + a * a / (1 + sqrt(a * a + 1))) for a <= 1 and is the current code in openxla/xla (xla/hlo/builder/lib/math.cc)."
+ :precision binary32
+ :pre (<= -1e38 x 1e38)
+ :bug-pre (or (<= -1e38 x 0.1) (<= 1.9e19 x 1e38))
+ :alt
+ (! :herbie-platform c
+  (let* ([a (fabs x)]
+          [y (if (< a 1.8446743e19) (log (+ a (sqrt (+ (* a a) 1)))) (+ (log a) (log 2)))])
+     (copysign y x)))
+ :alt
+ (! :herbie-platform c
+  (let* ([a (fabs x)]
+          [y (if (>= a 1.8446743e19)
+                 (+ (log a) (log 2))
+                 (if (<= a 1)
+                     (log1p (+ a (/ (* a a) (+ 1 (sqrt (+ (* a a) 1))))))
+                     (log (+ a (sqrt (+ (* a a) 1))))))])
+     (copysign y x)))
+ (log (+ x (sqrt (+ (* x x) 1)))))
+
+(FPCore (x)
+ :name "TensorFlow XLA logistic"
+ :description "XLA Logistic was half + half * Tanh(half * x): catastrophic cancellation for negative x (sigmoid(-40) computed as 0). Fix: TensorFlow commit e60c1ba960e598be9c0e0cdd331cdc10e8919dbb, 1 / (1 + exp(-x))."
+ :precision binary32
+ :pre (<= -100 x 100)
+ :bug-pre (<= -100 x -10)
+ :alt
+ (! :herbie-platform c
+  (/ 1 (+ 1 (exp (- x)))))
+ (+ 0.5 (* 0.5 (tanh (* 0.5 x)))))
+
+(FPCore (a b c d)
+ :name "TensorFlow Lite MeanStddevNormalization variance, 4 elements"
+ :description "tensorflow/lite/kernels/internal/reference/portable_tensor_utils.cc computed variance = sum_sq / v_size - mean * mean, which is wrong for a large mean and a small variance (the regression test uses 99.98, 99.99, 100.01, 100.02). Fix: TensorFlow commit ee85e6d230278e763a2784ba86acc747abdb2242, the two-pass sum of (x_i - mean)^2 / v_size."
+ :precision binary32
+ :pre (and (<= -1000 a 1000) (<= -1000 b 1000) (<= -1000 c 1000) (<= -1000 d 1000))
+ :bug-pre (and (<= 90 a 110) (<= 90 b 110) (<= 90 c 110) (<= 90 d 110))
+ :alt
+ (! :herbie-platform c
+  (let ([m (/ (+ (+ (+ a b) c) d) 4)])
+     (/ (+ (+ (+ (* (- a m) (- a m)) (* (- b m) (- b m))) (* (- c m) (- c m))) (* (- d m) (- d m))) 4)))
+ (let ([m (/ (+ (+ (+ a b) c) d) 4)])
+   (- (/ (+ (+ (+ (* a a) (* b b)) (* c c)) (* d d)) 4) (* m m))))
+
+(FPCore (y df)
+ :name "TensorFlow StudentT log(1 + y^2/df)"
+ :description "tf.contrib.distributions StudentT log-probability term log(1. + square(y) / df). Fix: TensorFlow commit 7c97f13ace37ac73bb820dec941c55ae4d538581, log1p(y**2. / df)."
+ :precision binary32
+ :pre (and (<= -1000 y 1000) (<= 0.1 df 1000))
+ :alt
+ (! :herbie-platform c
+  (log1p (/ (* y y) df)))
+ (log (+ 1 (/ (* y y) df))))
+
+(FPCore (d1 d2 d3)
+ :name "TensorFlow MVN log-determinant, 3x3"
+ :description "tf.contrib.distributions MultivariateNormal computed det = square(reduce_prod(diag(chol))) and later log(det), which overflows or underflows for large or small diagonals. Fix: TensorFlow commit 14066c4b84e56c3b86f6152de1bb80df22341aa8, log_det = 2 * reduce_sum(log(diag))."
+ :precision binary32
+ :pre (and (<= 1e-30 d1 1e30) (<= 1e-30 d2 1e30) (<= 1e-30 d3 1e30))
+ :alt
+ (! :herbie-platform c
+  (* 2 (+ (+ (log d1) (log d2)) (log d3))))
+ (let ([p (* (* d1 d2) d3)])
+   (log (* p p))))
+
+(FPCore (a b c)
+ :name "TensorFlow GMM log-sum-exp, 3 components"
+ :description "tf.contrib.factorization GMM computed log(reduce_sum(exp(log_probs))), which underflows to log(0). Fix: TensorFlow commit e6126230200e2ce9c96da5c9e4dc7f104c645d11, reduce_logsumexp, i.e. max + log(sum(exp(x - max)))."
+ :precision binary32
+ :pre (and (<= -1000 a 0) (<= -1000 b 0) (<= -1000 c 0))
+ :bug-pre (and (<= -1000 a -88) (<= -1000 b -88) (<= -1000 c -88))
+ :alt
+ (! :herbie-platform c
+  (let ([m (fmax a (fmax b c))])
+     (+ (log (+ (+ (exp (- a m)) (exp (- b m))) (exp (- c m)))) m)))
+ (log (+ (+ (exp a) (exp b)) (exp c))))
